@@ -40,9 +40,8 @@ if (selectedRole === 'student' && role !== 'student' && role !== 'admin') {
   return
 }
 
-   if (selectedRole === 'student') router.push('/student')
-else if (role === 'admin') router.push('/admin')
-else router.push('/student')
+  if (selectedRole === 'admin') router.push('/admin')
+  else router.push('/student')
   }
 
   async function handleReset() {
