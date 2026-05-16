@@ -26,22 +26,23 @@ export default function LoginPage() {
     const role = data.user.user_metadata?.role
     const categories = data.user.user_metadata?.categories || []
 
-    // 역할 체크
-    if (selectedRole === 'admin' && role !== 'admin') {
-      setError('강사 계정이 아니에요.')
-      await supabase.auth.signOut()
-      setLoading(false)
-      return
-    }
-    if (selectedRole === 'student' && role !== 'student') {
-      setError('수강생 계정이 아니에요.')
-      await supabase.auth.signOut()
-      setLoading(false)
-      return
-    }
+    // 역할 체크 - 관리자는 학생으로도 로그인 가능
+if (selectedRole === 'admin' && role !== 'admin') {
+  setError('강사 계정이 아니에요.')
+  await supabase.auth.signOut()
+  setLoading(false)
+  return
+}
+if (selectedRole === 'student' && role !== 'student' && role !== 'admin') {
+  setError('수강생 계정이 아니에요.')
+  await supabase.auth.signOut()
+  setLoading(false)
+  return
+}
 
-    if (role === 'admin') router.push('/admin')
-    else router.push('/student')
+   if (selectedRole === 'student') router.push('/student')
+else if (role === 'admin') router.push('/admin')
+else router.push('/student')
   }
 
   async function handleReset() {
