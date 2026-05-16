@@ -366,7 +366,7 @@ export default function AdminSchedulePage() {
                     background:c.is_active?'var(--g1)':'#ffebee', color:c.is_active?'var(--g5)':'#c0392b' }}>
                     {c.is_active?'운영중':'중단'}
                   </span>
-                  <div style={{ display:'flex', gap:4' }}>
+                  <div style={{ display:'flex', gap:4 }}>
                     <button onClick={() => { setEditCourse(c); setShowForm(false) }}
                       style={{ fontSize:9, padding:'3px 8px', borderRadius:8, border:'1px solid var(--g2)',
                         background:'var(--surf)', color:'var(--tm)', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>
