@@ -21,7 +21,8 @@ export default function LoungePage() {
   const [uploading, setUploading] = useState(false)
   const [carouselIdx, setCarouselIdx] = useState({})
   const fileRef = useRef()
-
+const [editingId, setEditingId] = useState(null)
+const [existingImages, setExistingImages] = useState([])
   const TAGS = ['전체','공지','행사','수업','기타']
   const TAG_IDS = ['all','notice','event','class','etc']
   const TAG_COLORS = {
@@ -80,22 +81,59 @@ export default function LoungePage() {
   }
 
   async function writePost() {
-    if (!newTitle.trim() || !newBody.trim()) return
-    setUploading(true)
-    const urls = await uploadImages()
+  if (!newTitle.trim() || !newBody.trim()) return
+  setUploading(true)
+  const newUrls = await uploadImages()
+  const allUrls = [...existingImages, ...newUrls]
+  
+  if (editingId) {
+    // 수정
+    await supabase.from('posts').update({
+      title: newTitle,
+      content: newBody,
+      tag: newTag,
+      image_url: allUrls[0] || null,
+      images: allUrls,
+    }).eq('id', editingId)
+  } else {
+    // 새 글
     await supabase.from('posts').insert({
       title: newTitle,
       content: newBody,
       tag: newTag,
       author_id: user.id,
       author_name: user.user_metadata?.name || '익명',
-      image_url: urls[0] || null,
-      images: urls,
+      image_url: allUrls[0] || null,
+      images: allUrls,
     })
-    setNewTitle(''); setNewBody(''); setImageFiles([]); setImagePreviews([])
-    setShowWrite(false); setUploading(false)
-    loadPosts()
   }
+  
+  setNewTitle(''); setNewBody(''); setImageFiles([]); setImagePreviews([])
+  setExistingImages([]); setEditingId(null)
+  setShowWrite(false); setUploading(false)
+  loadPosts()
+}
+function startEdit(p) {
+  setEditingId(p.id)
+  setNewTitle(p.title)
+  setNewBody(p.content)
+  setNewTag(p.tag)
+  setExistingImages(getImages(p))
+  setImageFiles([])
+  setImagePreviews([])
+  setShowWrite(true)
+}
+
+async function deletePost(postId) {
+  if (!confirm('정말 삭제할까요?')) return
+  await supabase.from('posts').delete().eq('id', postId)
+  setExpanded(null)
+  loadPosts()
+}
+
+function removeExistingImage(idx) {
+  setExistingImages(prev => prev.filter((_,i) => i !== idx))
+}
 
   async function addComment(postId) {
     if (!comment.trim()) return
@@ -126,9 +164,9 @@ export default function LoungePage() {
     <>
       <div className="header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <button onClick={() => { setShowWrite(false); setImageFiles([]); setImagePreviews([]) }}
+          <button onClick={() => { setShowWrite(false); setImageFiles([]); setImagePreviews([]); setExistingImages([]); setEditingId(null) }}
             style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:'50%', width:32, height:32, cursor:'pointer', color:'#fff', fontSize:18 }}>‹</button>
-          <span className="header-title">글쓰기</span>
+          <span className="header-title">{editingId ? '글 수정' : '글쓰기'}</span>
         </div>
         <button onClick={writePost} disabled={uploading||!newTitle||!newBody}
           style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:20, padding:'4px 14px', color:'#fff', fontSize:11, fontWeight:700, cursor:'pointer', opacity:uploading?0.6:1 }}>
@@ -159,7 +197,18 @@ export default function LoungePage() {
         <div className="field">
           <label>이미지 첨부 (최대 10장)</label>
           <input ref={fileRef} type="file" accept="image/*" multiple style={{ display:'none' }} onChange={handleImageSelect}/>
-          
+          {existingImages.length > 0 && (
+  <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:6, marginBottom:8 }}>
+    {existingImages.map((src,i) => (
+      <div key={`ex-${i}`} style={{ position:'relative', aspectRatio:'1/1', borderRadius:10, overflow:'hidden', background:'var(--bg)' }}>
+        <img src={src} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>
+        <button onClick={() => removeExistingImage(i)}
+          style={{ position:'absolute', top:4, right:4, background:'rgba(0,0,0,0.6)', color:'#fff', border:'none', borderRadius:'50%', width:22, height:22, cursor:'pointer', fontSize:11, display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
+        <div style={{ position:'absolute', bottom:4, left:4, background:'rgba(0,0,0,0.6)', color:'#fff', fontSize:8, fontWeight:700, padding:'2px 6px', borderRadius:6 }}>기존</div>
+      </div>
+    ))}
+  </div>
+)}
           {imagePreviews.length > 0 && (
             <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:6, marginBottom:8 }}>
               {imagePreviews.map((src,i) => (
@@ -280,9 +329,20 @@ export default function LoungePage() {
 
               {/* 펼쳐진 상태 */}
               {isExp && (
-                <div style={{ borderTop:'1px solid var(--g1)', padding:'12px 14px' }} onClick={e => e.stopPropagation()}>
-                  <div style={{ fontSize:12, color:'var(--td)', lineHeight:1.8, marginBottom:12, whiteSpace:'pre-wrap' }}>{p.content}</div>
-
+  <div style={{ borderTop:'1px solid var(--g1)', padding:'12px 14px' }} onClick={e => e.stopPropagation()}>
+    {(role === 'admin' || p.author_id === user?.id) && (
+      <div style={{ display:'flex', gap:6, marginBottom:10, justifyContent:'flex-end' }}>
+        <button onClick={() => startEdit(p)}
+          style={{ background:'var(--g1)', color:'var(--g5)', border:'none', borderRadius:8, padding:'5px 12px', fontSize:10, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+          수정
+        </button>
+        <button onClick={() => deletePost(p.id)}
+          style={{ background:'#ffebee', color:'#c0392b', border:'none', borderRadius:8, padding:'5px 12px', fontSize:10, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+          삭제
+        </button>
+      </div>
+    )}
+    <div style={{ fontSize:12, color:'var(--td)', lineHeight:1.8, marginBottom:12, whiteSpace:'pre-wrap' }}>{p.content}</div>
                   {/* 댓글 */}
                   <div style={{ borderTop:'1px solid var(--g1)', paddingTop:10 }}>
                     <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>댓글 {p.comments?.length||0}개</div>
