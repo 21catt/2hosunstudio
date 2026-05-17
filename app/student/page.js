@@ -4,27 +4,21 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 
 const EMOJI = { drawing:'✏️', painting:'🎨', sculpture:'🗿', free:'🖼️' }
+const CAT_NAME = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', free:'자율창작' }
+const CAT_COLOR = { drawing:'#e8f5e0', painting:'#EDE7F6', sculpture:'#FFF3E0', free:'#E3F2FD' }
+const CAT_TEXT = { drawing:'var(--g5)', painting:'#4A148C', sculpture:'#E65100', free:'#0D47A1' }
 
 const CAT_POSES = [
-  (d,f,s) => `<svg viewBox="0 0 60 54" fill="none" xmlns="http://www.w3.org/2000/svg" width="40" height="40">
+  (d,f,s) => `<svg viewBox="0 0 60 54" fill="none" xmlns="http://www.w3.org/2000/svg" width="36" height="36">
     <path d="M15 26 Q13 15 18 12 Q21 22 24 24" fill="${f}" stroke="${s}" stroke-width="2"/>
     <path d="M45 26 Q47 15 42 12 Q39 22 36 24" fill="${f}" stroke="${s}" stroke-width="2"/>
     <path d="M10 30 Q10 14 30 14 Q50 14 50 30 Q50 44 30 46 Q10 46 10 30Z" fill="${f}" stroke="${s}" stroke-width="2"/>
-    <path d="M42 46 Q48 48 46 52 Q42 50 40 48Z" fill="${f}" stroke="${s}" stroke-width="1.5"/>
     <circle cx="23" cy="28" r="2.2" fill="${s}"/>
     <circle cx="37" cy="28" r="2.2" fill="${s}"/>
     <path d="M27 35 Q30 38 33 35" stroke="${s}" stroke-width="1.8" fill="none" stroke-linecap="round"/>
     <text x="30" y="44" text-anchor="middle" font-size="10" font-weight="800" fill="#1e3828" font-family="Nunito,sans-serif">${d}</text>
   </svg>`,
-  (d,f,s) => `<svg viewBox="0 0 60 46" fill="none" xmlns="http://www.w3.org/2000/svg" width="40" height="36">
-    <path d="M12 24 Q11 14 16 12 Q18 20 20 22" fill="${f}" stroke="${s}" stroke-width="1.8"/>
-    <path d="M48 24 Q49 14 44 12 Q42 20 40 22" fill="${f}" stroke="${s}" stroke-width="1.8"/>
-    <ellipse cx="30" cy="30" rx="22" ry="14" fill="${f}" stroke="${s}" stroke-width="2"/>
-    <circle cx="23" cy="27" r="2" fill="${s}"/>
-    <circle cx="37" cy="27" r="2" fill="${s}"/>
-    <text x="30" y="43" text-anchor="middle" font-size="10" font-weight="800" fill="#1e3828" font-family="Nunito,sans-serif">${d}</text>
-  </svg>`,
-  (d,f,s) => `<svg viewBox="0 0 60 52" fill="none" xmlns="http://www.w3.org/2000/svg" width="40" height="40">
+  (d,f,s) => `<svg viewBox="0 0 60 52" fill="none" xmlns="http://www.w3.org/2000/svg" width="36" height="36">
     <path d="M14 24 Q12 13 17 10 Q20 20 23 22" fill="${f}" stroke="${s}" stroke-width="1.8"/>
     <path d="M46 24 Q48 13 43 10 Q40 20 37 22" fill="${f}" stroke="${s}" stroke-width="1.8"/>
     <path d="M10 30 Q10 14 30 14 Q50 14 50 30 Q50 44 30 46 Q10 46 10 30Z" fill="${f}" stroke="${s}" stroke-width="2"/>
@@ -33,23 +27,6 @@ const CAT_POSES = [
     <path d="M23 36 Q30 43 37 36" stroke="${s}" stroke-width="2" fill="none" stroke-linecap="round"/>
     <text x="30" y="50" text-anchor="middle" font-size="10" font-weight="800" fill="#1e3828" font-family="Nunito,sans-serif">${d}</text>
   </svg>`,
-  (d,f,s) => `<svg viewBox="0 0 60 50" fill="none" xmlns="http://www.w3.org/2000/svg" width="40" height="38">
-    <path d="M13 23 Q11 12 16 10 Q19 19 22 22" fill="${f}" stroke="${s}" stroke-width="1.8"/>
-    <path d="M47 23 Q49 12 44 10 Q41 19 38 22" fill="${f}" stroke="${s}" stroke-width="1.8"/>
-    <path d="M10 30 Q10 14 30 14 Q50 14 50 30 Q50 44 30 46 Q10 46 10 30Z" fill="${f}" stroke="${s}" stroke-width="2"/>
-    <path d="M21 27 Q24 25 27 27" stroke="${s}" stroke-width="1.8" fill="none" stroke-linecap="round"/>
-    <path d="M33 27 Q36 25 39 27" stroke="${s}" stroke-width="1.8" fill="none" stroke-linecap="round"/>
-    <text x="30" y="46" text-anchor="middle" font-size="10" font-weight="800" fill="#1e3828" font-family="Nunito,sans-serif">${d}</text>
-  </svg>`,
-  (d,f,s) => `<svg viewBox="0 0 60 52" fill="none" xmlns="http://www.w3.org/2000/svg" width="40" height="40">
-    <path d="M12 25 Q10 14 15 11 Q18 21 21 23" fill="${f}" stroke="${s}" stroke-width="1.8"/>
-    <path d="M42 22 Q46 12 42 9 Q39 18 37 21" fill="${f}" stroke="${s}" stroke-width="1.8"/>
-    <path d="M10 30 Q10 14 30 14 Q50 14 50 30 Q50 44 30 46 Q10 46 10 30Z" fill="${f}" stroke="${s}" stroke-width="2"/>
-    <circle cx="22" cy="28" r="2.5" fill="${s}"/>
-    <circle cx="36" cy="27" r="2.5" fill="${s}"/>
-    <path d="M24 36 Q28 40 32 36" stroke="${s}" stroke-width="1.8" fill="none" stroke-linecap="round"/>
-    <text x="30" y="50" text-anchor="middle" font-size="10" font-weight="800" fill="#1e3828" font-family="Nunito,sans-serif">${d}</text>
-  </svg>`
 ]
 
 const CAT_COLORS = [
@@ -61,7 +38,7 @@ const CAT_COLORS = [
 ]
 
 function getCat(d) {
-  return { pose: CAT_POSES[(d*7+3)%5], ...CAT_COLORS[(d*3+1)%5] }
+  return { pose: CAT_POSES[(d*7+3)%2], ...CAT_COLORS[(d*3+1)%5] }
 }
 
 export default function StudentPage() {
@@ -72,6 +49,10 @@ export default function StudentPage() {
   const [classes, setClasses] = useState([])
   const [selectedDay, setSelectedDay] = useState(new Date().getDate())
   const [animDay, setAnimDay] = useState(null)
+  // 예약 선택 상태
+  const [selCat, setSelCat] = useState(null) // 선택한 카테고리
+  const [selCourse, setSelCourse] = useState(null) // 선택한 수업
+  const [selSchedule, setSelSchedule] = useState(null) // 선택한 시간
   const month = new Date().getMonth()
   const year = new Date().getFullYear()
   const today = new Date().getDate()
@@ -110,31 +91,31 @@ export default function StudentPage() {
     )
   }
 
-  function getScheduleForDay(course, day) {
+  function getSchedulesForDay(course, day) {
     const dow = new Date(year, month, day).getDay()
-    return course.class_schedules?.find(s => s.day_of_week === dow)
+    return course.class_schedules?.filter(s => s.day_of_week === dow) || []
   }
 
-  function isBooked(courseId, day) {
+  function isBooked(courseId, scheduleId, day) {
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
-    return bookings.some(b => b.course_id === courseId && b.class_date === dateStr)
+    return bookings.some(b => b.course_id === courseId && b.schedule_id === scheduleId && b.class_date === dateStr)
   }
 
-  function getBooking(courseId, day) {
+  function getBooking(courseId, scheduleId, day) {
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
-    return bookings.find(b => b.course_id === courseId && b.class_date === dateStr)
+    return bookings.find(b => b.course_id === courseId && b.schedule_id === scheduleId && b.class_date === dateStr)
   }
 
   function spawnParticles(el) {
     if (!el) return
-    const colors = ['#c8e6c0','#6db870','#3d8b50','#a8d4a0','#fff','#e0f2d8']
-    for (let i = 0; i < 10; i++) {
+    const colors = ['#c8e6c0','#6db870','#3d8b50','#a8d4a0','#fff']
+    for (let i = 0; i < 8; i++) {
       const s = document.createElement('div')
-      const angle = (i/10)*360 + Math.random()*18
-      const dist = 20 + Math.random()*24
-      s.style.cssText = `position:absolute;width:6px;height:6px;border-radius:50%;background:${colors[i%6]};left:50%;top:50%;margin:-3px;pointer-events:none;z-index:99;animation:spark 0.65s ease-out forwards;--tx:${Math.cos(angle*Math.PI/180)*dist}px;--ty:${Math.sin(angle*Math.PI/180)*dist}px;`
+      const angle = (i/8)*360
+      const dist = 20 + Math.random()*20
+      s.style.cssText = `position:absolute;width:6px;height:6px;border-radius:50%;background:${colors[i%5]};left:50%;top:50%;margin:-3px;pointer-events:none;z-index:99;animation:spark 0.6s ease-out forwards;--tx:${Math.cos(angle*Math.PI/180)*dist}px;--ty:${Math.sin(angle*Math.PI/180)*dist}px;`
       el.appendChild(s)
-      setTimeout(() => s.remove(), 800)
+      setTimeout(() => s.remove(), 700)
     }
   }
 
@@ -142,26 +123,30 @@ export default function StudentPage() {
     const dow = new Date(year, month, d).getDay()
     if (dow === 1) return
     setSelectedDay(d)
+    setSelCat(null)
+    setSelCourse(null)
+    setSelSchedule(null)
     setAnimDay(d)
     spawnParticles(cellRefs.current[d])
     setTimeout(() => setAnimDay(null), 500)
   }
 
-  async function handleBook(course) {
+  async function handleBook() {
+    if (!selCourse || !selSchedule) return
     if (!ticket || ticket.remain <= 0) { alert('잔여 수강권이 없어요 🐾'); return }
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
-    const schedule = getScheduleForDay(course, selectedDay)
     await supabase.from('bookings').insert({
       user_id: user.id,
-      course_id: course.id,
-      schedule_id: schedule?.id,
-      class_name: course.name,
+      course_id: selCourse.id,
+      schedule_id: selSchedule.id,
+      class_name: selCourse.name,
       class_date: dateStr,
-      class_time: schedule ? `${schedule.start_time}~${schedule.end_time}` : '',
-      teacher: course.teacher,
+      class_time: `${selSchedule.start_time}~${selSchedule.end_time}`,
+      teacher: selCourse.teacher,
       status: 'booked'
     })
     await supabase.from('tickets').update({ remain: ticket.remain-1 }).eq('id', ticket.id)
+    setSelCat(null); setSelCourse(null); setSelSchedule(null)
     loadData(user.id)
   }
 
@@ -177,6 +162,17 @@ export default function StudentPage() {
   const firstDow = new Date(year, month, 1).getDay()
   const bd = bookedDays()
   const dc = dayClasses(selectedDay)
+
+  // 카테고리별 그룹
+  const catGroups = dc.reduce((acc, c) => {
+    if (!acc[c.category]) acc[c.category] = []
+    acc[c.category].push(c)
+    return acc
+  }, {})
+  const cats = Object.keys(catGroups)
+
+  // 선택된 카테고리의 수업들
+  const catCourses = selCat ? catGroups[selCat] || [] : []
 
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh' }}>
@@ -194,10 +190,14 @@ export default function StudentPage() {
         @keyframes catPop {
           0% { transform: scale(0) rotate(-15deg); opacity:0; }
           55% { transform: scale(1.28) rotate(6deg); opacity:1; }
-          78% { transform: scale(0.9) rotate(-3deg); }
           100% { transform: scale(1) rotate(0deg); opacity:1; }
         }
         .cat-anim { animation: catPop 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+        @keyframes slideUp {
+          from { transform: translateY(10px); opacity:0; }
+          to { transform: translateY(0); opacity:1; }
+        }
+        .slide-up { animation: slideUp 0.25s ease forwards; }
       `}</style>
 
       <div className="header">
@@ -242,10 +242,10 @@ export default function StudentPage() {
                 onClick={()=>handleDayClick(d)}
                 style={{ height:48, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
                   cursor:isMon?'default':'pointer', borderRadius:12, opacity:isMon?0.3:1, position:'relative',
-                  background:isSel&&!isB?'#e8f5e0':'transparent' }}>
+                  background:isSel?'#e8f5e0':'transparent',
+                  border:isSel?'1.5px solid var(--g3)':'1.5px solid transparent' }}>
                 {isB || isSel ? (
-                  <div className={isAnim?'cat-anim':''} style={{ display:'flex', flexDirection:'column', alignItems:'center' }}
-                    dangerouslySetInnerHTML={{ __html: cat.pose(d, cat.f, cat.s) }}/>
+                  <div className={isAnim?'cat-anim':''} dangerouslySetInnerHTML={{ __html: cat.pose(d, cat.f, cat.s) }}/>
                 ) : isT ? (
                   <div style={{ width:28, height:28, borderRadius:'50%', background:'var(--g4)', color:'#fff',
                     display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800 }}>{d}</div>
@@ -261,7 +261,8 @@ export default function StudentPage() {
           })}
         </div>
 
-        <div style={{ background:'var(--g1)', borderRadius:14, padding:'10px 14px', marginBottom:10,
+        {/* 수강권 */}
+        <div style={{ background:'var(--g1)', borderRadius:14, padding:'10px 14px', marginBottom:12,
           display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid var(--g2)' }}>
           <div>
             <div style={{ fontSize:10, color:'var(--tm)', fontWeight:700 }}>내 수강권</div>
@@ -273,45 +274,124 @@ export default function StudentPage() {
           <span style={{ fontSize:28 }}>🎨</span>
         </div>
 
-        <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>
+        <div style={{ fontSize:12, fontWeight:800, color:'var(--td)', marginBottom:10 }}>
           {month+1}월 {selectedDay}일 수업
         </div>
 
-        {dc.length===0 ? (
+        {dc.length === 0 ? (
           <div style={{ textAlign:'center', padding:20, color:'var(--tmu)', fontSize:12 }}>이날은 수업이 없어요 🐾</div>
-        ) : dc.map(course=>{
-          const schedule = getScheduleForDay(course, selectedDay)
-          const booked = isBooked(course.id, selectedDay)
-          const booking = getBooking(course.id, selectedDay)
-          return (
-            <div key={course.id} style={{ background:booked?'#e8f5e0':'var(--bg)', borderRadius:14, padding:'12px 14px',
-              marginBottom:8, display:'flex', alignItems:'center', justifyContent:'space-between',
-              border:`1.5px solid ${booked?'var(--g3)':'var(--g1)'}` }}>
-              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                <div style={{ width:34, height:34, borderRadius:10, background:booked?'var(--g2)':'var(--g1)',
-                  display:'flex', alignItems:'center', justifyContent:'center', fontSize:16 }}>
-                  {EMOJI[course.category]||'🎨'}
-                </div>
-                <div>
-                  <div style={{ fontSize:12, fontWeight:800, color:'var(--td)' }}>{course.name}</div>
-                  <div style={{ fontSize:10, color:'var(--tm)', fontWeight:600 }}>
-                    {schedule?`${schedule.start_time}~${schedule.end_time}`:''}
-                  </div>
-                  <div style={{ fontSize:10, color:'var(--tmu)' }}>강사 {course.teacher}</div>
+        ) : (
+          <>
+            {/* Step 1: 카테고리 선택 */}
+            {cats.length > 1 && (
+              <div className="slide-up" style={{ marginBottom:12 }}>
+                <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>수업 종류 선택</div>
+                <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                  {cats.map(cat => (
+                    <div key={cat} onClick={() => { setSelCat(cat); setSelCourse(null); setSelSchedule(null) }}
+                      style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', borderRadius:20, cursor:'pointer',
+                        background:selCat===cat?CAT_COLOR[cat]:'var(--bg)',
+                        border:`1.5px solid ${selCat===cat?CAT_TEXT[cat]:'var(--g2)'}` }}>
+                      <span style={{ fontSize:16 }}>{EMOJI[cat]||'🎨'}</span>
+                      <span style={{ fontSize:12, fontWeight:700, color:selCat===cat?CAT_TEXT[cat]:'var(--td)' }}>{CAT_NAME[cat]}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
-              <div style={{ textAlign:'right', display:'flex', flexDirection:'column', alignItems:'flex-end', gap:4 }}>
-                <div style={{ fontSize:11, fontWeight:700, color:'var(--tm)' }}>{course.max_count}명</div>
-                <button onClick={()=>booked?handleCancel(booking):handleBook(course)}
-                  style={{ fontSize:10, padding:'4px 12px', borderRadius:20,
-                    background:booked?'var(--g1)':'var(--g4)', color:booked?'var(--tm)':'#fff',
-                    border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>
-                  {booked?'예약취소':'예약하기'}
+            )}
+
+            {/* 카테고리 하나면 자동 선택 */}
+            {cats.length === 1 && selCat !== cats[0] && (() => { setTimeout(() => setSelCat(cats[0]), 0); return null })()}
+
+            {/* Step 2: 수업 선택 (같은 카테고리에 여러 수업이면) */}
+            {selCat && catCourses.length > 1 && (
+              <div className="slide-up" style={{ marginBottom:12 }}>
+                <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>수업 선택</div>
+                {catCourses.map(c => (
+                  <div key={c.id} onClick={() => { setSelCourse(c); setSelSchedule(null) }}
+                    style={{ padding:'10px 14px', borderRadius:12, marginBottom:6, cursor:'pointer',
+                      background:selCourse?.id===c.id?CAT_COLOR[c.category]:'var(--bg)',
+                      border:`1.5px solid ${selCourse?.id===c.id?CAT_TEXT[c.category]:'var(--g2)'}` }}>
+                    <div style={{ fontSize:12, fontWeight:800, color:'var(--td)' }}>{c.name}</div>
+                    <div style={{ fontSize:10, color:'var(--tmu)' }}>강사 {c.teacher}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* 수업 하나면 자동 선택 */}
+            {selCat && catCourses.length === 1 && selCourse !== catCourses[0] && (() => { setTimeout(() => setSelCourse(catCourses[0]), 0); return null })()}
+
+            {/* Step 3: 시간 선택 */}
+            {selCourse && (
+              <div className="slide-up" style={{ marginBottom:12 }}>
+                <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>시간 선택</div>
+                {getSchedulesForDay(selCourse, selectedDay).map(s => {
+                  const booked = isBooked(selCourse.id, s.id, selectedDay)
+                  const booking = getBooking(selCourse.id, s.id, selectedDay)
+                  const isSel = selSchedule?.id === s.id
+                  return (
+                    <div key={s.id} onClick={() => !booked && setSelSchedule(s)}
+                      style={{ padding:'10px 14px', borderRadius:12, marginBottom:6,
+                        cursor:booked?'default':'pointer', display:'flex', alignItems:'center', justifyContent:'space-between',
+                        background:booked?'#e8f5e0':isSel?CAT_COLOR[selCourse.category]:'var(--bg)',
+                        border:`1.5px solid ${booked?'var(--g3)':isSel?CAT_TEXT[selCourse.category]:'var(--g2)'}` }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                        <div style={{ width:8, height:8, borderRadius:'50%', background:booked?'var(--g4)':'var(--g2)', flexShrink:0 }}/>
+                        <span style={{ fontSize:13, fontWeight:700, color:'var(--td)' }}>
+                          {s.start_time}~{s.end_time}
+                        </span>
+                      </div>
+                      {booked ? (
+                        <button onClick={e=>{e.stopPropagation(); handleCancel(booking)}}
+                          style={{ fontSize:10, padding:'3px 10px', borderRadius:20, background:'var(--g1)',
+                            color:'var(--tm)', border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>
+                          예약취소
+                        </button>
+                      ) : (
+                        <span style={{ fontSize:10, color:isSel?CAT_TEXT[selCourse.category]:'var(--tmu)', fontWeight:700 }}>
+                          {isSel?'✓ 선택됨':'선택'}
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* 예약 버튼 */}
+            {selSchedule && !isBooked(selCourse?.id, selSchedule?.id, selectedDay) && (
+              <div className="slide-up">
+                <button className="btn-primary" onClick={handleBook}>
+                  {selCourse?.name} {selSchedule?.start_time}~{selSchedule?.end_time} 예약하기
                 </button>
               </div>
-            </div>
-          )
-        })}
+            )}
+          </>
+        )}
+
+        {/* 내 예약 현황 */}
+        {bookings.filter(b => new Date(b.class_date).getDate() === selectedDay).length > 0 && (
+          <div style={{ marginTop:14 }}>
+            <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>내 예약</div>
+            {bookings.filter(b => new Date(b.class_date).getDate() === selectedDay).map(b => (
+              <div key={b.id} style={{ background:'#e8f5e0', borderRadius:12, padding:'10px 14px',
+                marginBottom:6, display:'flex', alignItems:'center', justifyContent:'space-between',
+                border:'1.5px solid var(--g3)' }}>
+                <div>
+                  <div style={{ fontSize:12, fontWeight:800, color:'var(--td)' }}>{b.class_name}</div>
+                  <div style={{ fontSize:10, color:'var(--tm)' }}>{b.class_time}</div>
+                </div>
+                <button onClick={() => handleCancel(b)}
+                  style={{ fontSize:10, padding:'3px 10px', borderRadius:20, background:'var(--g1)',
+                    color:'var(--tm)', border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>
+                  취소
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div style={{ height:80 }}/>
       </div>
 
