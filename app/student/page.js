@@ -104,7 +104,10 @@ export default function StudentPage() {
     setTicket(t)
     const { data: b } = await supabase.from('bookings').select('*').eq('user_id', userId)
     setBookings(b || [])
-    const { data: c } = await supabase.from('class_slots').select('*').eq('is_active', true)
+    const { data: c } = await supabase
+  .from('class_courses')
+  .select('*, class_schedules(*)')
+  .eq('is_active', true)
     setClasses(c || [])
     setLoading(false)
   }
@@ -114,9 +117,12 @@ export default function StudentPage() {
   }
 
   function dayClasses(day) {
-    const dow = new Date(year, month, day).getDay()
-    return classes.filter(c => c.day_of_week === dow)
-  }
+   function dayClasses(day) {
+  const dow = new Date(year, month, day).getDay()
+  return classes.filter(c => 
+    c.class_schedules?.some(s => s.day_of_week === dow)
+  )
+}
 
   function isBooked(classId, day) {
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
