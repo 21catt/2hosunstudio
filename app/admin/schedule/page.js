@@ -383,7 +383,10 @@ export default function AdminSchedulePage() {
                     <div style={{ flex:1 }}>
                       <div style={{ fontSize:12, fontWeight:800, color:'var(--td)', marginBottom:2 }}>{c.name}</div>
                       <div style={{ fontSize:10, color:'var(--tmu)' }}>
-                        {schedules?.map(s=>`${s.start_time}~${s.end_time}`).join(' / ')}
+                        {c.class_schedules
+  ?.filter((s,i,arr) => arr.findIndex(x => x.start_time===s.start_time && x.end_time===s.end_time)===i)
+  .map(s=>`${s.start_time}~${s.end_time}`)
+  .join(' / ')}
                       </div>
                     </div>
                     <div style={{ textAlign:'right' }}>
