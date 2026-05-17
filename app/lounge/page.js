@@ -16,9 +16,10 @@ export default function LoungePage() {
   const [newTitle, setNewTitle] = useState('')
   const [newBody, setNewBody] = useState('')
   const [newTag, setNewTag] = useState('notice')
-  const [imageFile, setImageFile] = useState(null)
-  const [imagePreview, setImagePreview] = useState(null)
+  const [imageFiles, setImageFiles] = useState([])
+  const [imagePreviews, setImagePreviews] = useState([])
   const [uploading, setUploading] = useState(false)
+  const [carouselIdx, setCarouselIdx] = useState({})
   const fileRef = useRef()
 
   const TAGS = ['전체','공지','행사','수업','기타']
@@ -49,37 +50,49 @@ export default function LoungePage() {
   }
 
   function handleImageSelect(e) {
-    const file = e.target.files[0]
-    if (!file) return
-    setImageFile(file)
-    setImagePreview(URL.createObjectURL(file))
+    const files = Array.from(e.target.files)
+    if (files.length === 0) return
+    const total = imageFiles.length + files.length
+    if (total > 10) { alert('이미지는 최대 10장까지 올릴 수 있어요'); return }
+    setImageFiles(prev => [...prev, ...files])
+    setImagePreviews(prev => [...prev, ...files.map(f => URL.createObjectURL(f))])
+    e.target.value = ''
   }
 
-  async function uploadImage() {
-    if (!imageFile) return null
-    const ext = imageFile.name.split('.').pop()
-    const path = `${Date.now()}.${ext}`
-    const { error } = await supabase.storage
-      .from('lounge-images')
-      .upload(path, imageFile)
-    if (error) return null
-    const { data } = supabase.storage.from('lounge-images').getPublicUrl(path)
-    return data.publicUrl
+  function removeImage(idx) {
+    setImageFiles(prev => prev.filter((_,i) => i !== idx))
+    setImagePreviews(prev => prev.filter((_,i) => i !== idx))
+  }
+
+  async function uploadImages() {
+    if (imageFiles.length === 0) return []
+    const urls = []
+    for (const file of imageFiles) {
+      const ext = file.name.split('.').pop()
+      const path = `${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`
+      const { error } = await supabase.storage.from('lounge-images').upload(path, file)
+      if (!error) {
+        const { data } = supabase.storage.from('lounge-images').getPublicUrl(path)
+        urls.push(data.publicUrl)
+      }
+    }
+    return urls
   }
 
   async function writePost() {
     if (!newTitle.trim() || !newBody.trim()) return
     setUploading(true)
-    const imageUrl = await uploadImage()
+    const urls = await uploadImages()
     await supabase.from('posts').insert({
       title: newTitle,
       content: newBody,
       tag: newTag,
       author_id: user.id,
       author_name: user.user_metadata?.name || '익명',
-      image_url: imageUrl,
+      image_url: urls[0] || null,
+      images: urls,
     })
-    setNewTitle(''); setNewBody(''); setImageFile(null); setImagePreview(null)
+    setNewTitle(''); setNewBody(''); setImageFiles([]); setImagePreviews([])
     setShowWrite(false); setUploading(false)
     loadPosts()
   }
@@ -94,6 +107,13 @@ export default function LoungePage() {
     loadPosts()
   }
 
+  // 이미지 배열로 통일 (이전 데이터 호환)
+  function getImages(p) {
+    if (p.images && p.images.length > 0) return p.images
+    if (p.image_url) return [p.image_url]
+    return []
+  }
+
   const filtered = tab === 0 ? posts : posts.filter(p => p.tag === TAG_IDS[tab])
 
   if (loading) return (
@@ -106,7 +126,7 @@ export default function LoungePage() {
     <>
       <div className="header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <button onClick={() => { setShowWrite(false); setImageFile(null); setImagePreview(null) }}
+          <button onClick={() => { setShowWrite(false); setImageFiles([]); setImagePreviews([]) }}
             style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:'50%', width:32, height:32, cursor:'pointer', color:'#fff', fontSize:18 }}>‹</button>
           <span className="header-title">글쓰기</span>
         </div>
@@ -135,23 +155,33 @@ export default function LoungePage() {
             style={{ width:'100%', minHeight:160, background:'var(--surf)', border:'1.5px solid var(--g1)', borderRadius:12, padding:'11px 14px', fontSize:13, fontFamily:'Nunito,sans-serif', color:'var(--td)', outline:'none', resize:'vertical' }}/>
         </div>
 
-        {/* 이미지 업로드 */}
+        {/* 이미지 업로드 (여러 장) */}
         <div className="field">
-          <label>이미지 첨부 (선택)</label>
-          <input ref={fileRef} type="file" accept="image/*" style={{ display:'none' }} onChange={handleImageSelect}/>
-          {imagePreview ? (
-            <div style={{ position:'relative', borderRadius:12, overflow:'hidden', marginBottom:8 }}>
-              <img src={imagePreview} alt="preview" style={{ width:'100%', maxHeight:200, objectFit:'cover', borderRadius:12 }}/>
-              <button onClick={() => { setImageFile(null); setImagePreview(null) }}
-                style={{ position:'absolute', top:8, right:8, background:'rgba(0,0,0,0.5)', color:'#fff', border:'none', borderRadius:'50%', width:28, height:28, cursor:'pointer', fontSize:14, display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
-            </div>
-          ) : (
-            <div onClick={() => fileRef.current.click()}
-              style={{ border:'1.5px dashed var(--g2)', borderRadius:12, padding:'24px', textAlign:'center', cursor:'pointer', background:'var(--bg)' }}>
-              <div style={{ fontSize:28, marginBottom:6 }}>📷</div>
-              <div style={{ fontSize:12, color:'var(--tmu)', fontWeight:600 }}>클릭해서 이미지 추가</div>
+          <label>이미지 첨부 (최대 10장)</label>
+          <input ref={fileRef} type="file" accept="image/*" multiple style={{ display:'none' }} onChange={handleImageSelect}/>
+          
+          {imagePreviews.length > 0 && (
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:6, marginBottom:8 }}>
+              {imagePreviews.map((src,i) => (
+                <div key={i} style={{ position:'relative', aspectRatio:'1/1', borderRadius:10, overflow:'hidden', background:'var(--bg)' }}>
+                  <img src={src} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>
+                  <button onClick={() => removeImage(i)}
+                    style={{ position:'absolute', top:4, right:4, background:'rgba(0,0,0,0.6)', color:'#fff', border:'none', borderRadius:'50%', width:22, height:22, cursor:'pointer', fontSize:11, display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
+                  {i === 0 && (
+                    <div style={{ position:'absolute', bottom:4, left:4, background:'var(--g4)', color:'#fff', fontSize:8, fontWeight:800, padding:'2px 6px', borderRadius:6 }}>대표</div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
+          
+          <div onClick={() => fileRef.current.click()}
+            style={{ border:'1.5px dashed var(--g2)', borderRadius:12, padding:'18px', textAlign:'center', cursor:'pointer', background:'var(--bg)' }}>
+            <div style={{ fontSize:24, marginBottom:4 }}>📷</div>
+            <div style={{ fontSize:11, color:'var(--tmu)', fontWeight:600 }}>
+              {imagePreviews.length > 0 ? '이미지 추가' : '클릭해서 이미지 선택'}
+            </div>
+          </div>
         </div>
       </div>
     </>
@@ -185,17 +215,41 @@ export default function LoungePage() {
         ) : filtered.map(p => {
           const isExp = expanded === p.id
           const tagStyle = TAG_COLORS[p.tag] || TAG_COLORS.etc
+          const images = getImages(p)
+          const idx = carouselIdx[p.id] || 0
+          
           return (
             <div key={p.id} onClick={() => setExpanded(isExp?null:p.id)}
               style={{ background:'var(--surf)', borderRadius:16, border:`1.5px solid ${isExp?'var(--g3)':'var(--g1)'}`,
                 marginBottom:10, overflow:'hidden', cursor:'pointer' }}>
 
-              {/* 이미지 썸네일 */}
-              {p.image_url && !isExp && (
-                <img src={p.image_url} alt="post" style={{ width:'100%', height:160, objectFit:'cover' }}/>
+              {/* 이미지: 접힌 상태는 첫 장만, 펼친 상태는 캐러셀 */}
+              {images.length > 0 && !isExp && (
+                <div style={{ position:'relative' }}>
+                  <img src={images[0]} alt="" style={{ width:'100%', height:180, objectFit:'cover', display:'block' }}/>
+                  {images.length > 1 && (
+                    <div style={{ position:'absolute', top:8, right:8, background:'rgba(0,0,0,0.55)', color:'#fff', fontSize:10, fontWeight:700, padding:'3px 8px', borderRadius:12 }}>
+                      📷 {images.length}
+                    </div>
+                  )}
+                </div>
               )}
-              {p.image_url && isExp && (
-                <img src={p.image_url} alt="post" style={{ width:'100%', maxHeight:260, objectFit:'cover' }}/>
+              
+              {images.length > 0 && isExp && (
+                <div style={{ position:'relative', background:'#000' }} onClick={e => e.stopPropagation()}>
+                  <img src={images[idx]} alt="" style={{ width:'100%', maxHeight:360, objectFit:'contain', display:'block' }}/>
+                  {images.length > 1 && (
+                    <>
+                      <button onClick={() => setCarouselIdx(c => ({...c,[p.id]:(idx-1+images.length)%images.length}))}
+                        style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', background:'rgba(0,0,0,0.5)', color:'#fff', border:'none', borderRadius:'50%', width:32, height:32, cursor:'pointer', fontSize:16 }}>‹</button>
+                      <button onClick={() => setCarouselIdx(c => ({...c,[p.id]:(idx+1)%images.length}))}
+                        style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', background:'rgba(0,0,0,0.5)', color:'#fff', border:'none', borderRadius:'50%', width:32, height:32, cursor:'pointer', fontSize:16 }}>›</button>
+                      <div style={{ position:'absolute', bottom:8, left:'50%', transform:'translateX(-50%)', background:'rgba(0,0,0,0.55)', color:'#fff', fontSize:10, fontWeight:700, padding:'3px 10px', borderRadius:12 }}>
+                        {idx+1} / {images.length}
+                      </div>
+                    </>
+                  )}
+                </div>
               )}
 
               <div style={{ padding:'12px 14px' }}>
