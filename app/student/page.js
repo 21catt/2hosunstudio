@@ -334,7 +334,10 @@ export default function StudentPage() {
             {/* Step 3: 시간 선택 */}
             {selCourse && (
               <div className="slide-up" style={{ marginBottom:12 }}>
-                <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>시간 선택</div>
+                 <div style={{ fontSize:15, fontWeight:800, color:'var(--td)', marginBottom:10 }}>
+      {selCourse.name}
+    </div>
+    <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>시간 선택</div>
                 {getSchedulesForDay(selCourse, selectedDay).map(s => {
                   const booked = isBooked(selCourse.id, s.id, selectedDay)
                   const booking = getBooking(selCourse.id, s.id, selectedDay)
