@@ -91,9 +91,18 @@ export default function StudentPage() {
     )
   }
 
-  function getSchedulesForDay(course, day) {
-    const dow = new Date(year, month, day).getDay()
-    return course.class_schedules?.filter(s => s.day_of_week === dow) || []
+ function getSchedulesForDay(course, day) {
+  const dow = new Date(year, month, day).getDay()
+  const seen = new Set()
+  return (course.class_schedules || [])
+    .filter(s => s.day_of_week === dow)
+    .filter(s => {
+      const key = `${s.start_time}-${s.end_time}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+}
   }
 
   function isBooked(courseId, scheduleId, day) {
