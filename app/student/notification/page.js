@@ -42,16 +42,31 @@ export default function StudentNotificationPage() {
   }
 
   async function handleCancel(booking) {
-    const classDateTime = new Date(`${booking.class_date}T${booking.class_time?.split('~')[0]}`)
-    const diff = (classDateTime - new Date()) / (1000*60*60)
-    if (diff < 4) { alert('수업 4시간 전에는 취소할 수 없어요'); return }
-    if (!confirm('예약을 취소할까요?')) return
-    await supabase.from('bookings').delete().eq('id', booking.id)
-    // 수강권 복구
-    const { data: ticket } = await supabase.from('tickets').select('*').eq('user_id', user.id).single()
-    if (ticket) await supabase.from('tickets').update({ remain: ticket.remain+1 }).eq('id', ticket.id)
-    loadData(user.id)
+  const classDateTime = new Date(`${booking.class_date}T${booking.class_time?.split('~')[0]}`)
+  const diff = (classDateTime - new Date()) / (1000*60*60)
+  if (diff < 4) { alert('수업 4시간 전에는 취소할 수 없어요'); return }
+  if (!confirm('예약을 취소할까요?')) return
+  
+  // 강사 id 찾기
+  const { data: course } = await supabase.from('class_courses').select('teacher_id').eq('id', booking.course_id).single()
+  
+  await supabase.from('bookings').delete().eq('id', booking.id)
+  const { data: ticket } = await supabase.from('tickets').select('*').eq('user_id', user.id).single()
+  if (ticket) await supabase.from('tickets').update({ remain: ticket.remain+1 }).eq('id', ticket.id)
+  
+  // 강사에게 취소 알림
+  const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
+  if (course?.teacher_id) {
+    await supabase.from('notifications').insert({
+      user_id: course.teacher_id,
+      type: 'booking_cancelled',
+      title: '예약 취소',
+      body: `${profile?.name || '학생'}님이 ${booking.class_name} ${booking.class_date} ${booking.class_time} 취소`
+    })
   }
+  
+  loadData(user.id)
+}
 
   const attended = doneClasses.filter(d => d.status === 'attended').length
   const absent = doneClasses.filter(d => d.status === 'absent').length

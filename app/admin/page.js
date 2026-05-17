@@ -7,18 +7,29 @@ export default function AdminPage() {
   const router = useRouter()
   const [user, setUser] = useState(null)
   const [members, setMembers] = useState([])
+  const [unreadCount, setUnreadCount] = useState(0)
   const [expanded, setExpanded] = useState(null)
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) { router.push('/login'); return }
-      if (data.user.user_metadata?.role !== 'admin') { router.push('/student'); return }
-      setUser(data.user)
-      loadMembers()
-    })
-  }, [])
+ useEffect(() => {
+  supabase.auth.getUser().then(({ data }) => {
+    if (!data.user) { router.push('/login'); return }
+    if (data.user.user_metadata?.role !== 'admin') { router.push('/student'); return }
+    setUser(data.user)
+    loadMembers()
+    loadUnread(data.user.id)
+  })
+}, [])
+
+async function loadUnread(userId) {
+  const { count } = await supabase
+    .from('notifications')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('is_read', false)
+  setUnreadCount(count || 0)
+}
 
   async function loadMembers() {
     const { data } = await supabase
@@ -152,19 +163,28 @@ export default function AdminPage() {
         })}
       </div>
 
-      <nav className="bottom-nav">
-        {[
-          { href:'/admin', label:'회원', icon:'👥', active:true },
-          { href:'/admin/schedule', label:'수업현황', icon:'📅' },
-          { href:'/admin/notification', label:'알림', icon:'🔔' },
-          { href:'/lounge', label:'라운지', icon:'💬' },
-        ].map(t=>(
-          <a key={t.label} href={t.href} className={`nav-item ${t.active?'active':''}`}>
-            <span style={{ fontSize:20 }}>{t.icon}</span>
-            <span>{t.label}</span>
-          </a>
-        ))}
-      </nav>
+     <nav className="bottom-nav">
+  {[
+    { href:'/admin', label:'회원', icon:'👥', active:true },
+    { href:'/admin/schedule', label:'수업현황', icon:'📅' },
+    { href:'/admin/notification', label:'알림', icon:'🔔', badge:unreadCount },
+    { href:'/lounge', label:'라운지', icon:'💬' },
+  ].map(t=>(
+    <a key={t.label} href={t.href} className={`nav-item ${t.active?'active':''}`}>
+      <span style={{ fontSize:20, position:'relative' }}>
+        {t.icon}
+        {t.badge > 0 && (
+          <span style={{ position:'absolute', top:-2, right:-8, minWidth:14, height:14, padding:'0 4px',
+            borderRadius:7, background:'#e53935', color:'#fff', fontSize:9, fontWeight:800,
+            display:'flex', alignItems:'center', justifyContent:'center', lineHeight:1 }}>
+            {t.badge > 99 ? '99+' : t.badge}
+          </span>
+        )}
+      </span>
+      <span>{t.label}</span>
+    </a>
+  ))}
+</nav>
     </>
   )
 }
