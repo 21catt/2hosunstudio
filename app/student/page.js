@@ -103,7 +103,7 @@ export default function StudentPage() {
       return true
     })
 }
-  }
+  
 
   function isBooked(courseId, scheduleId, day) {
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
