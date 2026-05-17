@@ -6,7 +6,6 @@ import { supabase } from '../../lib/supabase'
 const EMOJI = { drawing:'✏️', painting:'🎨', sculpture:'🗿', free:'🖼️' }
 
 const CAT_POSES = [
-  // 앉은 고양이
   (d,f,s) => `<svg viewBox="0 0 60 54" fill="none" xmlns="http://www.w3.org/2000/svg" width="40" height="40">
     <path d="M15 26 Q13 15 18 12 Q21 22 24 24" fill="${f}" stroke="${s}" stroke-width="2"/>
     <path d="M45 26 Q47 15 42 12 Q39 22 36 24" fill="${f}" stroke="${s}" stroke-width="2"/>
@@ -17,40 +16,31 @@ const CAT_POSES = [
     <path d="M27 35 Q30 38 33 35" stroke="${s}" stroke-width="1.8" fill="none" stroke-linecap="round"/>
     <text x="30" y="44" text-anchor="middle" font-size="10" font-weight="800" fill="#1e3828" font-family="Nunito,sans-serif">${d}</text>
   </svg>`,
-  // 식빵 고양이
   (d,f,s) => `<svg viewBox="0 0 60 46" fill="none" xmlns="http://www.w3.org/2000/svg" width="40" height="36">
     <path d="M12 24 Q11 14 16 12 Q18 20 20 22" fill="${f}" stroke="${s}" stroke-width="1.8"/>
     <path d="M48 24 Q49 14 44 12 Q42 20 40 22" fill="${f}" stroke="${s}" stroke-width="1.8"/>
     <ellipse cx="30" cy="30" rx="22" ry="14" fill="${f}" stroke="${s}" stroke-width="2"/>
     <circle cx="23" cy="27" r="2" fill="${s}"/>
     <circle cx="37" cy="27" r="2" fill="${s}"/>
-    <ellipse cx="30" cy="32" rx="3.5" ry="2.2" fill="${s}" fill-opacity="0.4"/>
     <text x="30" y="43" text-anchor="middle" font-size="10" font-weight="800" fill="#1e3828" font-family="Nunito,sans-serif">${d}</text>
   </svg>`,
-  // 행복 고양이
   (d,f,s) => `<svg viewBox="0 0 60 52" fill="none" xmlns="http://www.w3.org/2000/svg" width="40" height="40">
     <path d="M14 24 Q12 13 17 10 Q20 20 23 22" fill="${f}" stroke="${s}" stroke-width="1.8"/>
     <path d="M46 24 Q48 13 43 10 Q40 20 37 22" fill="${f}" stroke="${s}" stroke-width="1.8"/>
     <path d="M10 30 Q10 14 30 14 Q50 14 50 30 Q50 44 30 46 Q10 46 10 30Z" fill="${f}" stroke="${s}" stroke-width="2"/>
-    <path d="M42 46 Q50 48 48 52" stroke="${s}" stroke-width="1.8" fill="none" stroke-linecap="round"/>
     <circle cx="23" cy="28" r="2.2" fill="${s}"/>
     <circle cx="37" cy="28" r="2.2" fill="${s}"/>
     <path d="M23 36 Q30 43 37 36" stroke="${s}" stroke-width="2" fill="none" stroke-linecap="round"/>
-    <ellipse cx="22" cy="32" rx="4" ry="2.5" fill="${s}" fill-opacity="0.18"/>
-    <ellipse cx="38" cy="32" rx="4" ry="2.5" fill="${s}" fill-opacity="0.18"/>
     <text x="30" y="50" text-anchor="middle" font-size="10" font-weight="800" fill="#1e3828" font-family="Nunito,sans-serif">${d}</text>
   </svg>`,
-  // 졸린 고양이
   (d,f,s) => `<svg viewBox="0 0 60 50" fill="none" xmlns="http://www.w3.org/2000/svg" width="40" height="38">
     <path d="M13 23 Q11 12 16 10 Q19 19 22 22" fill="${f}" stroke="${s}" stroke-width="1.8"/>
     <path d="M47 23 Q49 12 44 10 Q41 19 38 22" fill="${f}" stroke="${s}" stroke-width="1.8"/>
     <path d="M10 30 Q10 14 30 14 Q50 14 50 30 Q50 44 30 46 Q10 46 10 30Z" fill="${f}" stroke="${s}" stroke-width="2"/>
     <path d="M21 27 Q24 25 27 27" stroke="${s}" stroke-width="1.8" fill="none" stroke-linecap="round"/>
     <path d="M33 27 Q36 25 39 27" stroke="${s}" stroke-width="1.8" fill="none" stroke-linecap="round"/>
-    <path d="M44 44 Q50 46 49 50" stroke="${s}" stroke-width="1.8" fill="none" stroke-linecap="round"/>
     <text x="30" y="46" text-anchor="middle" font-size="10" font-weight="800" fill="#1e3828" font-family="Nunito,sans-serif">${d}</text>
   </svg>`,
-  // 호기심 고양이
   (d,f,s) => `<svg viewBox="0 0 60 52" fill="none" xmlns="http://www.w3.org/2000/svg" width="40" height="40">
     <path d="M12 25 Q10 14 15 11 Q18 21 21 23" fill="${f}" stroke="${s}" stroke-width="1.8"/>
     <path d="M42 22 Q46 12 42 9 Q39 18 37 21" fill="${f}" stroke="${s}" stroke-width="1.8"/>
@@ -58,7 +48,6 @@ const CAT_POSES = [
     <circle cx="22" cy="28" r="2.5" fill="${s}"/>
     <circle cx="36" cy="27" r="2.5" fill="${s}"/>
     <path d="M24 36 Q28 40 32 36" stroke="${s}" stroke-width="1.8" fill="none" stroke-linecap="round"/>
-    <path d="M37 33 Q44 30 46 35" stroke="${s}" stroke-width="1.5" fill="none" stroke-linecap="round"/>
     <text x="30" y="50" text-anchor="middle" font-size="10" font-weight="800" fill="#1e3828" font-family="Nunito,sans-serif">${d}</text>
   </svg>`
 ]
@@ -72,9 +61,7 @@ const CAT_COLORS = [
 ]
 
 function getCat(d) {
-  const pi = (d*7+3) % 5
-  const ci = (d*3+1) % 5
-  return { pose: CAT_POSES[pi], ...CAT_COLORS[ci] }
+  return { pose: CAT_POSES[(d*7+3)%5], ...CAT_COLORS[(d*3+1)%5] }
 }
 
 export default function StudentPage() {
@@ -105,9 +92,9 @@ export default function StudentPage() {
     const { data: b } = await supabase.from('bookings').select('*').eq('user_id', userId)
     setBookings(b || [])
     const { data: c } = await supabase
-  .from('class_courses')
-  .select('*, class_schedules(*)')
-  .eq('is_active', true)
+      .from('class_courses')
+      .select('*, class_schedules(*)')
+      .eq('is_active', true)
     setClasses(c || [])
     setLoading(false)
   }
@@ -117,21 +104,25 @@ export default function StudentPage() {
   }
 
   function dayClasses(day) {
-   function dayClasses(day) {
-  const dow = new Date(year, month, day).getDay()
-  return classes.filter(c => 
-    c.class_schedules?.some(s => s.day_of_week === dow)
-  )
-}
-
-  function isBooked(classId, day) {
-    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
-    return bookings.some(b => b.class_slot_id === classId && b.class_date === dateStr)
+    const dow = new Date(year, month, day).getDay()
+    return classes.filter(c =>
+      c.class_schedules?.some(s => s.day_of_week === dow)
+    )
   }
 
-  function getBooking(classId, day) {
+  function getScheduleForDay(course, day) {
+    const dow = new Date(year, month, day).getDay()
+    return course.class_schedules?.find(s => s.day_of_week === dow)
+  }
+
+  function isBooked(courseId, day) {
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
-    return bookings.find(b => b.class_slot_id === classId && b.class_date === dateStr)
+    return bookings.some(b => b.course_id === courseId && b.class_date === dateStr)
+  }
+
+  function getBooking(courseId, day) {
+    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
+    return bookings.find(b => b.course_id === courseId && b.class_date === dateStr)
   }
 
   function spawnParticles(el) {
@@ -156,12 +147,19 @@ export default function StudentPage() {
     setTimeout(() => setAnimDay(null), 500)
   }
 
-  async function handleBook(cls) {
+  async function handleBook(course) {
     if (!ticket || ticket.remain <= 0) { alert('잔여 수강권이 없어요 🐾'); return }
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
+    const schedule = getScheduleForDay(course, selectedDay)
     await supabase.from('bookings').insert({
-      user_id: user.id, class_slot_id: cls.id, class_name: cls.name,
-      class_date: dateStr, class_time: cls.time, teacher: cls.teacher, status:'booked'
+      user_id: user.id,
+      course_id: course.id,
+      schedule_id: schedule?.id,
+      class_name: course.name,
+      class_date: dateStr,
+      class_time: schedule ? `${schedule.start_time}~${schedule.end_time}` : '',
+      teacher: course.teacher,
+      status: 'booked'
     })
     await supabase.from('tickets').update({ remain: ticket.remain-1 }).eq('id', ticket.id)
     loadData(user.id)
@@ -236,6 +234,7 @@ export default function StudentPage() {
             const isT = d===today
             const cat = getCat(d)
             const isAnim = animDay===d
+            const hasCls = dayClasses(d).length > 0
 
             return (
               <div key={d}
@@ -254,7 +253,7 @@ export default function StudentPage() {
                   <div style={{ fontSize:12, fontWeight:700,
                     color:dow===0?'#b05050':dow===6?'#5070a0':'var(--td)' }}>{d}</div>
                 )}
-                {!isB && dayClasses(d).length>0 && !isSel && (
+                {!isB && hasCls && !isSel && (
                   <div style={{ width:4, height:4, borderRadius:'50%', background:'var(--g3)', marginTop:2 }}/>
                 )}
               </div>
@@ -280,27 +279,30 @@ export default function StudentPage() {
 
         {dc.length===0 ? (
           <div style={{ textAlign:'center', padding:20, color:'var(--tmu)', fontSize:12 }}>이날은 수업이 없어요 🐾</div>
-        ) : dc.map(cls=>{
-          const booked=isBooked(cls.id, selectedDay)
-          const booking=getBooking(cls.id, selectedDay)
+        ) : dc.map(course=>{
+          const schedule = getScheduleForDay(course, selectedDay)
+          const booked = isBooked(course.id, selectedDay)
+          const booking = getBooking(course.id, selectedDay)
           return (
-            <div key={cls.id} style={{ background:booked?'#e8f5e0':'var(--bg)', borderRadius:14, padding:'12px 14px',
+            <div key={course.id} style={{ background:booked?'#e8f5e0':'var(--bg)', borderRadius:14, padding:'12px 14px',
               marginBottom:8, display:'flex', alignItems:'center', justifyContent:'space-between',
               border:`1.5px solid ${booked?'var(--g3)':'var(--g1)'}` }}>
               <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                 <div style={{ width:34, height:34, borderRadius:10, background:booked?'var(--g2)':'var(--g1)',
                   display:'flex', alignItems:'center', justifyContent:'center', fontSize:16 }}>
-                  {EMOJI[cls.category]||'🎨'}
+                  {EMOJI[course.category]||'🎨'}
                 </div>
                 <div>
-                  <div style={{ fontSize:12, fontWeight:800, color:'var(--td)' }}>{cls.name}</div>
-                  <div style={{ fontSize:10, color:'var(--tm)', fontWeight:600 }}>{cls.time}</div>
-                  <div style={{ fontSize:10, color:'var(--tmu)' }}>강사 {cls.teacher}</div>
+                  <div style={{ fontSize:12, fontWeight:800, color:'var(--td)' }}>{course.name}</div>
+                  <div style={{ fontSize:10, color:'var(--tm)', fontWeight:600 }}>
+                    {schedule?`${schedule.start_time}~${schedule.end_time}`:''}
+                  </div>
+                  <div style={{ fontSize:10, color:'var(--tmu)' }}>강사 {course.teacher}</div>
                 </div>
               </div>
               <div style={{ textAlign:'right', display:'flex', flexDirection:'column', alignItems:'flex-end', gap:4 }}>
-                <div style={{ fontSize:11, fontWeight:700, color:'var(--tm)' }}>{cls.current_count||0}/{cls.max_count}명</div>
-                <button onClick={()=>booked?handleCancel(booking):handleBook(cls)}
+                <div style={{ fontSize:11, fontWeight:700, color:'var(--tm)' }}>{course.max_count}명</div>
+                <button onClick={()=>booked?handleCancel(booking):handleBook(course)}
                   style={{ fontSize:10, padding:'4px 12px', borderRadius:20,
                     background:booked?'var(--g1)':'var(--g4)', color:booked?'var(--tm)':'#fff',
                     border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>
