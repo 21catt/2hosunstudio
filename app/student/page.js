@@ -31,14 +31,13 @@ export default function StudentPage() {
   const [selCat, setSelCat] = useState(null)
   const [selCourse, setSelCourse] = useState(null)
   const [selSchedule, setSelSchedule] = useState(null)
-const now = new Date()
-const todayY = now.getFullYear()
-const todayM = now.getMonth()
-const todayD = now.getDate()
-const [year, setYear] = useState(todayY)
-const [month, setMonth] = useState(todayM)
-// "today" 는 현재 보고 있는 달이 오늘 달일 때만 의미 있음
-const today = (year === todayY && month === todayM) ? todayD : -1
+  const now = new Date()
+  const todayY = now.getFullYear()
+  const todayM = now.getMonth()
+  const todayD = now.getDate()
+  const [year, setYear] = useState(todayY)
+  const [month, setMonth] = useState(todayM)
+  const today = (year === todayY && month === todayM) ? todayD : -1
   const [loading, setLoading] = useState(true)
   const cellRefs = useRef({})
 
@@ -110,24 +109,46 @@ const today = (year === todayY && month === todayM) ? todayD : -1
     }
   }
 
-function handleDayClick(d) {
-  const dow = new Date(year, month, d).getDay()
-  if (dow === 1) return
-  // 과거 날짜는 그냥 클릭만 되고 예약은 막힘 (보기는 가능)
-  setSelectedDay(d)
-  setSelCat(null)
-  setSelCourse(null)
-  setSelSchedule(null)
-  setAnimDay(d)
-  spawnParticles(cellRefs.current[d])
-  setTimeout(() => setAnimDay(null), 500)
-}
+  function handleDayClick(d) {
+    const dow = new Date(year, month, d).getDay()
+    if (dow === 1) return
+    setSelectedDay(d)
+    setSelCat(null)
+    setSelCourse(null)
+    setSelSchedule(null)
+    setAnimDay(d)
+    spawnParticles(cellRefs.current[d])
+    setTimeout(() => setAnimDay(null), 500)
+  }
+
+  function monthDiff() {
+    return (year - todayY) * 12 + (month - todayM)
+  }
+
+  function changeMonth(delta) {
+    const newDate = new Date(year, month + delta, 1)
+    const diff = (newDate.getFullYear() - todayY) * 12 + (newDate.getMonth() - todayM)
+    if (diff < -3 || diff > 3) return
+    setYear(newDate.getFullYear())
+    setMonth(newDate.getMonth())
+    setSelectedDay(1)
+    setSelCat(null); setSelCourse(null); setSelSchedule(null)
+  }
+
+  function isBookable(day) {
+    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
+    const todayStr = `${todayY}-${String(todayM+1).padStart(2,'0')}-${String(todayD).padStart(2,'0')}`
+    if (dateStr < todayStr) return false
+    const diff = monthDiff()
+    if (diff > 1) return false
+    return true
+  }
 
   async function handleBook() {
     if (!selCourse || !selSchedule) return
     if (!ticket || ticket.remain <= 0) { alert('잔여 수강권이 없어요 🐾'); return }
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
-    
+
     const { data: newBooking } = await supabase.from('bookings').insert({
       user_id: user.id,
       course_id: selCourse.id,
@@ -138,9 +159,9 @@ function handleDayClick(d) {
       teacher: selCourse.teacher,
       status: 'booked'
     }).select().single()
-    
+
     await supabase.from('tickets').update({ remain: ticket.remain-1 }).eq('id', ticket.id)
-    
+
     const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
     if (selCourse.teacher_id) {
       await supabase.from('notifications').insert({
@@ -151,43 +172,20 @@ function handleDayClick(d) {
         related_id: newBooking?.id
       })
     }
-    
+
     setSelCat(null); setSelCourse(null); setSelSchedule(null)
     loadData(user.id)
   }
-// 현재 보는 달이 오늘 기준 몇 개월 떨어져 있는지
-function monthDiff() {
-  return (year - todayY) * 12 + (month - todayM)
-}
 
-function changeMonth(delta) {
-  const newDate = new Date(year, month + delta, 1)
-  const diff = (newDate.getFullYear() - todayY) * 12 + (newDate.getMonth() - todayM)
-  if (diff < -3 || diff > 3) return // 과거 3개월 ~ 미래 3개월
-  setYear(newDate.getFullYear())
-  setMonth(newDate.getMonth())
-  setSelectedDay(1)
-  setSelCat(null); setSelCourse(null); setSelSchedule(null)
-}
-
-function isBookable(day) {
-  const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
-  const todayStr = `${todayY}-${String(todayM+1).padStart(2,'0')}-${String(todayD).padStart(2,'0')}`
-  if (dateStr < todayStr) return false  // 과거 불가
-  // 이번 달 + 다음 달까지만 예약 가능
-  const diff = monthDiff()
-  if (diff > 1) return false
-  return true
-}
   async function handleCancel(booking) {
     const diff = (new Date(booking.class_date) - new Date()) / (1000*60*60)
     if (diff < 4) { alert('수업 4시간 전에는 취소할 수 없어요'); return }
-    
+
     const { data: course } = await supabase.from('class_courses').select('teacher_id').eq('id', booking.course_id).single()
-    
+
     await supabase.from('bookings').delete().eq('id', booking.id)
     await supabase.from('tickets').update({ remain: ticket.remain+1 }).eq('id', ticket.id)
-    
+
     const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
     if (course?.teacher_id) {
       await supabase.from('notifications').insert({
@@ -197,7 +195,7 @@ function isBookable(day) {
         body: `${profile?.name || '학생'}님이 ${booking.class_name} ${booking.class_date} ${booking.class_time} 취소`
       })
     }
-    
+
     loadData(user.id)
   }
 
@@ -254,24 +252,24 @@ function isBookable(day) {
 
       <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 0' }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
-  <button onClick={() => changeMonth(-1)}
-    disabled={monthDiff() <= -3}
-    style={{ background:'transparent', border:'none', cursor:'pointer', fontSize:20, color:'var(--g4)', padding:'4px 10px', opacity: monthDiff() <= -3 ? 0.3 : 1 }}>‹</button>
-  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-    <span style={{ fontSize:18, fontWeight:800, color:'var(--td)' }}>
-      {year}.{String(month+1).padStart(2,'0')}
-    </span>
-    {(year !== todayY || month !== todayM) && (
-      <button onClick={() => { setYear(todayY); setMonth(todayM); setSelectedDay(todayD) }}
-        style={{ background:'var(--g1)', color:'var(--g5)', border:'none', borderRadius:12, padding:'3px 10px', fontSize:10, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
-        오늘
-      </button>
-    )}
-  </div>
-  <button onClick={() => changeMonth(1)}
-    disabled={monthDiff() >= 3}
-    style={{ background:'transparent', border:'none', cursor:'pointer', fontSize:20, color:'var(--g4)', padding:'4px 10px', opacity: monthDiff() >= 3 ? 0.3 : 1 }}>›</button>
-</div>
+          <button onClick={() => changeMonth(-1)}
+            disabled={monthDiff() <= -3}
+            style={{ background:'transparent', border:'none', cursor:'pointer', fontSize:20, color:'var(--g4)', padding:'4px 10px', opacity: monthDiff() <= -3 ? 0.3 : 1 }}>‹</button>
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            <span style={{ fontSize:18, fontWeight:800, color:'var(--td)' }}>
+              {year}.{String(month+1).padStart(2,'0')}
+            </span>
+            {(year !== todayY || month !== todayM) && (
+              <button onClick={() => { setYear(todayY); setMonth(todayM); setSelectedDay(todayD) }}
+                style={{ background:'var(--g1)', color:'var(--g5)', border:'none', borderRadius:12, padding:'3px 10px', fontSize:10, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                오늘
+              </button>
+            )}
+          </div>
+          <button onClick={() => changeMonth(1)}
+            disabled={monthDiff() >= 3}
+            style={{ background:'transparent', border:'none', cursor:'pointer', fontSize:20, color:'var(--g4)', padding:'4px 10px', opacity: monthDiff() >= 3 ? 0.3 : 1 }}>›</button>
+        </div>
 
         <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', textAlign:'center', marginBottom:4 }}>
           {['일','월','화','수','목','금','토'].map((d,i)=>(
@@ -415,19 +413,21 @@ function isBookable(day) {
               </div>
             )}
 
-           {selSchedule && !isBooked(selCourse?.id, selSchedule?.id, selectedDay) && (
-  <div className="slide-up">
-    {isBookable(selectedDay) ? (
-      <button className="btn-primary" onClick={handleBook}>
-        {selCourse?.name} {selSchedule?.start_time}~{selSchedule?.end_time} 예약하기
-      </button>
-    ) : (
-      <div style={{ padding:'14px', background:'var(--bg)', borderRadius:14, textAlign:'center', color:'var(--tmu)', fontSize:12, fontWeight:600 }}>
-        {monthDiff() < 0 ? '지난 날짜는 예약할 수 없어요' : '예약은 다음 달까지만 가능해요'}
-      </div>
-    )}
-  </div>
-)}
+            {selSchedule && !isBooked(selCourse?.id, selSchedule?.id, selectedDay) && (
+              <div className="slide-up">
+                {isBookable(selectedDay) ? (
+                  <button className="btn-primary" onClick={handleBook}>
+                    {selCourse?.name} {selSchedule?.start_time}~{selSchedule?.end_time} 예약하기
+                  </button>
+                ) : (
+                  <div style={{ padding:'14px', background:'var(--bg)', borderRadius:14, textAlign:'center', color:'var(--tmu)', fontSize:12, fontWeight:600 }}>
+                    {monthDiff() < 0 ? '지난 날짜는 예약할 수 없어요' : '예약은 다음 달까지만 가능해요'}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
 
         {bookings.filter(b => new Date(b.class_date).getDate() === selectedDay).length > 0 && (
           <div style={{ marginTop:14 }}>
