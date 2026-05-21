@@ -312,8 +312,8 @@ export default function StudentPage() {
                   cursor:isMon?'default':'pointer', borderRadius:12, opacity:isMon?0.3:1, position:'relative',
                   background:isSel?'#e8f5e0':'transparent',
                   border:isSel?'1.5px solid var(--g3)':'1.5px solid transparent' }}>
-                {isB ? (
-                  <div className={isAnim?'cat-anim':''} style={{ display:'flex', flexDirection:'column', alignItems:'center', lineHeight:1 }}>
+               {isB || isSel ? (
+  <div className={isAnim?'cat-anim':''} style={{ display:'flex', flexDirection:'column', alignItems:'center', lineHeight:1 }}>
                     <img src={getCatImage(d)} alt="" style={{ width:34, height:34, objectFit:'contain' }}/>
                     <span style={{ fontSize:9, fontWeight:800, color:'var(--td)', marginTop:-1 }}>{d}</span>
                   </div>
