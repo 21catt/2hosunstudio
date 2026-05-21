@@ -4,10 +4,10 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 
 const DAYS = ['일','월','화','수','목','금','토']
-const CATS = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', free:'자율창작' }
-const EMOJI = { drawing:'✏️', painting:'🎨', sculpture:'🗿', free:'🖼️' }
-const CAT_COLORS = { drawing:'#e8f5e0', painting:'#EDE7F6', sculpture:'#FFF3E0', free:'#E3F2FD' }
-const CAT_TEXT = { drawing:'var(--g5)', painting:'#4A148C', sculpture:'#E65100', free:'#0D47A1' }
+const CATS = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', free:'자율창작', meeting:'회의' }
+const EMOJI = { drawing:'✏️', painting:'🎨', sculpture:'🗿', free:'🖼️', meeting:'⭐' }
+const CAT_COLORS = { drawing:'#e8f5e0', painting:'#EDE7F6', sculpture:'#FFF3E0', free:'#E3F2FD', meeting:'#FFF8E1' }
+const CAT_TEXT = { drawing:'var(--g5)', painting:'#4A148C', sculpture:'#E65100', free:'#0D47A1', meeting:'#F57F17' }
 const DEFAULT_SLOTS = [
   { start:'10:00', end:'12:00' },
   { start:'12:00', end:'14:00' },
