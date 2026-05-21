@@ -19,7 +19,98 @@ const CAT_IMAGES = [
 function getCatImage(d) {
   return CAT_IMAGES[(d * 7 + 3) % CAT_IMAGES.length]
 }
+function PixelPlant({ ratio }) {
+  // ratio: 0 ~ 1 (1=싱싱, 0=죽음)
+  const stage = ratio >= 0.6 ? 'healthy' : ratio >= 0.3 ? 'mild' : 'wilted'
+  
+  const colors = {
+    healthy: { leaf: '#4a6b5c', leafDark: '#2d4a3e', pot: '#9c7a5a', potDark: '#7a5d42', drop: '#8ba894' },
+    mild: { leaf: '#5e7a6e', leafDark: '#4a6b5c', pot: '#9c7a5a', potDark: '#7a5d42', drop: '#8ba894' },
+    wilted: { leaf: '#9ba89e', leafDark: '#7a857d', pot: '#9c7a5a', potDark: '#7a5d42', drop: 'transparent' },
+  }
+  const c = colors[stage]
 
+  // 잎 좌표 (픽셀 단위, 8x8 그리드를 5px 픽셀로 그림)
+  const leavesHealthy = [
+    // 왼쪽 큰 잎
+    [1,3],[0,4],[1,4],[2,4],[1,5],[2,5],
+    // 가운데 잎
+    [3,2],[3,3],[4,2],[4,3],
+    // 오른쪽 큰 잎
+    [5,3],[6,3],[5,4],[6,4],[7,4],[6,5],[7,5],
+    // 줄기 아래쪽 잎
+    [2,5],[3,5],[4,5],[5,5],
+  ]
+  // 시들었을 때는 잎이 처지고 일부 사라짐
+  const leavesWilted = [
+    [1,4],[2,4],[1,5],
+    [3,3],[4,3],
+    [5,4],[6,4],[6,5],
+    [3,5],[4,5],
+  ]
+  const leaves = stage === 'wilted' ? leavesWilted : leavesHealthy
+
+  return (
+    <div style={{ position:'relative', width:40, height:40 }}>
+      <style>{`
+        @keyframes plantSwayHealthy {
+          0%,100% { transform: rotate(-1.5deg); }
+          50% { transform: rotate(1.5deg); }
+        }
+        @keyframes plantSwayMild {
+          0%,100% { transform: rotate(-0.5deg); }
+          50% { transform: rotate(0.5deg); }
+        }
+        @keyframes plantSwayWilted {
+          0%,100% { transform: translateY(0); }
+          50% { transform: translateY(0.3px); }
+        }
+        @keyframes dropFall {
+          0% { transform: translateY(-2px); opacity: 0; }
+          20% { opacity: 1; }
+          80% { opacity: 1; }
+          100% { transform: translateY(8px); opacity: 0; }
+        }
+        .plant-sway-healthy { animation: plantSwayHealthy 3s ease-in-out infinite; transform-origin: 50% 80%; }
+        .plant-sway-mild { animation: plantSwayMild 4s ease-in-out infinite; transform-origin: 50% 80%; }
+        .plant-sway-wilted { animation: plantSwayWilted 5s ease-in-out infinite; }
+        .drop1 { animation: dropFall 2.4s ease-in 0s infinite; }
+        .drop2 { animation: dropFall 2.4s ease-in 1.2s infinite; }
+      `}</style>
+
+      <div className={
+        stage === 'healthy' ? 'plant-sway-healthy' :
+        stage === 'mild' ? 'plant-sway-mild' :
+        'plant-sway-wilted'
+      } style={{ position:'absolute', inset:0 }}>
+        <svg viewBox="0 0 40 40" width="40" height="40" shapeRendering="crispEdges">
+          {/* 잎 */}
+          {leaves.map(([x,y],i) => (
+            <rect key={`leaf-${i}`} x={x*5} y={y*5} width="5" height="5" fill={c.leaf}/>
+          ))}
+          {/* 잎 그림자 (어두운 부분) */}
+          {leaves.filter(([x,y]) => y === leaves[0]?.[1] || (x+y)%2===0).slice(0,5).map(([x,y],i) => (
+            <rect key={`dark-${i}`} x={x*5+2} y={y*5+2} width="3" height="3" fill={c.leafDark}/>
+          ))}
+          {/* 줄기 */}
+          <rect x="19" y="25" width="2" height="6" fill={c.leafDark}/>
+          {/* 화분 */}
+          <rect x="13" y="31" width="14" height="2" fill={c.potDark}/>
+          <rect x="14" y="33" width="12" height="5" fill={c.pot}/>
+          <rect x="14" y="33" width="12" height="1" fill={c.potDark}/>
+        </svg>
+      </div>
+
+      {/* 물방울 (싱싱할 때만) */}
+      {stage === 'healthy' && (
+        <>
+          <div className="drop1" style={{ position:'absolute', top:0, left:10, width:2, height:3, background:c.drop, borderRadius:'50% 50% 50% 50% / 60% 60% 40% 40%' }}/>
+          <div className="drop2" style={{ position:'absolute', top:0, left:28, width:2, height:3, background:c.drop, borderRadius:'50% 50% 50% 50% / 60% 60% 40% 40%' }}/>
+        </>
+      )}
+    </div>
+  )
+}
 export default function StudentPage() {
   const router = useRouter()
   const [user, setUser] = useState(null)
@@ -333,16 +424,30 @@ export default function StudentPage() {
         </div>
 
         <div style={{ background:'var(--g1)', borderRadius:14, padding:'10px 14px', marginBottom:12,
-          display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid var(--g2)' }}>
-          <div>
-            <div style={{ fontSize:10, color:'var(--tm)', fontWeight:700 }}>내 수강권</div>
-            <div style={{ fontSize:13, fontWeight:800, color:'var(--td)' }}>
-              {ticket?`${ticket.total}회권 · 잔여 ${ticket.remain}회`:'수강권 없음'}
-            </div>
-            {ticket&&<div style={{ fontSize:10, color:'var(--g4)', fontWeight:600 }}>만료: {ticket.expires_at}</div>}
-          </div>
-          <span style={{ fontSize:28 }}>🎨</span>
+  display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid var(--g2)' }}>
+  <div style={{ flex:1 }}>
+    <div style={{ fontSize:10, color:'var(--tm)', fontWeight:700 }}>내 수강권</div>
+    <div style={{ fontSize:13, fontWeight:800, color:'var(--td)', marginBottom:4 }}>
+      {ticket?`${ticket.total}회권 · 잔여 ${ticket.remain}회`:'수강권 없음'}
+    </div>
+    {ticket && (
+      <>
+        <div style={{ width:'100%', height:5, background:'rgba(255,255,255,0.5)', borderRadius:3, overflow:'hidden', marginBottom:4 }}>
+          <div style={{
+            width: `${(ticket.remain / ticket.total) * 100}%`,
+            height: '100%',
+            background: ticket.remain/ticket.total >= 0.6 ? 'var(--g4)' : ticket.remain/ticket.total >= 0.3 ? 'var(--g3)' : '#c9a07a',
+            transition: 'width 0.3s ease, background 0.3s ease'
+          }}/>
         </div>
+        <div style={{ fontSize:10, color:'var(--g4)', fontWeight:600 }}>만료: {ticket.expires_at}</div>
+      </>
+    )}
+  </div>
+  <div style={{ marginLeft:12 }}>
+    <PixelPlant ratio={ticket ? (ticket.remain / ticket.total) : 0}/>
+  </div>
+</div>
 
         <div style={{ fontSize:12, fontWeight:800, color:'var(--td)', marginBottom:10 }}>
           {month+1}월 {selectedDay}일 수업
