@@ -20,92 +20,145 @@ function getCatImage(d) {
   return CAT_IMAGES[(d * 7 + 3) % CAT_IMAGES.length]
 }
 function PixelPlant({ ratio }) {
-  // ratio: 0 ~ 1 (1=싱싱, 0=죽음)
+  // ratio: 0~1 (1=싱싱, 0=죽음)
   const stage = ratio >= 0.6 ? 'healthy' : ratio >= 0.3 ? 'mild' : 'wilted'
   
-  const colors = {
-    healthy: { leaf: '#4a6b5c', leafDark: '#2d4a3e', pot: '#9c7a5a', potDark: '#7a5d42', drop: '#8ba894' },
-    mild: { leaf: '#5e7a6e', leafDark: '#4a6b5c', pot: '#9c7a5a', potDark: '#7a5d42', drop: '#8ba894' },
-    wilted: { leaf: '#9ba89e', leafDark: '#7a857d', pot: '#9c7a5a', potDark: '#7a5d42', drop: 'transparent' },
+  // 색상 (앱 톤에 맞춰 채도 낮춤)
+  const palette = {
+    healthy: {
+      leaf: '#3d6b4f', leafDark: '#2a4a37',
+      flower: '#6b9bc4', flowerDark: '#4a7aa3',
+      pot: '#c97a4a', potDark: '#a05c33', potLight: '#e09060',
+      drop: '#7a9bbf'
+    },
+    mild: {
+      leaf: '#5a7a6a', leafDark: '#3d5a4d',
+      flower: '#8ba8c4', flowerDark: '#6b8aa8',
+      pot: '#c97a4a', potDark: '#a05c33', potLight: '#e09060',
+      drop: 'transparent'
+    },
+    wilted: {
+      leaf: '#8a8a78', leafDark: '#6a6a5a',
+      flower: 'transparent', flowerDark: 'transparent',
+      pot: '#b8704a', potDark: '#946238', potLight: '#c98860',
+      drop: 'transparent'
+    }
   }
-  const c = colors[stage]
+  const c = palette[stage]
 
-  // 잎 좌표 (픽셀 단위, 8x8 그리드를 5px 픽셀로 그림)
+  // 잎 좌표 (12x12 그리드 × 4px 픽셀 = 48x48)
+  // 줄기 가운데(x=5,6) 중심으로 좌우 갈라져 올라감
   const leavesHealthy = [
-    // 왼쪽 큰 잎
-    [1,3],[0,4],[1,4],[2,4],[1,5],[2,5],
-    // 가운데 잎
-    [3,2],[3,3],[4,2],[4,3],
-    // 오른쪽 큰 잎
-    [5,3],[6,3],[5,4],[6,4],[7,4],[6,5],[7,5],
-    // 줄기 아래쪽 잎
-    [2,5],[3,5],[4,5],[5,5],
+    // 중앙 줄기
+    [5,4],[5,5],[5,6],[5,7],[5,8],[5,9],
+    [6,4],[6,5],[6,6],[6,7],[6,8],[6,9],
+    // 왼쪽 큰 잎 (아래쪽)
+    [3,8],[4,7],[2,9],
+    [3,7],[4,6],
+    // 왼쪽 중간 잎
+    [2,6],[3,5],
+    [2,5],[1,6],
+    // 왼쪽 위 잎
+    [3,3],[2,4],
+    // 오른쪽 큰 잎 (아래쪽)
+    [7,7],[8,8],[9,9],
+    [7,6],[8,7],
+    // 오른쪽 중간 잎
+    [8,5],[9,6],
+    [9,5],[10,6],
+    // 오른쪽 위 잎
+    [8,3],[9,4],
   ]
-  // 시들었을 때는 잎이 처지고 일부 사라짐
+  // 시든 잎 (처짐 + 일부 사라짐)
   const leavesWilted = [
-    [1,4],[2,4],[1,5],
-    [3,3],[4,3],
-    [5,4],[6,4],[6,5],
-    [3,5],[4,5],
+    [5,5],[5,6],[5,7],[5,8],[5,9],
+    [6,5],[6,6],[6,7],[6,8],[6,9],
+    [3,9],[4,8],
+    [7,8],[8,9],
+    [3,7],[4,7],
+    [7,7],[8,7],
   ]
   const leaves = stage === 'wilted' ? leavesWilted : leavesHealthy
 
+  // 꽃 좌표 (싱싱/보통일 때만)
+  const flowers = [
+    // 중앙 꽃 (가장 큰 꽃)
+    [4,2],[5,2],[6,2],[7,2],
+    [5,1],[6,1],
+    [5,3],[6,3],
+    // 왼쪽 작은 꽃
+    [2,3],[3,3],
+    [2,2],
+    // 오른쪽 작은 꽃
+    [8,3],[9,3],
+    [9,2],
+  ]
+
   return (
-    <div style={{ position:'relative', width:40, height:40 }}>
+    <div style={{ position:'relative', width:48, height:48 }}>
       <style>{`
-        @keyframes plantSwayHealthy {
+        @keyframes pSwayH {
           0%,100% { transform: rotate(-1.5deg); }
           50% { transform: rotate(1.5deg); }
         }
-        @keyframes plantSwayMild {
-          0%,100% { transform: rotate(-0.5deg); }
-          50% { transform: rotate(0.5deg); }
+        @keyframes pSwayM {
+          0%,100% { transform: rotate(-0.6deg); }
+          50% { transform: rotate(0.6deg); }
         }
-        @keyframes plantSwayWilted {
+        @keyframes pSwayW {
           0%,100% { transform: translateY(0); }
-          50% { transform: translateY(0.3px); }
+          50% { transform: translateY(0.4px); }
         }
-        @keyframes dropFall {
-          0% { transform: translateY(-2px); opacity: 0; }
-          20% { opacity: 1; }
-          80% { opacity: 1; }
-          100% { transform: translateY(8px); opacity: 0; }
+        @keyframes pDrop {
+          0% { transform: translateY(-3px); opacity:0; }
+          15% { opacity:1; }
+          85% { opacity:1; }
+          100% { transform: translateY(10px); opacity:0; }
         }
-        .plant-sway-healthy { animation: plantSwayHealthy 3s ease-in-out infinite; transform-origin: 50% 80%; }
-        .plant-sway-mild { animation: plantSwayMild 4s ease-in-out infinite; transform-origin: 50% 80%; }
-        .plant-sway-wilted { animation: plantSwayWilted 5s ease-in-out infinite; }
-        .drop1 { animation: dropFall 2.4s ease-in 0s infinite; }
-        .drop2 { animation: dropFall 2.4s ease-in 1.2s infinite; }
+        .p-h { animation: pSwayH 3.2s ease-in-out infinite; transform-origin: 50% 85%; }
+        .p-m { animation: pSwayM 4.2s ease-in-out infinite; transform-origin: 50% 85%; }
+        .p-w { animation: pSwayW 5s ease-in-out infinite; }
+        .p-d1 { animation: pDrop 2.6s ease-in 0s infinite; }
+        .p-d2 { animation: pDrop 2.6s ease-in 1.3s infinite; }
       `}</style>
 
-      <div className={
-        stage === 'healthy' ? 'plant-sway-healthy' :
-        stage === 'mild' ? 'plant-sway-mild' :
-        'plant-sway-wilted'
-      } style={{ position:'absolute', inset:0 }}>
-        <svg viewBox="0 0 40 40" width="40" height="40" shapeRendering="crispEdges">
-          {/* 잎 */}
+      <div className={stage === 'healthy' ? 'p-h' : stage === 'mild' ? 'p-m' : 'p-w'} style={{ position:'absolute', inset:0 }}>
+        <svg viewBox="0 0 48 48" width="48" height="48" shapeRendering="crispEdges">
+          {/* 꽃 (꽃 그림자 먼저, 위에 밝은 색) */}
+          {stage !== 'wilted' && flowers.map(([x,y],i) => (
+            <rect key={`f-${i}`} x={x*4} y={y*4} width="4" height="4" fill={c.flower}/>
+          ))}
+          {stage !== 'wilted' && flowers.filter(([,y]) => y >= 2).slice(0, 6).map(([x,y],i) => (
+            <rect key={`fd-${i}`} x={x*4+2} y={y*4+2} width="2" height="2" fill={c.flowerDark}/>
+          ))}
+
+          {/* 잎 (어두운 그림자 먼저, 위에 밝은 색) */}
           {leaves.map(([x,y],i) => (
-            <rect key={`leaf-${i}`} x={x*5} y={y*5} width="5" height="5" fill={c.leaf}/>
+            <rect key={`l-${i}`} x={x*4} y={y*4} width="4" height="4" fill={c.leaf}/>
           ))}
-          {/* 잎 그림자 (어두운 부분) */}
-          {leaves.filter(([x,y]) => y === leaves[0]?.[1] || (x+y)%2===0).slice(0,5).map(([x,y],i) => (
-            <rect key={`dark-${i}`} x={x*5+2} y={y*5+2} width="3" height="3" fill={c.leafDark}/>
+          {leaves.filter(([x,y]) => (x+y) % 3 === 0).map(([x,y],i) => (
+            <rect key={`ld-${i}`} x={x*4+1} y={y*4+1} width="2" height="2" fill={c.leafDark}/>
           ))}
-          {/* 줄기 */}
-          <rect x="19" y="25" width="2" height="6" fill={c.leafDark}/>
+
           {/* 화분 */}
-          <rect x="13" y="31" width="14" height="2" fill={c.potDark}/>
-          <rect x="14" y="33" width="12" height="5" fill={c.pot}/>
-          <rect x="14" y="33" width="12" height="1" fill={c.potDark}/>
+          {/* 화분 입구 */}
+          <rect x="12" y="36" width="24" height="2" fill={c.potDark}/>
+          {/* 화분 본체 */}
+          <rect x="14" y="38" width="20" height="8" fill={c.pot}/>
+          {/* 화분 왼쪽 하이라이트 */}
+          <rect x="14" y="38" width="2" height="6" fill={c.potLight}/>
+          {/* 화분 오른쪽 그림자 */}
+          <rect x="32" y="38" width="2" height="8" fill={c.potDark}/>
+          {/* 화분 바닥 */}
+          <rect x="14" y="46" width="20" height="2" fill={c.potDark}/>
         </svg>
       </div>
 
       {/* 물방울 (싱싱할 때만) */}
       {stage === 'healthy' && (
         <>
-          <div className="drop1" style={{ position:'absolute', top:0, left:10, width:2, height:3, background:c.drop, borderRadius:'50% 50% 50% 50% / 60% 60% 40% 40%' }}/>
-          <div className="drop2" style={{ position:'absolute', top:0, left:28, width:2, height:3, background:c.drop, borderRadius:'50% 50% 50% 50% / 60% 60% 40% 40%' }}/>
+          <div className="p-d1" style={{ position:'absolute', top:2, left:12, width:2, height:3, background:c.drop, borderRadius:'50% 50% 50% 50% / 60% 60% 40% 40%' }}/>
+          <div className="p-d2" style={{ position:'absolute', top:2, left:32, width:2, height:3, background:c.drop, borderRadius:'50% 50% 50% 50% / 60% 60% 40% 40%' }}/>
         </>
       )}
     </div>
