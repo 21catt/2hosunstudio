@@ -1,11 +1,11 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 
 export default function LoginPage() {
   const router = useRouter()
-  const [step, setStep] = useState(0) // 0: 역할선택 1: 로그인 2: 비번찾기
+  const [step, setStep] = useState(0)
   const [selectedRole, setSelectedRole] = useState('')
   const [email, setEmail] = useState('')
   const [pw, setPw] = useState('')
@@ -13,6 +13,14 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [resetEmail, setResetEmail] = useState('')
   const [resetSent, setResetSent] = useState(false)
+
+  // 역할 선택 시 그 역할의 마지막 로그인 이메일 자동 채우기
+  useEffect(() => {
+    if (selectedRole && typeof window !== 'undefined') {
+      const saved = localStorage.getItem(`lastEmail_${selectedRole}`)
+      if (saved) setEmail(saved)
+    }
+  }, [selectedRole])
 
   async function handleLogin() {
     setLoading(true)
@@ -24,24 +32,33 @@ export default function LoginPage() {
       return
     }
     const role = data.user.user_metadata?.role
-    const categories = data.user.user_metadata?.categories || []
 
-    // 역할 체크 - 관리자는 학생으로도 로그인 가능
-if (selectedRole === 'admin' && role !== 'admin') {
-  setError('강사 계정이 아니에요.')
-  await supabase.auth.signOut()
-  setLoading(false)
-  return
-}
-if (selectedRole === 'student' && role !== 'student' && role !== 'admin') {
-  setError('수강생 계정이 아니에요.')
-  await supabase.auth.signOut()
-  setLoading(false)
-  return
-}
+    // 역할 체크
+    if (selectedRole === 'admin' && role !== 'admin') {
+      setError('강사 계정이 아니에요.')
+      await supabase.auth.signOut()
+      setLoading(false)
+      return
+    }
+    if (selectedRole === 'student' && role !== 'student' && role !== 'admin') {
+      setError('수강생 계정이 아니에요.')
+      await supabase.auth.signOut()
+      setLoading(false)
+      return
+    }
+    if (selectedRole === 'artist' && role !== 'artist' && role !== 'admin') {
+      setError('작가 계정이 아니에요.')
+      await supabase.auth.signOut()
+      setLoading(false)
+      return
+    }
 
-  if (selectedRole === 'admin') router.push('/admin')
-  else router.push('/student')
+    // 마지막 로그인 이메일 저장 (역할별)
+    localStorage.setItem(`lastEmail_${selectedRole}`, email)
+
+    if (selectedRole === 'admin') router.push('/admin')
+    else if (selectedRole === 'artist') router.push('/artist')
+    else router.push('/student')
   }
 
   async function handleReset() {
@@ -72,6 +89,7 @@ if (selectedRole === 'student' && role !== 'student' && role !== 'admin') {
         {[
           { id:'student', emoji:'🎨', name:'수강생', desc:'수업 예약, 냥밭, 출석 현황 확인' },
           { id:'admin', emoji:'✏️', name:'강사', desc:'수강생 관리, 수업 현황 관리' },
+          { id:'artist', emoji:'🖼️', name:'전시 참여 작가', desc:'회의 일정 참여, 냥밭 활동' },
         ].map(r => (
           <div key={r.id} onClick={() => setSelectedRole(r.id)}
             style={{ border:`1.5px solid ${selectedRole===r.id?'var(--g4)':'var(--g1)'}`,
@@ -151,25 +169,22 @@ if (selectedRole === 'student' && role !== 'student' && role !== 'admin') {
   )
 
   // 로그인 화면
+  const roleEmoji = selectedRole === 'admin' ? '✏️' : selectedRole === 'artist' ? '🖼️' : '🐱'
+  const roleTitle = selectedRole === 'admin' ? '강사 로그인' : selectedRole === 'artist' ? '작가 로그인' : '수강생 로그인'
+
   return (
     <>
       <div className="header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <button onClick={() => { setStep(0); setError('') }}
             style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:'50%', width:32, height:32, cursor:'pointer', color:'#fff', fontSize:18 }}>‹</button>
-          <span className="header-title">
-            {selectedRole === 'admin' ? '강사 로그인' : '수강생 로그인'}
-          </span>
+          <span className="header-title">{roleTitle}</span>
         </div>
       </div>
       <div className="page-body" style={{ paddingTop:40 }}>
         <div style={{ textAlign:'center', marginBottom:32 }}>
-          <div style={{ fontSize:48, marginBottom:10 }}>
-            {selectedRole === 'admin' ? '✏️' : '🐱'}
-          </div>
-          <div style={{ fontSize:18, fontWeight:800, color:'var(--td)', marginBottom:6 }}>
-            {selectedRole === 'admin' ? '강사 로그인' : '수강생 로그인'}
-          </div>
+          <div style={{ fontSize:48, marginBottom:10 }}>{roleEmoji}</div>
+          <div style={{ fontSize:18, fontWeight:800, color:'var(--td)', marginBottom:6 }}>{roleTitle}</div>
           <div style={{ fontSize:12, color:'var(--tmu)' }}>2호선 스튜디오에 오신 걸 환영해요</div>
         </div>
 

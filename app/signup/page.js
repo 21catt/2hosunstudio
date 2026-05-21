@@ -10,6 +10,12 @@ const CATS = [
   { id:'free', emoji:'🖼️', name:'자율창작', desc:'자유로운 작업' },
 ]
 
+const ROLES = [
+  { id:'student', emoji:'🎨', name:'수강생', desc:'수업 예약, 냥밭, 출석 현황을 확인할 수 있어요' },
+  { id:'admin', emoji:'✏️', name:'강사', desc:'수강생 관리, 수업 등록, 예약 현황을 관리할 수 있어요' },
+  { id:'artist', emoji:'🖼️', name:'전시 참여 작가', desc:'회의 일정 참여, 냥밭에서 당근 포인트를 모을 수 있어요' },
+]
+
 export default function SignupPage() {
   const router = useRouter()
   const [step, setStep] = useState(0)
@@ -38,7 +44,7 @@ export default function SignupPage() {
       email,
       password: pw,
       options: {
-        data: { name, phone, role, categories:[...cats], approved: role==='student' }
+        data: { name, phone, role, categories:[...cats], approved: role==='student' || role==='artist' }
       }
     })
     if (error) { setError(error.message); setLoading(false); return }
@@ -46,7 +52,14 @@ export default function SignupPage() {
       id: data.user.id, name, phone, role, categories:[...cats]
     })
     if (role==='student') router.push('/student')
+    else if (role==='artist') router.push('/artist')
     else router.push('/login')
+  }
+
+  // step 1에서 다음 누르면, 작가는 바로 가입, 학생/강사는 step 2
+  function handleStep1Next() {
+    if (role === 'artist') handleSignup()
+    else setStep(2)
   }
 
   if (step===0) return (
@@ -57,10 +70,7 @@ export default function SignupPage() {
           <div style={{ fontSize:36, marginBottom:10 }}>🐱</div>
           <div style={{ fontSize:16, fontWeight:800, color:'var(--td)', marginBottom:6 }}>어떤 역할로 시작할까요?</div>
         </div>
-        {[
-          { id:'student', emoji:'🎨', name:'수강생', desc:'수업 예약, 냥밭, 출석 현황을 확인할 수 있어요' },
-          { id:'admin', emoji:'✏️', name:'강사', desc:'수강생 관리, 수업 등록, 예약 현황을 관리할 수 있어요' },
-        ].map(r => (
+        {ROLES.map(r => (
           <div key={r.id} onClick={()=>setRole(r.id)}
             style={{ border:`1.5px solid ${role===r.id?'var(--g4)':'var(--g1)'}`, background:role===r.id?'#e8f5e0':'var(--surf)',
               borderRadius:16, padding:'16px 14px', marginBottom:10, display:'flex', alignItems:'center', gap:12, cursor:'pointer' }}>
@@ -87,9 +97,11 @@ export default function SignupPage() {
       <div className="header">
         <button onClick={()=>setStep(0)} style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:'50%', width:32, height:32, cursor:'pointer', color:'#fff', fontSize:18 }}>‹</button>
         <span className="header-title">기본 정보 입력</span>
-        <div style={{ display:'flex', gap:4 }}>
-          {[0,1,2].map(i=><div key={i} style={{ width:i===0?18:6, height:6, borderRadius:4, background:i===0?'#fff':'rgba(255,255,255,0.4)' }}/>)}
-        </div>
+        {role !== 'artist' ? (
+          <div style={{ display:'flex', gap:4 }}>
+            {[0,1,2].map(i=><div key={i} style={{ width:i===0?18:6, height:6, borderRadius:4, background:i===0?'#fff':'rgba(255,255,255,0.4)' }}/>)}
+          </div>
+        ) : <div style={{ width:32 }}/>}
       </div>
       <div className="page-body">
         <div className="field"><label>이름</label><input placeholder="실명을 입력해 주세요" value={name} onChange={e=>setName(e.target.value)}/></div>
@@ -101,7 +113,9 @@ export default function SignupPage() {
             style={{ borderColor:pw2&&pw!==pw2?'#e07070':'' }}/></div>
         </div>
         {error && <div style={{ color:'#c0392b', fontSize:12, marginBottom:12, fontWeight:600 }}>{error}</div>}
-        <button className="btn-primary" disabled={!name||!email||!pw||pw!==pw2||pw.length<8} onClick={()=>setStep(2)}>다음</button>
+        <button className="btn-primary" disabled={loading||!name||!email||!pw||pw!==pw2||pw.length<8} onClick={handleStep1Next}>
+          {loading?'가입 중...':role==='artist'?'작가 가입 완료':'다음'}
+        </button>
       </div>
     </>
   )
