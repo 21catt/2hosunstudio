@@ -203,10 +203,14 @@ export default function AdminSchedulePage() {
   const [selDay, setSelDay] = useState(new Date().getDate())
   const [expanded, setExpanded] = useState(null)
   const [adminCats, setAdminCats] = useState([])
-  const month = new Date().getMonth()
-  const year = new Date().getFullYear()
-  const today = new Date().getDate()
-  const todayStr = new Date().toISOString().split('T')[0]
+ const now = new Date()
+const todayY = now.getFullYear()
+const todayM = now.getMonth()
+const todayD = now.getDate()
+const [year, setYear] = useState(todayY)
+const [month, setMonth] = useState(todayM)
+const today = (year === todayY && month === todayM) ? todayD : -1
+const todayStr = `${todayY}-${String(todayM+1).padStart(2,'0')}-${String(todayD).padStart(2,'0')}`
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -241,7 +245,19 @@ export default function AdminSchedulePage() {
     await supabase.from('bookings').update({ status }).eq('id', bookingId)
     loadData()
   }
+function monthDiff() {
+  return (year - todayY) * 12 + (month - todayM)
+}
 
+function changeMonth(delta) {
+  const newDate = new Date(year, month + delta, 1)
+  const diff = (newDate.getFullYear() - todayY) * 12 + (newDate.getMonth() - todayM)
+  if (diff < -3 || diff > 3) return
+  setYear(newDate.getFullYear())
+  setMonth(newDate.getMonth())
+  setSelDay(1)
+  setExpanded(null)
+}
   const myCourses = courses.filter(c => adminCats.includes(c.category))
 
   // 특정 날짜에 열리는 수업
@@ -316,9 +332,25 @@ export default function AdminSchedulePage() {
         {!showForm && !editCourse && view === 'calendar' && (
           <>
             {/* 달력 헤더 */}
-            <div style={{ fontSize:18, fontWeight:800, color:'var(--td)', marginBottom:14 }}>
-              {year}.{String(month+1).padStart(2,'0')}
-            </div>
+<div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
+  <button onClick={() => changeMonth(-1)}
+    disabled={monthDiff() <= -3}
+    style={{ background:'transparent', border:'none', cursor:'pointer', fontSize:20, color:'var(--g4)', padding:'4px 10px', opacity: monthDiff() <= -3 ? 0.3 : 1 }}>‹</button>
+  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+    <span style={{ fontSize:18, fontWeight:800, color:'var(--td)' }}>
+      {year}.{String(month+1).padStart(2,'0')}
+    </span>
+    {(year !== todayY || month !== todayM) && (
+      <button onClick={() => { setYear(todayY); setMonth(todayM); setSelDay(todayD) }}
+        style={{ background:'var(--g1)', color:'var(--g5)', border:'none', borderRadius:12, padding:'3px 10px', fontSize:10, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+        오늘
+      </button>
+    )}
+  </div>
+  <button onClick={() => changeMonth(1)}
+    disabled={monthDiff() >= 3}
+    style={{ background:'transparent', border:'none', cursor:'pointer', fontSize:20, color:'var(--g4)', padding:'4px 10px', opacity: monthDiff() >= 3 ? 0.3 : 1 }}>›</button>
+</div>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', textAlign:'center', marginBottom:4 }}>
               {DAYS.map((d,i) => (
                 <div key={d} style={{ fontSize:10, fontWeight:700, padding:'3px 0',
