@@ -62,8 +62,16 @@ export default function StudentPage() {
     setLoading(false)
   }
 
+  // 현재 보고 있는 월에 해당하는 예약만
+  function bookingsInView() {
+    return bookings.filter(b => {
+      const d = new Date(b.class_date)
+      return d.getFullYear() === year && d.getMonth() === month
+    })
+  }
+
   function bookedDays() {
-    return new Set(bookings.map(b => new Date(b.class_date).getDate()))
+    return new Set(bookingsInView().map(b => new Date(b.class_date).getDate()))
   }
 
   function dayClasses(day) {
@@ -204,6 +212,12 @@ export default function StudentPage() {
   const bd = bookedDays()
   const dc = dayClasses(selectedDay)
 
+  // 선택한 날의 예약 (보고 있는 월 기준)
+  const dayBookings = bookings.filter(b => {
+    const d = new Date(b.class_date)
+    return d.getFullYear() === year && d.getMonth() === month && d.getDate() === selectedDay
+  })
+
   const catGroups = dc.reduce((acc, c) => {
     if (!acc[c.category]) acc[c.category] = []
     acc[c.category].push(c)
@@ -298,7 +312,7 @@ export default function StudentPage() {
                   cursor:isMon?'default':'pointer', borderRadius:12, opacity:isMon?0.3:1, position:'relative',
                   background:isSel?'#e8f5e0':'transparent',
                   border:isSel?'1.5px solid var(--g3)':'1.5px solid transparent' }}>
-                {isB || isSel ? (
+                {isB ? (
                   <div className={isAnim?'cat-anim':''} style={{ display:'flex', flexDirection:'column', alignItems:'center', lineHeight:1 }}>
                     <img src={getCatImage(d)} alt="" style={{ width:34, height:34, objectFit:'contain' }}/>
                     <span style={{ fontSize:9, fontWeight:800, color:'var(--td)', marginTop:-1 }}>{d}</span>
@@ -416,9 +430,15 @@ export default function StudentPage() {
             {selSchedule && !isBooked(selCourse?.id, selSchedule?.id, selectedDay) && (
               <div className="slide-up">
                 {isBookable(selectedDay) ? (
-                  <button className="btn-primary" onClick={handleBook}>
-                    {selCourse?.name} {selSchedule?.start_time}~{selSchedule?.end_time} 예약하기
-                  </button>
+                  !ticket || ticket.remain <= 0 ? (
+                    <div style={{ padding:'14px', background:'#ffebee', borderRadius:14, textAlign:'center', color:'#c0392b', fontSize:12, fontWeight:700 }}>
+                      잔여 수강권이 없어요 🐾
+                    </div>
+                  ) : (
+                    <button className="btn-primary" onClick={handleBook}>
+                      {selCourse?.name} {selSchedule?.start_time}~{selSchedule?.end_time} 예약하기
+                    </button>
+                  )
                 ) : (
                   <div style={{ padding:'14px', background:'var(--bg)', borderRadius:14, textAlign:'center', color:'var(--tmu)', fontSize:12, fontWeight:600 }}>
                     {monthDiff() < 0 ? '지난 날짜는 예약할 수 없어요' : '예약은 다음 달까지만 가능해요'}
@@ -429,10 +449,10 @@ export default function StudentPage() {
           </>
         )}
 
-        {bookings.filter(b => new Date(b.class_date).getDate() === selectedDay).length > 0 && (
+        {dayBookings.length > 0 && (
           <div style={{ marginTop:14 }}>
             <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>내 예약</div>
-            {bookings.filter(b => new Date(b.class_date).getDate() === selectedDay).map(b => (
+            {dayBookings.map(b => (
               <div key={b.id} style={{ background:'#e8f5e0', borderRadius:12, padding:'10px 14px',
                 marginBottom:6, display:'flex', alignItems:'center', justifyContent:'space-between',
                 border:'1.5px solid var(--g3)' }}>
