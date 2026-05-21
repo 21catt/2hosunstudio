@@ -1,20 +1,24 @@
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
 
 :root {
-  --g1: #c8e6c0;
-  --g2: #a8d4a0;
-  --g3: #6db870;
-  --g4: #3d8b50;
-  --g5: #2a5c38;
-  --bg: #f4faf4;
+  --g1: #e8e2d5;
+  --g2: #c9bfa9;
+  --g3: #8ba894;
+  --g4: #4a6b5c;
+  --g5: #2d4a3e;
+  --bg: #faf7f2;
   --surf: #ffffff;
-  --td: #1e3828;
-  --tm: #4a7a58;
-  --tmu: #85aa90;
-  --tl: #b8d4bc;
+  --td: #1a2a23;
+  --tm: #5e7a6e;
+  --tmu: #9ba89e;
+  --tl: #c4cec7;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 body {
   font-family: 'Nunito', sans-serif;
@@ -41,7 +45,11 @@ body {
   justify-content: space-between;
 }
 
-.header-title { color: #fff; font-size: 15px; font-weight: 800; }
+.header-title {
+  color: #fff;
+  font-size: 15px;
+  font-weight: 800;
+}
 
 .bottom-nav {
   position: fixed;
@@ -70,9 +78,13 @@ body {
   font-weight: 700;
 }
 
-.nav-item.active { color: var(--g4); }
+.nav-item.active {
+  color: var(--g4);
+}
 
-.page-body { padding: 20px 18px 80px; }
+.page-body {
+  padding: 20px 18px 80px;
+}
 
 .btn-primary {
   width: 100%;
@@ -87,7 +99,10 @@ body {
   font-family: 'Nunito', sans-serif;
 }
 
-.btn-primary:disabled { opacity: 0.4; cursor: default; }
+.btn-primary:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
 
 .btn-secondary {
   width: 100%;
@@ -103,7 +118,9 @@ body {
   margin-top: 8px;
 }
 
-.field { margin-bottom: 14px; }
+.field {
+  margin-bottom: 14px;
+}
 
 .field label {
   font-size: 11px;
@@ -113,7 +130,8 @@ body {
   margin-bottom: 5px;
 }
 
-.field input, .field select {
+.field input,
+.field select {
   width: 100%;
   background: var(--surf);
   border: 1.5px solid var(--g1);
@@ -125,8 +143,14 @@ body {
   outline: none;
 }
 
-.field input:focus, .field select:focus { border-color: var(--g3); }
-.field input::placeholder { color: var(--tl); }
+.field input:focus,
+.field select:focus {
+  border-color: var(--g3);
+}
+
+.field input::placeholder {
+  color: var(--tl);
+}
 
 .card {
   background: var(--bg);
