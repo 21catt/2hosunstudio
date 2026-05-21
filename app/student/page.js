@@ -8,37 +8,16 @@ const CAT_NAME = { drawing:'드로잉', painting:'페인팅', sculpture:'조소'
 const CAT_COLOR = { drawing:'#e8f5e0', painting:'#EDE7F6', sculpture:'#FFF3E0', free:'#E3F2FD' }
 const CAT_TEXT = { drawing:'var(--g5)', painting:'#4A148C', sculpture:'#E65100', free:'#0D47A1' }
 
-const CAT_POSES = [
-  (d,f,s) => `<svg viewBox="0 0 60 54" fill="none" xmlns="http://www.w3.org/2000/svg" width="36" height="36">
-    <path d="M15 26 Q13 15 18 12 Q21 22 24 24" fill="${f}" stroke="${s}" stroke-width="2"/>
-    <path d="M45 26 Q47 15 42 12 Q39 22 36 24" fill="${f}" stroke="${s}" stroke-width="2"/>
-    <path d="M10 30 Q10 14 30 14 Q50 14 50 30 Q50 44 30 46 Q10 46 10 30Z" fill="${f}" stroke="${s}" stroke-width="2"/>
-    <circle cx="23" cy="28" r="2.2" fill="${s}"/>
-    <circle cx="37" cy="28" r="2.2" fill="${s}"/>
-    <path d="M27 35 Q30 38 33 35" stroke="${s}" stroke-width="1.8" fill="none" stroke-linecap="round"/>
-    <text x="30" y="44" text-anchor="middle" font-size="10" font-weight="800" fill="#1e3828" font-family="Nunito,sans-serif">${d}</text>
-  </svg>`,
-  (d,f,s) => `<svg viewBox="0 0 60 52" fill="none" xmlns="http://www.w3.org/2000/svg" width="36" height="36">
-    <path d="M14 24 Q12 13 17 10 Q20 20 23 22" fill="${f}" stroke="${s}" stroke-width="1.8"/>
-    <path d="M46 24 Q48 13 43 10 Q40 20 37 22" fill="${f}" stroke="${s}" stroke-width="1.8"/>
-    <path d="M10 30 Q10 14 30 14 Q50 14 50 30 Q50 44 30 46 Q10 46 10 30Z" fill="${f}" stroke="${s}" stroke-width="2"/>
-    <circle cx="23" cy="28" r="2.2" fill="${s}"/>
-    <circle cx="37" cy="28" r="2.2" fill="${s}"/>
-    <path d="M23 36 Q30 43 37 36" stroke="${s}" stroke-width="2" fill="none" stroke-linecap="round"/>
-    <text x="30" y="50" text-anchor="middle" font-size="10" font-weight="800" fill="#1e3828" font-family="Nunito,sans-serif">${d}</text>
-  </svg>`,
+const CAT_IMAGES = [
+  '/cats/cat01.png',
+  '/cats/cat02.png',
+  '/cats/cat03.png',
+  '/cats/cat04.png',
+  '/cats/cat05.png',
 ]
 
-const CAT_COLORS = [
-  {f:'#c8e6c0',s:'#3d8b50'},
-  {f:'#d8eec8',s:'#2a5c38'},
-  {f:'#b8dab0',s:'#4a7a58'},
-  {f:'#e0f2d8',s:'#6db870'},
-  {f:'#a8d4a0',s:'#3d8b50'},
-]
-
-function getCat(d) {
-  return { pose: CAT_POSES[(d*7+3)%2], ...CAT_COLORS[(d*3+1)%5] }
+function getCatImage(d) {
+  return CAT_IMAGES[(d * 7 + 3) % CAT_IMAGES.length]
 }
 
 export default function StudentPage() {
@@ -49,10 +28,9 @@ export default function StudentPage() {
   const [classes, setClasses] = useState([])
   const [selectedDay, setSelectedDay] = useState(new Date().getDate())
   const [animDay, setAnimDay] = useState(null)
-  // 예약 선택 상태
-  const [selCat, setSelCat] = useState(null) // 선택한 카테고리
-  const [selCourse, setSelCourse] = useState(null) // 선택한 수업
-  const [selSchedule, setSelSchedule] = useState(null) // 선택한 시간
+  const [selCat, setSelCat] = useState(null)
+  const [selCourse, setSelCourse] = useState(null)
+  const [selSchedule, setSelSchedule] = useState(null)
   const month = new Date().getMonth()
   const year = new Date().getFullYear()
   const today = new Date().getDate()
@@ -91,19 +69,18 @@ export default function StudentPage() {
     )
   }
 
- function getSchedulesForDay(course, day) {
-  const dow = new Date(year, month, day).getDay()
-  const seen = new Set()
-  return (course.class_schedules || [])
-    .filter(s => s.day_of_week === dow)
-    .filter(s => {
-      const key = `${s.start_time}-${s.end_time}`
-      if (seen.has(key)) return false
-      seen.add(key)
-      return true
-    })
-}
-  
+  function getSchedulesForDay(course, day) {
+    const dow = new Date(year, month, day).getDay()
+    const seen = new Set()
+    return (course.class_schedules || [])
+      .filter(s => s.day_of_week === dow)
+      .filter(s => {
+        const key = `${s.start_time}-${s.end_time}`
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
+  }
 
   function isBooked(courseId, scheduleId, day) {
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
@@ -141,69 +118,65 @@ export default function StudentPage() {
   }
 
   async function handleBook() {
-  if (!selCourse || !selSchedule) return
-  if (!ticket || ticket.remain <= 0) { alert('잔여 수강권이 없어요 🐾'); return }
-  const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
-  
-  const { data: newBooking } = await supabase.from('bookings').insert({
-    user_id: user.id,
-    course_id: selCourse.id,
-    schedule_id: selSchedule.id,
-    class_name: selCourse.name,
-    class_date: dateStr,
-    class_time: `${selSchedule.start_time}~${selSchedule.end_time}`,
-    teacher: selCourse.teacher,
-    status: 'booked'
-  }).select().single()
-  
-  await supabase.from('tickets').update({ remain: ticket.remain-1 }).eq('id', ticket.id)
-  
-  // 강사에게 알림
-  const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
-  if (selCourse.teacher_id) {
-    await supabase.from('notifications').insert({
-      user_id: selCourse.teacher_id,
-      type: 'booking_created',
-      title: '새 예약',
-      body: `${profile?.name || '학생'}님이 ${selCourse.name} ${dateStr} ${selSchedule.start_time} 예약`,
-      related_id: newBooking?.id
-    })
+    if (!selCourse || !selSchedule) return
+    if (!ticket || ticket.remain <= 0) { alert('잔여 수강권이 없어요 🐾'); return }
+    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
+    
+    const { data: newBooking } = await supabase.from('bookings').insert({
+      user_id: user.id,
+      course_id: selCourse.id,
+      schedule_id: selSchedule.id,
+      class_name: selCourse.name,
+      class_date: dateStr,
+      class_time: `${selSchedule.start_time}~${selSchedule.end_time}`,
+      teacher: selCourse.teacher,
+      status: 'booked'
+    }).select().single()
+    
+    await supabase.from('tickets').update({ remain: ticket.remain-1 }).eq('id', ticket.id)
+    
+    const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
+    if (selCourse.teacher_id) {
+      await supabase.from('notifications').insert({
+        user_id: selCourse.teacher_id,
+        type: 'booking_created',
+        title: '새 예약',
+        body: `${profile?.name || '학생'}님이 ${selCourse.name} ${dateStr} ${selSchedule.start_time} 예약`,
+        related_id: newBooking?.id
+      })
+    }
+    
+    setSelCat(null); setSelCourse(null); setSelSchedule(null)
+    loadData(user.id)
   }
-  
-  setSelCat(null); setSelCourse(null); setSelSchedule(null)
-  loadData(user.id)
-}
 
- async function handleCancel(booking) {
-  const diff = (new Date(booking.class_date) - new Date()) / (1000*60*60)
-  if (diff < 4) { alert('수업 4시간 전에는 취소할 수 없어요'); return }
-  
-  // 강사 id 찾기
-  const { data: course } = await supabase.from('class_courses').select('teacher_id').eq('id', booking.course_id).single()
-  
-  await supabase.from('bookings').delete().eq('id', booking.id)
-  await supabase.from('tickets').update({ remain: ticket.remain+1 }).eq('id', ticket.id)
-  
-  // 강사에게 취소 알림
-  const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
-  if (course?.teacher_id) {
-    await supabase.from('notifications').insert({
-      user_id: course.teacher_id,
-      type: 'booking_cancelled',
-      title: '예약 취소',
-      body: `${profile?.name || '학생'}님이 ${booking.class_name} ${booking.class_date} ${booking.class_time} 취소`
-    })
+  async function handleCancel(booking) {
+    const diff = (new Date(booking.class_date) - new Date()) / (1000*60*60)
+    if (diff < 4) { alert('수업 4시간 전에는 취소할 수 없어요'); return }
+    
+    const { data: course } = await supabase.from('class_courses').select('teacher_id').eq('id', booking.course_id).single()
+    
+    await supabase.from('bookings').delete().eq('id', booking.id)
+    await supabase.from('tickets').update({ remain: ticket.remain+1 }).eq('id', ticket.id)
+    
+    const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
+    if (course?.teacher_id) {
+      await supabase.from('notifications').insert({
+        user_id: course.teacher_id,
+        type: 'booking_cancelled',
+        title: '예약 취소',
+        body: `${profile?.name || '학생'}님이 ${booking.class_name} ${booking.class_date} ${booking.class_time} 취소`
+      })
+    }
+    
+    loadData(user.id)
   }
-  
-  loadData(user.id)
-}
 
   const daysInMonth = new Date(year, month+1, 0).getDate()
   const firstDow = new Date(year, month, 1).getDay()
   const bd = bookedDays()
   const dc = dayClasses(selectedDay)
 
-  // 카테고리별 그룹
   const catGroups = dc.reduce((acc, c) => {
     if (!acc[c.category]) acc[c.category] = []
     acc[c.category].push(c)
@@ -211,7 +184,6 @@ export default function StudentPage() {
   }, {})
   const cats = Object.keys(catGroups)
 
-  // 선택된 카테고리의 수업들
   const catCourses = selCat ? catGroups[selCat] || [] : []
 
   if (loading) return (
@@ -264,7 +236,7 @@ export default function StudentPage() {
         </div>
 
         <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:2, marginBottom:12 }}>
-          {Array(firstDow).fill(null).map((_,i)=><div key={`e${i}`} style={{ height:48 }}/>)}
+          {Array(firstDow).fill(null).map((_,i)=><div key={`e${i}`} style={{ height:52 }}/>)}
           {Array(daysInMonth).fill(null).map((_,i)=>{
             const d = i+1
             const dow = new Date(year,month,d).getDay()
@@ -272,7 +244,6 @@ export default function StudentPage() {
             const isB = bd.has(d)
             const isSel = d===selectedDay
             const isT = d===today
-            const cat = getCat(d)
             const isAnim = animDay===d
             const hasCls = dayClasses(d).length > 0
 
@@ -280,12 +251,15 @@ export default function StudentPage() {
               <div key={d}
                 ref={el => cellRefs.current[d] = el}
                 onClick={()=>handleDayClick(d)}
-                style={{ height:48, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+                style={{ height:52, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
                   cursor:isMon?'default':'pointer', borderRadius:12, opacity:isMon?0.3:1, position:'relative',
                   background:isSel?'#e8f5e0':'transparent',
                   border:isSel?'1.5px solid var(--g3)':'1.5px solid transparent' }}>
                 {isB || isSel ? (
-                  <div className={isAnim?'cat-anim':''} dangerouslySetInnerHTML={{ __html: cat.pose(d, cat.f, cat.s) }}/>
+                  <div className={isAnim?'cat-anim':''} style={{ display:'flex', flexDirection:'column', alignItems:'center', lineHeight:1 }}>
+                    <img src={getCatImage(d)} alt="" style={{ width:34, height:34, objectFit:'contain' }}/>
+                    <span style={{ fontSize:9, fontWeight:800, color:'var(--td)', marginTop:-1 }}>{d}</span>
+                  </div>
                 ) : isT ? (
                   <div style={{ width:28, height:28, borderRadius:'50%', background:'var(--g4)', color:'#fff',
                     display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800 }}>{d}</div>
@@ -301,7 +275,6 @@ export default function StudentPage() {
           })}
         </div>
 
-        {/* 수강권 */}
         <div style={{ background:'var(--g1)', borderRadius:14, padding:'10px 14px', marginBottom:12,
           display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid var(--g2)' }}>
           <div>
@@ -322,7 +295,6 @@ export default function StudentPage() {
           <div style={{ textAlign:'center', padding:20, color:'var(--tmu)', fontSize:12 }}>이날은 수업이 없어요 🐾</div>
         ) : (
           <>
-            {/* Step 1: 카테고리 선택 */}
             {cats.length > 1 && (
               <div className="slide-up" style={{ marginBottom:12 }}>
                 <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>수업 종류 선택</div>
@@ -340,10 +312,8 @@ export default function StudentPage() {
               </div>
             )}
 
-            {/* 카테고리 하나면 자동 선택 */}
             {cats.length === 1 && selCat !== cats[0] && (() => { setTimeout(() => setSelCat(cats[0]), 0); return null })()}
 
-            {/* Step 2: 수업 선택 (같은 카테고리에 여러 수업이면) */}
             {selCat && catCourses.length > 1 && (
               <div className="slide-up" style={{ marginBottom:12 }}>
                 <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>수업 선택</div>
@@ -359,16 +329,14 @@ export default function StudentPage() {
               </div>
             )}
 
-            {/* 수업 하나면 자동 선택 */}
             {selCat && catCourses.length === 1 && selCourse !== catCourses[0] && (() => { setTimeout(() => setSelCourse(catCourses[0]), 0); return null })()}
 
-            {/* Step 3: 시간 선택 */}
             {selCourse && (
               <div className="slide-up" style={{ marginBottom:12 }}>
-                 <div style={{ fontSize:15, fontWeight:800, color:'var(--td)', marginBottom:10 }}>
-      {selCourse.name}
-    </div>
-    <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>시간 선택</div>
+                <div style={{ fontSize:15, fontWeight:800, color:'var(--td)', marginBottom:10 }}>
+                  {selCourse.name}
+                </div>
+                <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>시간 선택</div>
                 {getSchedulesForDay(selCourse, selectedDay).map(s => {
                   const booked = isBooked(selCourse.id, s.id, selectedDay)
                   const booking = getBooking(selCourse.id, s.id, selectedDay)
@@ -402,7 +370,6 @@ export default function StudentPage() {
               </div>
             )}
 
-            {/* 예약 버튼 */}
             {selSchedule && !isBooked(selCourse?.id, selSchedule?.id, selectedDay) && (
               <div className="slide-up">
                 <button className="btn-primary" onClick={handleBook}>
@@ -413,7 +380,6 @@ export default function StudentPage() {
           </>
         )}
 
-        {/* 내 예약 현황 */}
         {bookings.filter(b => new Date(b.class_date).getDate() === selectedDay).length > 0 && (
           <div style={{ marginTop:14 }}>
             <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>내 예약</div>
