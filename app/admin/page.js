@@ -50,6 +50,11 @@ async function loadUnread(userId) {
     alert('수강권이 부여됐어요!')
     loadMembers()
   }
+  async function revokeTicket(ticketId) {
+  if (!confirm('수강권을 회수할까요?\n(이미 예약된 수업은 그대로 유지돼요)')) return
+  await supabase.from('tickets').delete().eq('id', ticketId)
+  loadMembers()
+}
 
   const filtered = members.filter(m =>
     !search || m.name?.includes(search) || m.phone?.includes(search)
@@ -124,20 +129,29 @@ async function loadUnread(userId) {
                 </div>
               </div>
 
-              {isExp && (
-                <div style={{ marginTop:12, paddingTop:12, borderTop:'1px solid var(--g1)' }}>
-                  <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>수강권 부여</div>
-                  <div style={{ display:'flex', gap:6, marginBottom:10 }}>
-                    {[[4,30,'4회권'],[8,60,'8회권'],[12,90,'12회권']].map(([total,days,label])=>(
-                      <button key={label}
-                        onClick={e=>{e.stopPropagation();grantTicket(m.id,label,total,days)}}
-                        style={{ flex:1, padding:'8px 4px', background:'var(--g4)', color:'#fff',
-                          border:'none', borderRadius:10, fontSize:10, fontWeight:700,
-                          cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
-                        {label}
-                      </button>
-                    ))}
-                  </div>
+             {isExp && (
+  <div style={{ marginTop:12, paddingTop:12, borderTop:'1px solid var(--g1)' }}>
+    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+      <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)' }}>수강권 부여</div>
+      {ticket && (
+        <button onClick={e=>{e.stopPropagation(); revokeTicket(ticket.id)}}
+          style={{ background:'#ffebee', color:'#c0392b', border:'none', borderRadius:8,
+            padding:'3px 10px', fontSize:9, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+          수강권 회수
+        </button>
+      )}
+    </div>
+    <div style={{ display:'flex', gap:6, marginBottom:10 }}>
+      {[[4,30,'4회권'],[8,60,'8회권'],[12,90,'12회권']].map(([total,days,label])=>(
+        <button key={label}
+          onClick={e=>{e.stopPropagation();grantTicket(m.id,label,total,days)}}
+          style={{ flex:1, padding:'8px 4px', background:'var(--g4)', color:'#fff',
+            border:'none', borderRadius:10, fontSize:10, fontWeight:700,
+            cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+          {label}
+        </button>
+      ))}
+    </div>
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
                     <div style={{ background:'var(--bg)', borderRadius:10, padding:'8px 10px' }}>
                       <div style={{ fontSize:9, color:'var(--tmu)', fontWeight:700, marginBottom:2 }}>총 예약</div>
