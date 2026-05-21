@@ -55,7 +55,12 @@ async function loadUnread(userId) {
   await supabase.from('tickets').delete().eq('id', ticketId)
   loadMembers()
 }
-
+async function adjustTicket(ticketId, currentRemain, delta) {
+  const newRemain = currentRemain + delta
+  if (newRemain < 0) { alert('잔여 횟수가 0보다 작을 수 없어요'); return }
+  await supabase.from('tickets').update({ remain: newRemain }).eq('id', ticketId)
+  loadMembers()
+}
   const filtered = members.filter(m =>
     !search || m.name?.includes(search) || m.phone?.includes(search)
   )
@@ -129,7 +134,7 @@ async function loadUnread(userId) {
                 </div>
               </div>
 
-             {isExp && (
+            {isExp && (
   <div style={{ marginTop:12, paddingTop:12, borderTop:'1px solid var(--g1)' }}>
     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
       <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)' }}>수강권 부여</div>
@@ -141,6 +146,50 @@ async function loadUnread(userId) {
         </button>
       )}
     </div>
+    <div style={{ display:'flex', gap:6, marginBottom:10 }}>
+      {[[4,30,'4회권'],[8,60,'8회권'],[12,90,'12회권']].map(([total,days,label])=>(
+        <button key={label}
+          onClick={e=>{e.stopPropagation();grantTicket(m.id,label,total,days)}}
+          style={{ flex:1, padding:'8px 4px', background:'var(--g4)', color:'#fff',
+            border:'none', borderRadius:10, fontSize:10, fontWeight:700,
+            cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+          {label}
+        </button>
+      ))}
+    </div>
+
+    {ticket && (
+      <div style={{ marginBottom:10, padding:'10px 12px', background:'var(--bg)', borderRadius:10, border:'1.5px solid var(--g1)' }}>
+        <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>잔여 횟수 조정</div>
+        <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+          <button onClick={e=>{e.stopPropagation(); adjustTicket(ticket.id, ticket.remain, -1)}}
+            style={{ width:32, height:32, background:'var(--g1)', color:'var(--g5)', border:'none',
+              borderRadius:8, fontSize:14, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>−</button>
+          <div style={{ flex:1, textAlign:'center', fontSize:12, fontWeight:800, color:'var(--td)' }}>
+            잔여 {ticket.remain}회
+          </div>
+          <button onClick={e=>{e.stopPropagation(); adjustTicket(ticket.id, ticket.remain, 1)}}
+            style={{ width:32, height:32, background:'var(--g4)', color:'#fff', border:'none',
+              borderRadius:8, fontSize:14, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>+</button>
+          <input type="number" placeholder="직접 입력"
+            onClick={e=>e.stopPropagation()}
+            onKeyDown={e=>{
+              if (e.key === 'Enter') {
+                const val = parseInt(e.target.value)
+                if (!isNaN(val)) {
+                  adjustTicket(ticket.id, ticket.remain, val)
+                  e.target.value = ''
+                }
+              }
+            }}
+            style={{ width:70, background:'var(--surf)', border:'1.5px solid var(--g2)', borderRadius:8,
+              padding:'5px 8px', fontSize:11, fontFamily:'Nunito,sans-serif', color:'var(--td)', outline:'none', textAlign:'center' }}/>
+        </div>
+        <div style={{ fontSize:9, color:'var(--tmu)', marginTop:6, textAlign:'center' }}>
+          숫자 입력 후 Enter (예: 3 입력 → 3 증가 / -2 입력 → 2 감소)
+        </div>
+      </div>
+    )}
     <div style={{ display:'flex', gap:6, marginBottom:10 }}>
       {[[4,30,'4회권'],[8,60,'8회권'],[12,90,'12회권']].map(([total,days,label])=>(
         <button key={label}
