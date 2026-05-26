@@ -123,7 +123,7 @@ async function adjustTicket(ticketId, currentRemain, delta) {
                 <div style={{ marginTop:12, paddingTop:12, borderTop:'1px solid var(--g1)' }}>
                   <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>수강권 부여</div>
                   <div style={{ display:'flex', gap:6, marginBottom:10 }}>
-                    {[[4,30,'4회권'],[8,60,'8회권'],[12,90,'12회권']].map(([total,days,label])=>(
+                    {[[3,28,'4주 3회'],[4,30,'4회권'],[7,56,'8주 7회'],[8,60,'8회권'],[12,90,'12회권']].map(([total,days,label])=>(
                       <button key={label}
                         onClick={e=>{e.stopPropagation();grantTicket(m.id,label,total,days)}}
                         style={{ flex:1, padding:'8px 4px', background:'var(--g4)', color:'#fff',
