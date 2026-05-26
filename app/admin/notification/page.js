@@ -65,11 +65,18 @@ export default function AdminNotificationPage() {
   return (
     <>
       <div className="header">
-        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <span style={{ fontSize:20 }}>✏️</span>
-          <span className="header-title">알림</span>
-        </div>
-      </div>
+  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+    <span style={{ fontSize:20 }}>✏️</span>
+    <span className="header-title">알림</span>
+  </div>
+  <button onClick={async () => {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }}
+    style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:20, padding:'4px 10px', color:'#fff', fontSize:10, fontWeight:700, cursor:'pointer' }}>
+    로그아웃
+  </button>
+</div>
 
       <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'16px 14px 80px' }}>
         <div style={{ fontSize:11, fontWeight:700, color:'var(--g4)', marginBottom:14 }}>
