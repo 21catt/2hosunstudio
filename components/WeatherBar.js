@@ -13,24 +13,13 @@ const ICONS = {
   95: '⛈', 96: '⛈', 99: '⛈',
 }
 
-export default function WeatherBar() {
+export function useTodayWeather() {
   const [weather, setWeather] = useState(null)
-
   useEffect(() => {
     fetch('https://api.open-meteo.com/v1/forecast?latitude=37.5665&longitude=126.9780&current=temperature_2m,weather_code&timezone=Asia/Seoul')
       .then(r => r.json())
       .then(d => setWeather(d.current))
       .catch(() => {})
   }, [])
-
-  if (!weather) return null
-
-  return (
-    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6,
-      fontSize:11, color:'var(--tm)', marginBottom:10 }}>
-      <span style={{ fontSize:14 }}>{ICONS[weather.weather_code] || '🌤'}</span>
-      <span style={{ fontWeight:700 }}>서울</span>
-      <span>{Math.round(weather.temperature_2m)}°C</span>
-    </div>
-  )
+  return weather ? { icon: ICONS[weather.weather_code] || '🌤', temp: Math.round(weather.temperature_2m) } : null
 }

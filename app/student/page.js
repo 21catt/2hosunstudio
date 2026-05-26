@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
-import WeatherBar from '../../components/WeatherBar'
+import { useTodayWeather } from '../../components/WeatherBar'
 const EMOJI = { drawing:'✏️', painting:'🎨', sculpture:'🗿', free:'🖼️' }
 const CAT_NAME = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', free:'자율창작' }
 const CAT_COLOR = { drawing:'#e8f5e0', painting:'#EDE7F6', sculpture:'#FFF3E0', free:'#E3F2FD' }
@@ -166,6 +166,7 @@ function PixelPlant({ ratio }) {
 }
 export default function StudentPage() {
   const router = useRouter()
+  const todayWeather = useTodayWeather()
   const [user, setUser] = useState(null)
   const [ticket, setTicket] = useState(null)
   const [bookings, setBookings] = useState([])
@@ -410,7 +411,7 @@ setClasses(c || [])
       </div>
 
       <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 0' }}>
-       <WeatherBar />
+       
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
           <button onClick={() => changeMonth(-1)}
             disabled={monthDiff() <= -3}
@@ -458,6 +459,11 @@ setClasses(c || [])
                   cursor:isMon?'default':'pointer', borderRadius:12, opacity:isMon?0.3:1, position:'relative',
                   background:isSel?'#e8f5e0':'transparent',
                   border:isSel?'1.5px solid var(--g3)':'1.5px solid transparent' }}>
+                    {isT && todayWeather && (
+  <div style={{ position:'absolute', top:-2, left:'50%', transform:'translateX(-50%)', fontSize:13, zIndex:1 }}>
+    {todayWeather.icon}
+  </div>
+)}
                {isB || isSel ? (
   <div className={isAnim?'cat-anim':''} style={{ display:'flex', flexDirection:'column', alignItems:'center', lineHeight:1 }}>
                     <img src={getCatImage(d)} alt="" style={{ width:34, height:34, objectFit:'contain' }}/>
