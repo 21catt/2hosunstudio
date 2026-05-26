@@ -420,6 +420,7 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
               const dayBookings = getBookingsForDayCourse(selDay, c.id)
               const schedules = c.class_schedules?.filter(s => s.day_of_week === new Date(year,month,selDay).getDay())
               const isExp = expanded === c.id
+              const isMeeting = c.category === 'meeting'
               return (
                 <div key={c.id} style={{ background:'var(--bg)', borderRadius:14, border:`1.5px solid ${isExp?'var(--g3)':'var(--g1)'}`,
                   marginBottom:8, overflow:'hidden' }}>
