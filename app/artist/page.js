@@ -492,16 +492,13 @@ export default function ArtistPage() {
               </div>
             )}
 
-           {isBookable(selectedDay) ? (
+            {selSchedule && !isBooked(selCourse?.id, selSchedule?.id, selectedDay) && (
+              <div className="slide-up">
+                {isBookable(selectedDay) ? (
   <button className="btn-primary" onClick={handleBook}>
     {selCourse?.name} {selSchedule?.start_time}~{selSchedule?.end_time} 참여 신청
   </button>
 ) : (
-                    <button className="btn-primary" onClick={handleBook}>
-                      {selCourse?.name} {selSchedule?.start_time}~{selSchedule?.end_time} 참여 신청
-                    </button>
-                  )
-                ) : (
                   <div style={{ padding:'14px', background:'var(--bg)', borderRadius:14, textAlign:'center', color:'var(--tmu)', fontSize:12, fontWeight:600 }}>
                     {monthDiff() < 0 ? '지난 날짜는 신청할 수 없어요' : '신청은 다음 달까지만 가능해요'}
                   </div>
