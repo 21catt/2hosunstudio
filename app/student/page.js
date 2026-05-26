@@ -199,10 +199,11 @@ export default function StudentPage() {
     const { data: b } = await supabase.from('bookings').select('*').eq('user_id', userId)
     setBookings(b || [])
     const { data: c } = await supabase
-      .from('class_courses')
-      .select('*, class_schedules(*)')
-      .eq('is_active', true)
-    setClasses(c || [])
+  .from('class_courses')
+  .select('*, class_schedules(*)')
+  .eq('is_active', true)
+  .neq('category', 'meeting')
+setClasses(c || [])
     setLoading(false)
   }
 
