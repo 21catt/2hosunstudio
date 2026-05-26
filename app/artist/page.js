@@ -160,24 +160,24 @@ export default function ArtistPage() {
   }
 
   function dayMeetings(day) {
-    const dow = new Date(year, month, day).getDay()
-    return meetings.filter(c =>
-      c.class_schedules?.some(s => s.day_of_week === dow)
-    )
-  }
+  const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
+  return meetings.filter(c =>
+    c.class_schedules?.some(s => s.specific_date === dateStr)
+  )
+}
 
   function getSchedulesForDay(course, day) {
-    const dow = new Date(year, month, day).getDay()
-    const seen = new Set()
-    return (course.class_schedules || [])
-      .filter(s => s.day_of_week === dow)
-      .filter(s => {
-        const key = `${s.start_time}-${s.end_time}`
-        if (seen.has(key)) return false
-        seen.add(key)
-        return true
-      })
-  }
+  const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
+  const seen = new Set()
+  return (course.class_schedules || [])
+    .filter(s => s.specific_date === dateStr)
+    .filter(s => {
+      const key = `${s.start_time}-${s.end_time}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+}
 
   function isBooked(courseId, scheduleId, day) {
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
