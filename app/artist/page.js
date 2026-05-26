@@ -107,6 +107,7 @@ export default function ArtistPage() {
   const [user, setUser] = useState(null)
   const [ticket, setTicket] = useState(null)
   const [bookings, setBookings] = useState([])
+  const [allBookings, setAllBookings] = useState([])
   const [meetings, setMeetings] = useState([])
   const [selectedDay, setSelectedDay] = useState(new Date().getDate())
   const [animDay, setAnimDay] = useState(null)
@@ -138,6 +139,11 @@ export default function ArtistPage() {
     setTicket(t)
     const { data: b } = await supabase.from('bookings').select('*').eq('user_id', userId)
     setBookings(b || [])
+    const { data: allMeetingBookings } = await supabase
+  .from('bookings')
+  .select('course_id, class_date, schedule_id')
+  .in('course_id', (await supabase.from('class_courses').select('id').eq('category', 'meeting')).data?.map(c => c.id) || [])
+setAllBookings(allMeetingBookings || [])
     // 카테고리가 meeting 인 것만
     const { data: m } = await supabase
       .from('class_courses')
@@ -446,15 +452,25 @@ export default function ArtistPage() {
           <div style={{ textAlign:'center', padding:20, color:'var(--tmu)', fontSize:12 }}>이날은 회의가 없어요 🐾</div>
         ) : (
           <>
-            {dc.map(c => (
-              <div key={c.id} onClick={() => { setSelCourse(c); setSelSchedule(null) }}
-                style={{ padding:'10px 14px', borderRadius:12, marginBottom:6, cursor:'pointer',
-                  background:selCourse?.id===c.id?'#e8f5e0':'var(--bg)',
-                  border:`1.5px solid ${selCourse?.id===c.id?'var(--g4)':'var(--g2)'}` }}>
-                <div style={{ fontSize:12, fontWeight:800, color:'var(--td)' }}>{c.name}</div>
-                <div style={{ fontSize:10, color:'var(--tmu)' }}>주최 {c.teacher}</div>
-              </div>
-            ))}
+           {dc.map(c => {
+  const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
+  const count = allBookings.filter(b => b.course_id === c.id && b.class_date === dateStr).length
+  return (
+    <div key={c.id} onClick={() => { setSelCourse(c); setSelSchedule(null) }}
+      style={{ padding:'10px 14px', borderRadius:12, marginBottom:6, cursor:'pointer',
+        display:'flex', alignItems:'center', justifyContent:'space-between',
+        background:selCourse?.id===c.id?'#e8f5e0':'var(--bg)',
+        border:`1.5px solid ${selCourse?.id===c.id?'var(--g4)':'var(--g2)'}` }}>
+      <div>
+        <div style={{ fontSize:12, fontWeight:800, color:'var(--td)' }}>{c.name}</div>
+        <div style={{ fontSize:10, color:'var(--tmu)' }}>주최 {c.teacher}</div>
+      </div>
+      <div style={{ fontSize:11, fontWeight:700, color:'var(--g5)' }}>
+        {count}/{c.max_count}명
+      </div>
+    </div>
+  )
+})}
 
             {selCourse && (
               <div className="slide-up" style={{ marginTop:12, marginBottom:12 }}>
