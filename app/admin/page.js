@@ -30,16 +30,22 @@ export default function AdminPage() {
   }
 
   async function grantTicket(userId, type, total, days) {
-    const expires = new Date()
-    expires.setDate(expires.getDate() + days)
-    await supabase.from('tickets').upsert({
-      user_id: userId, type, total, remain: total,
-      expires_at: expires.toISOString().split('T')[0]
-    })
-    alert('수강권이 부여됐어요!')
-    loadMembers()
-  }
-
+  const expires = new Date()
+  expires.setDate(expires.getDate() + days)
+  await supabase.from('tickets').delete().eq('user_id', userId)
+  await supabase.from('tickets').insert({
+    user_id: userId, type, total, remain: total,
+    expires_at: expires.toISOString().split('T')[0]
+  })
+  alert('수강권이 부여됐어요!')
+  loadMembers()
+}
+async function adjustTicket(ticketId, currentRemain, delta) {
+  const newRemain = currentRemain + delta
+  if (newRemain < 0) { alert('잔여 횟수가 0보다 작아질 수 없어요'); return }
+  await supabase.from('tickets').update({ remain: newRemain }).eq('id', ticketId)
+  loadMembers()
+}
   const filtered = members.filter(m =>
     !search || m.name?.includes(search) || m.phone?.includes(search)
   )
@@ -127,6 +133,23 @@ export default function AdminPage() {
                       </button>
                     ))}
                   </div>
+                  {ticket && (
+  <div style={{ display:'flex', gap:6, marginBottom:10, alignItems:'center' }}>
+    <span style={{ fontSize:10, fontWeight:700, color:'var(--tm)', flex:1 }}>잔여 조정</span>
+    <button onClick={e=>{e.stopPropagation();adjustTicket(ticket.id,ticket.remain,-1)}}
+      style={{ padding:'6px 12px', background:'#ffebee', color:'#c0392b',
+        border:'none', borderRadius:10, fontSize:11, fontWeight:700,
+        cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+      −1
+    </button>
+    <button onClick={e=>{e.stopPropagation();adjustTicket(ticket.id,ticket.remain,1)}}
+      style={{ padding:'6px 12px', background:'var(--g1)', color:'var(--g5)',
+        border:'none', borderRadius:10, fontSize:11, fontWeight:700,
+        cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+      +1
+    </button>
+  </div>
+)}
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
                     <div style={{ background:'var(--bg)', borderRadius:10, padding:'8px 10px' }}>
                       <div style={{ fontSize:9, color:'var(--tmu)', fontWeight:700, marginBottom:2 }}>총 예약</div>
