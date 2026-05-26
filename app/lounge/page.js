@@ -390,19 +390,19 @@ function removeExistingImage(idx) {
         )}
       </div>
 
-      <nav className="bottom-nav">
-        {[
-          { href:role==='admin'?'/admin':'/student', label:'홈', icon:'🏠' },
-          { href:role==='admin'?'/admin/notification':'/student/notification', label:'알림', icon:'🔔' },
-          { href:'/lounge', label:'라운지', icon:'💬', active:true },
-          { href:'/student/farm', label:'냥밭', icon:'🌱' },
-        ].map(t => (
-          <a key={t.label} href={t.href} className={`nav-item ${t.active?'active':''}`}>
-            <span style={{ fontSize:20 }}>{t.icon}</span>
-            <span>{t.label}</span>
-          </a>
-        ))}
-      </nav>
+     <nav className="bottom-nav">
+  {[
+    { href: role==='admin'?'/admin':role==='artist'?'/artist':'/student', label:'홈', icon:'🏠' },
+    ...(role === 'artist' ? [] : [{ href: role==='admin'?'/admin/notification':'/student/notification', label:'알림', icon:'🔔' }]),
+    { href:'/lounge', label:'라운지', icon:'💬', active:true },
+    ...(role === 'artist' ? [] : [{ href:'/student/farm', label:'냥밭', icon:'🌱' }]),
+  ].map(t => (
+    <a key={t.label} href={t.href} className={`nav-item ${t.active?'active':''}`}>
+      <span style={{ fontSize:20 }}>{t.icon}</span>
+      <span>{t.label}</span>
+    </a>
+  ))}
+</nav>
     </>
   )
 }
