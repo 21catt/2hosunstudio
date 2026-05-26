@@ -245,37 +245,34 @@ export default function ArtistPage() {
   }
 
   async function handleBook() {
-    if (!selCourse || !selSchedule) return
-    if (!ticket || ticket.remain <= 0) { alert('참여권이 없어요 🐾'); return }
-    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
+  if (!selCourse || !selSchedule) return
+  const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
 
-    const { data: newBooking } = await supabase.from('bookings').insert({
-      user_id: user.id,
-      course_id: selCourse.id,
-      schedule_id: selSchedule.id,
-      class_name: selCourse.name,
-      class_date: dateStr,
-      class_time: `${selSchedule.start_time}~${selSchedule.end_time}`,
-      teacher: selCourse.teacher,
-      status: 'booked'
-    }).select().single()
+  const { data: newBooking } = await supabase.from('bookings').insert({
+    user_id: user.id,
+    course_id: selCourse.id,
+    schedule_id: selSchedule.id,
+    class_name: selCourse.name,
+    class_date: dateStr,
+    class_time: `${selSchedule.start_time}~${selSchedule.end_time}`,
+    teacher: selCourse.teacher,
+    status: 'booked'
+  }).select().single()
 
-    await supabase.from('tickets').update({ remain: ticket.remain-1 }).eq('id', ticket.id)
-
-    const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
-    if (selCourse.teacher_id) {
-      await supabase.from('notifications').insert({
-        user_id: selCourse.teacher_id,
-        type: 'booking_created',
-        title: '새 회의 신청',
-        body: `${profile?.name || '작가'}님이 ${selCourse.name} ${dateStr} ${selSchedule.start_time} 참여 신청`,
-        related_id: newBooking?.id
-      })
-    }
-
-    setSelCourse(null); setSelSchedule(null)
-    loadData(user.id)
+  const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
+  if (selCourse.teacher_id) {
+    await supabase.from('notifications').insert({
+      user_id: selCourse.teacher_id,
+      type: 'booking_created',
+      title: '새 회의 신청',
+      body: `${profile?.name || '작가'}님이 ${selCourse.name} ${dateStr} ${selSchedule.start_time} 참여 신청`,
+      related_id: newBooking?.id
+    })
   }
+
+  setSelCourse(null); setSelSchedule(null)
+  loadData(user.id)
+}
 
   async function handleCancel(booking) {
     const diff = (new Date(booking.class_date) - new Date()) / (1000*60*60)
@@ -495,14 +492,11 @@ export default function ArtistPage() {
               </div>
             )}
 
-            {selSchedule && !isBooked(selCourse?.id, selSchedule?.id, selectedDay) && (
-              <div className="slide-up">
-                {isBookable(selectedDay) ? (
-                  !ticket || ticket.remain <= 0 ? (
-                    <div style={{ padding:'14px', background:'#ffebee', borderRadius:14, textAlign:'center', color:'#c0392b', fontSize:12, fontWeight:700 }}>
-                      참여권이 없어요 🐾
-                    </div>
-                  ) : (
+           {isBookable(selectedDay) ? (
+  <button className="btn-primary" onClick={handleBook}>
+    {selCourse?.name} {selSchedule?.start_time}~{selSchedule?.end_time} 참여 신청
+  </button>
+) : (
                     <button className="btn-primary" onClick={handleBook}>
                       {selCourse?.name} {selSchedule?.start_time}~{selSchedule?.end_time} 참여 신청
                     </button>
