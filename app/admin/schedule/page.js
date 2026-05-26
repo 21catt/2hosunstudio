@@ -275,7 +275,7 @@ function changeMonth(delta) {
   setSelDay(1)
   setExpanded(null)
 }
- const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.includes(c.category))
+const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.includes(c.category))
 
   // 특정 날짜에 열리는 수업
   function getCoursesForDay(day) {
