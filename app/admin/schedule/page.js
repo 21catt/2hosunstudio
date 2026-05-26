@@ -239,7 +239,24 @@ const todayStr = `${todayY}-${String(todayM+1).padStart(2,'0')}-${String(todayD)
   async function toggleCourse(id, active) {
     await supabase.from('class_courses').update({ is_active:!active }).eq('id', id)
     loadData()
-  }
+  }async function deleteCourse(courseId, courseName, isMeeting) {
+  const label = isMeeting ? '회의' : '수업'
+  const { data: bookingCount } = await supabase
+    .from('bookings')
+    .select('id', { count: 'exact', head: true })
+    .eq('course_id', courseId)
+  
+  const msg = `"${courseName}" ${label}을(를) 완전히 삭제할까요?\n\n예약된 사람이 있으면 함께 삭제됩니다.\n이 작업은 되돌릴 수 없어요.`
+  if (!confirm(msg)) return
+  
+  // 예약, 스케줄, 예외, 수업 순서로 삭제
+  await supabase.from('bookings').delete().eq('course_id', courseId)
+  await supabase.from('class_schedules').delete().eq('course_id', courseId)
+  await supabase.from('class_exceptions').delete().eq('course_id', courseId)
+  await supabase.from('class_courses').delete().eq('id', courseId)
+  setExpanded(null)
+  loadData()
+}
 
   async function markAttendance(bookingId, status) {
     await supabase.from('bookings').update({ status }).eq('id', bookingId)
@@ -442,33 +459,39 @@ function changeMonth(delta) {
                           <div style={{ flex:1 }}>
                             <div style={{ fontSize:11, fontWeight:700, color:'var(--td)' }}>{b.users?.name||'수강생'}</div>
                           </div>
-                          <div style={{ display:'flex', gap:4 }}>
-                            <button onClick={() => markAttendance(b.id,'attended')}
-                              style={{ fontSize:9, padding:'3px 8px', borderRadius:8, border:'none',
-                                background:b.status==='attended'?'var(--g4)':'var(--g1)',
-                                color:b.status==='attended'?'#fff':'var(--g5)',
-                                cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>출석</button>
-                            <button onClick={() => markAttendance(b.id,'absent')}
-                              style={{ fontSize:9, padding:'3px 8px', borderRadius:8, border:'none',
-                                background:b.status==='absent'?'#c0392b':'#ffebee',
-                                color:b.status==='absent'?'#fff':'#c0392b',
-                                cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>결석</button>
-                          </div>
+                       <div style={{ display:'flex', gap:4 }}>
+  <button onClick={() => { setEditCourse(c); setShowForm(false) }}
+    style={{ fontSize:9, padding:'3px 8px', borderRadius:8, border:'1px solid var(--g2)',
+      background:'var(--surf)', color:'var(--tm)', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>수정</button>
+  <button onClick={() => toggleCourse(c.id, c.is_active)}
+    style={{ fontSize:9, padding:'3px 8px', borderRadius:8, border:'1px solid var(--g2)',
+      background:'var(--surf)', color:c.is_active?'#E65100':'var(--g4)', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>
+    {c.is_active?'중단':'재개'}
+  </button>
+  <button onClick={() => deleteCourse(c.id, c.name, c.category === 'meeting')}
+    style={{ fontSize:9, padding:'3px 8px', borderRadius:8, border:'1px solid #f5c0c0',
+      background:'#ffebee', color:'#c0392b', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>삭제</button>
+</div>
                         </div>
                       ))}
-                      <div style={{ display:'flex', gap:6, marginTop:8 }}>
-                        <button onClick={() => setEditCourse(c)}
-                          style={{ flex:1, padding:'7px', background:'var(--g1)', color:'var(--g5)', border:'none',
-                            borderRadius:10, fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
-                          수업 수정
-                        </button>
-                        <button onClick={() => toggleCourse(c.id, c.is_active)}
-                          style={{ flex:1, padding:'7px', background:c.is_active?'#ffebee':'var(--g1)',
-                            color:c.is_active?'#c0392b':'var(--g5)', border:'none',
-                            borderRadius:10, fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
-                          {c.is_active?'수업 중단':'수업 재개'}
-                        </button>
-                      </div>
+                     <div style={{ display:'flex', gap:6, marginTop:8 }}>
+  <button onClick={() => setEditCourse(c)}
+    style={{ flex:1, padding:'7px', background:'var(--g1)', color:'var(--g5)', border:'none',
+      borderRadius:10, fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+    {isMeeting?'회의 수정':'수업 수정'}
+  </button>
+  <button onClick={() => toggleCourse(c.id, c.is_active)}
+    style={{ flex:1, padding:'7px', background:c.is_active?'#fff3e0':'var(--g1)',
+      color:c.is_active?'#E65100':'var(--g5)', border:'none',
+      borderRadius:10, fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+    {c.is_active?'중단':'재개'}
+  </button>
+  <button onClick={() => deleteCourse(c.id, c.name, isMeeting)}
+    style={{ flex:1, padding:'7px', background:'#ffebee', color:'#c0392b', border:'none',
+      borderRadius:10, fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+    삭제
+  </button>
+</div>
                     </div>
                   )}
                 </div>
