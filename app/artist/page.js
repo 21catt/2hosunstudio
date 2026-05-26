@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
-
+import { useTodayWeather } from '../../components/WeatherBar'
 const CAT_IMAGES = [
   '/cats/cat01.png',
   '/cats/cat02.png',
@@ -103,6 +103,7 @@ function PixelPlant({ ratio }) {
 }
 
 export default function ArtistPage() {
+    const todayWeather = useTodayWeather()
   const router = useRouter()
   const [user, setUser] = useState(null)
   const [ticket, setTicket] = useState(null)
@@ -397,6 +398,11 @@ setAllBookings(allMeetingBookings || [])
                   cursor:isMon?'default':'pointer', borderRadius:12, opacity:isMon?0.3:1, position:'relative',
                   background:isSel?'#e8f5e0':'transparent',
                   border:isSel?'1.5px solid var(--g3)':'1.5px solid transparent' }}>
+                    {isT && todayWeather && (
+  <div style={{ position:'absolute', top:-2, left:'50%', transform:'translateX(-50%)', fontSize:13, zIndex:1 }}>
+    {todayWeather.icon}
+  </div>
+)}
                 {isB || isSel ? (
                   <div className={isAnim?'cat-anim':''} style={{ display:'flex', flexDirection:'column', alignItems:'center', lineHeight:1 }}>
                     <img src={getCatImage(d)} alt="" style={{ width:34, height:34, objectFit:'contain' }}/>

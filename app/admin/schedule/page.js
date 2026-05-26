@@ -1,4 +1,5 @@
 'use client'
+import { useTodayWeather } from '../../../components/WeatherBar'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
@@ -192,6 +193,7 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
 }
 
 export default function AdminSchedulePage() {
+    const todayWeather = useTodayWeather()
   const router = useRouter()
   const [user, setUser] = useState(null)
   const [courses, setCourses] = useState([])
@@ -397,6 +399,11 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
                     style={{ height:52, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-start',
                       paddingTop:4, cursor:isMon?'default':'pointer', borderRadius:10, opacity:isMon?0.3:1, position:'relative',
                       background:isSel?'#e8f5e0':'transparent', border:isSel?'1.5px solid var(--g3)':'1.5px solid transparent' }}>
+                    {isT && todayWeather && (
+  <div style={{ position:'absolute', top:-2, left:'50%', transform:'translateX(-50%)', fontSize:13, zIndex:1 }}>
+    {todayWeather.icon}
+  </div>
+)}
                     {isT ? (
                       <div style={{ width:24, height:24, borderRadius:'50%', background:'var(--g4)', color:'#fff',
                         display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:800 }}>{d}</div>
