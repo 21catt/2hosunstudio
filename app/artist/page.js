@@ -160,17 +160,25 @@ export default function ArtistPage() {
   }
 
   function dayMeetings(day) {
+  const dow = new Date(year, month, day).getDay()
   const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
-  return meetings.filter(c =>
-    c.class_schedules?.some(s => s.specific_date === dateStr)
-  )
+  return meetings.filter(c => {
+    if (!c.is_active) return false
+    const hasSchedule = c.class_schedules?.some(s => s.day_of_week === dow)
+    if (!hasSchedule) return false
+    if (!c.is_unlimited) {
+      if (c.start_date && dateStr < c.start_date) return false
+      if (c.end_date && dateStr > c.end_date) return false
+    }
+    return true
+  })
 }
 
   function getSchedulesForDay(course, day) {
-  const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
+  const dow = new Date(year, month, day).getDay()
   const seen = new Set()
   return (course.class_schedules || [])
-    .filter(s => s.specific_date === dateStr)
+    .filter(s => s.day_of_week === dow)
     .filter(s => {
       const key = `${s.start_time}-${s.end_time}`
       if (seen.has(key)) return false
