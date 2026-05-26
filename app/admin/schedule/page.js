@@ -330,6 +330,13 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
               + 개설
             </button>
           )}
+          <button onClick={async () => {
+  await supabase.auth.signOut()
+  router.push('/login')
+}}
+  style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:20, padding:'4px 10px', color:'#fff', fontSize:10, fontWeight:700, cursor:'pointer' }}>
+  로그아웃
+</button>
         </div>
       </div>
 
