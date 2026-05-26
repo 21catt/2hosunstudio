@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
-
+import WeatherBar from '../../components/WeatherBar'
 const EMOJI = { drawing:'✏️', painting:'🎨', sculpture:'🗿', free:'🖼️' }
 const CAT_NAME = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', free:'자율창작' }
 const CAT_COLOR = { drawing:'#e8f5e0', painting:'#EDE7F6', sculpture:'#FFF3E0', free:'#E3F2FD' }
@@ -410,6 +410,7 @@ setClasses(c || [])
       </div>
 
       <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 0' }}>
+       <WeatherBar />
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
           <button onClick={() => changeMonth(-1)}
             disabled={monthDiff() <= -3}
