@@ -191,13 +191,15 @@ export default function LoginPage() {
         <div className="field">
           <label>이메일</label>
           <input type="email" placeholder="example@email.com"
-            value={email} onChange={e => setEmail(e.target.value)}/>
+  autoComplete="username"
+  value={email} onChange={e => setEmail(e.target.value)}/>
         </div>
         <div className="field">
           <label>비밀번호</label>
           <input type="password" placeholder="비밀번호 입력"
-            value={pw} onChange={e => setPw(e.target.value)}
-            onKeyDown={e => e.key==='Enter' && handleLogin()}/>
+  autoComplete="current-password"
+  value={pw} onChange={e => setPw(e.target.value)}
+  onKeyDown={e => e.key==='Enter' && handleLogin()}/>
         </div>
 
         {error && <div style={{ color:'#c0392b', fontSize:12, marginBottom:12, fontWeight:600 }}>{error}</div>}
