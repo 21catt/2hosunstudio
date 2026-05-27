@@ -20,6 +20,7 @@ const DEFAULT_SLOTS = [
 
 function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
   const [name, setName] = useState(initial?.name || '')
+  const [price, setPrice] = useState(initial?.price || 0)
   const [cat, setCat] = useState(initial?.category || 'drawing')
   const [maxCount, setMaxCount] = useState(initial?.max_count || 5)
   const [isUnlimited, setIsUnlimited] = useState(initial?.is_unlimited ?? true)
@@ -57,9 +58,9 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
     }
     setSaving(true)
     const courseData = {
-      name, category:cat, max_count:maxCount,
-      is_unlimited:isUnlimited, start_date:startDate||null, end_date:endDate||null
-    }
+  name, category:cat, max_count:maxCount, price,
+  is_unlimited:isUnlimited, start_date:startDate||null, end_date:endDate||null
+}
     let courseId = initial?.id
     if (courseId) {
       await supabase.from('class_courses').update(courseData).eq('id', courseId)
@@ -93,11 +94,16 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
         <input placeholder="예: 기초 드로잉" value={name} onChange={e=>setName(e.target.value)}/>
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-        <div className="field"><label>카테고리</label>
-          <select value={cat} onChange={e=>setCat(e.target.value)}>
-            {Object.entries(CATS).map(([k,v])=><option key={k} value={k}>{v}</option>)}
-          </select>
-        </div>
+       <div className="field"><label>카테고리</label>
+  <select value={cat} onChange={e=>setCat(e.target.value)}>
+    {Object.entries(CATS).map(([k,v])=><option key={k} value={k}>{v}</option>)}
+  </select>
+</div>
+{cat === 'meeting' && (
+  <div className="field"><label>참여비 (원)</label>
+    <input type="number" value={price} onChange={e=>setPrice(Number(e.target.value))} placeholder="예: 30000"/>
+  </div>
+)}
         <div className="field"><label>정원</label>
           <input type="number" value={maxCount} min={1} max={10} onChange={e=>setMaxCount(Number(e.target.value))}/>
         </div>
