@@ -176,6 +176,7 @@ export default function StudentPage() {
   const [selCat, setSelCat] = useState(null)
   const [selCourse, setSelCourse] = useState(null)
   const [selSchedule, setSelSchedule] = useState(null)
+  const [paymentModal, setPaymentModal] = useState(null)
   const now = new Date()
   const todayY = now.getFullYear()
   const todayM = now.getMonth()
@@ -300,6 +301,11 @@ setClasses(c || [])
 
   async function handleBook() {
     if (!selCourse || !selSchedule) return
+    // 모임이면 계좌이체 모달
+  if (selCourse.category === 'meeting') {
+    setPaymentModal({ course: selCourse, schedule: selSchedule })
+    return
+  }
     if (!ticket || ticket.remain <= 0) { alert('잔여 수강권이 없어요 🐾'); return }
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
 
@@ -330,7 +336,38 @@ setClasses(c || [])
     setSelCat(null); setSelCourse(null); setSelSchedule(null)
     loadData(user.id)
   }
+async function handleMeetingBook() {
+  if (!paymentModal) return
+  const { course, schedule } = paymentModal
+  const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
 
+  const { data: newBooking } = await supabase.from('bookings').insert({
+    user_id: user.id,
+    course_id: course.id,
+    schedule_id: schedule.id,
+    class_name: course.name,
+    class_date: dateStr,
+    class_time: `${schedule.start_time}~${schedule.end_time}`,
+    teacher: course.teacher,
+    status: 'pending'
+  }).select().single()
+
+  const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
+  if (course.teacher_id) {
+    await supabase.from('notifications').insert({
+      user_id: course.teacher_id,
+      type: 'meeting_pending',
+      title: '모임 신청 (입금 대기)',
+      body: `${profile?.name || '학생'}님이 ${course.name} ${dateStr} ${schedule.start_time} 모임 신청. 입금 확인 필요.`,
+      related_id: newBooking?.id
+    })
+  }
+
+  setPaymentModal(null)
+  setSelCat(null); setSelCourse(null); setSelSchedule(null)
+  loadData(user.id)
+  alert('신청 완료! 입금 확인 후 확정됩니다 🐾')
+}
   async function handleCancel(booking) {
     const diff = (new Date(booking.class_date) - new Date()) / (1000*60*60)
     if (diff < 4) { alert('수업 4시간 전에는 취소할 수 없어요'); return }
@@ -400,6 +437,52 @@ setClasses(c || [])
       `}</style>
 
       <div className="header">
+        {paymentModal && (
+  <div onClick={()=>setPaymentModal(null)}
+    style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:1000,
+      display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+    <div onClick={e=>e.stopPropagation()}
+      style={{ background:'#fff', borderRadius:20, padding:'20px 18px', maxWidth:340, width:'100%' }}>
+      <div style={{ fontSize:16, fontWeight:800, color:'var(--td)', marginBottom:6 }}>
+        모임 참여 안내
+      </div>
+      <div style={{ fontSize:12, color:'var(--tm)', lineHeight:1.6, marginBottom:14 }}>
+        {paymentModal.course.name}
+      </div>
+      <div style={{ background:'var(--bg)', borderRadius:12, padding:'12px 14px', marginBottom:14 }}>
+        <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:6 }}>참여비</div>
+        <div style={{ fontSize:18, fontWeight:800, color:'var(--g5)', marginBottom:10 }}>
+          {paymentModal.course.price?.toLocaleString() || 0}원
+        </div>
+        <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:4 }}>입금 계좌</div>
+        <div style={{ fontSize:12, fontWeight:700, color:'var(--td)', lineHeight:1.6 }}>
+          카카오뱅크<br/>
+          3333-03-8381397<br/>
+          예금주: 양승민
+        </div>
+      </div>
+      <div style={{ fontSize:11, color:'var(--tmu)', lineHeight:1.5, marginBottom:14 }}>
+        신청 후 위 계좌로 입금해 주세요.<br/>
+        입금 확인 후 참여가 확정됩니다.
+      </div>
+      <div style={{ display:'flex', gap:8 }}>
+        <button onClick={()=>setPaymentModal(null)}
+          style={{ flex:1, padding:'11px', background:'var(--g1)', color:'var(--g5)',
+            border:'none', borderRadius:12, fontSize:13, fontWeight:700,
+            cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+          취소
+        </button>
+        <button onClick={handleMeetingBook}
+          style={{ flex:1, padding:'11px', background:'var(--g4)', color:'#fff',
+            border:'none', borderRadius:12, fontSize:13, fontWeight:700,
+            cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+          신청하기
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+<div className="header"></div>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <span style={{ fontSize:20 }}>🐱</span>
           <span className="header-title">2호선 스튜디오</span>
