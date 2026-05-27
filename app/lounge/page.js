@@ -379,7 +379,7 @@ function removeExistingImage(idx) {
         })}
 
         {/* 글쓰기 버튼 (관리자만) */}
-        {role === 'admin' && (
+        
           <button onClick={() => setShowWrite(true)}
             style={{ position:'fixed', bottom:76, right:'calc(50% - 185px)',
               display:'flex', alignItems:'center', gap:6, background:'var(--g4)', color:'#fff',
@@ -387,7 +387,7 @@ function removeExistingImage(idx) {
               cursor:'pointer', fontFamily:'Nunito,sans-serif', boxShadow:'0 2px 8px rgba(61,139,80,0.3)' }}>
             ✏️ 글쓰기
           </button>
-        )}
+       
       </div>
 
      <nav className="bottom-nav">
