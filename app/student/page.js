@@ -203,7 +203,7 @@ export default function StudentPage() {
   .from('class_courses')
   .select('*, class_schedules(*)')
   .eq('is_active', true)
-  .neq('category', 'meeting')
+  
 setClasses(c || [])
     setLoading(false)
   }
