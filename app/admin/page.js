@@ -210,8 +210,8 @@ async function adjustMeetingTicket(ticketId, currentRemain, delta) {
   </div>
 )}
 {/* 모임 참여권 */}
-<div style={{ borderTop:'1px solid var(--g1)', marginTop:12, paddingTop:12 }}>
-  <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>모임 참여권</div>
+<div style={{ background:'#FFF8E1', borderRadius:12, padding:'12px 14px', marginTop:12, border:'1.5px solid #FFE082' }}>
+  <div style={{ fontSize:10, fontWeight:700, color:'#F57F17', marginBottom:8 }}>👥 모임 참여권</div>
   
   {memberMeetingTickets[m.id]?.length > 0 ? (
     memberMeetingTickets[m.id].map(mt => (
