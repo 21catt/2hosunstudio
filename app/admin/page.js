@@ -213,8 +213,8 @@ async function adjustMeetingTicket(ticketId, currentRemain, delta) {
 <div style={{ background:'#FFF8E1', borderRadius:12, padding:'12px 14px', marginTop:12, border:'1.5px solid #FFE082' }}>
   <div style={{ fontSize:10, fontWeight:700, color:'#F57F17', marginBottom:8 }}>👥 모임 참여권</div>
   
-  {memberMeetingTickets[m.id]?.length > 0 ? (
-    memberMeetingTickets[m.id].map(mt => (
+ {memberMeetingTickets[m.id]?.filter(mt => mt.remain > 0).length > 0 ? (
+  memberMeetingTickets[m.id].filter(mt => mt.remain > 0).map(mt => (
       <div key={mt.id} style={{ display:'flex', alignItems:'center', gap:6, marginBottom:8 }}>
         <div style={{ flex:1, fontSize:11, fontWeight:700, color:'var(--td)' }}>
           {mt.remain}/{mt.total}회 · 만료 {mt.expires_at}
