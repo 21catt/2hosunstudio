@@ -20,10 +20,7 @@ function getCatImage(d) {
   return CAT_IMAGES[(d * 7 + 3) % CAT_IMAGES.length]
 }
 function PixelPlant({ ratio }) {
-  // ratio: 0~1 (1=싱싱, 0=죽음)
   const stage = ratio >= 0.6 ? 'healthy' : ratio >= 0.3 ? 'mild' : 'wilted'
-  
-  // 색상 (앱 톤에 맞춰 채도 낮춤)
   const palette = {
     healthy: {
       leaf: '#3d6b4f', leafDark: '#2a4a37',
@@ -45,116 +42,60 @@ function PixelPlant({ ratio }) {
     }
   }
   const c = palette[stage]
-
-  // 잎 좌표 (12x12 그리드 × 4px 픽셀 = 48x48)
-  // 줄기 가운데(x=5,6) 중심으로 좌우 갈라져 올라감
   const leavesHealthy = [
-    // 중앙 줄기
     [5,4],[5,5],[5,6],[5,7],[5,8],[5,9],
     [6,4],[6,5],[6,6],[6,7],[6,8],[6,9],
-    // 왼쪽 큰 잎 (아래쪽)
-    [3,8],[4,7],[2,9],
-    [3,7],[4,6],
-    // 왼쪽 중간 잎
-    [2,6],[3,5],
-    [2,5],[1,6],
-    // 왼쪽 위 잎
-    [3,3],[2,4],
-    // 오른쪽 큰 잎 (아래쪽)
-    [7,7],[8,8],[9,9],
-    [7,6],[8,7],
-    // 오른쪽 중간 잎
-    [8,5],[9,6],
-    [9,5],[10,6],
-    // 오른쪽 위 잎
-    [8,3],[9,4],
+    [3,8],[4,7],[2,9],[3,7],[4,6],
+    [2,6],[3,5],[2,5],[1,6],[3,3],[2,4],
+    [7,7],[8,8],[9,9],[7,6],[8,7],
+    [8,5],[9,6],[9,5],[10,6],[8,3],[9,4],
   ]
-  // 시든 잎 (처짐 + 일부 사라짐)
   const leavesWilted = [
     [5,5],[5,6],[5,7],[5,8],[5,9],
     [6,5],[6,6],[6,7],[6,8],[6,9],
-    [3,9],[4,8],
-    [7,8],[8,9],
-    [3,7],[4,7],
-    [7,7],[8,7],
+    [3,9],[4,8],[7,8],[8,9],
+    [3,7],[4,7],[7,7],[8,7],
   ]
   const leaves = stage === 'wilted' ? leavesWilted : leavesHealthy
-
-  // 꽃 좌표 (싱싱/보통일 때만)
   const flowers = [
-    // 중앙 꽃 (가장 큰 꽃)
-    [4,2],[5,2],[6,2],[7,2],
-    [5,1],[6,1],
-    [5,3],[6,3],
-    // 왼쪽 작은 꽃
-    [2,3],[3,3],
-    [2,2],
-    // 오른쪽 작은 꽃
-    [8,3],[9,3],
-    [9,2],
+    [4,2],[5,2],[6,2],[7,2],[5,1],[6,1],[5,3],[6,3],
+    [2,3],[3,3],[2,2],[8,3],[9,3],[9,2],
   ]
 
   return (
     <div style={{ position:'relative', width:48, height:48 }}>
       <style>{`
-        @keyframes pSwayH {
-          0%,100% { transform: rotate(-1.5deg); }
-          50% { transform: rotate(1.5deg); }
-        }
-        @keyframes pSwayM {
-          0%,100% { transform: rotate(-0.6deg); }
-          50% { transform: rotate(0.6deg); }
-        }
-        @keyframes pSwayW {
-          0%,100% { transform: translateY(0); }
-          50% { transform: translateY(0.4px); }
-        }
-        @keyframes pDrop {
-          0% { transform: translateY(-3px); opacity:0; }
-          15% { opacity:1; }
-          85% { opacity:1; }
-          100% { transform: translateY(10px); opacity:0; }
-        }
+        @keyframes pSwayH { 0%,100% { transform: rotate(-1.5deg); } 50% { transform: rotate(1.5deg); } }
+        @keyframes pSwayM { 0%,100% { transform: rotate(-0.6deg); } 50% { transform: rotate(0.6deg); } }
+        @keyframes pSwayW { 0%,100% { transform: translateY(0); } 50% { transform: translateY(0.4px); } }
+        @keyframes pDrop { 0% { transform: translateY(-3px); opacity:0; } 15% { opacity:1; } 85% { opacity:1; } 100% { transform: translateY(10px); opacity:0; } }
         .p-h { animation: pSwayH 3.2s ease-in-out infinite; transform-origin: 50% 85%; }
         .p-m { animation: pSwayM 4.2s ease-in-out infinite; transform-origin: 50% 85%; }
         .p-w { animation: pSwayW 5s ease-in-out infinite; }
         .p-d1 { animation: pDrop 2.6s ease-in 0s infinite; }
         .p-d2 { animation: pDrop 2.6s ease-in 1.3s infinite; }
       `}</style>
-
       <div className={stage === 'healthy' ? 'p-h' : stage === 'mild' ? 'p-m' : 'p-w'} style={{ position:'absolute', inset:0 }}>
         <svg viewBox="0 0 48 48" width="48" height="48" shapeRendering="crispEdges">
-          {/* 꽃 (꽃 그림자 먼저, 위에 밝은 색) */}
           {stage !== 'wilted' && flowers.map(([x,y],i) => (
             <rect key={`f-${i}`} x={x*4} y={y*4} width="4" height="4" fill={c.flower}/>
           ))}
           {stage !== 'wilted' && flowers.filter(([,y]) => y >= 2).slice(0, 6).map(([x,y],i) => (
             <rect key={`fd-${i}`} x={x*4+2} y={y*4+2} width="2" height="2" fill={c.flowerDark}/>
           ))}
-
-          {/* 잎 (어두운 그림자 먼저, 위에 밝은 색) */}
           {leaves.map(([x,y],i) => (
             <rect key={`l-${i}`} x={x*4} y={y*4} width="4" height="4" fill={c.leaf}/>
           ))}
           {leaves.filter(([x,y]) => (x+y) % 3 === 0).map(([x,y],i) => (
             <rect key={`ld-${i}`} x={x*4+1} y={y*4+1} width="2" height="2" fill={c.leafDark}/>
           ))}
-
-          {/* 화분 */}
-          {/* 화분 입구 */}
           <rect x="12" y="36" width="24" height="2" fill={c.potDark}/>
-          {/* 화분 본체 */}
           <rect x="14" y="38" width="20" height="8" fill={c.pot}/>
-          {/* 화분 왼쪽 하이라이트 */}
           <rect x="14" y="38" width="2" height="6" fill={c.potLight}/>
-          {/* 화분 오른쪽 그림자 */}
           <rect x="32" y="38" width="2" height="8" fill={c.potDark}/>
-          {/* 화분 바닥 */}
           <rect x="14" y="46" width="20" height="2" fill={c.potDark}/>
         </svg>
       </div>
-
-      {/* 물방울 (싱싱할 때만) */}
       {stage === 'healthy' && (
         <>
           <div className="p-d1" style={{ position:'absolute', top:2, left:12, width:2, height:3, background:c.drop, borderRadius:'50% 50% 50% 50% / 60% 60% 40% 40%' }}/>
@@ -164,6 +105,7 @@ function PixelPlant({ ratio }) {
     </div>
   )
 }
+
 export default function StudentPage() {
   const router = useRouter()
   const todayWeather = useTodayWeather()
@@ -177,6 +119,7 @@ export default function StudentPage() {
   const [selCourse, setSelCourse] = useState(null)
   const [selSchedule, setSelSchedule] = useState(null)
   const [paymentModal, setPaymentModal] = useState(null)
+  const [selectedCount, setSelectedCount] = useState(1)
   const now = new Date()
   const todayY = now.getFullYear()
   const todayM = now.getMonth()
@@ -201,15 +144,13 @@ export default function StudentPage() {
     const { data: b } = await supabase.from('bookings').select('*').eq('user_id', userId)
     setBookings(b || [])
     const { data: c } = await supabase
-  .from('class_courses')
-  .select('*, class_schedules(*)')
-  .eq('is_active', true)
-  
-setClasses(c || [])
+      .from('class_courses')
+      .select('*, class_schedules(*)')
+      .eq('is_active', true)
+    setClasses(c || [])
     setLoading(false)
   }
 
-  // 현재 보고 있는 월에 해당하는 예약만
   function bookingsInView() {
     return bookings.filter(b => {
       const d = new Date(b.class_date)
@@ -301,27 +242,26 @@ setClasses(c || [])
 
   async function handleBook() {
     if (!selCourse || !selSchedule) return
-   // 모임이면 - 모임권 확인
-if (selCourse.category === 'meeting') {
-  const { data: mt } = await supabase
-    .from('meeting_tickets')
-    .select('*')
-    .eq('user_id', user.id)
-    .eq('status', 'confirmed')
-    .gt('remain', 0)
-    .gte('expires_at', new Date().toISOString().split('T')[0])
-    .limit(1)
-  
-  if (mt && mt.length > 0) {
-    // 모임권 있음 - 차감하고 바로 예약
-    await handleMeetingBookWithTicket(mt[0])
-    return
-  }
-  
-  // 모임권 없음 - 모달
-  setPaymentModal({ course: selCourse, schedule: selSchedule })
-  return
-}
+
+    if (selCourse.category === 'meeting') {
+      const { data: mt } = await supabase
+        .from('meeting_tickets')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'confirmed')
+        .gt('remain', 0)
+        .gte('expires_at', new Date().toISOString().split('T')[0])
+        .limit(1)
+
+      if (mt && mt.length > 0) {
+        await handleMeetingBookWithTicket(mt[0])
+        return
+      }
+
+      setPaymentModal({ course: selCourse, schedule: selSchedule })
+      return
+    }
+
     if (!ticket || ticket.remain <= 0) { alert('잔여 수강권이 없어요 🐾'); return }
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
 
@@ -352,71 +292,71 @@ if (selCourse.category === 'meeting') {
     setSelCat(null); setSelCourse(null); setSelSchedule(null)
     loadData(user.id)
   }
-async function handleMeetingBook() {
-  if (!paymentModal) return
-  const { course, schedule } = paymentModal
-  const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
 
-  // 1. 모임권 발급 (pending 상태)
-  const expires = new Date()
-  expires.setMonth(expires.getMonth() + 1)
-  await supabase.from('meeting_tickets').insert({
-    user_id: user.id,
-    total: selectedCount,
-    remain: selectedCount - 1,
-    status: 'pending',
-    expires_at: expires.toISOString().split('T')[0]
-  })
+  async function handleMeetingBook() {
+    if (!paymentModal) return
+    const { course, schedule } = paymentModal
+    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
 
-  // 2. 첫 예약 자동 생성 (pending)
-  const { data: newBooking } = await supabase.from('bookings').insert({
-    user_id: user.id,
-    course_id: course.id,
-    schedule_id: schedule.id,
-    class_name: course.name,
-    class_date: dateStr,
-    class_time: `${schedule.start_time}~${schedule.end_time}`,
-    teacher: course.teacher,
-    status: 'pending'
-  }).select().single()
-
-  // 3. 강사한테 알림
-  const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
-  if (course.teacher_id) {
-    await supabase.from('notifications').insert({
-      user_id: course.teacher_id,
-      type: 'meeting_pending',
-      title: '모임 참여권 신청 (입금 대기)',
-      body: `${profile?.name || '학생'}님이 ${course.name} ${selectedCount}회권 신청. 금액: ${((course.price || 0) * selectedCount).toLocaleString()}원. 입금 확인 후 확정 처리 필요.`,
-      related_id: newBooking?.id
+    const expires = new Date()
+    expires.setMonth(expires.getMonth() + 1)
+    await supabase.from('meeting_tickets').insert({
+      user_id: user.id,
+      total: selectedCount,
+      remain: selectedCount - 1,
+      status: 'pending',
+      expires_at: expires.toISOString().split('T')[0]
     })
+
+    const { data: newBooking } = await supabase.from('bookings').insert({
+      user_id: user.id,
+      course_id: course.id,
+      schedule_id: schedule.id,
+      class_name: course.name,
+      class_date: dateStr,
+      class_time: `${schedule.start_time}~${schedule.end_time}`,
+      teacher: course.teacher,
+      status: 'pending'
+    }).select().single()
+
+    const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
+    if (course.teacher_id) {
+      await supabase.from('notifications').insert({
+        user_id: course.teacher_id,
+        type: 'meeting_pending',
+        title: '모임 참여권 신청 (입금 대기)',
+        body: `${profile?.name || '학생'}님이 ${course.name} ${selectedCount}회권 신청. 금액: ${((course.price || 0) * selectedCount).toLocaleString()}원. 입금 확인 후 확정 처리 필요.`,
+        related_id: newBooking?.id
+      })
+    }
+
+    setPaymentModal(null)
+    setSelectedCount(1)
+    setSelCat(null); setSelCourse(null); setSelSchedule(null)
+    loadData(user.id)
+    alert('신청 완료! 입금 확인 후 확정됩니다 🐾')
   }
 
-  setPaymentModal(null)
-  setSelectedCount(1)
-  setSelCat(null); setSelCourse(null); setSelSchedule(null)
-  loadData(user.id)
-  alert('신청 완료! 입금 확인 후 확정됩니다 🐾')
-}
-async function handleMeetingBookWithTicket(ticket) {
-  const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
+  async function handleMeetingBookWithTicket(ticket) {
+    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
 
-  await supabase.from('bookings').insert({
-    user_id: user.id,
-    course_id: selCourse.id,
-    schedule_id: selSchedule.id,
-    class_name: selCourse.name,
-    class_date: dateStr,
-    class_time: `${selSchedule.start_time}~${selSchedule.end_time}`,
-    teacher: selCourse.teacher,
-    status: 'confirmed'
-  })
+    await supabase.from('bookings').insert({
+      user_id: user.id,
+      course_id: selCourse.id,
+      schedule_id: selSchedule.id,
+      class_name: selCourse.name,
+      class_date: dateStr,
+      class_time: `${selSchedule.start_time}~${selSchedule.end_time}`,
+      teacher: selCourse.teacher,
+      status: 'confirmed'
+    })
 
-  await supabase.from('meeting_tickets').update({ remain: ticket.remain - 1 }).eq('id', ticket.id)
+    await supabase.from('meeting_tickets').update({ remain: ticket.remain - 1 }).eq('id', ticket.id)
 
-  setSelCat(null); setSelCourse(null); setSelSchedule(null)
-  loadData(user.id)
-}
+    setSelCat(null); setSelCourse(null); setSelSchedule(null)
+    loadData(user.id)
+  }
+
   async function handleCancel(booking) {
     const diff = (new Date(booking.class_date) - new Date()) / (1000*60*60)
     if (diff < 4) { alert('수업 4시간 전에는 취소할 수 없어요'); return }
@@ -444,7 +384,6 @@ async function handleMeetingBookWithTicket(ticket) {
   const bd = bookedDays()
   const dc = dayClasses(selectedDay)
 
-  // 선택한 날의 예약 (보고 있는 월 기준)
   const dayBookings = bookings.filter(b => {
     const d = new Date(b.class_date)
     return d.getFullYear() === year && d.getMonth() === month && d.getDate() === selectedDay
@@ -485,55 +424,74 @@ async function handleMeetingBookWithTicket(ticket) {
         .slide-up { animation: slideUp 0.25s ease forwards; }
       `}</style>
 
+      {paymentModal && (
+        <div onClick={()=>{setPaymentModal(null); setSelectedCount(1)}}
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:1000,
+            display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{ background:'#fff', borderRadius:20, padding:'20px 18px', maxWidth:340, width:'100%' }}>
+            <div style={{ fontSize:16, fontWeight:800, color:'var(--td)', marginBottom:6 }}>
+              모임 참여 안내
+            </div>
+            <div style={{ fontSize:12, color:'var(--tm)', lineHeight:1.6, marginBottom:14 }}>
+              {paymentModal.course.name}
+            </div>
+
+            <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:6 }}>참여 횟수 선택</div>
+            <div style={{ display:'flex', gap:6, marginBottom:14 }}>
+              {[1,2,3,4].map(n => (
+                <div key={n} onClick={()=>setSelectedCount(n)}
+                  style={{ flex:1, padding:'8px', borderRadius:10, textAlign:'center', cursor:'pointer',
+                    background:selectedCount===n?'var(--g4)':'var(--bg)',
+                    color:selectedCount===n?'#fff':'var(--td)',
+                    border:`1.5px solid ${selectedCount===n?'var(--g4)':'var(--g1)'}`,
+                    fontSize:12, fontWeight:700 }}>
+                  {n}회
+                </div>
+              ))}
+            </div>
+
+            <div style={{ background:'var(--bg)', borderRadius:12, padding:'12px 14px', marginBottom:14 }}>
+              <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:6 }}>
+                참여비 ({paymentModal.course.price?.toLocaleString() || 0}원 × {selectedCount}회)
+              </div>
+              <div style={{ fontSize:20, fontWeight:800, color:'var(--g5)', marginBottom:10 }}>
+                {((paymentModal.course.price || 0) * selectedCount).toLocaleString()}원
+              </div>
+              <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:4 }}>입금 계좌</div>
+              <div style={{ fontSize:12, fontWeight:700, color:'var(--td)', lineHeight:1.6 }}>
+                카카오뱅크<br/>
+                3333-03-8381397<br/>
+                예금주: 양승민
+              </div>
+            </div>
+
+            <div style={{ fontSize:11, color:'var(--tmu)', lineHeight:1.6, marginBottom:14 }}>
+              • 신청 후 위 계좌로 입금해 주세요.<br/>
+              • 입금 확인 후 모임 참여권이 확정됩니다.<br/>
+              • 모임권은 발급일로부터 1개월 내 사용해야 하며 이월되지 않습니다.<br/>
+              • 모임권은 모든 모임에서 사용 가능합니다.
+            </div>
+
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={()=>{setPaymentModal(null); setSelectedCount(1)}}
+                style={{ flex:1, padding:'11px', background:'var(--g1)', color:'var(--g5)',
+                  border:'none', borderRadius:12, fontSize:13, fontWeight:700,
+                  cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                취소
+              </button>
+              <button onClick={handleMeetingBook}
+                style={{ flex:1, padding:'11px', background:'var(--g4)', color:'#fff',
+                  border:'none', borderRadius:12, fontSize:13, fontWeight:700,
+                  cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                신청하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="header">
-        {paymentModal && (
-  <div onClick={()=>setPaymentModal(null)}
-    style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:1000,
-      display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
-    <div onClick={e=>e.stopPropagation()}
-      style={{ background:'#fff', borderRadius:20, padding:'20px 18px', maxWidth:340, width:'100%' }}>
-      <div style={{ fontSize:16, fontWeight:800, color:'var(--td)', marginBottom:6 }}>
-        모임 참여 안내
-      </div>
-      <div style={{ fontSize:12, color:'var(--tm)', lineHeight:1.6, marginBottom:14 }}>
-        {paymentModal.course.name}
-      </div>
-      <div style={{ background:'var(--bg)', borderRadius:12, padding:'12px 14px', marginBottom:14 }}>
-        <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:6 }}>참여비</div>
-        <div style={{ fontSize:18, fontWeight:800, color:'var(--g5)', marginBottom:10 }}>
-          {paymentModal.course.price?.toLocaleString() || 0}원
-        </div>
-        <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:4 }}>입금 계좌</div>
-        <div style={{ fontSize:12, fontWeight:700, color:'var(--td)', lineHeight:1.6 }}>
-          카카오뱅크<br/>
-          3333-03-8381397<br/>
-          예금주: 양승민
-        </div>
-      </div>
-     <div style={{ fontSize:11, color:'var(--tmu)', lineHeight:1.6, marginBottom:14 }}>
-  • 신청 후 위 계좌로 입금해 주세요.<br/>
-  • 입금 확인 후 모임 참여권이 확정됩니다.<br/>
-  • 모임권은 발급일로부터 1개월 내 사용해야 하며 이월되지 않습니다.<br/>
-  • 모임권은 모든 모임에서 사용 가능합니다.
-</div>
-      <div style={{ display:'flex', gap:8 }}>
-        <button onClick={()=>setPaymentModal(null)}
-          style={{ flex:1, padding:'11px', background:'var(--g1)', color:'var(--g5)',
-            border:'none', borderRadius:12, fontSize:13, fontWeight:700,
-            cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
-          취소
-        </button>
-        <button onClick={handleMeetingBook}
-          style={{ flex:1, padding:'11px', background:'var(--g4)', color:'#fff',
-            border:'none', borderRadius:12, fontSize:13, fontWeight:700,
-            cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
-          신청하기
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-<div className="header"></div>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <span style={{ fontSize:20 }}>🐱</span>
           <span className="header-title">2호선 스튜디오</span>
@@ -545,7 +503,6 @@ async function handleMeetingBookWithTicket(ticket) {
       </div>
 
       <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 0' }}>
-       
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
           <button onClick={() => changeMonth(-1)}
             disabled={monthDiff() <= -3}
@@ -593,13 +550,13 @@ async function handleMeetingBookWithTicket(ticket) {
                   cursor:isMon?'default':'pointer', borderRadius:12, opacity:isMon?0.3:1, position:'relative',
                   background:isSel?'#e8f5e0':'transparent',
                   border:isSel?'1.5px solid var(--g3)':'1.5px solid transparent' }}>
-                    {isT && todayWeather && (
-  <div style={{ position:'absolute', top:-2, left:'50%', transform:'translateX(-50%)', fontSize:13, zIndex:1 }}>
-    {todayWeather.icon}
-  </div>
-)}
-               {isB || isSel ? (
-  <div className={isAnim?'cat-anim':''} style={{ display:'flex', flexDirection:'column', alignItems:'center', lineHeight:1 }}>
+                {isT && todayWeather && (
+                  <div style={{ position:'absolute', top:-2, left:'50%', transform:'translateX(-50%)', fontSize:13, zIndex:1 }}>
+                    {todayWeather.icon}
+                  </div>
+                )}
+                {isB || isSel ? (
+                  <div className={isAnim?'cat-anim':''} style={{ display:'flex', flexDirection:'column', alignItems:'center', lineHeight:1 }}>
                     <img src={getCatImage(d)} alt="" style={{ width:34, height:34, objectFit:'contain' }}/>
                     <span style={{ fontSize:9, fontWeight:800, color:'var(--td)', marginTop:-1 }}>{d}</span>
                   </div>
@@ -619,30 +576,30 @@ async function handleMeetingBookWithTicket(ticket) {
         </div>
 
         <div style={{ background:'var(--g1)', borderRadius:14, padding:'10px 14px', marginBottom:12,
-  display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid var(--g2)' }}>
-  <div style={{ flex:1 }}>
-    <div style={{ fontSize:10, color:'var(--tm)', fontWeight:700 }}>내 수강권</div>
-    <div style={{ fontSize:13, fontWeight:800, color:'var(--td)', marginBottom:4 }}>
-      {ticket?`${ticket.total}회권 · 잔여 ${ticket.remain}회`:'수강권 없음'}
-    </div>
-    {ticket && (
-      <>
-        <div style={{ width:'100%', height:5, background:'rgba(255,255,255,0.5)', borderRadius:3, overflow:'hidden', marginBottom:4 }}>
-          <div style={{
-            width: `${(ticket.remain / ticket.total) * 100}%`,
-            height: '100%',
-            background: ticket.remain/ticket.total >= 0.6 ? 'var(--g4)' : ticket.remain/ticket.total >= 0.3 ? 'var(--g3)' : '#c9a07a',
-            transition: 'width 0.3s ease, background 0.3s ease'
-          }}/>
+          display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid var(--g2)' }}>
+          <div style={{ flex:1 }}>
+            <div style={{ fontSize:10, color:'var(--tm)', fontWeight:700 }}>내 수강권</div>
+            <div style={{ fontSize:13, fontWeight:800, color:'var(--td)', marginBottom:4 }}>
+              {ticket?`${ticket.total}회권 · 잔여 ${ticket.remain}회`:'수강권 없음'}
+            </div>
+            {ticket && (
+              <>
+                <div style={{ width:'100%', height:5, background:'rgba(255,255,255,0.5)', borderRadius:3, overflow:'hidden', marginBottom:4 }}>
+                  <div style={{
+                    width: `${(ticket.remain / ticket.total) * 100}%`,
+                    height: '100%',
+                    background: ticket.remain/ticket.total >= 0.6 ? 'var(--g4)' : ticket.remain/ticket.total >= 0.3 ? 'var(--g3)' : '#c9a07a',
+                    transition: 'width 0.3s ease, background 0.3s ease'
+                  }}/>
+                </div>
+                <div style={{ fontSize:10, color:'var(--g4)', fontWeight:600 }}>만료: {ticket.expires_at}</div>
+              </>
+            )}
+          </div>
+          <div style={{ marginLeft:12 }}>
+            <PixelPlant ratio={ticket ? (ticket.remain / ticket.total) : 0}/>
+          </div>
         </div>
-        <div style={{ fontSize:10, color:'var(--g4)', fontWeight:600 }}>만료: {ticket.expires_at}</div>
-      </>
-    )}
-  </div>
-  <div style={{ marginLeft:12 }}>
-    <PixelPlant ratio={ticket ? (ticket.remain / ticket.total) : 0}/>
-  </div>
-</div>
 
         <div style={{ fontSize:12, fontWeight:800, color:'var(--td)', marginBottom:10 }}>
           {month+1}월 {selectedDay}일 수업
@@ -730,14 +687,14 @@ async function handleMeetingBookWithTicket(ticket) {
             {selSchedule && !isBooked(selCourse?.id, selSchedule?.id, selectedDay) && (
               <div className="slide-up">
                 {isBookable(selectedDay) ? (
-                  !ticket || ticket.remain <= 0 ? (
-                    <div style={{ padding:'14px', background:'#ffebee', borderRadius:14, textAlign:'center', color:'#c0392b', fontSize:12, fontWeight:700 }}>
-                      잔여 수강권이 없어요 🐾
-                    </div>
-                  ) : (
+                  selCourse?.category === 'meeting' || (ticket && ticket.remain > 0) ? (
                     <button className="btn-primary" onClick={handleBook}>
                       {selCourse?.name} {selSchedule?.start_time}~{selSchedule?.end_time} 예약하기
                     </button>
+                  ) : (
+                    <div style={{ padding:'14px', background:'#ffebee', borderRadius:14, textAlign:'center', color:'#c0392b', fontSize:12, fontWeight:700 }}>
+                      잔여 수강권이 없어요 🐾
+                    </div>
                   )
                 ) : (
                   <div style={{ padding:'14px', background:'var(--bg)', borderRadius:14, textAlign:'center', color:'var(--tmu)', fontSize:12, fontWeight:600 }}>
@@ -753,12 +710,15 @@ async function handleMeetingBookWithTicket(ticket) {
           <div style={{ marginTop:14 }}>
             <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>내 예약</div>
             {dayBookings.map(b => (
-              <div key={b.id} style={{ background:'#e8f5e0', borderRadius:12, padding:'10px 14px',
+              <div key={b.id} style={{ background:b.status==='pending'?'#FFF3E0':'#e8f5e0', borderRadius:12, padding:'10px 14px',
                 marginBottom:6, display:'flex', alignItems:'center', justifyContent:'space-between',
-                border:'1.5px solid var(--g3)' }}>
+                border:`1.5px solid ${b.status==='pending'?'#E65100':'var(--g3)'}` }}>
                 <div>
                   <div style={{ fontSize:12, fontWeight:800, color:'var(--td)' }}>{b.class_name}</div>
                   <div style={{ fontSize:10, color:'var(--tm)' }}>{b.class_time}</div>
+                  {b.status==='pending' && (
+                    <div style={{ fontSize:9, color:'#E65100', fontWeight:700, marginTop:2 }}>모임 확정 대기중</div>
+                  )}
                 </div>
                 <button onClick={() => handleCancel(b)}
                   style={{ fontSize:10, padding:'3px 10px', borderRadius:20, background:'var(--g1)',
