@@ -484,24 +484,44 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
 
                   {isExp && (
                     <div style={{ borderTop:'1px solid var(--g1)', padding:'10px 14px' }}>
-                      {dayBookings.length === 0 ? (
-                        <div style={{ fontSize:11, color:'var(--tmu)', textAlign:'center', padding:'8px 0' }}>예약된 수강생이 없어요</div>
-                      ) : dayBookings.map(b => (
-                        <div key={b.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'7px 0', borderBottom:'1px solid var(--g1)' }}>
-                          <div style={{ width:26, height:26, borderRadius:'50%', background:'var(--g2)',
-                            display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:800, color:'var(--g5)', flexShrink:0 }}>
-                            {b.users?.name?.[0]||'?'}
+                      {schedules?.filter((s,i,arr) => arr.findIndex(x => x.start_time===s.start_time && x.end_time===s.end_time)===i).map(s => {
+                        const slotBookings = dayBookings.filter(b => b.class_time === `${s.start_time}~${s.end_time}`)
+                        return (
+                          <div key={`${s.start_time}-${s.end_time}`} style={{ marginBottom:10 }}>
+                            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
+                              <span style={{ fontSize:11, fontWeight:800, color:'var(--td)' }}>
+                                {s.start_time}~{s.end_time}
+                              </span>
+                              <span style={{ fontSize:10, fontWeight:700, color:slotBookings.length>=c.max_count?'#c0392b':'var(--g4)' }}>
+                                {slotBookings.length}/{c.max_count}명
+                              </span>
+                            </div>
+                            {slotBookings.length === 0 ? (
+                              <div style={{ fontSize:10, color:'var(--tmu)', padding:'4px 0 6px', borderBottom:'1px solid var(--g1)' }}>
+                                예약 없음
+                              </div>
+                            ) : slotBookings.map(b => (
+                              <div key={b.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'5px 0', borderBottom:'1px solid var(--g1)' }}>
+                                <div style={{ width:24, height:24, borderRadius:'50%', background:'var(--g2)',
+                                  display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:800, color:'var(--g5)', flexShrink:0 }}>
+                                  {b.users?.name?.[0]||'?'}
+                                </div>
+                                <div style={{ flex:1 }}>
+                                  <div style={{ fontSize:11, fontWeight:700, color:'var(--td)' }}>{b.users?.name||'수강생'}</div>
+                                  {b.status === 'pending' && (
+                                    <div style={{ fontSize:9, color:'#E65100', fontWeight:700 }}>입금 대기중</div>
+                                  )}
+                                </div>
+                                <button onClick={() => deleteBooking(b.id, b.users?.name || '수강생', c.name)}
+                                  style={{ fontSize:9, padding:'3px 10px', borderRadius:8, border:'1px solid #f5c0c0',
+                                    background:'#ffebee', color:'#c0392b', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>
+                                  예약삭제
+                                </button>
+                              </div>
+                            ))}
                           </div>
-                          <div style={{ flex:1 }}>
-                            <div style={{ fontSize:11, fontWeight:700, color:'var(--td)' }}>{b.users?.name||'수강생'}</div>
-                          </div>
-                       <button onClick={() => deleteBooking(b.id, b.users?.name || '수강생', c.name)}
-  style={{ fontSize:9, padding:'3px 10px', borderRadius:8, border:'1px solid #f5c0c0',
-    background:'#ffebee', color:'#c0392b', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>
-  예약삭제
-</button>
-                        </div>
-                      ))}
+                        )
+                      })}
                      <div style={{ display:'flex', gap:6, marginTop:8 }}>
   <button onClick={() => setEditCourse(c)}
     style={{ flex:1, padding:'7px', background:'var(--g1)', color:'var(--g5)', border:'none',
