@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
+import StudentNav from '../../../components/StudentNav'
 
 export default function StudentNotificationPage() {
   const router = useRouter()
@@ -9,6 +10,7 @@ export default function StudentNotificationPage() {
   const [tab, setTab] = useState(0)
   const [bookings, setBookings] = useState([])
   const [doneClasses, setDoneClasses] = useState([])
+  const [loading, setLoading] = useState(true)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -38,6 +40,18 @@ export default function StudentNotificationPage() {
       .lt('class_date', today)
       .order('class_date', { ascending: false })
     setDoneClasses(d || [])
+    const { data: n } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(50)
+    setNotifs(n || [])
+
+    const unread = (n || []).filter(x => !x.is_read).map(x => x.id)
+    if (unread.length > 0) {
+      await supabase.from('notifications').update({ is_read: true }).in('id', unread)
+    }
     setLoading(false)
   }
 
@@ -99,7 +113,26 @@ export default function StudentNotificationPage() {
             </div>
           ))}
         </div>
-
+{/* 알림 메시지 */}
+        {notifs.length > 0 && (
+          <div style={{ marginBottom:18 }}>
+            <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:10 }}>최근 알림</div>
+            {notifs.slice(0, 5).map(n => (
+              <div key={n.id} style={{
+                background: n.type === 'meeting_confirmed' ? '#FFF8E1' : 'var(--bg)',
+                borderRadius:12, padding:'10px 12px', marginBottom:6,
+                border:`1.5px solid ${n.type === 'meeting_confirmed' ? '#FFE082' : 'var(--g1)'}` }}>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:2 }}>
+                  <span style={{ fontSize:11, fontWeight:800, color:'var(--td)' }}>{n.title}</span>
+                  <span style={{ fontSize:9, color:'var(--tmu)' }}>
+                    {new Date(n.created_at).toLocaleDateString('ko-KR', { month:'numeric', day:'numeric' })}
+                  </span>
+                </div>
+                <div style={{ fontSize:10, color:'var(--tm)', lineHeight:1.5 }}>{n.body}</div>
+              </div>
+            ))}
+          </div>
+        )}
         {/* 내 예약 현황 */}
         {tab === 0 && (
           <>
@@ -190,19 +223,7 @@ export default function StudentNotificationPage() {
         )}
       </div>
 
-      <nav className="bottom-nav">
-        {[
-          { href:'/student', label:'일정', icon:'📅' },
-          { href:'/student/notification', label:'알림', icon:'🔔', active:true },
-          { href:'/student/farm', label:'냥밭', icon:'🌱' },
-          { href:'/lounge', label:'라운지', icon:'💬' },
-        ].map(t => (
-          <a key={t.label} href={t.href} className={`nav-item ${t.active?'active':''}`}>
-            <span style={{ fontSize:20 }}>{t.icon}</span>
-            <span>{t.label}</span>
-          </a>
-        ))}
-      </nav>
+      <StudentNav active="notification" />
     </>
   )
 }

@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import { useTodayWeather } from '../../components/WeatherBar'
+import StudentNav from '../../components/StudentNav'
 const EMOJI = { drawing:'✏️', painting:'🎨', sculpture:'🗿', free:'🖼️', meeting:'👥' }
 const CAT_NAME = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', free:'자율창작', meeting:'모임' }
 const CAT_COLOR = { drawing:'#e8f5e0', painting:'#EDE7F6', sculpture:'#FFF3E0', free:'#E3F2FD', meeting:'#FFF8E1' }
@@ -749,19 +750,7 @@ export default function StudentPage() {
         <div style={{ height:80 }}/>
       </div>
 
-      <nav className="bottom-nav">
-        {[
-          { href:'/student', label:'일정', icon:'📅', active:true },
-          { href:'/student/notification', label:'알림', icon:'🔔' },
-          { href:'/student/farm', label:'냥밭', icon:'🌱' },
-          { href:'/lounge', label:'라운지', icon:'💬' },
-        ].map(t=>(
-          <a key={t.label} href={t.href} className={`nav-item ${t.active?'active':''}`}>
-            <span style={{ fontSize:20 }}>{t.icon}</span>
-            <span>{t.label}</span>
-          </a>
-        ))}
-      </nav>
+      <StudentNav active="schedule" />
     </>
   )
 }

@@ -43,11 +43,18 @@ export default function AdminNotificationPage() {
     const { data: booking } = await supabase.from('bookings').select('*').eq('id', notif.related_id).single()
     if (!booking) { alert('예약을 찾을 수 없어요'); setProcessing(null); return }
 
-    // 해당 학생의 pending 모임권 confirmed로
-    await supabase.from('meeting_tickets')
-      .update({ status: 'confirmed' })
-      .eq('user_id', booking.user_id)
-      .eq('status', 'pending')
+    // 해당 학생의 pending 모임권 정보 가져오기
+const { data: pendingMt } = await supabase.from('meeting_tickets')
+  .select('*')
+  .eq('user_id', booking.user_id)
+  .eq('status', 'pending')
+  .single()
+
+// confirmed로 업데이트
+await supabase.from('meeting_tickets')
+  .update({ status: 'confirmed' })
+  .eq('user_id', booking.user_id)
+  .eq('status', 'pending')
 
     // 해당 학생의 pending bookings도 confirmed로
     await supabase.from('bookings')
@@ -56,12 +63,12 @@ export default function AdminNotificationPage() {
       .eq('status', 'pending')
 
     // 학생한테 알림
-    await supabase.from('notifications').insert({
-      user_id: booking.user_id,
-      type: 'meeting_confirmed',
-      title: '모임 참여권 확정',
-      body: '입금이 확인되어 모임 참여권이 확정되었습니다 🐾'
-    })
+await supabase.from('notifications').insert({
+  user_id: booking.user_id,
+  type: 'meeting_confirmed',
+  title: '모임 참여권 확정',
+  body: `입금이 확인되어 모임 참여권 ${pendingMt?.total || ''}회가 부여되었습니다 🐾`
+})
 
     // 강사 알림 삭제
     await supabase.from('notifications').delete().eq('id', notif.id)
