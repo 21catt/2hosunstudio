@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { supabase } from '../../../lib/supabase'
 import AdminNav from '../../../components/AdminNav'
 
 export default function AdminNotificationPage() {
