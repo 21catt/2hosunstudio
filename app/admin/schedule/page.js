@@ -280,6 +280,11 @@ const todayStr = `${todayY}-${String(todayM+1).padStart(2,'0')}-${String(todayD)
     await supabase.from('bookings').update({ status }).eq('id', bookingId)
     loadData()
   }
+  async function deleteBooking(bookingId, studentName, className) {
+  if (!confirm(`${studentName}님의 ${className} 예약을 삭제할까요?`)) return
+  await supabase.from('bookings').delete().eq('id', bookingId)
+  loadData()
+}
 function monthDiff() {
   return (year - todayY) * 12 + (month - todayM)
 }
@@ -490,19 +495,11 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
                           <div style={{ flex:1 }}>
                             <div style={{ fontSize:11, fontWeight:700, color:'var(--td)' }}>{b.users?.name||'수강생'}</div>
                           </div>
-                       <div style={{ display:'flex', gap:4 }}>
-  <button onClick={() => { console.log('편집할 course:', c); setEditCourse(c); setShowForm(false) }}
-    style={{ fontSize:9, padding:'3px 8px', borderRadius:8, border:'1px solid var(--g2)',
-      background:'var(--surf)', color:'var(--tm)', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>수정</button>
-  <button onClick={() => toggleCourse(c.id, c.is_active)}
-    style={{ fontSize:9, padding:'3px 8px', borderRadius:8, border:'1px solid var(--g2)',
-      background:'var(--surf)', color:c.is_active?'#E65100':'var(--g4)', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>
-    {c.is_active?'중단':'재개'}
-  </button>
-  <button onClick={() => deleteCourse(c.id, c.name, c.category === 'meeting')}
-    style={{ fontSize:9, padding:'3px 8px', borderRadius:8, border:'1px solid #f5c0c0',
-      background:'#ffebee', color:'#c0392b', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>삭제</button>
-</div>
+                       <button onClick={() => deleteBooking(b.id, b.users?.name || '수강생', c.name)}
+  style={{ fontSize:9, padding:'3px 10px', borderRadius:8, border:'1px solid #f5c0c0',
+    background:'#ffebee', color:'#c0392b', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>
+  예약삭제
+</button>
                         </div>
                       ))}
                      <div style={{ display:'flex', gap:6, marginTop:8 }}>
