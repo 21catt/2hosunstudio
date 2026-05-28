@@ -481,7 +481,7 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
                             <div style={{ fontSize:11, fontWeight:700, color:'var(--td)' }}>{b.users?.name||'수강생'}</div>
                           </div>
                        <div style={{ display:'flex', gap:4 }}>
-  <button onClick={() => { setEditCourse(c); setShowForm(false) }}
+  <button onClick={() => { console.log('편집할 course:', c); setEditCourse(c); setShowForm(false) }}
     style={{ fontSize:9, padding:'3px 8px', borderRadius:8, border:'1px solid var(--g2)',
       background:'var(--surf)', color:'var(--tm)', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>수정</button>
   <button onClick={() => toggleCourse(c.id, c.is_active)}
