@@ -10,8 +10,7 @@ export default function AdminPage() {
   const [expanded, setExpanded] = useState(null)
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
-const [customTotal, setCustomTotal] = useState('')
-const [customDays, setCustomDays] = useState('')
+const [customInputs, setCustomInputs] = useState({})
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) { router.push('/login'); return }
@@ -105,25 +104,27 @@ async function adjustTicket(ticketId, currentRemain, delta) {
                     <span style={{ fontSize:9, fontWeight:700, padding:'2px 7px', borderRadius:8, background:stBg, color:stColor }}>{status}</span>
                   </div>
                   <div style={{ fontSize:10, color:'var(--tmu)' }}>{m.phone}</div>
-                  <div style={{ display:'flex', gap:6, marginBottom:10, alignItems:'center' }}>
-  <input type="number" placeholder="횟수" value={customTotal}
-    onChange={e=>setCustomTotal(e.target.value)}
+                 <div style={{ display:'flex', gap:6, marginBottom:10, alignItems:'center' }}>
+  <input type="number" placeholder="횟수" 
+    value={customInputs[m.id]?.total || ''}
+    onChange={e=>setCustomInputs(prev=>({...prev, [m.id]: {...prev[m.id], total: e.target.value}}))}
     onClick={e=>e.stopPropagation()}
     style={{ width:0, flex:1, padding:'7px 10px', background:'var(--bg)',
       border:'1.5px solid var(--g1)', borderRadius:10, fontSize:11,
       fontFamily:'Nunito,sans-serif', color:'var(--td)', outline:'none' }}/>
-  <input type="number" placeholder="일수" value={customDays}
-    onChange={e=>setCustomDays(e.target.value)}
+  <input type="number" placeholder="일수" 
+    value={customInputs[m.id]?.days || ''}
+    onChange={e=>setCustomInputs(prev=>({...prev, [m.id]: {...prev[m.id], days: e.target.value}}))}
     onClick={e=>e.stopPropagation()}
     style={{ width:0, flex:1, padding:'7px 10px', background:'var(--bg)',
       border:'1.5px solid var(--g1)', borderRadius:10, fontSize:11,
       fontFamily:'Nunito,sans-serif', color:'var(--td)', outline:'none' }}/>
   <button onClick={e=>{
     e.stopPropagation()
-    const t = parseInt(customTotal), d = parseInt(customDays)
+    const t = parseInt(customInputs[m.id]?.total), d = parseInt(customInputs[m.id]?.days)
     if (!t || !d) { alert('횟수와 일수를 입력해 주세요'); return }
     grantTicket(m.id, `${t}회권`, t, d)
-    setCustomTotal(''); setCustomDays('')
+    setCustomInputs(prev=>({...prev, [m.id]: {total: '', days: ''}}))
   }}
     style={{ padding:'7px 14px', background:'var(--g4)', color:'#fff',
       border:'none', borderRadius:10, fontSize:11, fontWeight:700,
