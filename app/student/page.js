@@ -112,6 +112,7 @@ export default function StudentPage() {
   const todayWeather = useTodayWeather()
   const [user, setUser] = useState(null)
   const [ticket, setTicket] = useState(null)
+  const [meetingTickets, setMeetingTickets] = useState([])
   const [bookings, setBookings] = useState([])
   const [classes, setClasses] = useState([])
   const [selectedDay, setSelectedDay] = useState(new Date().getDate())
@@ -140,17 +141,27 @@ export default function StudentPage() {
   }, [])
 
   async function loadData(userId) {
-    const { data: t } = await supabase.from('tickets').select('*').eq('user_id', userId).single()
-    setTicket(t)
-    const { data: b } = await supabase.from('bookings').select('*').eq('user_id', userId)
-    setBookings(b || [])
-    const { data: c } = await supabase
-      .from('class_courses')
-      .select('*, class_schedules(*)')
-      .eq('is_active', true)
-    setClasses(c || [])
-    setLoading(false)
-  }
+  const { data: t } = await supabase.from('tickets').select('*').eq('user_id', userId).single()
+  setTicket(t)
+  const { data: b } = await supabase.from('bookings').select('*').eq('user_id', userId)
+  setBookings(b || [])
+  const { data: c } = await supabase
+    .from('class_courses')
+    .select('*, class_schedules(*)')
+    .eq('is_active', true)
+  setClasses(c || [])
+  
+  const { data: mt } = await supabase
+    .from('meeting_tickets')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('status', 'confirmed')
+    .gt('remain', 0)
+    .gte('expires_at', new Date().toISOString().split('T')[0])
+  setMeetingTickets(mt || [])
+  
+  setLoading(false)
+}
 
   function bookingsInView() {
     return bookings.filter(b => {
@@ -619,6 +630,19 @@ export default function StudentPage() {
         </div>
 
         <div style={{ fontSize:12, fontWeight:800, color:'var(--td)', marginBottom:10 }}>
+            {meetingTickets.length > 0 && (
+  <div style={{ background:'#FFF8E1', borderRadius:14, padding:'10px 14px', marginBottom:12,
+    display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid #FFE082' }}>
+    <div style={{ flex:1 }}>
+      <div style={{ fontSize:10, color:'#F57F17', fontWeight:700, marginBottom:2 }}>👥 모임 참여권</div>
+      {meetingTickets.map(mt => (
+        <div key={mt.id} style={{ fontSize:13, fontWeight:800, color:'var(--td)' }}>
+          잔여 {mt.remain}/{mt.total}회 · 만료 {mt.expires_at}
+        </div>
+      ))}
+    </div>
+  </div>
+)}
           {month+1}월 {selectedDay}일 수업
         </div>
 
