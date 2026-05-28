@@ -114,6 +114,7 @@ export default function StudentPage() {
   const [ticket, setTicket] = useState(null)
   const [meetingTickets, setMeetingTickets] = useState([])
   const [bookings, setBookings] = useState([])
+  const [allBookings, setAllBookings] = useState([])
   const [classes, setClasses] = useState([])
   const [selectedDay, setSelectedDay] = useState(new Date().getDate())
   const [animDay, setAnimDay] = useState(null)
@@ -144,7 +145,10 @@ export default function StudentPage() {
   const { data: t } = await supabase.from('tickets').select('*').eq('user_id', userId).single()
   setTicket(t)
   const { data: b } = await supabase.from('bookings').select('*').eq('user_id', userId)
-  setBookings(b || [])
+setBookings(b || [])
+
+const { data: ab } = await supabase.from('bookings').select('course_id, schedule_id, class_date')
+setAllBookings(ab || [])
   const { data: c } = await supabase
     .from('class_courses')
     .select('*, class_schedules(*)')
@@ -198,7 +202,10 @@ export default function StudentPage() {
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
     return bookings.some(b => b.course_id === courseId && b.schedule_id === scheduleId && b.class_date === dateStr)
   }
-
+function getBookingCount(courseId, scheduleId, day) {
+  const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
+  return bookings.filter(b => b.course_id === courseId && b.schedule_id === scheduleId && b.class_date === dateStr).length
+}
   function getBooking(courseId, scheduleId, day) {
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
     return bookings.find(b => b.course_id === courseId && b.schedule_id === scheduleId && b.class_date === dateStr)
@@ -703,11 +710,14 @@ export default function StudentPage() {
                         background:booked?'#e8f5e0':isSel?CAT_COLOR[selCourse.category]:'var(--bg)',
                         border:`1.5px solid ${booked?'var(--g3)':isSel?CAT_TEXT[selCourse.category]:'var(--g2)'}` }}>
                       <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                        <div style={{ width:8, height:8, borderRadius:'50%', background:booked?'var(--g4)':'var(--g2)', flexShrink:0 }}/>
-                        <span style={{ fontSize:13, fontWeight:700, color:'var(--td)' }}>
-                          {s.start_time}~{s.end_time}
-                        </span>
-                      </div>
+  <div style={{ width:8, height:8, borderRadius:'50%', background:booked?'var(--g4)':'var(--g2)', flexShrink:0 }}/>
+  <span style={{ fontSize:13, fontWeight:700, color:'var(--td)' }}>
+    {s.start_time}~{s.end_time}
+  </span>
+  <span style={{ fontSize:10, fontWeight:700, color:'var(--tmu)' }}>
+    · {getBookingCount(selCourse.id, s.id, selectedDay)}/{selCourse.max_count}명
+  </span>
+</div>
                       {booked ? (
                         <button onClick={e=>{e.stopPropagation(); handleCancel(booking)}}
                           style={{ fontSize:10, padding:'3px 10px', borderRadius:20, background:'var(--g1)',
