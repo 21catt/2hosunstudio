@@ -177,7 +177,6 @@ export default function StudentPage() {
   const [selCourse, setSelCourse] = useState(null)
   const [selSchedule, setSelSchedule] = useState(null)
   const [paymentModal, setPaymentModal] = useState(null)
-  const [selectedCount, setSelectedCount] = useState(1)
   const now = new Date()
   const todayY = now.getFullYear()
   const todayM = now.getMonth()
@@ -339,30 +338,35 @@ setClasses(c || [])
   }
 async function handleMeetingBook() {
   if (!paymentModal) return
-  const { course } = paymentModal
+  const { course, schedule } = paymentModal
+  const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
 
-  await supabase.from('meeting_tickets').insert({
+  const { data: newBooking } = await supabase.from('bookings').insert({
     user_id: user.id,
     course_id: course.id,
-    total: selectedCount,
-    remain: selectedCount,
+    schedule_id: schedule.id,
+    class_name: course.name,
+    class_date: dateStr,
+    class_time: `${schedule.start_time}~${schedule.end_time}`,
+    teacher: course.teacher,
     status: 'pending'
-  })
+  }).select().single()
 
   const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
   if (course.teacher_id) {
     await supabase.from('notifications').insert({
       user_id: course.teacher_id,
       type: 'meeting_pending',
-      title: '모임 참여권 신청 (입금 대기)',
-      body: `${profile?.name || '학생'}님이 ${course.name} ${selectedCount}회 신청. 입금 확인 후 부여 필요. 금액: ${((course.price || 0) * selectedCount).toLocaleString()}원`
+      title: '모임 신청 (입금 대기)',
+      body: `${profile?.name || '학생'}님이 ${course.name} ${dateStr} ${schedule.start_time} 모임 신청. 입금 확인 필요.`,
+      related_id: newBooking?.id
     })
   }
 
   setPaymentModal(null)
-  setSelectedCount(1)
   setSelCat(null); setSelCourse(null); setSelSchedule(null)
-  alert('신청 완료! 입금 확인 후 참여권이 부여됩니다 🐾')
+  loadData(user.id)
+  alert('신청 완료! 입금 확인 후 확정됩니다 🐾')
 }
   async function handleCancel(booking) {
     const diff = (new Date(booking.class_date) - new Date()) / (1000*60*60)
@@ -433,8 +437,8 @@ async function handleMeetingBook() {
       `}</style>
 
       <div className="header">
-       {paymentModal && (
-  <div onClick={()=>{setPaymentModal(null); setSelectedCount(1)}}
+        {paymentModal && (
+  <div onClick={()=>setPaymentModal(null)}
     style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:1000,
       display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
     <div onClick={e=>e.stopPropagation()}
@@ -445,27 +449,10 @@ async function handleMeetingBook() {
       <div style={{ fontSize:12, color:'var(--tm)', lineHeight:1.6, marginBottom:14 }}>
         {paymentModal.course.name}
       </div>
-      
-      <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:6 }}>참여 횟수 선택</div>
-      <div style={{ display:'flex', gap:6, marginBottom:14 }}>
-        {[1,2,3,4].map(n => (
-          <div key={n} onClick={()=>setSelectedCount(n)}
-            style={{ flex:1, padding:'8px', borderRadius:10, textAlign:'center', cursor:'pointer',
-              background:selectedCount===n?'var(--g4)':'var(--bg)',
-              color:selectedCount===n?'#fff':'var(--td)',
-              border:`1.5px solid ${selectedCount===n?'var(--g4)':'var(--g1)'}`,
-              fontSize:12, fontWeight:700 }}>
-            {n}회
-          </div>
-        ))}
-      </div>
-      
       <div style={{ background:'var(--bg)', borderRadius:12, padding:'12px 14px', marginBottom:14 }}>
-        <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:6 }}>
-          참여비 ({paymentModal.course.price?.toLocaleString() || 0}원 × {selectedCount}회)
-        </div>
-        <div style={{ fontSize:20, fontWeight:800, color:'var(--g5)', marginBottom:10 }}>
-          {((paymentModal.course.price || 0) * selectedCount).toLocaleString()}원
+        <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:6 }}>참여비</div>
+        <div style={{ fontSize:18, fontWeight:800, color:'var(--g5)', marginBottom:10 }}>
+          {paymentModal.course.price?.toLocaleString() || 0}원
         </div>
         <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:4 }}>입금 계좌</div>
         <div style={{ fontSize:12, fontWeight:700, color:'var(--td)', lineHeight:1.6 }}>
@@ -474,14 +461,12 @@ async function handleMeetingBook() {
           예금주: 양승민
         </div>
       </div>
-      
       <div style={{ fontSize:11, color:'var(--tmu)', lineHeight:1.5, marginBottom:14 }}>
         신청 후 위 계좌로 입금해 주세요.<br/>
-        입금 확인 후 모임 참여권이 부여됩니다.
+        입금 확인 후 참여가 확정됩니다.
       </div>
-      
       <div style={{ display:'flex', gap:8 }}>
-        <button onClick={()=>{setPaymentModal(null); setSelectedCount(1)}}
+        <button onClick={()=>setPaymentModal(null)}
           style={{ flex:1, padding:'11px', background:'var(--g1)', color:'var(--g5)',
             border:'none', borderRadius:12, fontSize:13, fontWeight:700,
             cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
