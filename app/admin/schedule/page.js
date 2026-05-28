@@ -431,14 +431,15 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
                     ) : (
                       <div style={{ fontSize:11, fontWeight:700, color:dow===0?'#b05050':dow===6?'#5070a0':'var(--td)' }}>{d}</div>
                     )}
-                    {/* 수업 표시 도트 */}
-                    <div style={{ display:'flex', gap:2, marginTop:3, flexWrap:'wrap', justifyContent:'center', padding:'0 2px' }}>
-                      {dayCourses.slice(0,3).map(c => (
-                        <div key={c.id} style={{ width:6, height:6, borderRadius:'50%',
-                          background:CAT_TEXT[c.category]||'var(--g4)' }}/>
-                      ))}
-                      {dayCourses.length>3 && <div style={{ fontSize:8, color:'var(--tmu)', fontWeight:700 }}>+{dayCourses.length-3}</div>}
-                    </div>
+                 {(() => {
+  const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+  const cnt = bookings.filter(b => b.class_date === dateStr).length
+  return cnt > 0 ? (
+    <div style={{ fontSize:9, fontWeight:700, color:'var(--g4)', marginTop:2 }}>
+      {cnt}
+    </div>
+  ) : null
+})()}
                   </div>
                 )
               })}
