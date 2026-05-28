@@ -11,7 +11,7 @@ export default function StudentNotificationPage() {
   const [bookings, setBookings] = useState([])
   const [doneClasses, setDoneClasses] = useState([])
   const [loading, setLoading] = useState(true)
-  const [loading, setLoading] = useState(true)
+ const [notifs, setNotifs] = useState([])
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
