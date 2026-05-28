@@ -70,8 +70,10 @@ await supabase.from('notifications').insert({
   body: `입금이 확인되어 모임 참여권 ${pendingMt?.total || ''}회가 부여되었습니다 🐾`
 })
 
-    // 강사 알림 삭제
-    await supabase.from('notifications').delete().eq('id', notif.id)
+    // 강사 알림 - 확정 처리 완료로 type 변경
+await supabase.from('notifications')
+  .update({ type: 'meeting_confirmed_admin', title: '✓ 모임 참여권 확정 완료' })
+  .eq('id', notif.id)
     
     setProcessing(null)
     loadData(user.id)
@@ -105,7 +107,9 @@ await supabase.from('notifications').insert({
       body: '모임 신청이 취소되었습니다. 강사에게 문의해 주세요.'
     })
 
-    await supabase.from('notifications').delete().eq('id', notif.id)
+    await supabase.from('notifications')
+  .update({ type: 'meeting_cancelled_admin', title: '✗ 모임 신청 취소됨' })
+  .eq('id', notif.id)
     
     setProcessing(null)
     loadData(user.id)
@@ -121,11 +125,13 @@ await supabase.from('notifications').insert({
   }
 
   function iconFor(type) {
-    if (type === 'booking_created') return { emoji:'✅', bg:'var(--g1)', color:'var(--g5)' }
-    if (type === 'booking_cancelled') return { emoji:'✖', bg:'#ffebee', color:'#c0392b' }
-    if (type === 'meeting_pending') return { emoji:'💰', bg:'#FFF3E0', color:'#E65100' }
-    return { emoji:'🔔', bg:'var(--bg)', color:'var(--tm)' }
-  }
+  if (type === 'booking_created') return { emoji:'✅', bg:'var(--g1)', color:'var(--g5)' }
+  if (type === 'booking_cancelled') return { emoji:'✖', bg:'#ffebee', color:'#c0392b' }
+  if (type === 'meeting_pending') return { emoji:'💰', bg:'#FFF3E0', color:'#E65100' }
+  if (type === 'meeting_confirmed_admin') return { emoji:'✓', bg:'var(--g1)', color:'var(--g5)' }
+  if (type === 'meeting_cancelled_admin') return { emoji:'✗', bg:'#ffebee', color:'#c0392b' }
+  return { emoji:'🔔', bg:'var(--bg)', color:'var(--tm)' }
+}
 
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh' }}>
