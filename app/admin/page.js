@@ -29,7 +29,7 @@ const [memberMeetingTickets, setMemberMeetingTickets] = useState({})
     .eq('role', 'student')
   setMembers(data || [])
   
-  const { data: mt } = await supabase.from('meeting_tickets').select('*').eq('status', 'confirmed')
+  const { data: mt } = await supabase.from('meeting_tickets').select('*')
   const ticketMap = {}
   mt?.forEach(t => {
     if (!ticketMap[t.user_id]) ticketMap[t.user_id] = []
