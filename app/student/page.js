@@ -301,11 +301,27 @@ setClasses(c || [])
 
   async function handleBook() {
     if (!selCourse || !selSchedule) return
-    // 모임이면 계좌이체 모달
-  if (selCourse.category === 'meeting') {
-    setPaymentModal({ course: selCourse, schedule: selSchedule })
+   // 모임이면 - 모임권 확인
+if (selCourse.category === 'meeting') {
+  const { data: mt } = await supabase
+    .from('meeting_tickets')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('status', 'confirmed')
+    .gt('remain', 0)
+    .gte('expires_at', new Date().toISOString().split('T')[0])
+    .limit(1)
+  
+  if (mt && mt.length > 0) {
+    // 모임권 있음 - 차감하고 바로 예약
+    await handleMeetingBookWithTicket(mt[0])
     return
   }
+  
+  // 모임권 없음 - 모달
+  setPaymentModal({ course: selCourse, schedule: selSchedule })
+  return
+}
     if (!ticket || ticket.remain <= 0) { alert('잔여 수강권이 없어요 🐾'); return }
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
 
@@ -341,6 +357,18 @@ async function handleMeetingBook() {
   const { course, schedule } = paymentModal
   const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
 
+  // 1. 모임권 발급 (pending 상태)
+  const expires = new Date()
+  expires.setMonth(expires.getMonth() + 1)
+  await supabase.from('meeting_tickets').insert({
+    user_id: user.id,
+    total: selectedCount,
+    remain: selectedCount - 1,
+    status: 'pending',
+    expires_at: expires.toISOString().split('T')[0]
+  })
+
+  // 2. 첫 예약 자동 생성 (pending)
   const { data: newBooking } = await supabase.from('bookings').insert({
     user_id: user.id,
     course_id: course.id,
@@ -352,21 +380,42 @@ async function handleMeetingBook() {
     status: 'pending'
   }).select().single()
 
+  // 3. 강사한테 알림
   const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
   if (course.teacher_id) {
     await supabase.from('notifications').insert({
       user_id: course.teacher_id,
       type: 'meeting_pending',
-      title: '모임 신청 (입금 대기)',
-      body: `${profile?.name || '학생'}님이 ${course.name} ${dateStr} ${schedule.start_time} 모임 신청. 입금 확인 필요.`,
+      title: '모임 참여권 신청 (입금 대기)',
+      body: `${profile?.name || '학생'}님이 ${course.name} ${selectedCount}회권 신청. 금액: ${((course.price || 0) * selectedCount).toLocaleString()}원. 입금 확인 후 확정 처리 필요.`,
       related_id: newBooking?.id
     })
   }
 
   setPaymentModal(null)
+  setSelectedCount(1)
   setSelCat(null); setSelCourse(null); setSelSchedule(null)
   loadData(user.id)
   alert('신청 완료! 입금 확인 후 확정됩니다 🐾')
+}
+async function handleMeetingBookWithTicket(ticket) {
+  const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
+
+  await supabase.from('bookings').insert({
+    user_id: user.id,
+    course_id: selCourse.id,
+    schedule_id: selSchedule.id,
+    class_name: selCourse.name,
+    class_date: dateStr,
+    class_time: `${selSchedule.start_time}~${selSchedule.end_time}`,
+    teacher: selCourse.teacher,
+    status: 'confirmed'
+  })
+
+  await supabase.from('meeting_tickets').update({ remain: ticket.remain - 1 }).eq('id', ticket.id)
+
+  setSelCat(null); setSelCourse(null); setSelSchedule(null)
+  loadData(user.id)
 }
   async function handleCancel(booking) {
     const diff = (new Date(booking.class_date) - new Date()) / (1000*60*60)
@@ -461,10 +510,12 @@ async function handleMeetingBook() {
           예금주: 양승민
         </div>
       </div>
-      <div style={{ fontSize:11, color:'var(--tmu)', lineHeight:1.5, marginBottom:14 }}>
-        신청 후 위 계좌로 입금해 주세요.<br/>
-        입금 확인 후 참여가 확정됩니다.
-      </div>
+     <div style={{ fontSize:11, color:'var(--tmu)', lineHeight:1.6, marginBottom:14 }}>
+  • 신청 후 위 계좌로 입금해 주세요.<br/>
+  • 입금 확인 후 모임 참여권이 확정됩니다.<br/>
+  • 모임권은 발급일로부터 1개월 내 사용해야 하며 이월되지 않습니다.<br/>
+  • 모임권은 모든 모임에서 사용 가능합니다.
+</div>
       <div style={{ display:'flex', gap:8 }}>
         <button onClick={()=>setPaymentModal(null)}
           style={{ flex:1, padding:'11px', background:'var(--g1)', color:'var(--g5)',
