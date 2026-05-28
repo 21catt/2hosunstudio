@@ -11,6 +11,8 @@ export default function AdminPage() {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
 const [customInputs, setCustomInputs] = useState({})
+const [meetingInputs, setMeetingInputs] = useState({})
+const [memberMeetingTickets, setMemberMeetingTickets] = useState({})
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) { router.push('/login'); return }
@@ -21,13 +23,22 @@ const [customInputs, setCustomInputs] = useState({})
   }, [])
 
   async function loadMembers() {
-    const { data } = await supabase
-      .from('users')
-      .select('*, tickets(*), bookings(*)')
-      .eq('role', 'student')
-    setMembers(data || [])
-    setLoading(false)
-  }
+  const { data } = await supabase
+    .from('users')
+    .select('*, tickets(*), bookings(*)')
+    .eq('role', 'student')
+  setMembers(data || [])
+  
+  const { data: mt } = await supabase.from('meeting_tickets').select('*').eq('status', 'confirmed')
+  const ticketMap = {}
+  mt?.forEach(t => {
+    if (!ticketMap[t.user_id]) ticketMap[t.user_id] = []
+    ticketMap[t.user_id].push(t)
+  })
+  setMemberMeetingTickets(ticketMap)
+  
+  setLoading(false)
+}
 
   async function grantTicket(userId, type, total, days) {
   const expires = new Date()
@@ -44,6 +55,26 @@ async function adjustTicket(ticketId, currentRemain, delta) {
   const newRemain = currentRemain + delta
   if (newRemain < 0) { alert('잔여 횟수가 0보다 작아질 수 없어요'); return }
   await supabase.from('tickets').update({ remain: newRemain }).eq('id', ticketId)
+  loadMembers()
+}
+async function grantMeetingTicket(userId, total) {
+  const expires = new Date()
+  expires.setMonth(expires.getMonth() + 1)
+  await supabase.from('meeting_tickets').delete().eq('user_id', userId).eq('status', 'confirmed')
+  await supabase.from('meeting_tickets').insert({
+    user_id: userId,
+    total, remain: total,
+    status: 'confirmed',
+    expires_at: expires.toISOString().split('T')[0]
+  })
+  alert('모임 참여권이 부여됐어요!')
+  loadMembers()
+}
+
+async function adjustMeetingTicket(ticketId, currentRemain, delta) {
+  const newRemain = currentRemain + delta
+  if (newRemain < 0) { alert('잔여 횟수가 0보다 작아질 수 없어요'); return }
+  await supabase.from('meeting_tickets').update({ remain: newRemain }).eq('id', ticketId)
   loadMembers()
 }
   const filtered = members.filter(m =>
@@ -178,6 +209,51 @@ async function adjustTicket(ticketId, currentRemain, delta) {
     </button>
   </div>
 )}
+{/* 모임 참여권 */}
+<div style={{ borderTop:'1px solid var(--g1)', marginTop:12, paddingTop:12 }}>
+  <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>모임 참여권</div>
+  
+  {memberMeetingTickets[m.id]?.length > 0 ? (
+    memberMeetingTickets[m.id].map(mt => (
+      <div key={mt.id} style={{ display:'flex', alignItems:'center', gap:6, marginBottom:8 }}>
+        <div style={{ flex:1, fontSize:11, fontWeight:700, color:'var(--td)' }}>
+          {mt.remain}/{mt.total}회 · 만료 {mt.expires_at}
+        </div>
+        <button onClick={e=>{e.stopPropagation();adjustMeetingTicket(mt.id,mt.remain,-1)}}
+          style={{ padding:'4px 10px', background:'#ffebee', color:'#c0392b',
+            border:'none', borderRadius:8, fontSize:11, fontWeight:700,
+            cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>−1</button>
+        <button onClick={e=>{e.stopPropagation();adjustMeetingTicket(mt.id,mt.remain,1)}}
+          style={{ padding:'4px 10px', background:'var(--g1)', color:'var(--g5)',
+            border:'none', borderRadius:8, fontSize:11, fontWeight:700,
+            cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>+1</button>
+      </div>
+    ))
+  ) : (
+    <div style={{ fontSize:10, color:'var(--tmu)', marginBottom:8 }}>모임권 없음</div>
+  )}
+  
+  <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+    <input type="number" placeholder="횟수 (기본 4)" 
+      value={meetingInputs[m.id] || ''}
+      onChange={e=>setMeetingInputs(prev=>({...prev, [m.id]: e.target.value}))}
+      onClick={e=>e.stopPropagation()}
+      style={{ flex:1, padding:'7px 10px', background:'var(--bg)',
+        border:'1.5px solid var(--g1)', borderRadius:10, fontSize:11,
+        fontFamily:'Nunito,sans-serif', color:'var(--td)', outline:'none' }}/>
+    <button onClick={e=>{
+      e.stopPropagation()
+      const t = parseInt(meetingInputs[m.id]) || 4
+      grantMeetingTicket(m.id, t)
+      setMeetingInputs(prev=>({...prev, [m.id]: ''}))
+    }}
+      style={{ padding:'7px 14px', background:'var(--g4)', color:'#fff',
+        border:'none', borderRadius:10, fontSize:11, fontWeight:700,
+        cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+      모임권 부여
+    </button>
+  </div>
+</div>
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
                     <div style={{ background:'var(--bg)', borderRadius:10, padding:'8px 10px' }}>
                       <div style={{ fontSize:9, color:'var(--tmu)', fontWeight:700, marginBottom:2 }}>총 예약</div>
