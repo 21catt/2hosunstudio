@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
+import AdminNav from '../../components/AdminNav'
 
 export default function AdminPage() {
   const router = useRouter()
@@ -279,19 +280,7 @@ async function adjustMeetingTicket(ticketId, currentRemain, delta) {
         })}
       </div>
 
-      <nav className="bottom-nav">
-        {[
-          { href:'/admin', label:'회원', icon:'👥', active:true },
-          { href:'/admin/schedule', label:'수업현황', icon:'📅' },
-          { href:'/admin/notification', label:'알림', icon:'🔔' },
-          { href:'/lounge', label:'라운지', icon:'💬' },
-        ].map(t=>(
-          <a key={t.label} href={t.href} className={`nav-item ${t.active?'active':''}`}>
-            <span style={{ fontSize:20 }}>{t.icon}</span>
-            <span>{t.label}</span>
-          </a>
-        ))}
-      </nav>
+      <AdminNav active="member" />
     </>
   )
 }

@@ -3,6 +3,7 @@ import { useTodayWeather } from '../../../components/WeatherBar'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
+import AdminNav from '../../../components/AdminNav'
 
 const DAYS = ['일','월','화','수','목','금','토']
 const CATS = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', free:'자율창작', meeting:'모임' }
@@ -584,19 +585,7 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
         )}
       </div>
 
-      <nav className="bottom-nav">
-        {[
-          { href:'/admin', label:'회원', icon:'👥' },
-          { href:'/admin/schedule', label:'수업현황', icon:'📅', active:true },
-          { href:'/admin/notification', label:'알림', icon:'🔔' },
-          { href:'/lounge', label:'라운지', icon:'💬' },
-        ].map(t => (
-          <a key={t.label} href={t.href} className={`nav-item ${t.active?'active':''}`}>
-            <span style={{ fontSize:20 }}>{t.icon}</span>
-            <span>{t.label}</span>
-          </a>
-        ))}
-      </nav>
+      <AdminNav active="schedule" />
     </>
   )
 }
