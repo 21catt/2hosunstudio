@@ -358,26 +358,42 @@ export default function StudentPage() {
   }
 
   async function handleCancel(booking) {
-    const diff = (new Date(booking.class_date) - new Date()) / (1000*60*60)
-    if (diff < 4) { alert('수업 4시간 전에는 취소할 수 없어요'); return }
+  const diff = (new Date(booking.class_date) - new Date()) / (1000*60*60)
+  if (diff < 4) { alert('수업 4시간 전에는 취소할 수 없어요'); return }
 
-    const { data: course } = await supabase.from('class_courses').select('teacher_id').eq('id', booking.course_id).single()
+  const { data: course } = await supabase.from('class_courses').select('teacher_id, category').eq('id', booking.course_id).single()
 
-    await supabase.from('bookings').delete().eq('id', booking.id)
-    await supabase.from('tickets').update({ remain: ticket.remain+1 }).eq('id', ticket.id)
+  await supabase.from('bookings').delete().eq('id', booking.id)
 
-    const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
-    if (course?.teacher_id) {
-      await supabase.from('notifications').insert({
-        user_id: course.teacher_id,
-        type: 'booking_cancelled',
-        title: '예약 취소',
-        body: `${profile?.name || '학생'}님이 ${booking.class_name} ${booking.class_date} ${booking.class_time} 취소`
-      })
+  // 모임이면 모임권 환불, 일반 수업이면 수강권 환불
+  if (course?.category === 'meeting') {
+    const { data: mt } = await supabase
+      .from('meeting_tickets')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('status', 'confirmed')
+      .gte('expires_at', new Date().toISOString().split('T')[0])
+      .order('expires_at', { ascending: true })
+      .limit(1)
+    if (mt && mt.length > 0) {
+      await supabase.from('meeting_tickets').update({ remain: mt[0].remain + 1 }).eq('id', mt[0].id)
     }
-
-    loadData(user.id)
+  } else {
+    await supabase.from('tickets').update({ remain: ticket.remain+1 }).eq('id', ticket.id)
   }
+
+  const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
+  if (course?.teacher_id) {
+    await supabase.from('notifications').insert({
+      user_id: course.teacher_id,
+      type: 'booking_cancelled',
+      title: '예약 취소',
+      body: `${profile?.name || '학생'}님이 ${booking.class_name} ${booking.class_date} ${booking.class_time} 취소`
+    })
+  }
+
+  loadData(user.id)
+}
 
   const daysInMonth = new Date(year, month+1, 0).getDate()
   const firstDow = new Date(year, month, 1).getDay()
