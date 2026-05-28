@@ -27,9 +27,18 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
   const [startDate, setStartDate] = useState(initial?.start_date || '')
   const [endDate, setEndDate] = useState(initial?.end_date || '')
   const [selectedDays, setSelectedDays] = useState(initial?.class_schedules?.map(s => s.day_of_week) || [])
-  const [timeSlots, setTimeSlots] = useState(DEFAULT_SLOTS.map(s => ({
-    ...s, selected: initial?.class_schedules?.some(x => x.start_time === s.start && x.end_time === s.end) || false
-  })))
+ const [timeSlots, setTimeSlots] = useState(() => {
+  const defaultMap = new Map(DEFAULT_SLOTS.map(s => [`${s.start}-${s.end}`, false]))
+  const savedSchedules = initial?.class_schedules || []
+  savedSchedules.forEach(x => {
+    const key = `${x.start_time}-${x.end_time}`
+    defaultMap.set(key, true)
+  })
+  return Array.from(defaultMap.entries()).map(([key, selected]) => {
+    const [start, end] = key.split('-')
+    return { start, end, selected }
+  })
+})
   const [exceptions, setExceptions] = useState(initial?.class_exceptions || [])
   const [newExcDay, setNewExcDay] = useState(2)
   const [newExcStart, setNewExcStart] = useState('')
