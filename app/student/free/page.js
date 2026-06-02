@@ -326,8 +326,7 @@ export default function FreePage() {
           </div>
         )}
 
-        {startHour && (
-          <div style={{ marginBottom:14 }}>
+        <div style={{ marginBottom:14 }}>
             <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>자리 선택</div>
             <div style={{ background:'#FBF8F2', borderRadius:14, padding:'14px 12px', border:'1.5px solid var(--g1)' }}>
               <div style={{ textAlign:'center', fontSize:9, color:'#8B7355', marginBottom:8, letterSpacing:2, fontWeight:600 }}>─── 창가 ───</div>
@@ -403,7 +402,6 @@ export default function FreePage() {
               </div>
             </div>
           </div>
-        )}
 
         {startHour && selSeat && (
           <div style={{ background:'#fff', borderRadius:14, padding:'14px 16px', marginBottom:14, border:'1.5px solid var(--g1)' }}>
