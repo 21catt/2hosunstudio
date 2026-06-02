@@ -143,30 +143,30 @@ export default function StudentPage() {
   }, [])
 
   async function loadData(userId) {
-  const { data: t } = await supabase.from('tickets').select('*').eq('user_id', userId).single()
-  setTicket(t)
-  const { data: b } = await supabase.from('bookings').select('*').eq('user_id', userId)
-setBookings(b || [])
+    const { data: t } = await supabase.from('tickets').select('*').eq('user_id', userId).single()
+    setTicket(t)
+    const { data: b } = await supabase.from('bookings').select('*').eq('user_id', userId)
+    setBookings(b || [])
 
-const { data: ab } = await supabase.from('bookings').select('course_id, schedule_id, class_date')
-setAllBookings(ab || [])
-  const { data: c } = await supabase
-    .from('class_courses')
-    .select('*, class_schedules(*)')
-    .eq('is_active', true)
-  setClasses(c || [])
-  
-  const { data: mt } = await supabase
-    .from('meeting_tickets')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('status', 'confirmed')
-    .gt('remain', 0)
-    .gte('expires_at', new Date().toISOString().split('T')[0])
-  setMeetingTickets(mt || [])
-  
-  setLoading(false)
-}
+    const { data: ab } = await supabase.from('bookings').select('course_id, schedule_id, class_date, class_time, seat')
+    setAllBookings(ab || [])
+    const { data: c } = await supabase
+      .from('class_courses')
+      .select('*, class_schedules(*)')
+      .eq('is_active', true)
+    setClasses(c || [])
+
+    const { data: mt } = await supabase
+      .from('meeting_tickets')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('status', 'confirmed')
+      .gt('remain', 0)
+      .gte('expires_at', new Date().toISOString().split('T')[0])
+    setMeetingTickets(mt || [])
+
+    setLoading(false)
+  }
 
   function bookingsInView() {
     return bookings.filter(b => {
@@ -203,50 +203,43 @@ setAllBookings(ab || [])
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
     return bookings.some(b => b.course_id === courseId && b.schedule_id === scheduleId && b.class_date === dateStr)
   }
-function getBookingCount(courseId, scheduleId, day) {
-  const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
-  return allBookings.filter(b => b.course_id === courseId && b.schedule_id === scheduleId && b.class_date === dateStr).length
-}
 
-// 같은 시간대에 잡힌 예약들의 자리 점유 상태
-function getSeatOccupancy(day, startTime, endTime) {
-  const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
-  const timeStr = `${startTime}~${endTime}`
-  
-  // 같은 시간대에 예약된 모든 booking (조소 제외)
-  const sameTimeBookings = allBookings.filter(b => 
-    b.class_date === dateStr && b.class_time === timeStr
-  )
-  
-  // 자리별 점유 상태
-  const occupied = { A: false, B: false, C: false, D: false, E: false }
-  
-  // 자유창작은 본인이 선택한 자리, 다른 수업은 D→E→C→B→A 순서
-  let autoSeatOrder = ['D', 'E', 'C', 'B', 'A']
-  let autoIndex = 0
-  
-  sameTimeBookings.forEach(b => {
-    if (b.seat) {
-      // 직접 선택한 자리 (자유창작)
-      occupied[b.seat] = true
-    }
-  })
-  
-  // 자리 미지정 예약(수업)은 자동 배정
-  sameTimeBookings.forEach(b => {
-    if (!b.seat) {
-      while (autoIndex < autoSeatOrder.length && occupied[autoSeatOrder[autoIndex]]) {
-        autoIndex++
+  function getBookingCount(courseId, scheduleId, day) {
+    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
+    return allBookings.filter(b => b.course_id === courseId && b.schedule_id === scheduleId && b.class_date === dateStr).length
+  }
+
+  function getSeatOccupancy(day, startTime, endTime) {
+    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
+    const timeStr = `${startTime}~${endTime}`
+
+    const sameTimeBookings = allBookings.filter(b =>
+      b.class_date === dateStr && b.class_time === timeStr
+    )
+
+    const occupied = { A: false, B: false, C: false, D: false, E: false }
+    const autoSeatOrder = ['D', 'E', 'C', 'B', 'A']
+    let autoIndex = 0
+
+    sameTimeBookings.forEach(b => {
+      if (b.seat) occupied[b.seat] = true
+    })
+
+    sameTimeBookings.forEach(b => {
+      if (!b.seat) {
+        while (autoIndex < autoSeatOrder.length && occupied[autoSeatOrder[autoIndex]]) {
+          autoIndex++
+        }
+        if (autoIndex < autoSeatOrder.length) {
+          occupied[autoSeatOrder[autoIndex]] = true
+          autoIndex++
+        }
       }
-      if (autoIndex < autoSeatOrder.length) {
-        occupied[autoSeatOrder[autoIndex]] = true
-        autoIndex++
-      }
-    }
-  })
-  
-  return occupied
-}
+    })
+
+    return occupied
+  }
+
   function getBooking(courseId, scheduleId, day) {
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
     return bookings.find(b => b.course_id === courseId && b.schedule_id === scheduleId && b.class_date === dateStr)
@@ -272,6 +265,7 @@ function getSeatOccupancy(day, startTime, endTime) {
     setSelCat(null)
     setSelCourse(null)
     setSelSchedule(null)
+    setSelSeat(null)
     setAnimDay(d)
     spawnParticles(cellRefs.current[d])
     setTimeout(() => setAnimDay(null), 500)
@@ -288,7 +282,7 @@ function getSeatOccupancy(day, startTime, endTime) {
     setYear(newDate.getFullYear())
     setMonth(newDate.getMonth())
     setSelectedDay(1)
-    setSelCat(null); setSelCourse(null); setSelSchedule(null)
+    setSelCat(null); setSelCourse(null); setSelSchedule(null); setSelSeat(null)
   }
 
   function isBookable(day) {
@@ -333,7 +327,7 @@ function getSeatOccupancy(day, startTime, endTime) {
       class_date: dateStr,
       class_time: `${selSchedule.start_time}~${selSchedule.end_time}`,
       teacher: selCourse.teacher,
-      status: 'booked'
+      status: 'booked',
       seat: selCourse.category === 'free' ? selSeat : null
     }).select().single()
 
@@ -419,42 +413,41 @@ function getSeatOccupancy(day, startTime, endTime) {
   }
 
   async function handleCancel(booking) {
-  const diff = (new Date(booking.class_date) - new Date()) / (1000*60*60)
-  if (diff < 4) { alert('수업 4시간 전에는 취소할 수 없어요'); return }
+    const diff = (new Date(booking.class_date) - new Date()) / (1000*60*60)
+    if (diff < 4) { alert('수업 4시간 전에는 취소할 수 없어요'); return }
 
-  const { data: course } = await supabase.from('class_courses').select('teacher_id, category').eq('id', booking.course_id).single()
+    const { data: course } = await supabase.from('class_courses').select('teacher_id, category').eq('id', booking.course_id).single()
 
-  await supabase.from('bookings').delete().eq('id', booking.id)
+    await supabase.from('bookings').delete().eq('id', booking.id)
 
-  // 모임이면 모임권 환불, 일반 수업이면 수강권 환불
-  if (course?.category === 'meeting') {
-    const { data: mt } = await supabase
-      .from('meeting_tickets')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('status', 'confirmed')
-      .gte('expires_at', new Date().toISOString().split('T')[0])
-      .order('expires_at', { ascending: true })
-      .limit(1)
-    if (mt && mt.length > 0) {
-      await supabase.from('meeting_tickets').update({ remain: mt[0].remain + 1 }).eq('id', mt[0].id)
+    if (course?.category === 'meeting') {
+      const { data: mt } = await supabase
+        .from('meeting_tickets')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'confirmed')
+        .gte('expires_at', new Date().toISOString().split('T')[0])
+        .order('expires_at', { ascending: true })
+        .limit(1)
+      if (mt && mt.length > 0) {
+        await supabase.from('meeting_tickets').update({ remain: mt[0].remain + 1 }).eq('id', mt[0].id)
+      }
+    } else {
+      await supabase.from('tickets').update({ remain: ticket.remain+1 }).eq('id', ticket.id)
     }
-  } else {
-    await supabase.from('tickets').update({ remain: ticket.remain+1 }).eq('id', ticket.id)
-  }
 
-  const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
-  if (course?.teacher_id) {
-    await supabase.from('notifications').insert({
-      user_id: course.teacher_id,
-      type: 'booking_cancelled',
-      title: '예약 취소',
-      body: `${profile?.name || '학생'}님이 ${booking.class_name} ${booking.class_date} ${booking.class_time} 취소`
-    })
-  }
+    const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
+    if (course?.teacher_id) {
+      await supabase.from('notifications').insert({
+        user_id: course.teacher_id,
+        type: 'booking_cancelled',
+        title: '예약 취소',
+        body: `${profile?.name || '학생'}님이 ${booking.class_name} ${booking.class_date} ${booking.class_time} 취소`
+      })
+    }
 
-  loadData(user.id)
-}
+    loadData(user.id)
+  }
 
   const daysInMonth = new Date(year, month+1, 0).getDate()
   const firstDow = new Date(year, month, 1).getDay()
@@ -678,20 +671,21 @@ function getSeatOccupancy(day, startTime, endTime) {
           </div>
         </div>
 
+        {meetingTickets.length > 0 && (
+          <div style={{ background:'#FFF8E1', borderRadius:14, padding:'10px 14px', marginBottom:12,
+            display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid #FFE082' }}>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:10, color:'#F57F17', fontWeight:700, marginBottom:2 }}>👥 모임 참여권</div>
+              {meetingTickets.map(mt => (
+                <div key={mt.id} style={{ fontSize:13, fontWeight:800, color:'var(--td)' }}>
+                  잔여 {mt.remain}/{mt.total}회 · 만료 {mt.expires_at}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div style={{ fontSize:12, fontWeight:800, color:'var(--td)', marginBottom:10 }}>
-            {meetingTickets.length > 0 && (
-  <div style={{ background:'#FFF8E1', borderRadius:14, padding:'10px 14px', marginBottom:12,
-    display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid #FFE082' }}>
-    <div style={{ flex:1 }}>
-      <div style={{ fontSize:10, color:'#F57F17', fontWeight:700, marginBottom:2 }}>👥 모임 참여권</div>
-      {meetingTickets.map(mt => (
-        <div key={mt.id} style={{ fontSize:13, fontWeight:800, color:'var(--td)' }}>
-          잔여 {mt.remain}/{mt.total}회 · 만료 {mt.expires_at}
-        </div>
-      ))}
-    </div>
-  </div>
-)}
           {month+1}월 {selectedDay}일 수업
         </div>
 
@@ -704,7 +698,7 @@ function getSeatOccupancy(day, startTime, endTime) {
                 <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>수업 종류 선택</div>
                 <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                   {cats.map(cat => (
-                    <div key={cat} onClick={() => { setSelCat(cat); setSelCourse(null); setSelSchedule(null) }}
+                    <div key={cat} onClick={() => { setSelCat(cat); setSelCourse(null); setSelSchedule(null); setSelSeat(null) }}
                       style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', borderRadius:20, cursor:'pointer',
                         background:selCat===cat?CAT_COLOR[cat]:'var(--bg)',
                         border:`1.5px solid ${selCat===cat?CAT_TEXT[cat]:'var(--g2)'}` }}>
@@ -722,7 +716,7 @@ function getSeatOccupancy(day, startTime, endTime) {
               <div className="slide-up" style={{ marginBottom:12 }}>
                 <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>수업 선택</div>
                 {catCourses.map(c => (
-                  <div key={c.id} onClick={() => { setSelCourse(c); setSelSchedule(null) }}
+                  <div key={c.id} onClick={() => { setSelCourse(c); setSelSchedule(null); setSelSeat(null) }}
                     style={{ padding:'10px 14px', borderRadius:12, marginBottom:6, cursor:'pointer',
                       background:selCourse?.id===c.id?CAT_COLOR[c.category]:'var(--bg)',
                       border:`1.5px solid ${selCourse?.id===c.id?CAT_TEXT[c.category]:'var(--g2)'}` }}>
@@ -746,20 +740,20 @@ function getSeatOccupancy(day, startTime, endTime) {
                   const booking = getBooking(selCourse.id, s.id, selectedDay)
                   const isSel = selSchedule?.id === s.id
                   return (
-                    <div key={s.id} onClick={() => !booked && setSelSchedule(s)}
+                    <div key={s.id} onClick={() => { if (!booked) { setSelSchedule(s); setSelSeat(null) } }}
                       style={{ padding:'10px 14px', borderRadius:12, marginBottom:6,
                         cursor:booked?'default':'pointer', display:'flex', alignItems:'center', justifyContent:'space-between',
                         background:booked?'#e8f5e0':isSel?CAT_COLOR[selCourse.category]:'var(--bg)',
                         border:`1.5px solid ${booked?'var(--g3)':isSel?CAT_TEXT[selCourse.category]:'var(--g2)'}` }}>
                       <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-  <div style={{ width:8, height:8, borderRadius:'50%', background:booked?'var(--g4)':'var(--g2)', flexShrink:0 }}/>
-  <span style={{ fontSize:13, fontWeight:700, color:'var(--td)' }}>
-    {s.start_time}~{s.end_time}
-  </span>
-  <span style={{ fontSize:10, fontWeight:700, color:'var(--tmu)' }}>
-    · {getBookingCount(selCourse.id, s.id, selectedDay)}/{selCourse.max_count}명
-  </span>
-</div>
+                        <div style={{ width:8, height:8, borderRadius:'50%', background:booked?'var(--g4)':'var(--g2)', flexShrink:0 }}/>
+                        <span style={{ fontSize:13, fontWeight:700, color:'var(--td)' }}>
+                          {s.start_time}~{s.end_time}
+                        </span>
+                        <span style={{ fontSize:10, fontWeight:700, color:'var(--tmu)' }}>
+                          · {getBookingCount(selCourse.id, s.id, selectedDay)}/{selCourse.max_count}명
+                        </span>
+                      </div>
                       {booked ? (
                         <button onClick={e=>{e.stopPropagation(); handleCancel(booking)}}
                           style={{ fontSize:10, padding:'3px 10px', borderRadius:20, background:'var(--g1)',
@@ -777,89 +771,89 @@ function getSeatOccupancy(day, startTime, endTime) {
               </div>
             )}
 
+            {/* 자유창작 자리 선택 UI */}
+            {selCourse?.category === 'free' && selSchedule && !isBooked(selCourse.id, selSchedule.id, selectedDay) && (
+              <div className="slide-up" style={{ marginBottom:12 }}>
+                <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>자리 선택</div>
+
+                <div style={{ background:'#FBF8F2', borderRadius:14, padding:'14px 12px', border:'1.5px solid var(--g1)', marginBottom:10 }}>
+                  <div style={{ textAlign:'center', fontSize:9, color:'#8B7355', marginBottom:8, letterSpacing:2, fontWeight:600 }}>─── 창가 ───</div>
+
+                  {(() => {
+                    const occ = getSeatOccupancy(selectedDay, selSchedule.start_time, selSchedule.end_time)
+                    const seats = [
+                      { id:'A', x:80, y:100, label:'창가·자연광' },
+                      { id:'B', x:170, y:100, label:'창가·자연광' },
+                      { id:'C', x:295, y:120, label:'중앙' },
+                      { id:'D', x:385, y:120, label:'중앙' },
+                      { id:'E', x:290, y:220, label:'창가' },
+                    ]
+                    return (
+                      <svg viewBox="0 0 560 320" style={{ width:'100%', display:'block' }}>
+                        <defs>
+                          <pattern id="woodStudent" patternUnits="userSpaceOnUse" width="18" height="18">
+                            <rect width="18" height="18" fill="#F4EDE0"/>
+                            <line x1="0" y1="0" x2="18" y2="0" stroke="#E8DCC4" strokeWidth="0.3"/>
+                            <line x1="0" y1="18" x2="18" y2="18" stroke="#E8DCC4" strokeWidth="0.3"/>
+                          </pattern>
+                        </defs>
+
+                        <path d="M 40 60 L 250 60 L 250 100 L 540 100 L 540 270 L 200 270 L 200 230 L 40 230 Z"
+                              fill="url(#woodStudent)" stroke="#D4C9B0" strokeWidth="0.8"/>
+
+                        <rect x="455" y="150" width="70" height="90" rx="20" fill="#E0D2B5" stroke="#C9B894" strokeWidth="0.6"/>
+                        <text x="490" y="200" textAnchor="middle" fontSize="10" fill="#8B7355" fontWeight="500">테이블</text>
+
+                        {seats.map(s => {
+                          const isOcc = occ[s.id]
+                          const isSel = selSeat === s.id
+                          const bg = isSel ? '#7FA85A' : isOcc ? '#E8C9B8' : '#F0EAE0'
+                          const stroke = isSel ? '#5C8540' : isOcc ? '#C99880' : '#C9B894'
+                          const textColor = isSel ? '#FFFFFF' : isOcc ? '#7A4530' : '#5C5247'
+                          const labelColor = isSel ? '#5C8540' : isOcc ? '#A07560' : '#8B7355'
+                          return (
+                            <g key={s.id} style={{ cursor: isOcc ? 'not-allowed' : 'pointer', opacity: isOcc ? 0.7 : 1 }}
+                              onClick={() => !isOcc && setSelSeat(s.id)}>
+                              <rect x={s.x} y={s.y} width="34" height="34" rx="7" fill={bg} stroke={stroke} strokeWidth={isSel ? 1.5 : 1}/>
+                              <text x={s.x+17} y={s.y+23} textAnchor="middle" fontSize="15" fontWeight="500" fill={textColor}>{s.id}</text>
+                              {isSel && (
+                                <>
+                                  <circle cx={s.x+28} cy={s.y+4} r="5" fill="#FFFFFF" stroke="#5C8540" strokeWidth="1"/>
+                                  <path d={`M ${s.x+25.5} ${s.y+4} L ${s.x+27.5} ${s.y+6} L ${s.x+30.5} ${s.y+3}`}
+                                        stroke="#5C8540" strokeWidth="1.4" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                                </>
+                              )}
+                              <text x={s.x+17} y={s.y+48} textAnchor="middle" fontSize="9" fill={labelColor} fontWeight={isSel ? 600 : 500}>
+                                {isOcc ? '사용 중' : s.label}
+                              </text>
+                            </g>
+                          )
+                        })}
+
+                        <line x1="40" y1="210" x2="22" y2="210" stroke="#8B7355" strokeWidth="1.8"/>
+                        <text x="18" y="204" fontSize="10" fill="#8B7355" fontWeight="500" textAnchor="end">입구</text>
+
+                        <text x="290" y="295" textAnchor="middle" fontSize="11" fill="#8B7355" fontWeight="500" letterSpacing="3">─── 창가 ───</text>
+                      </svg>
+                    )
+                  })()}
+
+                  <div style={{ display:'flex', justifyContent:'center', gap:12, fontSize:9, color:'var(--tmu)', marginTop:8 }}>
+                    <span style={{ display:'flex', alignItems:'center', gap:4 }}>
+                      <span style={{ display:'inline-block', width:10, height:10, borderRadius:3, background:'#7FA85A' }}/>선택
+                    </span>
+                    <span style={{ display:'flex', alignItems:'center', gap:4 }}>
+                      <span style={{ display:'inline-block', width:10, height:10, borderRadius:3, background:'#F0EAE0', border:'0.5px solid #C9B894' }}/>가능
+                    </span>
+                    <span style={{ display:'flex', alignItems:'center', gap:4 }}>
+                      <span style={{ display:'inline-block', width:10, height:10, borderRadius:3, background:'#E8C9B8', opacity:0.7 }}/>사용 중
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {selSchedule && !isBooked(selCourse?.id, selSchedule?.id, selectedDay) && (
-              {/* 자유창작 자리 선택 UI */}
-{selCourse?.category === 'free' && selSchedule && (
-  <div className="slide-up" style={{ marginBottom:12 }}>
-    <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>자리 선택</div>
-    
-    <div style={{ background:'#FBF8F2', borderRadius:14, padding:'14px 12px', border:'1.5px solid var(--g1)', marginBottom:10 }}>
-      
-      <div style={{ textAlign:'center', fontSize:9, color:'#8B7355', marginBottom:8, letterSpacing:2, fontWeight:600 }}>─── 창가 ───</div>
-
-      {(() => {
-        const occ = getSeatOccupancy(selectedDay, selSchedule.start_time, selSchedule.end_time)
-        const seats = [
-          { id:'A', x:80, y:100, label:'창가·자연광' },
-          { id:'B', x:170, y:100, label:'창가·자연광' },
-          { id:'C', x:295, y:120, label:'중앙' },
-          { id:'D', x:385, y:120, label:'중앙' },
-          { id:'E', x:290, y:220, label:'창가' },
-        ]
-        return (
-          <svg viewBox="0 0 560 320" style={{ width:'100%', display:'block' }}>
-            <defs>
-              <pattern id="woodStudent" patternUnits="userSpaceOnUse" width="18" height="18">
-                <rect width="18" height="18" fill="#F4EDE0"/>
-                <line x1="0" y1="0" x2="18" y2="0" stroke="#E8DCC4" strokeWidth="0.3"/>
-                <line x1="0" y1="18" x2="18" y2="18" stroke="#E8DCC4" strokeWidth="0.3"/>
-              </pattern>
-            </defs>
-            
-            <path d="M 40 60 L 250 60 L 250 100 L 540 100 L 540 270 L 200 270 L 200 230 L 40 230 Z"
-                  fill="url(#woodStudent)" stroke="#D4C9B0" strokeWidth="0.8"/>
-            
-            <rect x="455" y="150" width="70" height="90" rx="20" fill="#E0D2B5" stroke="#C9B894" strokeWidth="0.6"/>
-            <text x="490" y="200" textAnchor="middle" fontSize="10" fill="#8B7355" fontWeight="500">테이블</text>
-
-            {seats.map(s => {
-              const isOcc = occ[s.id]
-              const isSel = selSeat === s.id
-              const bg = isSel ? '#7FA85A' : isOcc ? '#E8C9B8' : '#F0EAE0'
-              const stroke = isSel ? '#5C8540' : isOcc ? '#C99880' : '#C9B894'
-              const textColor = isSel ? '#FFFFFF' : isOcc ? '#7A4530' : '#5C5247'
-              const labelColor = isSel ? '#5C8540' : isOcc ? '#A07560' : '#8B7355'
-              return (
-                <g key={s.id} style={{ cursor: isOcc ? 'not-allowed' : 'pointer', opacity: isOcc ? 0.7 : 1 }}
-                  onClick={() => !isOcc && setSelSeat(s.id)}>
-                  <rect x={s.x} y={s.y} width="34" height="34" rx="7" fill={bg} stroke={stroke} strokeWidth={isSel ? 1.5 : 1}/>
-                  <text x={s.x+17} y={s.y+23} textAnchor="middle" fontSize="15" fontWeight="500" fill={textColor}>{s.id}</text>
-                  {isSel && (
-                    <>
-                      <circle cx={s.x+28} cy={s.y+4} r="5" fill="#FFFFFF" stroke="#5C8540" strokeWidth="1"/>
-                      <path d={`M ${s.x+25.5} ${s.y+4} L ${s.x+27.5} ${s.y+6} L ${s.x+30.5} ${s.y+3}`} 
-                            stroke="#5C8540" strokeWidth="1.4" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-                    </>
-                  )}
-                  <text x={s.x+17} y={s.y+48} textAnchor="middle" fontSize="9" fill={labelColor} fontWeight={isSel ? 600 : 500}>
-                    {isOcc ? '사용 중' : s.label}
-                  </text>
-                </g>
-              )
-            })}
-
-            <line x1="40" y1="210" x2="22" y2="210" stroke="#8B7355" strokeWidth="1.8"/>
-            <text x="18" y="204" fontSize="10" fill="#8B7355" fontWeight="500" textAnchor="end">입구</text>
-
-            <text x="290" y="295" textAnchor="middle" fontSize="11" fill="#8B7355" fontWeight="500" letterSpacing="3">─── 창가 ───</text>
-          </svg>
-        )
-      })()}
-
-      <div style={{ display:'flex', justifyContent:'center', gap:12, fontSize:9, color:'var(--tmu)', marginTop:8 }}>
-        <span style={{ display:'flex', alignItems:'center', gap:4 }}>
-          <span style={{ display:'inline-block', width:10, height:10, borderRadius:3, background:'#7FA85A' }}/>선택
-        </span>
-        <span style={{ display:'flex', alignItems:'center', gap:4 }}>
-          <span style={{ display:'inline-block', width:10, height:10, borderRadius:3, background:'#F0EAE0', border:'0.5px solid #C9B894' }}/>가능
-        </span>
-        <span style={{ display:'flex', alignItems:'center', gap:4 }}>
-          <span style={{ display:'inline-block', width:10, height:10, borderRadius:3, background:'#E8C9B8', opacity:0.7 }}/>사용 중
-        </span>
-      </div>
-    </div>
-  </div>
-)}
               <div className="slide-up">
                 {isBookable(selectedDay) ? (
                   selCourse?.category === 'meeting' || (ticket && ticket.remain > 0) ? (
@@ -895,7 +889,7 @@ function getSeatOccupancy(day, startTime, endTime) {
                 marginBottom:6, display:'flex', alignItems:'center', justifyContent:'space-between',
                 border:`1.5px solid ${b.status==='pending'?'#E65100':'var(--g3)'}` }}>
                 <div>
-                  <div style={{ fontSize:12, fontWeight:800, color:'var(--td)' }}>{b.class_name}</div>
+                  <div style={{ fontSize:12, fontWeight:800, color:'var(--td)' }}>{b.class_name}{b.seat ? ` · ${b.seat} 자리` : ''}</div>
                   <div style={{ fontSize:10, color:'var(--tm)' }}>{b.class_time}</div>
                   {b.status==='pending' && (
                     <div style={{ fontSize:9, color:'#E65100', fontWeight:700, marginTop:2 }}>모임 확정 대기중</div>
