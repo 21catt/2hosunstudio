@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import { useTodayWeather } from '../../components/WeatherBar'
 import StudentNav from '../../components/StudentNav'
+
 const EMOJI = { drawing:'✏️', painting:'🎨', sculpture:'🗿', free:'🖼️', meeting:'👥' }
 const CAT_NAME = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', free:'자율창작', meeting:'모임' }
 const CAT_COLOR = { drawing:'#e8f5e0', painting:'#EDE7F6', sculpture:'#FFF3E0', free:'#E3F2FD', meeting:'#FFF8E1' }
@@ -20,48 +21,19 @@ const CAT_IMAGES = [
 function getCatImage(d) {
   return CAT_IMAGES[(d * 7 + 3) % CAT_IMAGES.length]
 }
+
 function PixelPlant({ ratio }) {
   const stage = ratio >= 0.6 ? 'healthy' : ratio >= 0.3 ? 'mild' : 'wilted'
   const palette = {
-    healthy: {
-      leaf: '#3d6b4f', leafDark: '#2a4a37',
-      flower: '#6b9bc4', flowerDark: '#4a7aa3',
-      pot: '#c97a4a', potDark: '#a05c33', potLight: '#e09060',
-      drop: '#7a9bbf'
-    },
-    mild: {
-      leaf: '#5a7a6a', leafDark: '#3d5a4d',
-      flower: '#8ba8c4', flowerDark: '#6b8aa8',
-      pot: '#c97a4a', potDark: '#a05c33', potLight: '#e09060',
-      drop: 'transparent'
-    },
-    wilted: {
-      leaf: '#8a8a78', leafDark: '#6a6a5a',
-      flower: 'transparent', flowerDark: 'transparent',
-      pot: '#b8704a', potDark: '#946238', potLight: '#c98860',
-      drop: 'transparent'
-    }
+    healthy: { leaf: '#3d6b4f', leafDark: '#2a4a37', flower: '#6b9bc4', flowerDark: '#4a7aa3', pot: '#c97a4a', potDark: '#a05c33', potLight: '#e09060', drop: '#7a9bbf' },
+    mild: { leaf: '#5a7a6a', leafDark: '#3d5a4d', flower: '#8ba8c4', flowerDark: '#6b8aa8', pot: '#c97a4a', potDark: '#a05c33', potLight: '#e09060', drop: 'transparent' },
+    wilted: { leaf: '#8a8a78', leafDark: '#6a6a5a', flower: 'transparent', flowerDark: 'transparent', pot: '#b8704a', potDark: '#946238', potLight: '#c98860', drop: 'transparent' }
   }
   const c = palette[stage]
-  const leavesHealthy = [
-    [5,4],[5,5],[5,6],[5,7],[5,8],[5,9],
-    [6,4],[6,5],[6,6],[6,7],[6,8],[6,9],
-    [3,8],[4,7],[2,9],[3,7],[4,6],
-    [2,6],[3,5],[2,5],[1,6],[3,3],[2,4],
-    [7,7],[8,8],[9,9],[7,6],[8,7],
-    [8,5],[9,6],[9,5],[10,6],[8,3],[9,4],
-  ]
-  const leavesWilted = [
-    [5,5],[5,6],[5,7],[5,8],[5,9],
-    [6,5],[6,6],[6,7],[6,8],[6,9],
-    [3,9],[4,8],[7,8],[8,9],
-    [3,7],[4,7],[7,7],[8,7],
-  ]
+  const leavesHealthy = [[5,4],[5,5],[5,6],[5,7],[5,8],[5,9],[6,4],[6,5],[6,6],[6,7],[6,8],[6,9],[3,8],[4,7],[2,9],[3,7],[4,6],[2,6],[3,5],[2,5],[1,6],[3,3],[2,4],[7,7],[8,8],[9,9],[7,6],[8,7],[8,5],[9,6],[9,5],[10,6],[8,3],[9,4]]
+  const leavesWilted = [[5,5],[5,6],[5,7],[5,8],[5,9],[6,5],[6,6],[6,7],[6,8],[6,9],[3,9],[4,8],[7,8],[8,9],[3,7],[4,7],[7,7],[8,7]]
   const leaves = stage === 'wilted' ? leavesWilted : leavesHealthy
-  const flowers = [
-    [4,2],[5,2],[6,2],[7,2],[5,1],[6,1],[5,3],[6,3],
-    [2,3],[3,3],[2,2],[8,3],[9,3],[9,2],
-  ]
+  const flowers = [[4,2],[5,2],[6,2],[7,2],[5,1],[6,1],[5,3],[6,3],[2,3],[3,3],[2,2],[8,3],[9,3],[9,2]]
 
   return (
     <div style={{ position:'relative', width:48, height:48 }}>
@@ -78,18 +50,10 @@ function PixelPlant({ ratio }) {
       `}</style>
       <div className={stage === 'healthy' ? 'p-h' : stage === 'mild' ? 'p-m' : 'p-w'} style={{ position:'absolute', inset:0 }}>
         <svg viewBox="0 0 48 48" width="48" height="48" shapeRendering="crispEdges">
-          {stage !== 'wilted' && flowers.map(([x,y],i) => (
-            <rect key={`f-${i}`} x={x*4} y={y*4} width="4" height="4" fill={c.flower}/>
-          ))}
-          {stage !== 'wilted' && flowers.filter(([,y]) => y >= 2).slice(0, 6).map(([x,y],i) => (
-            <rect key={`fd-${i}`} x={x*4+2} y={y*4+2} width="2" height="2" fill={c.flowerDark}/>
-          ))}
-          {leaves.map(([x,y],i) => (
-            <rect key={`l-${i}`} x={x*4} y={y*4} width="4" height="4" fill={c.leaf}/>
-          ))}
-          {leaves.filter(([x,y]) => (x+y) % 3 === 0).map(([x,y],i) => (
-            <rect key={`ld-${i}`} x={x*4+1} y={y*4+1} width="2" height="2" fill={c.leafDark}/>
-          ))}
+          {stage !== 'wilted' && flowers.map(([x,y],i) => (<rect key={`f-${i}`} x={x*4} y={y*4} width="4" height="4" fill={c.flower}/>))}
+          {stage !== 'wilted' && flowers.filter(([,y]) => y >= 2).slice(0, 6).map(([x,y],i) => (<rect key={`fd-${i}`} x={x*4+2} y={y*4+2} width="2" height="2" fill={c.flowerDark}/>))}
+          {leaves.map(([x,y],i) => (<rect key={`l-${i}`} x={x*4} y={y*4} width="4" height="4" fill={c.leaf}/>))}
+          {leaves.filter(([x,y]) => (x+y) % 3 === 0).map(([x,y],i) => (<rect key={`ld-${i}`} x={x*4+1} y={y*4+1} width="2" height="2" fill={c.leafDark}/>))}
           <rect x="12" y="36" width="24" height="2" fill={c.potDark}/>
           <rect x="14" y="38" width="20" height="8" fill={c.pot}/>
           <rect x="14" y="38" width="2" height="6" fill={c.potLight}/>
@@ -146,24 +110,12 @@ export default function StudentPage() {
     setTicket(t)
     const { data: b } = await supabase.from('bookings').select('*').eq('user_id', userId)
     setBookings(b || [])
-
     const { data: ab } = await supabase.from('bookings').select('course_id, schedule_id, class_date')
     setAllBookings(ab || [])
-    const { data: c } = await supabase
-      .from('class_courses')
-      .select('*, class_schedules(*)')
-      .eq('is_active', true)
+    const { data: c } = await supabase.from('class_courses').select('*, class_schedules(*)').eq('is_active', true)
     setClasses(c || [])
-
-    const { data: mt } = await supabase
-      .from('meeting_tickets')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('status', 'confirmed')
-      .gt('remain', 0)
-      .gte('expires_at', new Date().toISOString().split('T')[0])
+    const { data: mt } = await supabase.from('meeting_tickets').select('*').eq('user_id', userId).eq('status', 'confirmed').gt('remain', 0).gte('expires_at', new Date().toISOString().split('T')[0])
     setMeetingTickets(mt || [])
-
     setLoading(false)
   }
 
@@ -180,22 +132,18 @@ export default function StudentPage() {
 
   function dayClasses(day) {
     const dow = new Date(year, month, day).getDay()
-    return classes.filter(c =>
-      c.class_schedules?.some(s => s.day_of_week === dow)
-    )
+    return classes.filter(c => c.class_schedules?.some(s => s.day_of_week === dow))
   }
 
   function getSchedulesForDay(course, day) {
     const dow = new Date(year, month, day).getDay()
     const seen = new Set()
-    return (course.class_schedules || [])
-      .filter(s => s.day_of_week === dow)
-      .filter(s => {
-        const key = `${s.start_time}-${s.end_time}`
-        if (seen.has(key)) return false
-        seen.add(key)
-        return true
-      })
+    return (course.class_schedules || []).filter(s => s.day_of_week === dow).filter(s => {
+      const key = `${s.start_time}-${s.end_time}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
   }
 
   function isBooked(courseId, scheduleId, day) {
@@ -265,14 +213,7 @@ export default function StudentPage() {
     if (!selCourse || !selSchedule) return
 
     if (selCourse.category === 'meeting') {
-      const { data: mt } = await supabase
-        .from('meeting_tickets')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('status', 'confirmed')
-        .gt('remain', 0)
-        .gte('expires_at', new Date().toISOString().split('T')[0])
-        .limit(1)
+      const { data: mt } = await supabase.from('meeting_tickets').select('*').eq('user_id', user.id).eq('status', 'confirmed').gt('remain', 0).gte('expires_at', new Date().toISOString().split('T')[0]).limit(1)
 
       if (mt && mt.length > 0) {
         await handleMeetingBookWithTicket(mt[0])
@@ -387,14 +328,7 @@ export default function StudentPage() {
     await supabase.from('bookings').delete().eq('id', booking.id)
 
     if (course?.category === 'meeting') {
-      const { data: mt } = await supabase
-        .from('meeting_tickets')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('status', 'confirmed')
-        .gte('expires_at', new Date().toISOString().split('T')[0])
-        .order('expires_at', { ascending: true })
-        .limit(1)
+      const { data: mt } = await supabase.from('meeting_tickets').select('*').eq('user_id', user.id).eq('status', 'confirmed').gte('expires_at', new Date().toISOString().split('T')[0]).order('expires_at', { ascending: true }).limit(1)
       if (mt && mt.length > 0) {
         await supabase.from('meeting_tickets').update({ remain: mt[0].remain + 1 }).eq('id', mt[0].id)
       }
@@ -431,7 +365,6 @@ export default function StudentPage() {
     return acc
   }, {})
   const cats = Object.keys(catGroups)
-
   const catCourses = selCat ? catGroups[selCat] || [] : []
 
   if (loading) return (
@@ -443,85 +376,43 @@ export default function StudentPage() {
   return (
     <>
       <style>{`
-        @keyframes spark {
-          0% { transform: translate(0,0) scale(1.2); opacity:1; }
-          100% { transform: translate(var(--tx),var(--ty)) scale(0); opacity:0; }
-        }
-        @keyframes catPop {
-          0% { transform: scale(0) rotate(-15deg); opacity:0; }
-          55% { transform: scale(1.28) rotate(6deg); opacity:1; }
-          100% { transform: scale(1) rotate(0deg); opacity:1; }
-        }
+        @keyframes spark { 0% { transform: translate(0,0) scale(1.2); opacity:1; } 100% { transform: translate(var(--tx),var(--ty)) scale(0); opacity:0; } }
+        @keyframes catPop { 0% { transform: scale(0) rotate(-15deg); opacity:0; } 55% { transform: scale(1.28) rotate(6deg); opacity:1; } 100% { transform: scale(1) rotate(0deg); opacity:1; } }
         .cat-anim { animation: catPop 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards; }
-        @keyframes slideUp {
-          from { transform: translateY(10px); opacity:0; }
-          to { transform: translateY(0); opacity:1; }
-        }
+        @keyframes slideUp { from { transform: translateY(10px); opacity:0; } to { transform: translateY(0); opacity:1; } }
         .slide-up { animation: slideUp 0.25s ease forwards; }
       `}</style>
 
       {paymentModal && (
-        <div onClick={()=>{setPaymentModal(null); setSelectedCount(1)}}
-          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:1000,
-            display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
-          <div onClick={e=>e.stopPropagation()}
-            style={{ background:'#fff', borderRadius:20, padding:'20px 18px', maxWidth:340, width:'100%' }}>
-            <div style={{ fontSize:16, fontWeight:800, color:'var(--td)', marginBottom:6 }}>
-              모임 참여 안내
-            </div>
-            <div style={{ fontSize:12, color:'var(--tm)', lineHeight:1.6, marginBottom:14 }}>
-              {paymentModal.course.name}
-            </div>
-
+        <div onClick={()=>{setPaymentModal(null); setSelectedCount(1)}} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:'#fff', borderRadius:20, padding:'20px 18px', maxWidth:340, width:'100%' }}>
+            <div style={{ fontSize:16, fontWeight:800, color:'var(--td)', marginBottom:6 }}>모임 참여 안내</div>
+            <div style={{ fontSize:12, color:'var(--tm)', lineHeight:1.6, marginBottom:14 }}>{paymentModal.course.name}</div>
             <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:6 }}>참여 횟수 선택</div>
             <div style={{ display:'flex', gap:6, marginBottom:14 }}>
               {[1,2,3,4].map(n => (
-                <div key={n} onClick={()=>setSelectedCount(n)}
-                  style={{ flex:1, padding:'8px', borderRadius:10, textAlign:'center', cursor:'pointer',
-                    background:selectedCount===n?'var(--g4)':'var(--bg)',
-                    color:selectedCount===n?'#fff':'var(--td)',
-                    border:`1.5px solid ${selectedCount===n?'var(--g4)':'var(--g1)'}`,
-                    fontSize:12, fontWeight:700 }}>
+                <div key={n} onClick={()=>setSelectedCount(n)} style={{ flex:1, padding:'8px', borderRadius:10, textAlign:'center', cursor:'pointer', background:selectedCount===n?'var(--g4)':'var(--bg)', color:selectedCount===n?'#fff':'var(--td)', border:`1.5px solid ${selectedCount===n?'var(--g4)':'var(--g1)'}`, fontSize:12, fontWeight:700 }}>
                   {n}회
                 </div>
               ))}
             </div>
-
             <div style={{ background:'var(--bg)', borderRadius:12, padding:'12px 14px', marginBottom:14 }}>
-              <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:6 }}>
-                참여비 ({paymentModal.course.price?.toLocaleString() || 0}원 × {selectedCount}회)
-              </div>
-              <div style={{ fontSize:20, fontWeight:800, color:'var(--g5)', marginBottom:10 }}>
-                {((paymentModal.course.price || 0) * selectedCount).toLocaleString()}원
-              </div>
+              <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:6 }}>참여비 ({paymentModal.course.price?.toLocaleString() || 0}원 × {selectedCount}회)</div>
+              <div style={{ fontSize:20, fontWeight:800, color:'var(--g5)', marginBottom:10 }}>{((paymentModal.course.price || 0) * selectedCount).toLocaleString()}원</div>
               <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:4 }}>입금 계좌</div>
               <div style={{ fontSize:12, fontWeight:700, color:'var(--td)', lineHeight:1.6 }}>
-                카카오뱅크<br/>
-                3333-03-8381397<br/>
-                예금주: 양승민
+                카카오뱅크<br/>3333-03-8381397<br/>예금주: 양승민
               </div>
             </div>
-
             <div style={{ fontSize:11, color:'var(--tmu)', lineHeight:1.6, marginBottom:14 }}>
               • 신청 후 위 계좌로 입금해 주세요.<br/>
               • 입금 확인 후 모임 참여권이 확정됩니다.<br/>
               • 모임권은 발급일로부터 1개월 내 사용해야 하며 이월되지 않습니다.<br/>
               • 모임권은 모든 모임에서 사용 가능합니다.
             </div>
-
             <div style={{ display:'flex', gap:8 }}>
-              <button onClick={()=>{setPaymentModal(null); setSelectedCount(1)}}
-                style={{ flex:1, padding:'11px', background:'var(--g1)', color:'var(--g5)',
-                  border:'none', borderRadius:12, fontSize:13, fontWeight:700,
-                  cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
-                취소
-              </button>
-              <button onClick={handleMeetingBook}
-                style={{ flex:1, padding:'11px', background:'var(--g4)', color:'#fff',
-                  border:'none', borderRadius:12, fontSize:13, fontWeight:700,
-                  cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
-                신청하기
-              </button>
+              <button onClick={()=>{setPaymentModal(null); setSelectedCount(1)}} style={{ flex:1, padding:'11px', background:'var(--g1)', color:'var(--g5)', border:'none', borderRadius:12, fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>취소</button>
+              <button onClick={handleMeetingBook} style={{ flex:1, padding:'11px', background:'var(--g4)', color:'#fff', border:'none', borderRadius:12, fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>신청하기</button>
             </div>
           </div>
         </div>
@@ -532,37 +423,24 @@ export default function StudentPage() {
           <span style={{ fontSize:20 }}>🐱</span>
           <span className="header-title">2호선 스튜디오</span>
         </div>
-        <button onClick={()=>supabase.auth.signOut().then(()=>router.push('/login'))}
-          style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:20, padding:'4px 10px', color:'#fff', fontSize:10, fontWeight:700, cursor:'pointer' }}>
-          로그아웃
-        </button>
+        <button onClick={()=>supabase.auth.signOut().then(()=>router.push('/login'))} style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:20, padding:'4px 10px', color:'#fff', fontSize:10, fontWeight:700, cursor:'pointer' }}>로그아웃</button>
       </div>
 
       <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 0' }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
-          <button onClick={() => changeMonth(-1)}
-            disabled={monthDiff() <= -3}
-            style={{ background:'transparent', border:'none', cursor:'pointer', fontSize:20, color:'var(--g4)', padding:'4px 10px', opacity: monthDiff() <= -3 ? 0.3 : 1 }}>‹</button>
+          <button onClick={() => changeMonth(-1)} disabled={monthDiff() <= -3} style={{ background:'transparent', border:'none', cursor:'pointer', fontSize:20, color:'var(--g4)', padding:'4px 10px', opacity: monthDiff() <= -3 ? 0.3 : 1 }}>‹</button>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-            <span style={{ fontSize:18, fontWeight:800, color:'var(--td)' }}>
-              {year}.{String(month+1).padStart(2,'0')}
-            </span>
+            <span style={{ fontSize:18, fontWeight:800, color:'var(--td)' }}>{year}.{String(month+1).padStart(2,'0')}</span>
             {(year !== todayY || month !== todayM) && (
-              <button onClick={() => { setYear(todayY); setMonth(todayM); setSelectedDay(todayD) }}
-                style={{ background:'var(--g1)', color:'var(--g5)', border:'none', borderRadius:12, padding:'3px 10px', fontSize:10, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
-                오늘
-              </button>
+              <button onClick={() => { setYear(todayY); setMonth(todayM); setSelectedDay(todayD) }} style={{ background:'var(--g1)', color:'var(--g5)', border:'none', borderRadius:12, padding:'3px 10px', fontSize:10, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>오늘</button>
             )}
           </div>
-          <button onClick={() => changeMonth(1)}
-            disabled={monthDiff() >= 3}
-            style={{ background:'transparent', border:'none', cursor:'pointer', fontSize:20, color:'var(--g4)', padding:'4px 10px', opacity: monthDiff() >= 3 ? 0.3 : 1 }}>›</button>
+          <button onClick={() => changeMonth(1)} disabled={monthDiff() >= 3} style={{ background:'transparent', border:'none', cursor:'pointer', fontSize:20, color:'var(--g4)', padding:'4px 10px', opacity: monthDiff() >= 3 ? 0.3 : 1 }}>›</button>
         </div>
 
         <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', textAlign:'center', marginBottom:4 }}>
           {['일','월','화','수','목','금','토'].map((d,i)=>(
-            <div key={d} style={{ fontSize:10, fontWeight:700, padding:'3px 0',
-              color:i===0?'#b05050':i===6?'#5070a0':'var(--tmu)' }}>{d}</div>
+            <div key={d} style={{ fontSize:10, fontWeight:700, padding:'3px 0', color:i===0?'#b05050':i===6?'#5070a0':'var(--tmu)' }}>{d}</div>
           ))}
         </div>
 
@@ -579,17 +457,9 @@ export default function StudentPage() {
             const hasCls = dayClasses(d).length > 0
 
             return (
-              <div key={d}
-                ref={el => cellRefs.current[d] = el}
-                onClick={()=>handleDayClick(d)}
-                style={{ height:52, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
-                  cursor:isMon?'default':'pointer', borderRadius:12, opacity:isMon?0.3:1, position:'relative',
-                  background:isSel?'#e8f5e0':'transparent',
-                  border:isSel?'1.5px solid var(--g3)':'1.5px solid transparent' }}>
+              <div key={d} ref={el => cellRefs.current[d] = el} onClick={()=>handleDayClick(d)} style={{ height:52, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:isMon?'default':'pointer', borderRadius:12, opacity:isMon?0.3:1, position:'relative', background:isSel?'#e8f5e0':'transparent', border:isSel?'1.5px solid var(--g3)':'1.5px solid transparent' }}>
                 {isT && todayWeather && (
-                  <div style={{ position:'absolute', top:-2, left:'50%', transform:'translateX(-50%)', fontSize:13, zIndex:1 }}>
-                    {todayWeather.icon}
-                  </div>
+                  <div style={{ position:'absolute', top:-2, left:'50%', transform:'translateX(-50%)', fontSize:13, zIndex:1 }}>{todayWeather.icon}</div>
                 )}
                 {isB || isSel ? (
                   <div className={isAnim?'cat-anim':''} style={{ display:'flex', flexDirection:'column', alignItems:'center', lineHeight:1 }}>
@@ -597,11 +467,9 @@ export default function StudentPage() {
                     <span style={{ fontSize:9, fontWeight:800, color:'var(--td)', marginTop:-1 }}>{d}</span>
                   </div>
                 ) : isT ? (
-                  <div style={{ width:28, height:28, borderRadius:'50%', background:'var(--g4)', color:'#fff',
-                    display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800 }}>{d}</div>
+                  <div style={{ width:28, height:28, borderRadius:'50%', background:'var(--g4)', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800 }}>{d}</div>
                 ) : (
-                  <div style={{ fontSize:12, fontWeight:700,
-                    color:dow===0?'#b05050':dow===6?'#5070a0':'var(--td)' }}>{d}</div>
+                  <div style={{ fontSize:12, fontWeight:700, color:dow===0?'#b05050':dow===6?'#5070a0':'var(--td)' }}>{d}</div>
                 )}
                 {!isB && hasCls && !isSel && (
                   <div style={{ width:4, height:4, borderRadius:'50%', background:'var(--g3)', marginTop:2 }}/>
@@ -611,8 +479,7 @@ export default function StudentPage() {
           })}
         </div>
 
-        <div style={{ background:'var(--g1)', borderRadius:14, padding:'10px 14px', marginBottom:12,
-          display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid var(--g2)' }}>
+        <div style={{ background:'var(--g1)', borderRadius:14, padding:'10px 14px', marginBottom:12, display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid var(--g2)' }}>
           <div style={{ flex:1 }}>
             <div style={{ fontSize:10, color:'var(--tm)', fontWeight:700 }}>내 수강권</div>
             <div style={{ fontSize:13, fontWeight:800, color:'var(--td)', marginBottom:4 }}>
@@ -621,25 +488,17 @@ export default function StudentPage() {
             {ticket && (
               <>
                 <div style={{ width:'100%', height:5, background:'rgba(255,255,255,0.5)', borderRadius:3, overflow:'hidden', marginBottom:4 }}>
-                  <div style={{
-                    width: `${(ticket.remain / ticket.total) * 100}%`,
-                    height: '100%',
-                    background: ticket.remain/ticket.total >= 0.6 ? 'var(--g4)' : ticket.remain/ticket.total >= 0.3 ? 'var(--g3)' : '#c9a07a',
-                    transition: 'width 0.3s ease, background 0.3s ease'
-                  }}/>
+                  <div style={{ width: `${(ticket.remain / ticket.total) * 100}%`, height: '100%', background: ticket.remain/ticket.total >= 0.6 ? 'var(--g4)' : ticket.remain/ticket.total >= 0.3 ? 'var(--g3)' : '#c9a07a', transition: 'width 0.3s ease, background 0.3s ease' }}/>
                 </div>
                 <div style={{ fontSize:10, color:'var(--g4)', fontWeight:600 }}>만료: {ticket.expires_at}</div>
               </>
             )}
           </div>
-          <div style={{ marginLeft:12 }}>
-            <PixelPlant ratio={ticket ? (ticket.remain / ticket.total) : 0}/>
-          </div>
+          <div style={{ marginLeft:12 }}><PixelPlant ratio={ticket ? (ticket.remain / ticket.total) : 0}/></div>
         </div>
 
         {meetingTickets.length > 0 && (
-          <div style={{ background:'#FFF8E1', borderRadius:14, padding:'10px 14px', marginBottom:12,
-            display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid #FFE082' }}>
+          <div style={{ background:'#FFF8E1', borderRadius:14, padding:'10px 14px', marginBottom:12, display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid #FFE082' }}>
             <div style={{ flex:1 }}>
               <div style={{ fontSize:10, color:'#F57F17', fontWeight:700, marginBottom:2 }}>👥 모임 참여권</div>
               {meetingTickets.map(mt => (
@@ -651,10 +510,7 @@ export default function StudentPage() {
           </div>
         )}
 
-        {/* 자율창작 바로가기 카드 */}
-        <div onClick={()=>router.push('/student/free')}
-          style={{ background:'#FBF8F2', borderRadius:14, padding:'14px 16px', marginBottom:12,
-            display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid #E8DCC4', cursor:'pointer' }}>
+        <div onClick={()=>router.push('/student/free')} style={{ background:'#FBF8F2', borderRadius:14, padding:'14px 16px', marginBottom:12, display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid #E8DCC4', cursor:'pointer' }}>
           <div style={{ flex:1 }}>
             <div style={{ fontSize:10, color:'#8B7355', fontWeight:700, marginBottom:2 }}>🎨 자율창작</div>
             <div style={{ fontSize:13, fontWeight:800, color:'#5C5247', marginBottom:2 }}>1시간만, 자유롭게</div>
@@ -663,9 +519,7 @@ export default function StudentPage() {
           <div style={{ fontSize:18, color:'#8B7355' }}>›</div>
         </div>
 
-        <div style={{ fontSize:12, fontWeight:800, color:'var(--td)', marginBottom:10 }}>
-          {month+1}월 {selectedDay}일 수업
-        </div>
+        <div style={{ fontSize:12, fontWeight:800, color:'var(--td)', marginBottom:10 }}>{month+1}월 {selectedDay}일 수업</div>
 
         {dc.length === 0 ? (
           <div style={{ textAlign:'center', padding:20, color:'var(--tmu)', fontSize:12 }}>이날은 수업이 없어요 🐾</div>
@@ -677,15 +531,9 @@ export default function StudentPage() {
                 <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                   {cats.map(cat => (
                     <div key={cat} onClick={() => {
-                      if (cat === 'free') {
-                        router.push('/student/free')
-                        return
-                      }
+                      if (cat === 'free') { router.push('/student/free'); return }
                       setSelCat(cat); setSelCourse(null); setSelSchedule(null)
-                    }}
-                      style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', borderRadius:20, cursor:'pointer',
-                        background:selCat===cat?CAT_COLOR[cat]:'var(--bg)',
-                        border:`1.5px solid ${selCat===cat?CAT_TEXT[cat]:'var(--g2)'}` }}>
+                    }} style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', borderRadius:20, cursor:'pointer', background:selCat===cat?CAT_COLOR[cat]:'var(--bg)', border:`1.5px solid ${selCat===cat?CAT_TEXT[cat]:'var(--g2)'}` }}>
                       <span style={{ fontSize:16 }}>{EMOJI[cat]||'🎨'}</span>
                       <span style={{ fontSize:12, fontWeight:700, color:selCat===cat?CAT_TEXT[cat]:'var(--td)' }}>{CAT_NAME[cat]}</span>
                     </div>
@@ -695,9 +543,7 @@ export default function StudentPage() {
             )}
 
             {cats.length === 1 && cats[0] === 'free' && (
-              <div onClick={()=>router.push('/student/free')}
-                style={{ padding:'14px 16px', background:'#FBF8F2', borderRadius:14, border:'1.5px solid #E8DCC4', cursor:'pointer',
-                  display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+              <div onClick={()=>router.push('/student/free')} style={{ padding:'14px 16px', background:'#FBF8F2', borderRadius:14, border:'1.5px solid #E8DCC4', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                 <div>
                   <div style={{ fontSize:13, fontWeight:800, color:'#5C5247' }}>🎨 자율창작 예약하러 가기</div>
                   <div style={{ fontSize:10, color:'#8B7355', marginTop:2 }}>자리와 시간을 직접 선택해요</div>
@@ -712,10 +558,7 @@ export default function StudentPage() {
               <div className="slide-up" style={{ marginBottom:12 }}>
                 <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>수업 선택</div>
                 {catCourses.map(c => (
-                  <div key={c.id} onClick={() => { setSelCourse(c); setSelSchedule(null) }}
-                    style={{ padding:'10px 14px', borderRadius:12, marginBottom:6, cursor:'pointer',
-                      background:selCourse?.id===c.id?CAT_COLOR[c.category]:'var(--bg)',
-                      border:`1.5px solid ${selCourse?.id===c.id?CAT_TEXT[c.category]:'var(--g2)'}` }}>
+                  <div key={c.id} onClick={() => { setSelCourse(c); setSelSchedule(null) }} style={{ padding:'10px 14px', borderRadius:12, marginBottom:6, cursor:'pointer', background:selCourse?.id===c.id?CAT_COLOR[c.category]:'var(--bg)', border:`1.5px solid ${selCourse?.id===c.id?CAT_TEXT[c.category]:'var(--g2)'}` }}>
                     <div style={{ fontSize:12, fontWeight:800, color:'var(--td)' }}>{c.name}</div>
                     <div style={{ fontSize:10, color:'var(--tmu)' }}>강사 {c.teacher}</div>
                   </div>
@@ -727,39 +570,23 @@ export default function StudentPage() {
 
             {selCourse && (
               <div className="slide-up" style={{ marginBottom:12 }}>
-                <div style={{ fontSize:15, fontWeight:800, color:'var(--td)', marginBottom:10 }}>
-                  {selCourse.name}
-                </div>
+                <div style={{ fontSize:15, fontWeight:800, color:'var(--td)', marginBottom:10 }}>{selCourse.name}</div>
                 <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>시간 선택</div>
                 {getSchedulesForDay(selCourse, selectedDay).map(s => {
                   const booked = isBooked(selCourse.id, s.id, selectedDay)
                   const booking = getBooking(selCourse.id, s.id, selectedDay)
                   const isSel = selSchedule?.id === s.id
                   return (
-                    <div key={s.id} onClick={() => !booked && setSelSchedule(s)}
-                      style={{ padding:'10px 14px', borderRadius:12, marginBottom:6,
-                        cursor:booked?'default':'pointer', display:'flex', alignItems:'center', justifyContent:'space-between',
-                        background:booked?'#e8f5e0':isSel?CAT_COLOR[selCourse.category]:'var(--bg)',
-                        border:`1.5px solid ${booked?'var(--g3)':isSel?CAT_TEXT[selCourse.category]:'var(--g2)'}` }}>
+                    <div key={s.id} onClick={() => !booked && setSelSchedule(s)} style={{ padding:'10px 14px', borderRadius:12, marginBottom:6, cursor:booked?'default':'pointer', display:'flex', alignItems:'center', justifyContent:'space-between', background:booked?'#e8f5e0':isSel?CAT_COLOR[selCourse.category]:'var(--bg)', border:`1.5px solid ${booked?'var(--g3)':isSel?CAT_TEXT[selCourse.category]:'var(--g2)'}` }}>
                       <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                         <div style={{ width:8, height:8, borderRadius:'50%', background:booked?'var(--g4)':'var(--g2)', flexShrink:0 }}/>
-                        <span style={{ fontSize:13, fontWeight:700, color:'var(--td)' }}>
-                          {s.start_time}~{s.end_time}
-                        </span>
-                        <span style={{ fontSize:10, fontWeight:700, color:'var(--tmu)' }}>
-                          · {getBookingCount(selCourse.id, s.id, selectedDay)}/{selCourse.max_count}명
-                        </span>
+                        <span style={{ fontSize:13, fontWeight:700, color:'var(--td)' }}>{s.start_time}~{s.end_time}</span>
+                        <span style={{ fontSize:10, fontWeight:700, color:'var(--tmu)' }}>· {getBookingCount(selCourse.id, s.id, selectedDay)}/{selCourse.max_count}명</span>
                       </div>
                       {booked ? (
-                        <button onClick={e=>{e.stopPropagation(); handleCancel(booking)}}
-                          style={{ fontSize:10, padding:'3px 10px', borderRadius:20, background:'var(--g1)',
-                            color:'var(--tm)', border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>
-                          예약취소
-                        </button>
+                        <button onClick={e=>{e.stopPropagation(); handleCancel(booking)}} style={{ fontSize:10, padding:'3px 10px', borderRadius:20, background:'var(--g1)', color:'var(--tm)', border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>예약취소</button>
                       ) : (
-                        <span style={{ fontSize:10, color:isSel?CAT_TEXT[selCourse.category]:'var(--tmu)', fontWeight:700 }}>
-                          {isSel?'✓ 선택됨':'선택'}
-                        </span>
+                        <span style={{ fontSize:10, color:isSel?CAT_TEXT[selCourse.category]:'var(--tmu)', fontWeight:700 }}>{isSel?'✓ 선택됨':'선택'}</span>
                       )}
                     </div>
                   )
@@ -771,18 +598,12 @@ export default function StudentPage() {
               <div className="slide-up">
                 {isBookable(selectedDay) ? (
                   selCourse?.category === 'meeting' || (ticket && ticket.remain > 0) ? (
-                    <button className="btn-primary" onClick={handleBook}>
-                      {selCourse?.name} {selSchedule?.start_time}~{selSchedule?.end_time} 예약하기
-                    </button>
+                    <button className="btn-primary" onClick={handleBook}>{selCourse?.name} {selSchedule?.start_time}~{selSchedule?.end_time} 예약하기</button>
                   ) : (
-                    <div style={{ padding:'14px', background:'#ffebee', borderRadius:14, textAlign:'center', color:'#c0392b', fontSize:12, fontWeight:700 }}>
-                      잔여 수강권이 없어요 🐾
-                    </div>
+                    <div style={{ padding:'14px', background:'#ffebee', borderRadius:14, textAlign:'center', color:'#c0392b', fontSize:12, fontWeight:700 }}>잔여 수강권이 없어요 🐾</div>
                   )
                 ) : (
-                  <div style={{ padding:'14px', background:'var(--bg)', borderRadius:14, textAlign:'center', color:'var(--tmu)', fontSize:12, fontWeight:600 }}>
-                    {monthDiff() < 0 ? '지난 날짜는 예약할 수 없어요' : '예약은 다음 달까지만 가능해요'}
-                  </div>
+                  <div style={{ padding:'14px', background:'var(--bg)', borderRadius:14, textAlign:'center', color:'var(--tmu)', fontSize:12, fontWeight:600 }}>{monthDiff() < 0 ? '지난 날짜는 예약할 수 없어요' : '예약은 다음 달까지만 가능해요'}</div>
                 )}
               </div>
             )}
@@ -793,21 +614,13 @@ export default function StudentPage() {
           <div style={{ marginTop:14 }}>
             <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>내 예약</div>
             {dayBookings.map(b => (
-              <div key={b.id} style={{ background:b.status==='pending'?'#FFF3E0':'#e8f5e0', borderRadius:12, padding:'10px 14px',
-                marginBottom:6, display:'flex', alignItems:'center', justifyContent:'space-between',
-                border:`1.5px solid ${b.status==='pending'?'#E65100':'var(--g3)'}` }}>
+              <div key={b.id} style={{ background:b.status==='pending'?'#FFF3E0':'#e8f5e0', borderRadius:12, padding:'10px 14px', marginBottom:6, display:'flex', alignItems:'center', justifyContent:'space-between', border:`1.5px solid ${b.status==='pending'?'#E65100':'var(--g3)'}` }}>
                 <div>
                   <div style={{ fontSize:12, fontWeight:800, color:'var(--td)' }}>{b.class_name}{b.seat?` · ${b.seat}자리`:''}</div>
                   <div style={{ fontSize:10, color:'var(--tm)' }}>{b.class_time}</div>
-                  {b.status==='pending' && (
-                    <div style={{ fontSize:9, color:'#E65100', fontWeight:700, marginTop:2 }}>모임 확정 대기중</div>
-                  )}
+                  {b.status==='pending' && (<div style={{ fontSize:9, color:'#E65100', fontWeight:700, marginTop:2 }}>모임 확정 대기중</div>)}
                 </div>
-                <button onClick={() => handleCancel(b)}
-                  style={{ fontSize:10, padding:'3px 10px', borderRadius:20, background:'var(--g1)',
-                    color:'var(--tm)', border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>
-                  취소
-                </button>
+                <button onClick={() => handleCancel(b)} style={{ fontSize:10, padding:'3px 10px', borderRadius:20, background:'var(--g1)', color:'var(--tm)', border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>취소</button>
               </div>
             ))}
           </div>
