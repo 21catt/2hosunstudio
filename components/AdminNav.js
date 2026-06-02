@@ -25,6 +25,7 @@ export default function AdminNav({ active }) {
   const items = [
     { href:'/admin', label:'회원', icon:'👥', key:'member' },
     { href:'/admin/schedule', label:'수업현황', icon:'📅', key:'schedule' },
+    { href:'/admin/seats', label:'자리사진', icon:'🪑', key:'seats' },
     { href:'/admin/notification', label:'알림', icon:'🔔', key:'notification' },
     { href:'/lounge', label:'라운지', icon:'💬', key:'lounge' },
   ]

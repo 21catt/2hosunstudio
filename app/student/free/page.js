@@ -38,6 +38,10 @@ export default function FreePage() {
   const [startHour, setStartHour] = useState(null)
   const [duration, setDuration] = useState(1)
   const [selSeat, setSelSeat] = useState(null)
+  const [seatPhotos, setSeatPhotos] = useState({})
+  const [photoIdx, setPhotoIdx] = useState(0)
+
+  useEffect(() => { setPhotoIdx(0) }, [selSeat])
 
   useEffect(() => {
     if (selSeat && startHour) {
@@ -55,6 +59,14 @@ export default function FreePage() {
   }, [])
 
   async function loadData() {
+    const { data: sp } = await supabase.from('seat_photos').select('*').order('sort_order', { ascending: true })
+    const grouped = {}
+    ;(sp || []).forEach(p => {
+      if (!grouped[p.seat_id]) grouped[p.seat_id] = []
+      grouped[p.seat_id].push(p)
+    })
+    setSeatPhotos(grouped)
+
     const { data: ab } = await supabase.from('bookings').select('class_date, class_time, seat')
     setAllBookings(ab || [])
 
@@ -402,6 +414,28 @@ export default function FreePage() {
               </div>
             </div>
           </div>
+
+        {selSeat && seatPhotos[selSeat]?.length > 0 && (
+          <div style={{ marginBottom:14 }}>
+            <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>{selSeat} 자리 사진</div>
+            <div style={{ position:'relative', borderRadius:14, overflow:'hidden', aspectRatio:'4/3', background:'#f0ede8' }}>
+              <img src={seatPhotos[selSeat][photoIdx].image_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>
+              {seatPhotos[selSeat].length > 1 && (
+                <>
+                  <button onClick={() => setPhotoIdx(i => (i - 1 + seatPhotos[selSeat].length) % seatPhotos[selSeat].length)}
+                    style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', width:28, height:28, borderRadius:'50%', background:'rgba(0,0,0,0.4)', color:'#fff', border:'none', fontSize:16, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>‹</button>
+                  <button onClick={() => setPhotoIdx(i => (i + 1) % seatPhotos[selSeat].length)}
+                    style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', width:28, height:28, borderRadius:'50%', background:'rgba(0,0,0,0.4)', color:'#fff', border:'none', fontSize:16, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>›</button>
+                  <div style={{ position:'absolute', bottom:8, left:'50%', transform:'translateX(-50%)', display:'flex', gap:5 }}>
+                    {seatPhotos[selSeat].map((_,i) => (
+                      <div key={i} onClick={() => setPhotoIdx(i)} style={{ width:6, height:6, borderRadius:'50%', background:i===photoIdx?'#fff':'rgba(255,255,255,0.5)', cursor:'pointer' }}/>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {startHour && selSeat && (
           <div style={{ background:'#fff', borderRadius:14, padding:'14px 16px', marginBottom:14, border:'1.5px solid var(--g1)' }}>
