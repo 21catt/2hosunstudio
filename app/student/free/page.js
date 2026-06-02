@@ -40,6 +40,13 @@ export default function FreePage() {
   const [selSeat, setSelSeat] = useState(null)
 
   useEffect(() => {
+    if (selSeat && startHour) {
+      const currentOcc = getSeatOccupancyRange(selectedDay, startHour, duration)
+      if (currentOcc[selSeat]) setSelSeat(null)
+    }
+  }, [selSeat, startHour, duration, selectedDay])
+
+  useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) { router.push('/login'); return }
       setUser(data.user)
@@ -74,7 +81,6 @@ export default function FreePage() {
     setMonth(newDate.getMonth())
     setSelectedDay(1)
     setStartHour(null)
-    setSelSeat(null)
   }
 
   function getSeatOccupancyAtHour(day, hour) {
@@ -245,7 +251,7 @@ export default function FreePage() {
 
               return (
                 <div key={d}
-                  onClick={()=>{ if(!isPast){ setSelectedDay(d); setStartHour(null); setSelSeat(null) } }}
+                  onClick={()=>{ if(!isPast){ setSelectedDay(d); setStartHour(null) } }}
                   style={{ height:38, display:'flex', alignItems:'center', justifyContent:'center',
                     cursor:isPast?'default':'pointer', borderRadius:10, opacity:isPast?0.25:1,
                     background:isSel?'var(--g4)':isT?'var(--g1)':'transparent',
@@ -268,7 +274,7 @@ export default function FreePage() {
               const isWeekend = date.getDay()===0 || date.getDay()===6
               const isSel = startHour===h
               return (
-                <div key={h} onClick={()=>{ setStartHour(h); setSelSeat(null) }}
+                <div key={h} onClick={()=>{ setStartHour(h) }}
                   style={{ padding:'8px 4px', borderRadius:10, textAlign:'center', cursor:'pointer',
                     background:isSel?'var(--g4)':'var(--bg)',
                     color:isSel?'#fff':'var(--td)',
@@ -292,7 +298,7 @@ export default function FreePage() {
                 const endHour = startHour + d
                 const valid = endHour <= 22
                 return (
-                  <div key={d} onClick={()=>{ if(valid){ setDuration(d); setSelSeat(null) } }}
+                  <div key={d} onClick={()=>{ if(valid){ setDuration(d) } }}
                     style={{ flex:1, padding:'10px', borderRadius:10, textAlign:'center', cursor:valid?'pointer':'default', opacity:valid?1:0.3,
                       background:isSel?'var(--g4)':'var(--bg)',
                       color:isSel?'#fff':'var(--td)',
