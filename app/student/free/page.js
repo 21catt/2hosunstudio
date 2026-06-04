@@ -419,7 +419,7 @@ export default function FreePage() {
           <div style={{ marginBottom:14 }}>
             <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>{selSeat} 자리 사진</div>
             <div style={{ position:'relative', borderRadius:14, overflow:'hidden', aspectRatio:'4/3', background:'#f0ede8' }}>
-              <img src={seatPhotos[selSeat][photoIdx].image_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>
+              <img src={seatPhotos[selSeat][photoIdx].image_url} alt="" style={{ width:'100%', height:'100%', objectFit:'contain' }}/>
               {seatPhotos[selSeat].length > 1 && (
                 <>
                   <button onClick={() => setPhotoIdx(i => (i - 1 + seatPhotos[selSeat].length) % seatPhotos[selSeat].length)}
