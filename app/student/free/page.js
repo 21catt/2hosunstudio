@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
+import { sendPushToAdmins } from '../../../lib/pushNotify'
 
 function getHourlyRate(date, hour) {
   const dow = date.getDay()
@@ -177,15 +178,17 @@ export default function FreePage() {
       seat: selSeat
     })
 
+    const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
+    const pushMsg = `${profile?.name || '학생'}님 자율창작 ${dateStr} ${startStr}~${endStr} ${selSeat}자리`
     if (freeCourse?.teacher_id) {
-      const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
       await supabase.from('notifications').insert({
         user_id: freeCourse.teacher_id,
         type: 'booking_created',
         title: '자율창작 예약',
-        body: `${profile?.name || '학생'}님이 ${dateStr} ${startStr}~${endStr} ${selSeat}자리 예약`
+        body: pushMsg
       })
     }
+    sendPushToAdmins('🎨 자율창작 예약', pushMsg)
 
     alert('예약 완료! 🐾')
     router.push('/student')

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import { useTodayWeather } from '../../components/WeatherBar'
 import StudentNav from '../../components/StudentNav'
+import { sendPushToAdmins } from '../../lib/pushNotify'
 
 const EMOJI = { drawing:'✏️', painting:'🎨', sculpture:'🗿', free:'🖼️', meeting:'👥' }
 const CAT_NAME = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', free:'자율창작', meeting:'모임' }
@@ -241,15 +242,17 @@ export default function StudentPage() {
     await supabase.from('tickets').update({ remain: ticket.remain-1 }).eq('id', ticket.id)
 
     const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
+    const pushMsg = `${profile?.name || '학생'}님 ${selCourse.name} ${dateStr} ${selSchedule.start_time} 예약`
     if (selCourse.teacher_id) {
       await supabase.from('notifications').insert({
         user_id: selCourse.teacher_id,
         type: 'booking_created',
         title: '새 예약',
-        body: `${profile?.name || '학생'}님이 ${selCourse.name} ${dateStr} ${selSchedule.start_time} 예약`,
+        body: pushMsg,
         related_id: newBooking?.id
       })
     }
+    sendPushToAdmins('🐾 새 예약', pushMsg)
 
     setSelCat(null); setSelCourse(null); setSelSchedule(null)
     loadData(user.id)

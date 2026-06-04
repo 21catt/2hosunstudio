@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import AdminNav from '../../components/AdminNav'
+import { registerPush } from '../../lib/pushNotify'
 
 export default function AdminPage() {
   const router = useRouter()
@@ -11,6 +12,7 @@ export default function AdminPage() {
   const [expanded, setExpanded] = useState(null)
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
+  const [pushEnabled, setPushEnabled] = useState(false)
 const [customInputs, setCustomInputs] = useState({})
 const [meetingInputs, setMeetingInputs] = useState({})
 const [memberMeetingTickets, setMemberMeetingTickets] = useState({})
@@ -21,7 +23,15 @@ const [memberMeetingTickets, setMemberMeetingTickets] = useState({})
       setUser(data.user)
       loadMembers()
     })
+    if ('Notification' in window) setPushEnabled(Notification.permission === 'granted')
   }, [])
+
+  async function handleEnablePush() {
+    const { data } = await supabase.auth.getUser()
+    const ok = await registerPush(data.user.id)
+    if (ok) { setPushEnabled(true); alert('예약 알림이 설정됐어요! 🐾') }
+    else alert('알림 허용을 눌러주세요.')
+  }
 
   async function loadMembers() {
   const { data } = await supabase
@@ -96,10 +106,16 @@ async function adjustMeetingTicket(ticketId, currentRemain, delta) {
             <span style={{ fontSize:18 }}>✏️</span>
             <span className="header-title">회원 관리</span>
           </div>
-          <button onClick={()=>supabase.auth.signOut().then(()=>router.push('/login'))}
-            style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:20, padding:'4px 10px', color:'#fff', fontSize:10, fontWeight:700, cursor:'pointer' }}>
-            로그아웃
-          </button>
+          <div style={{ display:'flex', gap:6 }}>
+            <button onClick={handleEnablePush}
+              style={{ background: pushEnabled ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.2)', border:'none', borderRadius:20, padding:'4px 10px', color:'#fff', fontSize:10, fontWeight:700, cursor:'pointer' }}>
+              {pushEnabled ? '🔔 알림ON' : '🔕 알림설정'}
+            </button>
+            <button onClick={()=>supabase.auth.signOut().then(()=>router.push('/login'))}
+              style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:20, padding:'4px 10px', color:'#fff', fontSize:10, fontWeight:700, cursor:'pointer' }}>
+              로그아웃
+            </button>
+          </div>
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:8, background:'rgba(255,255,255,0.2)', borderRadius:20, padding:'8px 14px', width:'100%' }}>
           <span style={{ color:'rgba(255,255,255,0.8)', fontSize:14 }}>🔍</span>
