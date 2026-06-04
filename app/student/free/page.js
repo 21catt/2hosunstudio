@@ -159,7 +159,7 @@ export default function FreePage() {
   }
 
   async function handleBook() {
-    if (!startHour || !selSeat || !freeCourse) return
+    if (!startHour || !selSeat) return
 
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
     const startStr = `${String(startHour).padStart(2,'0')}:00`
@@ -167,17 +167,17 @@ export default function FreePage() {
 
     await supabase.from('bookings').insert({
       user_id: user.id,
-      course_id: freeCourse.id,
+      course_id: freeCourse?.id || null,
       schedule_id: null,
       class_name: '자율창작',
       class_date: dateStr,
       class_time: `${startStr}~${endStr}`,
-      teacher: freeCourse.teacher || '',
+      teacher: freeCourse?.teacher || '',
       status: 'booked',
       seat: selSeat
     })
 
-    if (freeCourse.teacher_id) {
+    if (freeCourse?.teacher_id) {
       const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
       await supabase.from('notifications').insert({
         user_id: freeCourse.teacher_id,
@@ -197,15 +197,6 @@ export default function FreePage() {
     </div>
   )
 
-  if (!freeCourse) return (
-    <div style={{ padding:20, textAlign:'center' }}>
-      <div style={{ fontSize:14, color:'var(--td)', marginBottom:14 }}>아직 자율창작이 열리지 않았어요</div>
-      <button onClick={()=>router.push('/student')}
-        style={{ padding:'10px 18px', background:'var(--g4)', color:'#fff', border:'none', borderRadius:12, fontWeight:700, cursor:'pointer' }}>
-        돌아가기
-      </button>
-    </div>
-  )
 
   const daysInMonth = new Date(year, month+1, 0).getDate()
   const firstDow = new Date(year, month, 1).getDay()

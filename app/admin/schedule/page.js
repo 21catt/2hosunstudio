@@ -450,6 +450,42 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
               {month+1}월 {selDay}일 ({DAYS[new Date(year,month,selDay).getDay()]}) 수업
             </div>
 
+            {/* 자율창작 예약 현황 */}
+            {(() => {
+              const freeBookings = bookings.filter(b => b.class_name === '자율창작' && b.class_date === selDateStr)
+              if (freeBookings.length === 0) return null
+              const isExp = expanded === '__free__'
+              return (
+                <div style={{ background:'#FBF8F2', borderRadius:14, border:`1.5px solid ${isExp?'#C9B894':'#E8DCC4'}`, marginBottom:8, overflow:'hidden' }}>
+                  <div onClick={() => setExpanded(isExp?null:'__free__')}
+                    style={{ padding:'12px 14px', display:'flex', alignItems:'center', gap:10, cursor:'pointer' }}>
+                    <div style={{ width:36, height:36, borderRadius:10, background:'#F4EDE0', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, flexShrink:0 }}>🎨</div>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:12, fontWeight:800, color:'#5C5247', marginBottom:2 }}>자율창작</div>
+                      <div style={{ fontSize:10, color:'#8B7355' }}>자유 이용</div>
+                    </div>
+                    <div style={{ textAlign:'right' }}>
+                      <div style={{ fontSize:12, fontWeight:800, color:'#8B7355' }}>{freeBookings.length}명</div>
+                      <div style={{ fontSize:10, color:'#8B7355' }}>{isExp?'▲':'▼'}</div>
+                    </div>
+                  </div>
+                  {isExp && (
+                    <div style={{ borderTop:'1px solid #E8DCC4', padding:'10px 14px' }}>
+                      {freeBookings.sort((a,b) => (a.class_time||'').localeCompare(b.class_time||'')).map(b => (
+                        <div key={b.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'6px 0', borderBottom:'1px solid #F0EAE0' }}>
+                          <div>
+                            <span style={{ fontSize:12, fontWeight:700, color:'#5C5247' }}>{b.users?.name || '학생'}</span>
+                            {b.seat && <span style={{ fontSize:10, color:'#8B7355', marginLeft:6, background:'#F4EDE0', padding:'1px 6px', borderRadius:6 }}>{b.seat}자리</span>}
+                          </div>
+                          <span style={{ fontSize:11, color:'#8B7355', fontWeight:600 }}>{b.class_time}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
             {selCourses.length === 0 ? (
               <div style={{ textAlign:'center', padding:20, color:'var(--tmu)', fontSize:12 }}>이날은 수업이 없어요 🐾</div>
             ) : selCourses.map(c => {
