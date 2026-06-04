@@ -104,7 +104,7 @@ export default function AdminSeatsPage() {
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:18 }}>
           {currentPhotos.map((p, i) => (
             <div key={p.id} style={{ position:'relative', borderRadius:14, overflow:'hidden', aspectRatio:'4/3', background:'var(--bg)' }}>
-              <img src={p.image_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>
+              <img src={p.image_url} alt="" style={{ width:'100%', height:'100%', objectFit:'contain' }}/>
               <button onClick={() => handleDelete(p)}
                 style={{ position:'absolute', top:6, right:6, width:26, height:26, borderRadius:'50%', background:'rgba(0,0,0,0.55)', color:'#fff', border:'none', fontSize:14, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', lineHeight:1 }}>
                 ×
