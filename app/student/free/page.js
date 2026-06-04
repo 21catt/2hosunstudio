@@ -482,6 +482,19 @@ export default function FreePage() {
             <div>· 예약 시작 5시간 전까지만 취소가 가능해요.</div>
           </div>
         </div>
+
+        <div style={{ background:'#FBF8F2', borderRadius:14, padding:'14px 16px', marginTop:10, border:'1.5px solid #E8DCC4' }}>
+          <div style={{ fontSize:13, fontWeight:800, color:'#5C5247', marginBottom:10 }}>
+            작품 보관 안내 🖼️
+          </div>
+          <div style={{ fontSize:11, color:'#8B7355', lineHeight:1.9 }}>
+            <div>· 덜 마른 작품은 건조대에 두고 가실 수 있어요.</div>
+            <div>· 보관은 최대 2주이며, 기간 안에 찾아가 주세요.</div>
+            <div>· 맡기실 땐 라벨에 이름 · 날짜 · 연락처를 적어주세요.</div>
+            <div>· 2주가 지난 작품은 폐기될 수 있어요. (맡기시면 이에 동의하는 것으로 봐요.)</div>
+            <div>· 보관 중 파손 · 분실은 책임지지 않아요.</div>
+          </div>
+        </div>
       </div>
 
       <StudentNav active="schedule" />
