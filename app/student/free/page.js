@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
@@ -42,6 +42,15 @@ export default function FreePage() {
   const [photoIdx, setPhotoIdx] = useState(0)
 
   useEffect(() => { setPhotoIdx(0) }, [selSeat])
+  const photoTouchX = useRef(null)
+  function handlePhotoTouchEnd(e, len) {
+    if (photoTouchX.current == null || len < 2) return
+    const delta = e.changedTouches[0].clientX - photoTouchX.current
+    photoTouchX.current = null
+    if (Math.abs(delta) < 50) return        // 50px 미만은 무시 (살짝 터치 방지)
+    if (delta < 0) setPhotoIdx(i => (i + 1) % len)            // 왼쪽으로 밀면 다음
+    else setPhotoIdx(i => (i - 1 + len) % len)               // 오른쪽으로 밀면 이전
+  }
 
   useEffect(() => {
     if (selSeat && startHour) {
@@ -418,17 +427,19 @@ export default function FreePage() {
         {selSeat && seatPhotos[selSeat]?.length > 0 && (
           <div style={{ marginBottom:14 }}>
             <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>{selSeat} 자리 사진</div>
-            <div style={{ position:'relative', borderRadius:14, overflow:'hidden', aspectRatio:'4/3', background:'#f0ede8' }}>
+          <div style={{ position:'relative', borderRadius:14, overflow:'hidden', aspectRatio:'4/3', background:'#f0ede8' }}
+              onTouchStart={(e) => { photoTouchX.current = e.touches[0].clientX }}
+              onTouchEnd={(e) => handlePhotoTouchEnd(e, seatPhotos[selSeat].length)}>
               <img src={seatPhotos[selSeat][photoIdx].image_url} alt="" style={{ width:'100%', height:'100%', objectFit:'contain' }}/>
               {seatPhotos[selSeat].length > 1 && (
                 <>
                   <button onClick={() => setPhotoIdx(i => (i - 1 + seatPhotos[selSeat].length) % seatPhotos[selSeat].length)}
-                    style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', width:28, height:28, borderRadius:'50%', background:'rgba(0,0,0,0.4)', color:'#fff', border:'none', fontSize:16, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>‹</button>
+                    style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', width:44, height:44, borderRadius:'50%', background:'rgba(0,0,0,0.45)', color:'#fff', border:'none', fontSize:26, lineHeight:1, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>‹</button>
                   <button onClick={() => setPhotoIdx(i => (i + 1) % seatPhotos[selSeat].length)}
-                    style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', width:28, height:28, borderRadius:'50%', background:'rgba(0,0,0,0.4)', color:'#fff', border:'none', fontSize:16, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>›</button>
-                  <div style={{ position:'absolute', bottom:8, left:'50%', transform:'translateX(-50%)', display:'flex', gap:5 }}>
+                    style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', width:44, height:44, borderRadius:'50%', background:'rgba(0,0,0,0.45)', color:'#fff', border:'none', fontSize:26, lineHeight:1, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>›</button>
+                  <div style={{ position:'absolute', bottom:8, left:'50%', transform:'translateX(-50%)', display:'flex', gap:6 }}>
                     {seatPhotos[selSeat].map((_,i) => (
-                      <div key={i} onClick={() => setPhotoIdx(i)} style={{ width:6, height:6, borderRadius:'50%', background:i===photoIdx?'#fff':'rgba(255,255,255,0.5)', cursor:'pointer' }}/>
+                      <div key={i} onClick={() => setPhotoIdx(i)} style={{ width:8, height:8, borderRadius:'50%', background:i===photoIdx?'#fff':'rgba(255,255,255,0.5)', cursor:'pointer' }}/>
                     ))}
                   </div>
                 </>
