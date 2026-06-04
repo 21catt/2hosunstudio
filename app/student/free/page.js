@@ -222,16 +222,6 @@ export default function FreePage() {
 
       <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 100px' }}>
 
-        <div style={{ background:'#FBF8F2', borderRadius:14, padding:'14px 16px', marginBottom:14, border:'1.5px solid #E8DCC4' }}>
-          <div style={{ fontSize:13, fontWeight:800, color:'#5C5247', marginBottom:6 }}>
-            오늘 1시간, 자유롭게 🐾
-          </div>
-          <div style={{ fontSize:11, color:'#8B7355', lineHeight:1.6 }}>
-            원하는 자리에서 자유롭게 그려요.<br/>
-            평일 낮 6,000원 · 저녁 8,000원 · 주말 10,000원 (1시간)
-          </div>
-        </div>
-
         <div style={{ marginBottom:14 }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
             <button onClick={()=>changeMonth(-1)} disabled={monthDiff()<=-1}
@@ -276,6 +266,16 @@ export default function FreePage() {
           </div>
         </div>
 
+        <div style={{ background:'#FBF8F2', borderRadius:14, padding:'14px 16px', marginBottom:14, border:'1.5px solid #E8DCC4' }}>
+          <div style={{ fontSize:13, fontWeight:800, color:'#5C5247', marginBottom:6 }}>
+            오늘 1시간, 자유롭게 🐾
+          </div>
+          <div style={{ fontSize:11, color:'#8B7355', lineHeight:1.6 }}>
+            원하는 자리에서 자유롭게 그려요.<br/>
+            평일 낮 6,000원 · 저녁 8,000원 · 주말 10,000원 (1시간)
+          </div>
+        </div>
+
         <div style={{ marginBottom:14 }}>
           <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>시작 시간</div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:5 }}>
@@ -293,7 +293,7 @@ export default function FreePage() {
                     border:`1.5px solid ${isSel?'var(--g4)':'var(--g1)'}` }}>
                   <div style={{ fontSize:12, fontWeight:800 }}>{h}시</div>
                   <div style={{ fontSize:8, color:isSel?'#fff':isWeekend?'#b05050':isNight?'#7B4F00':'var(--tmu)', marginTop:1, fontWeight:600 }}>
-                    {(rate/1000)|0}k
+                    {(rate/1000)|0}w
                   </div>
                 </div>
               )
