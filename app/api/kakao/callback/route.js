@@ -1,46 +1,61 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { supabaseAdmin } from '../../../../lib/supabaseAdmin'
 
 export const dynamic = 'force-dynamic'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
+export async function GET(request) {
+  const url = new URL(request.url)
+  const code = url.searchParams.get('code')
 
-export async function GET(req) {
-  const { searchParams } = new URL(req.url)
-  const code = searchParams.get('code')
-  if (!code) return NextResponse.redirect('/admin?kakao=error')
+  // 절대 URL로 리다이렉트 (상대경로면 500 에러 남)
+  const go = (path) => NextResponse.redirect(new URL(path, request.url))
 
-  // 인가 코드로 토큰 교환
-  const tokenRes = await fetch('https://kauth.kakao.com/oauth/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'authorization_code',
-      client_id: process.env.KAKAO_REST_API_KEY,
-      redirect_uri: process.env.KAKAO_REDIRECT_URI,
-      code,
+  if (!code) return go('/admin?kakao=fail&reason=nocode')
+
+  try {
+    // 1) 인가 코드 → 토큰 교환
+    const tokenRes = await fetch('https://kauth.kakao.com/oauth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        client_id: process.env.KAKAO_REST_API_KEY,
+        redirect_uri: process.env.KAKAO_REDIRECT_URI,
+        code,
+        client_secret: process.env.KAKAO_CLIENT_SECRET,
+      }),
     })
-  })
-  const tokenData = await tokenRes.json()
-  if (!tokenData.refresh_token) return NextResponse.redirect('/admin?kakao=error')
+    const token = await tokenRes.json()
+    if (!token.access_token) {
+      console.error('토큰 교환 실패', token)
+      return go('/admin?kakao=fail&reason=token')
+    }
 
-  // Supabase에 토큰 저장 (upsert - 여러 관리자 지원)
-  const { access_token, refresh_token } = tokenData
+    // 2) 카카오 사용자 ID 조회
+    const meRes = await fetch('https://kapi.kakao.com/v2/user/me', {
+      headers: { Authorization: `Bearer ${token.access_token}` },
+    })
+    const me = await meRes.json()
 
-  // 카카오 사용자 정보로 kakao_id 가져오기
-  const userRes = await fetch('https://kapi.kakao.com/v2/user/me', {
-    headers: { Authorization: `Bearer ${access_token}` }
-  })
-  const kakaoUser = await userRes.json()
-  const kakaoId = String(kakaoUser.id)
+    // 3) 토큰 저장 (kakao_id 기준 upsert)
+    const accessExpiresAt = new Date(Date.now() + (token.expires_in - 60) * 1000).toISOString()
+    const { error } = await supabaseAdmin.from('admin_kakao_tokens').upsert({
+      kakao_id: me.id,
+      nickname: me?.kakao_account?.profile?.nickname || null,
+      access_token: token.access_token,
+      refresh_token: token.refresh_token,
+      access_expires_at: accessExpiresAt,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'kakao_id' })
 
-  await supabase.from('kakao_tokens').upsert(
-    { kakao_id: kakaoId, access_token, refresh_token, updated_at: new Date().toISOString() },
-    { onConflict: 'kakao_id' }
-  )
+    if (error) {
+      console.error('토큰 저장 실패', error)
+      return go('/admin?kakao=fail&reason=save')
+    }
 
-  return NextResponse.redirect(`${process.env.KAKAO_REDIRECT_URI.replace('/api/kakao/callback', '')}/admin?kakao=success`)
+    return go('/admin?kakao=ok')
+  } catch (e) {
+    console.error('콜백 처리 오류', e)
+    return go('/admin?kakao=fail&reason=exception')
+  }
 }
