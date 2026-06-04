@@ -465,8 +465,22 @@ export default function FreePage() {
           )
         )}
 
-        <div style={{ textAlign:'center', fontSize:10, color:'var(--tmu)', marginTop:12, lineHeight:1.6 }}>
-          5시간 전까지 무료 취소
+        <div style={{ background:'#FBF8F2', borderRadius:14, padding:'14px 16px', marginTop:14, border:'1.5px solid #E8DCC4' }}>
+          <div style={{ fontSize:13, fontWeight:800, color:'#5C5247', marginBottom:10 }}>
+            이용 전 꼭 읽어주세요 🐾
+          </div>
+          <div style={{ fontSize:11, color:'#8B7355', lineHeight:1.9 }}>
+            <div>· 사용한 자리는 깨끗이 정리하고 떠나주세요.</div>
+            <div>· 미디엄 · 세척통 · 유리 파레트는 자유롭게 사용할 수 있어요.</div>
+            <div>· 물감 · 붓 등 개인 도구는 직접 준비해 주세요.</div>
+            <div>· 휴지와 유리 파레트는 사용 후 직접 치워주세요.</div>
+            <div>· 작업 중 나온 쓰레기는 분리수거 해주세요.</div>
+            <div>· 예약 시간 안에 정리까지 마쳐주세요.</div>
+            <div>· 의자나 집기 오염이 심한 경우 배상을 요청드릴 수 있어요.</div>
+            <div>· 다른 분들을 위해 통화 · 큰 소리는 자제해 주세요.</div>
+            <div>· 완성한 작품은 당일 가져가 주세요. 보관은 어려워요.</div>
+            <div>· 예약 시작 5시간 전까지만 취소가 가능해요.</div>
+          </div>
         </div>
       </div>
 
