@@ -192,6 +192,18 @@ export default function FreePage() {
     sendPushToAdmins('🎨 자율창작 예약', pushMsg)
     sendKakaoToAdmins('🎨 자율창작 예약', pushMsg)
 
+   // 관리자에게 카카오 알림 (실패해도 예약엔 영향 없음)
+    try {
+      await fetch('/api/kakao/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: `새 자율창작 예약 🐾\n${dateStr} ${startStr}~${endStr}\n${selSeat}자리`,
+          link: 'https://2hosunstudio.vercel.app/admin',
+        }),
+      })
+    } catch (e) {}
+
     alert('예약 완료! 🐾')
     router.push('/student')
   }
