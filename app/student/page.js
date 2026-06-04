@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { useTodayWeather } from '../../components/WeatherBar'
 import StudentNav from '../../components/StudentNav'
 import { sendPushToAdmins } from '../../lib/pushNotify'
+import { sendKakaoToAdmins } from '../../lib/kakaoNotify'
 
 const EMOJI = { drawing:'✏️', painting:'🎨', sculpture:'🗿', free:'🖼️', meeting:'👥' }
 const CAT_NAME = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', free:'자율창작', meeting:'모임' }
@@ -253,6 +254,7 @@ export default function StudentPage() {
       })
     }
     sendPushToAdmins('🐾 새 예약', pushMsg)
+    sendKakaoToAdmins('🐾 새 예약', pushMsg)
 
     setSelCat(null); setSelCourse(null); setSelSchedule(null)
     loadData(user.id)

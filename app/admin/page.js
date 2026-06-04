@@ -111,6 +111,10 @@ async function adjustMeetingTicket(ticketId, currentRemain, delta) {
               style={{ background: pushEnabled ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.2)', border:'none', borderRadius:20, padding:'4px 10px', color:'#fff', fontSize:10, fontWeight:700, cursor:'pointer' }}>
               {pushEnabled ? '🔔 알림ON' : '🔕 알림설정'}
             </button>
+            <button onClick={() => window.location.href = '/api/kakao/login'}
+              style={{ background:'rgba(255,235,0,0.3)', border:'none', borderRadius:20, padding:'4px 10px', color:'#fff', fontSize:10, fontWeight:700, cursor:'pointer' }}>
+              💬 카톡연동
+            </button>
             <button onClick={()=>supabase.auth.signOut().then(()=>router.push('/login'))}
               style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:20, padding:'4px 10px', color:'#fff', fontSize:10, fontWeight:700, cursor:'pointer' }}>
               로그아웃

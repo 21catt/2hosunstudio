@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
 import { sendPushToAdmins } from '../../../lib/pushNotify'
+import { sendKakaoToAdmins } from '../../../lib/kakaoNotify'
 
 function getHourlyRate(date, hour) {
   const dow = date.getDay()
@@ -189,6 +190,7 @@ export default function FreePage() {
       })
     }
     sendPushToAdmins('🎨 자율창작 예약', pushMsg)
+    sendKakaoToAdmins('🎨 자율창작 예약', pushMsg)
 
     alert('예약 완료! 🐾')
     router.push('/student')
