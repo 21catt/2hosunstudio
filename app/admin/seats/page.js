@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import AdminNav from '../../../components/AdminNav'
@@ -13,6 +13,16 @@ export default function AdminSeatsPage() {
   const [photos, setPhotos] = useState({})
   const [uploading, setUploading] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [previewIdx, setPreviewIdx] = useState(0)
+  const touchX = useRef(null)
+
+  function handleSwipe(e, len) {
+    if (touchX.current == null || len < 2) return
+    const delta = e.changedTouches[0].clientX - touchX.current
+    touchX.current = null
+    if (Math.abs(delta) < 50) return
+    setPreviewIdx(i => delta < 0 ? (i+1)%len : (i-1+len)%len)
+  }
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -91,7 +101,7 @@ export default function AdminSeatsPage() {
 
         <div style={{ display:'flex', gap:6, marginBottom:18, overflowX:'auto', paddingBottom:4 }}>
           {SEATS.map(s => (
-            <button key={s} onClick={() => setSelSeat(s)}
+            <button key={s} onClick={() => { setSelSeat(s); setPreviewIdx(0) }}
               style={{ flexShrink:0, padding:'8px 16px', borderRadius:20, border:`1.5px solid ${selSeat===s?'var(--g4)':'var(--g2)'}`, background:selSeat===s?'var(--g4)':'#fff', color:selSeat===s?'#fff':'var(--td)', fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
               {s}
             </button>
@@ -100,6 +110,27 @@ export default function AdminSeatsPage() {
 
         <div style={{ fontSize:14, fontWeight:800, color:'var(--td)', marginBottom:4 }}>{SEAT_LABEL[selSeat]}</div>
         <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:16 }}>최대 4장까지 등록 가능 · 현재 {currentPhotos.length}장</div>
+
+        {currentPhotos.length > 0 && (
+          <div style={{ position:'relative', borderRadius:14, overflow:'hidden', aspectRatio:'4/3', background:'#f0ede8', marginBottom:14 }}
+            onTouchStart={e => { touchX.current = e.touches[0].clientX }}
+            onTouchEnd={e => handleSwipe(e, currentPhotos.length)}>
+            <img src={currentPhotos[previewIdx]?.image_url} alt="" style={{ width:'100%', height:'100%', objectFit:'contain' }}/>
+            {currentPhotos.length > 1 && (
+              <>
+                <button onClick={() => setPreviewIdx(i => (i-1+currentPhotos.length)%currentPhotos.length)}
+                  style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', width:44, height:44, borderRadius:'50%', background:'rgba(0,0,0,0.45)', color:'#fff', border:'none', fontSize:26, lineHeight:1, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>‹</button>
+                <button onClick={() => setPreviewIdx(i => (i+1)%currentPhotos.length)}
+                  style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', width:44, height:44, borderRadius:'50%', background:'rgba(0,0,0,0.45)', color:'#fff', border:'none', fontSize:26, lineHeight:1, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>›</button>
+                <div style={{ position:'absolute', bottom:8, left:'50%', transform:'translateX(-50%)', display:'flex', gap:6 }}>
+                  {currentPhotos.map((_,i) => (
+                    <div key={i} onClick={() => setPreviewIdx(i)} style={{ width:8, height:8, borderRadius:'50%', background:i===previewIdx?'#fff':'rgba(255,255,255,0.5)', cursor:'pointer' }}/>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:18 }}>
           {currentPhotos.map((p, i) => (

@@ -21,6 +21,17 @@ export default function LoungePage() {
   const [uploading, setUploading] = useState(false)
   const [carouselIdx, setCarouselIdx] = useState({})
   const fileRef = useRef()
+  const touchX = useRef(null)
+  function handleSwipe(e, postId, len) {
+    if (touchX.current == null || len < 2) return
+    const delta = e.changedTouches[0].clientX - touchX.current
+    touchX.current = null
+    if (Math.abs(delta) < 50) return
+    setCarouselIdx(c => {
+      const cur = c[postId] || 0
+      return { ...c, [postId]: delta < 0 ? (cur+1)%len : (cur-1+len)%len }
+    })
+  }
 const [editingId, setEditingId] = useState(null)
 const [existingImages, setExistingImages] = useState([])
   const TAGS = ['전체','공지','행사','수업','기타']
@@ -285,16 +296,21 @@ function removeExistingImage(idx) {
               )}
               
               {images.length > 0 && isExp && (
-                <div style={{ position:'relative', background:'#000' }} onClick={e => e.stopPropagation()}>
+                <div style={{ position:'relative', background:'#000' }} onClick={e => e.stopPropagation()}
+                  onTouchStart={e => { touchX.current = e.touches[0].clientX }}
+                  onTouchEnd={e => handleSwipe(e, p.id, images.length)}>
                   <img src={images[idx]} alt="" style={{ width:'100%', maxHeight:360, objectFit:'contain', display:'block' }}/>
                   {images.length > 1 && (
                     <>
                       <button onClick={() => setCarouselIdx(c => ({...c,[p.id]:(idx-1+images.length)%images.length}))}
-                        style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', background:'rgba(0,0,0,0.5)', color:'#fff', border:'none', borderRadius:'50%', width:32, height:32, cursor:'pointer', fontSize:16 }}>‹</button>
+                        style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', background:'rgba(0,0,0,0.45)', color:'#fff', border:'none', borderRadius:'50%', width:44, height:44, cursor:'pointer', fontSize:26, lineHeight:1, display:'flex', alignItems:'center', justifyContent:'center' }}>‹</button>
                       <button onClick={() => setCarouselIdx(c => ({...c,[p.id]:(idx+1)%images.length}))}
-                        style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', background:'rgba(0,0,0,0.5)', color:'#fff', border:'none', borderRadius:'50%', width:32, height:32, cursor:'pointer', fontSize:16 }}>›</button>
-                      <div style={{ position:'absolute', bottom:8, left:'50%', transform:'translateX(-50%)', background:'rgba(0,0,0,0.55)', color:'#fff', fontSize:10, fontWeight:700, padding:'3px 10px', borderRadius:12 }}>
-                        {idx+1} / {images.length}
+                        style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', background:'rgba(0,0,0,0.45)', color:'#fff', border:'none', borderRadius:'50%', width:44, height:44, cursor:'pointer', fontSize:26, lineHeight:1, display:'flex', alignItems:'center', justifyContent:'center' }}>›</button>
+                      <div style={{ position:'absolute', bottom:8, left:'50%', transform:'translateX(-50%)', display:'flex', gap:6 }}>
+                        {images.map((_,i) => (
+                          <div key={i} onClick={() => setCarouselIdx(c => ({...c,[p.id]:i}))}
+                            style={{ width:8, height:8, borderRadius:'50%', background:i===idx?'#fff':'rgba(255,255,255,0.5)', cursor:'pointer' }}/>
+                        ))}
                       </div>
                     </>
                   )}
