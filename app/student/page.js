@@ -482,17 +482,11 @@ export default function StudentPage() {
                 ) : (
                   <div style={{ fontSize:12, fontWeight:700, color:dow===0?'#b05050':dow===6?'#5070a0':'var(--td)' }}>{d}</div>
                 )}
-                {!isB && hasCls && !isSel && (
-                  <div style={{ width:4, height:4, borderRadius:'50%', background:'var(--g3)', marginTop:2 }}/>
-                )}
               </div>
             )
           })}
         </div>
-        <div style={{ display:'flex', alignItems:'center', gap:5, marginBottom:12, paddingLeft:2 }}>
-          <div style={{ width:5, height:5, borderRadius:'50%', background:'var(--g3)', flexShrink:0 }}/>
-          <span style={{ fontSize:10, color:'var(--tmu)', fontWeight:500 }}>수업 있는 날</span>
-        </div>
+
 
         <div style={{ background:'var(--g1)', borderRadius:14, padding:'10px 14px', marginBottom:12, display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid var(--g2)' }}>
           <div style={{ flex:1 }}>
