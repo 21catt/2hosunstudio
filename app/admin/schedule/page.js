@@ -570,6 +570,7 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
                       <div style={{ fontSize:10, color:'var(--tmu)' }}>
                         {c.class_schedules
   ?.filter((s,i,arr) => arr.findIndex(x => x.start_time===s.start_time && x.end_time===s.end_time)===i)
+  .sort((a,b) => a.start_time.localeCompare(b.start_time))
   .map(s=>`${s.start_time}~${s.end_time}`)
   .join(' / ')}
                       </div>
@@ -584,7 +585,7 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
 
                   {isExp && (
                     <div style={{ borderTop:'1px solid var(--g1)', padding:'10px 14px' }}>
-                      {schedules?.filter((s,i,arr) => arr.findIndex(x => x.start_time===s.start_time && x.end_time===s.end_time)===i).map(s => {
+                      {schedules?.filter((s,i,arr) => arr.findIndex(x => x.start_time===s.start_time && x.end_time===s.end_time)===i).sort((a,b)=>a.start_time.localeCompare(b.start_time)).map(s => {
                         const slotBookings = dayBookings.filter(b => b.class_time === `${s.start_time}~${s.end_time}`)
                         return (
                           <div key={`${s.start_time}-${s.end_time}`} style={{ marginBottom:10 }}>
@@ -704,7 +705,7 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
                 </div>
                 {c.class_schedules?.length>0 && (
                   <div style={{ marginTop:8, paddingTop:8, borderTop:'1px solid var(--g1)', display:'flex', gap:4, flexWrap:'wrap' }}>
-                    {c.class_schedules.map((s,i) => (
+                    {[...c.class_schedules].sort((a,b)=>a.start_time.localeCompare(b.start_time)||(a.day_of_week-b.day_of_week)).map((s,i) => (
                       <span key={i} style={{ fontSize:9, padding:'2px 7px', borderRadius:6, background:'var(--g1)', color:'var(--g5)', fontWeight:700 }}>
                         {DAYS[s.day_of_week]} {s.start_time}~{s.end_time}
                       </span>

@@ -145,7 +145,7 @@ export default function StudentPage() {
       if (seen.has(key)) return false
       seen.add(key)
       return true
-    })
+    }).sort((a,b) => a.start_time.localeCompare(b.start_time))
   }
 
   function isBooked(courseId, scheduleId, day) {
