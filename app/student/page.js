@@ -99,6 +99,7 @@ export default function StudentPage() {
   const todayY = now.getFullYear()
   const todayM = now.getMonth()
   const todayD = now.getDate()
+  const todayStr = `${todayY}-${String(todayM+1).padStart(2,'0')}-${String(todayD).padStart(2,'0')}`
   const [year, setYear] = useState(todayY)
   const [month, setMonth] = useState(todayM)
   const today = (year === todayY && month === todayM) ? todayD : -1
@@ -217,6 +218,35 @@ export default function StudentPage() {
     return true
   }
 
+  async function execBook(course, schedule, dateStr) {
+    const { data: newBooking } = await supabase.from('bookings').insert({
+      user_id: user.id,
+      course_id: course.id,
+      schedule_id: schedule.id,
+      class_name: course.name,
+      class_date: dateStr,
+      class_time: `${schedule.start_time}~${schedule.end_time}`,
+      teacher: course.teacher,
+      status: 'booked'
+    }).select().single()
+    await supabase.from('tickets').update({ remain: ticket.remain - 1 }).eq('id', ticket.id)
+    const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
+    const pushMsg = `${profile?.name || '학생'}님 ${course.name} ${dateStr} ${schedule.start_time} 예약`
+    if (course.teacher_id) {
+      await supabase.from('notifications').insert({
+        user_id: course.teacher_id,
+        type: 'booking_created',
+        title: '새 예약',
+        body: pushMsg,
+        related_id: newBooking?.id
+      })
+    }
+    sendPushToAdmins('🐾 새 예약', pushMsg)
+    sendKakaoToAdmins('🐾 새 예약', pushMsg)
+    setSelCat(null); setSelCourse(null); setSelSchedule(null)
+    loadData(user.id)
+  }
+
   async function handleBook() {
     if (!selCourse || !selSchedule) return
 
@@ -234,36 +264,7 @@ export default function StudentPage() {
 
     if (!ticket || ticket.remain <= 0) { alert('잔여 수강권이 없어요 🐾'); return }
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
-
-    const { data: newBooking } = await supabase.from('bookings').insert({
-      user_id: user.id,
-      course_id: selCourse.id,
-      schedule_id: selSchedule.id,
-      class_name: selCourse.name,
-      class_date: dateStr,
-      class_time: `${selSchedule.start_time}~${selSchedule.end_time}`,
-      teacher: selCourse.teacher,
-      status: 'booked'
-    }).select().single()
-
-    await supabase.from('tickets').update({ remain: ticket.remain-1 }).eq('id', ticket.id)
-
-    const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
-    const pushMsg = `${profile?.name || '학생'}님 ${selCourse.name} ${dateStr} ${selSchedule.start_time} 예약`
-    if (selCourse.teacher_id) {
-      await supabase.from('notifications').insert({
-        user_id: selCourse.teacher_id,
-        type: 'booking_created',
-        title: '새 예약',
-        body: pushMsg,
-        related_id: newBooking?.id
-      })
-    }
-    sendPushToAdmins('🐾 새 예약', pushMsg)
-    sendKakaoToAdmins('🐾 새 예약', pushMsg)
-
-    setSelCat(null); setSelCourse(null); setSelSchedule(null)
-    loadData(user.id)
+    await execBook(selCourse, selSchedule, dateStr)
   }
 
   async function handleMeetingBook() {
@@ -360,6 +361,35 @@ export default function StudentPage() {
     loadData(user.id)
   }
 
+  function navigateToDate(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00')
+    setYear(d.getFullYear())
+    setMonth(d.getMonth())
+    setSelectedDay(d.getDate())
+    setSelCat(null); setSelCourse(null); setSelSchedule(null)
+  }
+
+  function getNextOccurrenceDate(course, schedule) {
+    const base = new Date(todayY, todayM, todayD)
+    for (let i = 0; i <= 60; i++) {
+      const d = new Date(base)
+      d.setDate(base.getDate() + i)
+      if (d.getDay() !== schedule.day_of_week) continue
+      const y = d.getFullYear(), m = d.getMonth(), day = d.getDate()
+      if ((y - todayY) * 12 + (m - todayM) > 1) return null
+      const ds = `${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
+      return { year: y, month: m, day, dateStr: ds }
+    }
+    return null
+  }
+
+  async function handleQuickBook() {
+    if (!favCourse || !favSchedule || !favNextOccurrence) return
+    if (!ticket || ticket.remain <= 0) { alert('잔여 수강권이 없어요 🐾'); return }
+    await execBook(favCourse, favSchedule, favNextOccurrence.dateStr)
+    navigateToDate(favNextOccurrence.dateStr)
+  }
+
   const daysInMonth = new Date(year, month+1, 0).getDate()
   const firstDow = new Date(year, month, 1).getDay()
   const bd = bookedDays()
@@ -377,6 +407,42 @@ export default function StudentPage() {
   }, {})
   const cats = Object.keys(catGroups)
   const catCourses = selCat ? catGroups[selCat] || [] : []
+
+  const upcomingBookings = bookings
+    .filter(b => b.status === 'booked' && b.class_date >= todayStr)
+    .sort((a, b) => a.class_date !== b.class_date
+      ? a.class_date.localeCompare(b.class_date)
+      : (a.class_time || '').localeCompare(b.class_time || ''))
+    .slice(0, 2)
+
+  const favKey = (() => {
+    if (bookings.length === 0) return null
+    const freq = {}
+    bookings.forEach(b => {
+      if (!b.class_name || !b.class_time) return
+      const k = `${b.class_name}||${b.class_time}`
+      if (!freq[k]) freq[k] = { count: 0, last: '', class_name: b.class_name, class_time: b.class_time }
+      freq[k].count++
+      if (b.class_date > freq[k].last) freq[k].last = b.class_date
+    })
+    const entries = Object.values(freq)
+    if (entries.length === 0) return null
+    return entries.sort((a, b) => b.count !== a.count ? b.count - a.count : b.last.localeCompare(a.last))[0]
+  })()
+  const favCourse = favKey ? (classes.find(c => c.name === favKey.class_name) || null) : null
+  const favSchedule = (favCourse && favKey) ? (() => {
+    const startTime = (favKey.class_time || '').split('~')[0]
+    return favCourse.class_schedules?.find(s => s.start_time === startTime) || null
+  })() : null
+  const favNextOccurrence = (favCourse && favSchedule && favCourse.category !== 'meeting')
+    ? getNextOccurrenceDate(favCourse, favSchedule) : null
+  const favIsAlreadyBooked = favNextOccurrence
+    ? bookings.some(b => b.course_id === favCourse.id && b.schedule_id === favSchedule.id && b.class_date === favNextOccurrence.dateStr && b.status === 'booked')
+    : false
+  const favNextFull = (favCourse && favSchedule && favNextOccurrence && !favIsAlreadyBooked)
+    ? allBookings.filter(b => b.course_id === favCourse.id && b.schedule_id === favSchedule.id && b.class_date === favNextOccurrence.dateStr).length >= (favCourse.max_count || 999)
+    : false
+  const showQuickBook = !!(favCourse && favSchedule && favNextOccurrence && !favIsAlreadyBooked)
 
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh' }}>
@@ -438,6 +504,62 @@ export default function StudentPage() {
       </div>
 
       <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 0' }}>
+
+        {upcomingBookings.length > 0 && (
+          <div style={{ marginBottom:16 }}>
+            <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>다가오는 수업</div>
+            {upcomingBookings.map(b => {
+              const d = new Date(b.class_date + 'T00:00:00')
+              const dow = ['일','월','화','수','목','금','토'][d.getDay()]
+              return (
+                <div key={b.id} onClick={() => navigateToDate(b.class_date)}
+                  style={{ background:ACCENT_BG, borderRadius:14, padding:'12px 14px', marginBottom:8, border:`1.5px solid ${ACCENT}55`, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                  <div>
+                    <div style={{ fontSize:13, fontWeight:600, color:ACCENT_TEXT }}>{b.class_name}</div>
+                    <div style={{ fontSize:11, color:'var(--tm)', marginTop:3 }}>
+                      {b.class_date} ({dow}) · {b.class_time}
+                    </div>
+                    {b.teacher && <div style={{ fontSize:11, color:'var(--tmu)', marginTop:2 }}>{b.teacher}</div>}
+                    {b.seat && <div style={{ fontSize:10, color:'var(--tmu)', marginTop:1 }}>자리 {b.seat}</div>}
+                  </div>
+                  <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6 }}>
+                    <span style={{ fontSize:16, color:ACCENT }}>›</span>
+                    <button onClick={e => { e.stopPropagation(); handleCancel(b) }}
+                      style={{ fontSize:10, padding:'3px 8px', borderRadius:20, background:'rgba(255,255,255,0.8)', color:'var(--tm)', border:`1px solid ${BORDER}`, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:500 }}>
+                      취소
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {showQuickBook && (
+          <div style={{ marginBottom:16 }}>
+            <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>원탭 재예약</div>
+            <div style={{ background:CARD, borderRadius:14, padding:'12px 14px', border:`1.5px solid ${BORDER}` }}>
+              <div style={{ fontSize:10, color:'var(--tmu)', marginBottom:8 }}>
+                자주 듣는 수업 · {favNextOccurrence.dateStr} ({['일','월','화','수','목','금','토'][new Date(favNextOccurrence.dateStr + 'T00:00:00').getDay()]})
+              </div>
+              {(!ticket || ticket.remain <= 0) ? (
+                <div style={{ padding:'12px 16px', background:'#f5f5f5', color:'var(--tmu)', border:`1.5px solid ${BORDER}`, borderRadius:12, fontSize:13, fontWeight:500, textAlign:'center' }}>
+                  수강권 충전 필요
+                </div>
+              ) : favNextFull ? (
+                <div style={{ padding:'12px 16px', background:'#fff0f0', color:'#c0392b', border:'1.5px solid #f5c6cb', borderRadius:12, fontSize:13, fontWeight:500, textAlign:'center' }}>
+                  마감
+                </div>
+              ) : (
+                <button onClick={handleQuickBook}
+                  style={{ width:'100%', padding:'12px 16px', background:ACCENT, color:'#fff', border:'none', borderRadius:12, fontSize:13, fontWeight:500, cursor:'pointer', fontFamily:'Nunito,sans-serif', textAlign:'left' }}>
+                  {favCourse.name} {favKey.class_time} 다음 수업 예약
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
           <button onClick={() => changeMonth(-1)} disabled={monthDiff() <= -3} style={{ background:'transparent', border:'none', cursor:'pointer', fontSize:20, color:'var(--g4)', padding:'4px 10px', opacity: monthDiff() <= -3 ? 0.3 : 1 }}>‹</button>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
