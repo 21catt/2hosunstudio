@@ -369,25 +369,52 @@ export default function StudentPage() {
     setSelCat(null); setSelCourse(null); setSelSchedule(null)
   }
 
-  function getNextOccurrenceDate(course, schedule) {
-    const base = new Date(todayY, todayM, todayD)
-    for (let i = 0; i <= 60; i++) {
-      const d = new Date(base)
-      d.setDate(base.getDate() + i)
-      if (d.getDay() !== schedule.day_of_week) continue
-      const y = d.getFullYear(), m = d.getMonth(), day = d.getDate()
+  function getHabitNextDate(course, schedule) {
+    const nowHHMM = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`
+    const todayDow = new Date(todayY, todayM, todayD).getDay()
+    const daysToTarget = (schedule.day_of_week - todayDow + 7) % 7
+    for (let weeksOut = 0; weeksOut <= 8; weeksOut++) {
+      const offset = daysToTarget + weeksOut * 7
+      const target = new Date(todayY, todayM, todayD + offset)
+      const y = target.getFullYear(), m = target.getMonth(), day = target.getDate()
       if ((y - todayY) * 12 + (m - todayM) > 1) return null
-      const ds = `${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
-      return { year: y, month: m, day, dateStr: ds }
+      const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
+      if (dateStr === todayStr && schedule.start_time <= nowHHMM) continue
+      const alreadyBooked = bookings.some(b => b.course_id === course.id && b.schedule_id === schedule.id && b.class_date === dateStr && b.status === 'booked')
+      if (alreadyBooked) continue
+      return { year: y, month: m, day, dateStr }
     }
     return null
   }
 
-  async function handleQuickBook() {
-    if (!favCourse || !favSchedule || !favNextOccurrence) return
+  function getSameWeekSlots(course, excludeScheduleId, targetDateStr) {
+    const targetDate = new Date(targetDateStr + 'T00:00:00')
+    const weekSunday = new Date(targetDate)
+    weekSunday.setDate(targetDate.getDate() - targetDate.getDay())
+    const seen = new Set()
+    const chips = []
+    ;(course.class_schedules || []).forEach(s => {
+      if (s.id === excludeScheduleId || s.day_of_week === 1) return
+      const slotDate = new Date(weekSunday)
+      slotDate.setDate(weekSunday.getDate() + s.day_of_week)
+      const y = slotDate.getFullYear(), m = slotDate.getMonth(), day = slotDate.getDate()
+      const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
+      if (dateStr < todayStr) return
+      if ((y - todayY) * 12 + (m - todayM) > 1) return
+      const chipKey = `${dateStr}-${s.start_time}`
+      if (seen.has(chipKey)) return
+      seen.add(chipKey)
+      if (bookings.some(b => b.course_id === course.id && b.schedule_id === s.id && b.class_date === dateStr && b.status === 'booked')) return
+      const cnt = allBookings.filter(b => b.course_id === course.id && b.schedule_id === s.id && b.class_date === dateStr).length
+      if (cnt >= (course.max_count || 999)) return
+      chips.push({ schedule: s, dateStr, day })
+    })
+    return chips.sort((a, b) => a.dateStr.localeCompare(b.dateStr) || a.schedule.start_time.localeCompare(b.schedule.start_time))
+  }
+
+  async function handleQuickBook(course, schedule, dateStr) {
     if (!ticket || ticket.remain <= 0) { alert('잔여 수강권이 없어요 🐾'); return }
-    await execBook(favCourse, favSchedule, favNextOccurrence.dateStr)
-    navigateToDate(favNextOccurrence.dateStr)
+    await execBook(course, schedule, dateStr)
   }
 
   const daysInMonth = new Date(year, month+1, 0).getDate()
@@ -415,34 +442,37 @@ export default function StudentPage() {
       : (a.class_time || '').localeCompare(b.class_time || ''))
     .slice(0, 2)
 
-  const favKey = (() => {
-    if (bookings.length === 0) return null
+  const habitSlots = (() => {
+    if (bookings.length === 0) return []
     const freq = {}
-    bookings.forEach(b => {
-      if (!b.class_name || !b.class_time) return
-      const k = `${b.class_name}||${b.class_time}`
-      if (!freq[k]) freq[k] = { count: 0, last: '', class_name: b.class_name, class_time: b.class_time }
+    bookings.filter(b => b.status === 'booked').forEach(b => {
+      if (!b.class_name || !b.class_time || !b.class_date) return
+      const dow = new Date(b.class_date + 'T00:00:00').getDay()
+      const k = `${b.class_name}||${dow}||${b.class_time}`
+      if (!freq[k]) freq[k] = { count: 0, last: '', class_name: b.class_name, class_time: b.class_time, dow }
       freq[k].count++
       if (b.class_date > freq[k].last) freq[k].last = b.class_date
     })
     const entries = Object.values(freq)
-    if (entries.length === 0) return null
-    return entries.sort((a, b) => b.count !== a.count ? b.count - a.count : b.last.localeCompare(a.last))[0]
+    if (entries.length === 0) return []
+    return entries
+      .sort((a, b) => b.count !== a.count ? b.count - a.count : b.last.localeCompare(a.last))
+      .slice(0, 2)
+      .map(entry => {
+        const course = classes.find(c => c.name === entry.class_name && c.category !== 'meeting') || null
+        if (!course) return null
+        const startTime = (entry.class_time || '').split('~')[0]
+        const schedule = course.class_schedules?.find(s => s.start_time === startTime && s.day_of_week === entry.dow) || null
+        if (!schedule) return null
+        const next = getHabitNextDate(course, schedule)
+        if (!next) return null
+        const isFull = allBookings.filter(b => b.course_id === course.id && b.schedule_id === schedule.id && b.class_date === next.dateStr).length >= (course.max_count || 999)
+        const chips = getSameWeekSlots(course, schedule.id, next.dateStr)
+        return { course, schedule, next, isFull, chips }
+      })
+      .filter(Boolean)
   })()
-  const favCourse = favKey ? (classes.find(c => c.name === favKey.class_name) || null) : null
-  const favSchedule = (favCourse && favKey) ? (() => {
-    const startTime = (favKey.class_time || '').split('~')[0]
-    return favCourse.class_schedules?.find(s => s.start_time === startTime) || null
-  })() : null
-  const favNextOccurrence = (favCourse && favSchedule && favCourse.category !== 'meeting')
-    ? getNextOccurrenceDate(favCourse, favSchedule) : null
-  const favIsAlreadyBooked = favNextOccurrence
-    ? bookings.some(b => b.course_id === favCourse.id && b.schedule_id === favSchedule.id && b.class_date === favNextOccurrence.dateStr && b.status === 'booked')
-    : false
-  const favNextFull = (favCourse && favSchedule && favNextOccurrence && !favIsAlreadyBooked)
-    ? allBookings.filter(b => b.course_id === favCourse.id && b.schedule_id === favSchedule.id && b.class_date === favNextOccurrence.dateStr).length >= (favCourse.max_count || 999)
-    : false
-  const showQuickBook = !!(favCourse && favSchedule && favNextOccurrence && !favIsAlreadyBooked)
+  const showQuickBook = habitSlots.length > 0
 
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh' }}>
@@ -538,25 +568,53 @@ export default function StudentPage() {
         {showQuickBook && (
           <div style={{ marginBottom:16 }}>
             <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>원탭 재예약</div>
-            <div style={{ background:CARD, borderRadius:14, padding:'12px 14px', border:`1.5px solid ${BORDER}` }}>
-              <div style={{ fontSize:10, color:'var(--tmu)', marginBottom:8 }}>
-                자주 듣는 수업 · {favNextOccurrence.dateStr} ({['일','월','화','수','목','금','토'][new Date(favNextOccurrence.dateStr + 'T00:00:00').getDay()]})
-              </div>
-              {(!ticket || ticket.remain <= 0) ? (
-                <div style={{ padding:'12px 16px', background:'#f5f5f5', color:'var(--tmu)', border:`1.5px solid ${BORDER}`, borderRadius:12, fontSize:13, fontWeight:500, textAlign:'center' }}>
-                  수강권 충전 필요
+            {habitSlots.map(slot => {
+              const { course, schedule, next, isFull, chips } = slot
+              const nd = new Date(next.dateStr + 'T00:00:00')
+              const dowLabel = ['일','월','화','수','목','금','토'][nd.getDay()]
+              const mmdd = `${String(nd.getMonth()+1).padStart(2,'0')}/${String(nd.getDate()).padStart(2,'0')}`
+              const hasChips = chips.length > 0
+              return (
+                <div key={`${course.id}-${schedule.id}`} style={{ background:CARD, borderRadius:14, padding:'12px 14px', marginBottom:8, border:`1.5px solid ${BORDER}` }}>
+                  {(!ticket || ticket.remain <= 0) ? (
+                    <div style={{ padding:'10px 14px', background:'#f5f5f5', color:'var(--tmu)', border:`1.5px solid ${BORDER}`, borderRadius:12, fontSize:12, fontWeight:500, textAlign:'center', marginBottom: hasChips?10:0 }}>
+                      수강권 충전 필요
+                    </div>
+                  ) : isFull ? (
+                    <div style={{ padding:'10px 14px', background:'#fff0f0', color:'#c0392b', border:'1.5px solid #f5c6cb', borderRadius:12, fontSize:12, fontWeight:500, textAlign:'center', marginBottom: hasChips?10:0 }}>
+                      {dowLabel} {schedule.start_time} 마감
+                    </div>
+                  ) : (
+                    <button onClick={() => handleQuickBook(course, schedule, next.dateStr)}
+                      style={{ width:'100%', padding:'10px 14px', background:ACCENT, color:'#fff', border:'none', borderRadius:12, fontSize:13, fontWeight:500, cursor:'pointer', fontFamily:'Nunito,sans-serif', textAlign:'left', display:'block', marginBottom: hasChips?10:0 }}>
+                      {dowLabel}요일 {schedule.start_time} · {mmdd} 예약
+                    </button>
+                  )}
+                  {hasChips && (
+                    <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:10 }}>
+                      {chips.map(chip => {
+                        const cd = new Date(chip.dateStr + 'T00:00:00')
+                        const cdow = ['일','월','화','수','목','금','토'][cd.getDay()]
+                        const cmmdd = `${String(cd.getMonth()+1).padStart(2,'0')}/${String(cd.getDate()).padStart(2,'0')}`
+                        return (
+                          <button key={`${chip.schedule.id}-${chip.dateStr}`}
+                            onClick={() => handleQuickBook(course, chip.schedule, chip.dateStr)}
+                            style={{ padding:'5px 10px', borderRadius:20, background:'#fff', color:'var(--td)', border:`1.5px solid ${BORDER}`, fontSize:11, fontWeight:500, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                            {cdow} {chip.schedule.start_time} · {cmmdd}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                  <div style={{ textAlign:'right' }}>
+                    <span onClick={() => { setYear(next.year); setMonth(next.month); setSelectedDay(next.day) }}
+                      style={{ fontSize:11, color:'var(--tmu)', cursor:'pointer', textDecoration:'underline', textUnderlineOffset:2 }}>
+                      전체 일정에서 고르기 →
+                    </span>
+                  </div>
                 </div>
-              ) : favNextFull ? (
-                <div style={{ padding:'12px 16px', background:'#fff0f0', color:'#c0392b', border:'1.5px solid #f5c6cb', borderRadius:12, fontSize:13, fontWeight:500, textAlign:'center' }}>
-                  마감
-                </div>
-              ) : (
-                <button onClick={handleQuickBook}
-                  style={{ width:'100%', padding:'12px 16px', background:ACCENT, color:'#fff', border:'none', borderRadius:12, fontSize:13, fontWeight:500, cursor:'pointer', fontFamily:'Nunito,sans-serif', textAlign:'left' }}>
-                  {favCourse.name} {favKey.class_time} 다음 수업 예약
-                </button>
-              )}
-            </div>
+              )
+            })}
           </div>
         )}
 
