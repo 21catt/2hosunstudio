@@ -74,89 +74,95 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
     const todayStr = new Date().toISOString().split('T')[0]
     let courseId = initial?.id
 
-    if (courseId) {
-      await supabase.from('class_courses').update(courseData).eq('id', courseId)
-
-      const oldSchedules = initial?.class_schedules || []
-      const newSet = []
-      selectedDays.forEach(day => {
-        timeSlots.filter(s=>s.selected).forEach(slot => {
-          newSet.push({ day_of_week:day, start_time:slot.start, end_time:slot.end })
-        })
-      })
-
-      const match = (a, b) => a.day_of_week===b.day_of_week && a.start_time===b.start_time && a.end_time===b.end_time
-      const removed = oldSchedules.filter(old => !newSet.some(n => match(n, old)))
-      const toAdd   = newSet.filter(n => !oldSchedules.some(old => match(old, n)))
-
-      // 삭제된 스케줄의 미진행 예약 → 수강권 환급 후 삭제
-      for (const s of removed) {
-        const { data: orphans } = await supabase
-          .from('bookings')
-          .select('*')
-          .eq('course_id', courseId)
-          .eq('schedule_id', s.id)
-          .gte('class_date', todayStr)
-          .neq('status', 'attended')
-        for (const b of (orphans || [])) {
-          if (cat === 'meeting') {
-            const { data: mt } = await supabase.from('meeting_tickets').select('*')
-              .eq('user_id', b.user_id).eq('status','confirmed')
-              .gte('expires_at', todayStr).order('expires_at',{ascending:true}).limit(1)
-            if (mt?.[0]) await supabase.from('meeting_tickets').update({ remain: mt[0].remain+1 }).eq('id', mt[0].id)
-          } else {
-            const { data: t } = await supabase.from('tickets').select('*').eq('user_id', b.user_id).single()
-            if (t) await supabase.from('tickets').update({ remain: t.remain+1 }).eq('id', t.id)
-          }
-          await supabase.from('bookings').delete().eq('id', b.id)
-        }
-        await supabase.from('class_schedules').delete().eq('id', s.id)
-      }
-
-      // 날짜 범위 변경으로 범위 밖이 된 예약 → 환급 후 삭제
-      if (!isUnlimited) {
-        let rangeQuery = supabase.from('bookings').select('*')
-          .eq('course_id', courseId).gte('class_date', todayStr).neq('status','attended')
-        if (endDate) rangeQuery = rangeQuery.gt('class_date', endDate)
-        else if (startDate) rangeQuery = rangeQuery.lt('class_date', startDate)
-        const { data: outOfRange } = await rangeQuery
-        for (const b of (outOfRange || [])) {
-          if (cat === 'meeting') {
-            const { data: mt } = await supabase.from('meeting_tickets').select('*')
-              .eq('user_id', b.user_id).eq('status','confirmed')
-              .gte('expires_at', todayStr).order('expires_at',{ascending:true}).limit(1)
-            if (mt?.[0]) await supabase.from('meeting_tickets').update({ remain: mt[0].remain+1 }).eq('id', mt[0].id)
-          } else {
-            const { data: t } = await supabase.from('tickets').select('*').eq('user_id', b.user_id).single()
-            if (t) await supabase.from('tickets').update({ remain: t.remain+1 }).eq('id', t.id)
-          }
-          await supabase.from('bookings').delete().eq('id', b.id)
-        }
-      }
-
-      if (toAdd.length) {
-        await supabase.from('class_schedules').insert(toAdd.map(s => ({...s, course_id:courseId})))
-      }
-      await supabase.from('class_exceptions').delete().eq('course_id', courseId)
-      if (exceptions.length) await supabase.from('class_exceptions').insert(exceptions.map(e => ({...e, course_id:courseId})))
-
-    } else {
-      const { data } = await supabase.from('class_courses').insert({
-        ...courseData, teacher:teacherName, teacher_id:teacherId
-      }).select().single()
-      courseId = data?.id
+    try {
       if (courseId) {
-        const schedules = []
+        await supabase.from('class_courses').update(courseData).eq('id', courseId)
+
+        const oldSchedules = initial?.class_schedules || []
+        const newSet = []
         selectedDays.forEach(day => {
           timeSlots.filter(s=>s.selected).forEach(slot => {
-            schedules.push({ course_id:courseId, day_of_week:day, start_time:slot.start, end_time:slot.end })
+            newSet.push({ day_of_week:day, start_time:slot.start, end_time:slot.end })
           })
         })
-        if (schedules.length) await supabase.from('class_schedules').insert(schedules)
+
+        const match = (a, b) => a.day_of_week===b.day_of_week && a.start_time===b.start_time && a.end_time===b.end_time
+        const removed = oldSchedules.filter(old => !newSet.some(n => match(n, old)))
+        const toAdd   = newSet.filter(n => !oldSchedules.some(old => match(old, n)))
+
+        // 삭제된 스케줄의 미진행 예약 → 수강권 환급 후 삭제
+        for (const s of removed) {
+          const { data: orphans } = await supabase
+            .from('bookings').select('*')
+            .eq('course_id', courseId).eq('schedule_id', s.id)
+            .gte('class_date', todayStr).neq('status', 'attended')
+          for (const b of (orphans || [])) {
+            if (cat === 'meeting') {
+              const { data: mt } = await supabase.from('meeting_tickets').select('*')
+                .eq('user_id', b.user_id).eq('status','confirmed')
+                .gte('expires_at', todayStr).order('expires_at',{ascending:true}).limit(1)
+              if (mt?.[0]) await supabase.from('meeting_tickets').update({ remain: mt[0].remain+1 }).eq('id', mt[0].id)
+            } else {
+              const { data: tickets } = await supabase.from('tickets').select('*').eq('user_id', b.user_id).limit(1)
+              const t = tickets?.[0]
+              if (t) await supabase.from('tickets').update({ remain: t.remain+1 }).eq('id', t.id)
+            }
+            await supabase.from('bookings').delete().eq('id', b.id)
+          }
+          await supabase.from('class_schedules').delete().eq('id', s.id)
+        }
+
+        // 날짜 범위 축소로 범위 밖이 된 예약 → 환급 후 삭제
+        if (!isUnlimited && (endDate || startDate)) {
+          let rangeQuery = supabase.from('bookings').select('*')
+            .eq('course_id', courseId).gte('class_date', todayStr).neq('status','attended')
+          if (endDate) rangeQuery = rangeQuery.gt('class_date', endDate)
+          else rangeQuery = rangeQuery.lt('class_date', startDate)
+          const { data: outOfRange } = await rangeQuery
+          for (const b of (outOfRange || [])) {
+            if (cat === 'meeting') {
+              const { data: mt } = await supabase.from('meeting_tickets').select('*')
+                .eq('user_id', b.user_id).eq('status','confirmed')
+                .gte('expires_at', todayStr).order('expires_at',{ascending:true}).limit(1)
+              if (mt?.[0]) await supabase.from('meeting_tickets').update({ remain: mt[0].remain+1 }).eq('id', mt[0].id)
+            } else {
+              const { data: tickets } = await supabase.from('tickets').select('*').eq('user_id', b.user_id).limit(1)
+              const t = tickets?.[0]
+              if (t) await supabase.from('tickets').update({ remain: t.remain+1 }).eq('id', t.id)
+            }
+            await supabase.from('bookings').delete().eq('id', b.id)
+          }
+        }
+
+        if (toAdd.length) {
+          await supabase.from('class_schedules').insert(toAdd.map(s => ({...s, course_id:courseId})))
+        }
+        await supabase.from('class_exceptions').delete().eq('course_id', courseId)
         if (exceptions.length) await supabase.from('class_exceptions').insert(exceptions.map(e => ({...e, course_id:courseId})))
+
+      } else {
+        const { data } = await supabase.from('class_courses').insert({
+          ...courseData, teacher:teacherName, teacher_id:teacherId
+        }).select().single()
+        courseId = data?.id
+        if (courseId) {
+          const schedules = []
+          selectedDays.forEach(day => {
+            timeSlots.filter(s=>s.selected).forEach(slot => {
+              schedules.push({ course_id:courseId, day_of_week:day, start_time:slot.start, end_time:slot.end })
+            })
+          })
+          if (schedules.length) await supabase.from('class_schedules').insert(schedules)
+          if (exceptions.length) await supabase.from('class_exceptions').insert(exceptions.map(e => ({...e, course_id:courseId})))
+        }
       }
+      onSave()
+    } catch (err) {
+      console.error('수업 저장 오류:', err)
+      alert('저장 중 오류가 발생했어요. 다시 시도해 주세요.')
+    } finally {
+      setSaving(false)
     }
-    setSaving(false); onSave()
   }
 
   return (
