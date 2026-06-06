@@ -283,6 +283,7 @@ export default function AdminSchedulePage() {
   const [selDay, setSelDay] = useState(new Date().getDate())
   const [expanded, setExpanded] = useState(null)
   const [adminCats, setAdminCats] = useState([])
+  const [showInactive, setShowInactive] = useState(false)
  const now = new Date()
 const todayY = now.getFullYear()
 const todayM = now.getMonth()
@@ -650,10 +651,25 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
         {/* 목록 뷰 */}
         {!showForm && !editCourse && view === 'list' && (
           <>
-            <div style={{ fontSize:12, fontWeight:800, color:'var(--td)', marginBottom:12 }}>전체 수업 목록</div>
-            {myCourses.length === 0 ? (
-              <div style={{ textAlign:'center', padding:40, color:'var(--tmu)', fontSize:12 }}>등록된 수업이 없어요 🐾</div>
-            ) : myCourses.map(c => (
+            {(() => {
+              const activeCourses = myCourses.filter(c => c.is_active)
+              const inactiveCourses = myCourses.filter(c => !c.is_active)
+              const listCourses = showInactive ? myCourses : activeCourses
+              return (
+                <>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+                    <div style={{ fontSize:12, fontWeight:800, color:'var(--td)' }}>운영중 수업 ({activeCourses.length})</div>
+                    {inactiveCourses.length > 0 && (
+                      <button onClick={() => setShowInactive(p => !p)}
+                        style={{ fontSize:10, fontWeight:700, padding:'3px 10px', borderRadius:10, border:'1px solid var(--g2)',
+                          background:showInactive?'#ffebee':'var(--g1)', color:showInactive?'#c0392b':'var(--tm)', cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                        {showInactive ? '중단 숨기기' : `중단된 수업 ${inactiveCourses.length}개`}
+                      </button>
+                    )}
+                  </div>
+                  {listCourses.length === 0 ? (
+                    <div style={{ textAlign:'center', padding:40, color:'var(--tmu)', fontSize:12 }}>등록된 수업이 없어요 🐾</div>
+                  ) : listCourses.map(c => (
               <div key={c.id} style={{ background:'var(--bg)', borderRadius:14, padding:'12px 14px', marginBottom:8, border:'1.5px solid var(--g1)' }}>
                 <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                   <div style={{ width:40, height:40, borderRadius:12, background:CAT_COLORS[c.category]||'var(--g1)',
@@ -696,7 +712,10 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
                   </div>
                 )}
               </div>
-            ))}
+                  ))}
+                </>
+              )
+            })()}
           </>
         )}
       </div>
