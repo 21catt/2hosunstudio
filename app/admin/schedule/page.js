@@ -19,6 +19,31 @@ const DEFAULT_SLOTS = [
   { start:'19:00', end:'21:00' },
 ]
 
+async function refundAndDeleteBookings(bookings, todayStr) {
+  if (!bookings.length) return
+  // 유저별 환급 횟수 집계
+  const refundMap = {}
+  for (const b of bookings) {
+    if (!refundMap[b.user_id]) refundMap[b.user_id] = { count: 0, isMeeting: b.class_name === '모임' }
+    refundMap[b.user_id].count++
+  }
+  // 유저별 환급 (개별 UPDATE이지만 유저 수만큼만 실행)
+  await Promise.all(Object.entries(refundMap).map(async ([userId, { count, isMeeting }]) => {
+    if (isMeeting) {
+      const { data: mt } = await supabase.from('meeting_tickets').select('id,remain')
+        .eq('user_id', userId).eq('status','confirmed')
+        .gte('expires_at', todayStr).order('expires_at',{ascending:true}).limit(1)
+      if (mt?.[0]) await supabase.from('meeting_tickets').update({ remain: mt[0].remain + count }).eq('id', mt[0].id)
+    } else {
+      const { data: tks } = await supabase.from('tickets').select('id,remain').eq('user_id', userId).limit(1)
+      if (tks?.[0]) await supabase.from('tickets').update({ remain: tks[0].remain + count }).eq('id', tks[0].id)
+    }
+  }))
+  // 예약 일괄 삭제
+  const ids = bookings.map(b => b.id)
+  await supabase.from('bookings').delete().in('id', ids)
+}
+
 function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
   const [name, setName] = useState(initial?.name || '')
   const [price, setPrice] = useState(initial?.price || 0)
@@ -93,8 +118,10 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
 
     try {
       if (courseId) {
+        // 1. 수업 정보 업데이트
         await supabase.from('class_courses').update(courseData).eq('id', courseId)
 
+        // 2. 스케줄 diff 계산
         const oldSchedules = initial?.class_schedules || []
         const newSet = []
         selectedDays.forEach(day => {
@@ -102,75 +129,54 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
             newSet.push({ day_of_week:day, start_time:slot.start, end_time:slot.end })
           })
         })
-
-        const match = (a, b) => a.day_of_week===b.day_of_week && a.start_time===b.start_time && a.end_time===b.end_time
+        const match = (a,b) => a.day_of_week===b.day_of_week && a.start_time===b.start_time && a.end_time===b.end_time
         const removed = oldSchedules.filter(old => !newSet.some(n => match(n, old)))
         const toAdd   = newSet.filter(n => !oldSchedules.some(old => match(old, n)))
 
-        // 삭제된 스케줄의 미진행 예약 → 수강권 환급 후 삭제
-        for (const s of removed) {
-          const { data: orphans } = await supabase
-            .from('bookings').select('*')
-            .eq('course_id', courseId).eq('schedule_id', s.id)
-            .gte('class_date', todayStr).neq('status', 'attended')
-          for (const b of (orphans || [])) {
-            if (cat === 'meeting') {
-              const { data: mt } = await supabase.from('meeting_tickets').select('*')
-                .eq('user_id', b.user_id).eq('status','confirmed')
-                .gte('expires_at', todayStr).order('expires_at',{ascending:true}).limit(1)
-              if (mt?.[0]) await supabase.from('meeting_tickets').update({ remain: mt[0].remain+1 }).eq('id', mt[0].id)
-            } else {
-              const { data: tickets } = await supabase.from('tickets').select('*').eq('user_id', b.user_id).limit(1)
-              const t = tickets?.[0]
-              if (t) await supabase.from('tickets').update({ remain: t.remain+1 }).eq('id', t.id)
-            }
-            await supabase.from('bookings').delete().eq('id', b.id)
-          }
-          await supabase.from('class_schedules').delete().eq('id', s.id)
+        // 3. 삭제된 스케줄 처리 (배치 쿼리)
+        const removedIds = removed.map(s => s.id).filter(Boolean)
+        if (removedIds.length > 0) {
+          const { data: orphans } = await supabase.from('bookings').select('*')
+            .in('schedule_id', removedIds).gte('class_date', todayStr).neq('status','attended')
+          await refundAndDeleteBookings(orphans || [], todayStr)
+          await supabase.from('class_schedules').delete().in('id', removedIds)
         }
 
-        // 날짜 범위 축소로 범위 밖이 된 예약 → 환급 후 삭제
+        // 4. 날짜 범위 축소 처리 (배치 쿼리)
         if (!isUnlimited && (endDate || startDate)) {
-          let rangeQuery = supabase.from('bookings').select('*')
+          let q = supabase.from('bookings').select('*')
             .eq('course_id', courseId).gte('class_date', todayStr).neq('status','attended')
-          if (endDate) rangeQuery = rangeQuery.gt('class_date', endDate)
-          else rangeQuery = rangeQuery.lt('class_date', startDate)
-          const { data: outOfRange } = await rangeQuery
-          for (const b of (outOfRange || [])) {
-            if (cat === 'meeting') {
-              const { data: mt } = await supabase.from('meeting_tickets').select('*')
-                .eq('user_id', b.user_id).eq('status','confirmed')
-                .gte('expires_at', todayStr).order('expires_at',{ascending:true}).limit(1)
-              if (mt?.[0]) await supabase.from('meeting_tickets').update({ remain: mt[0].remain+1 }).eq('id', mt[0].id)
-            } else {
-              const { data: tickets } = await supabase.from('tickets').select('*').eq('user_id', b.user_id).limit(1)
-              const t = tickets?.[0]
-              if (t) await supabase.from('tickets').update({ remain: t.remain+1 }).eq('id', t.id)
-            }
-            await supabase.from('bookings').delete().eq('id', b.id)
-          }
+          q = endDate ? q.gt('class_date', endDate) : q.lt('class_date', startDate)
+          const { data: outOfRange } = await q
+          await refundAndDeleteBookings(outOfRange || [], todayStr)
         }
 
-        if (toAdd.length) {
+        // 5. 새 스케줄 추가
+        if (toAdd.length > 0) {
           await supabase.from('class_schedules').insert(toAdd.map(s => ({...s, course_id:courseId})))
         }
+
+        // 6. 예외 갱신
         await supabase.from('class_exceptions').delete().eq('course_id', courseId)
-        if (exceptions.length) await supabase.from('class_exceptions').insert(exceptions.map(e => ({...e, course_id:courseId})))
+        if (exceptions.length > 0) {
+          await supabase.from('class_exceptions').insert(exceptions.map(e => ({...e, course_id:courseId})))
+        }
 
       } else {
+        // 신규 개설
         const { data } = await supabase.from('class_courses').insert({
           ...courseData, teacher:teacherName, teacher_id:teacherId
-        }).select().single()
-        courseId = data?.id
-        if (courseId) {
+        }).select()
+        const newId = data?.[0]?.id
+        if (newId) {
           const schedules = []
           selectedDays.forEach(day => {
             ;(daySlots[day] || []).filter(s=>s.selected).forEach(slot => {
-              schedules.push({ course_id:courseId, day_of_week:day, start_time:slot.start, end_time:slot.end })
+              schedules.push({ course_id:newId, day_of_week:day, start_time:slot.start, end_time:slot.end })
             })
           })
-          if (schedules.length) await supabase.from('class_schedules').insert(schedules)
-          if (exceptions.length) await supabase.from('class_exceptions').insert(exceptions.map(e => ({...e, course_id:courseId})))
+          if (schedules.length > 0) await supabase.from('class_schedules').insert(schedules)
+          if (exceptions.length > 0) await supabase.from('class_exceptions').insert(exceptions.map(e => ({...e, course_id:newId})))
         }
       }
       onSave()
