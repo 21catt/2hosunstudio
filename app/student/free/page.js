@@ -1,6 +1,6 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState, useEffect, useRef } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
 import { sendPushToAdmins } from '../../../lib/pushNotify'
@@ -22,21 +22,30 @@ function getRateLabel(date, hour) {
   return '평일 낮'
 }
 
-export default function FreePage() {
+function FreeInner() {
   const router = useRouter()
-  const [user, setUser] = useState(null)
-  const [allBookings, setAllBookings] = useState([])
-  const [freeCourse, setFreeCourse] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const searchParams = useSearchParams()
 
   const now = new Date()
   const todayY = now.getFullYear()
   const todayM = now.getMonth()
   const todayD = now.getDate()
 
-  const [year, setYear] = useState(todayY)
-  const [month, setMonth] = useState(todayM)
-  const [selectedDay, setSelectedDay] = useState(todayD)
+  const initDate = (() => {
+    const raw = searchParams.get('date')
+    if (!raw || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null
+    const d = new Date(raw + 'T00:00:00')
+    return isNaN(d.getTime()) ? null : d
+  })()
+
+  const [user, setUser] = useState(null)
+  const [allBookings, setAllBookings] = useState([])
+  const [freeCourse, setFreeCourse] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  const [year, setYear] = useState(initDate ? initDate.getFullYear() : todayY)
+  const [month, setMonth] = useState(initDate ? initDate.getMonth() : todayM)
+  const [selectedDay, setSelectedDay] = useState(initDate ? initDate.getDate() : todayD)
   const [startHour, setStartHour] = useState(null)
   const [duration, setDuration] = useState(1)
   const [selSeat, setSelSeat] = useState(null)
@@ -515,5 +524,13 @@ export default function FreePage() {
 
       <StudentNav active="schedule" />
     </>
+  )
+}
+
+export default function FreePage() {
+  return (
+    <Suspense fallback={null}>
+      <FreeInner />
+    </Suspense>
   )
 }

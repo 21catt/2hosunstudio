@@ -699,7 +699,7 @@ export default function StudentPage() {
           </div>
         )}
 
-        <div onClick={()=>router.push('/student/free')} style={{ background:'#FBF8F2', borderRadius:14, padding:'14px 16px', marginBottom:12, display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid #E8DCC4', cursor:'pointer' }}>
+        <div onClick={()=>router.push(`/student/free?date=${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`)} style={{ background:'#FBF8F2', borderRadius:14, padding:'14px 16px', marginBottom:12, display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid #E8DCC4', cursor:'pointer' }}>
           <div style={{ flex:1 }}>
             <div style={{ fontSize:10, color:'#8B7355', fontWeight:700, marginBottom:2 }}>🎨 자율창작</div>
             <div style={{ fontSize:13, fontWeight:800, color:'#5C5247', marginBottom:2 }}>1시간만, 자유롭게</div>
@@ -720,7 +720,7 @@ export default function StudentPage() {
                 <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                   {cats.map(cat => (
                     <div key={cat} onClick={() => {
-                      if (cat === 'free') { router.push('/student/free'); return }
+                      if (cat === 'free') { router.push(`/student/free?date=${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`); return }
                       setSelCat(cat); setSelCourse(null); setSelSchedule(null)
                     }} style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', borderRadius:20, cursor:'pointer', background:selCat===cat?ACCENT_BG:CARD, border:`1.5px solid ${selCat===cat?ACCENT:BORDER}` }}>
                       <span style={{ fontSize:16 }}>{EMOJI[cat]||'🎨'}</span>
@@ -732,7 +732,7 @@ export default function StudentPage() {
             )}
 
             {cats.length === 1 && cats[0] === 'free' && (
-              <div onClick={()=>router.push('/student/free')} style={{ padding:'14px 16px', background:'#FBF8F2', borderRadius:14, border:'1.5px solid #E8DCC4', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+              <div onClick={()=>router.push(`/student/free?date=${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`)} style={{ padding:'14px 16px', background:'#FBF8F2', borderRadius:14, border:'1.5px solid #E8DCC4', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                 <div>
                   <div style={{ fontSize:13, fontWeight:800, color:'#5C5247' }}>🎨 자율창작 예약하러 가기</div>
                   <div style={{ fontSize:10, color:'#8B7355', marginTop:2 }}>자리와 시간을 직접 선택해요</div>
