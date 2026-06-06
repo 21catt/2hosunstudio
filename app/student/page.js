@@ -565,7 +565,14 @@ export default function StudentPage() {
                 {catCourses.map(c => (
                   <div key={c.id} onClick={() => { setSelCourse(c); setSelSchedule(null) }} style={{ padding:'10px 14px', borderRadius:12, marginBottom:6, cursor:'pointer', background:selCourse?.id===c.id?CAT_COLOR[c.category]:'var(--bg)', border:`1.5px solid ${selCourse?.id===c.id?CAT_TEXT[c.category]:'var(--g2)'}` }}>
                     <div style={{ fontSize:12, fontWeight:800, color:'var(--td)' }}>{c.name}</div>
-                    <div style={{ fontSize:10, color:'var(--tmu)' }}>강사 {c.teacher}</div>
+                    <div style={{ fontSize:10, color:'var(--tmu)' }}>
+                      강사 {c.teacher}
+                      {getSchedulesForDay(c, selectedDay).length > 0 && (
+                        <span style={{ marginLeft:6 }}>
+                          {getSchedulesForDay(c, selectedDay).map(s=>`${s.start_time}~${s.end_time}`).join(' / ')}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

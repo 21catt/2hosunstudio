@@ -602,7 +602,8 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
                       <div style={{ fontSize:12, fontWeight:800, color:'var(--td)', marginBottom:2 }}>{c.name}</div>
                       <div style={{ fontSize:10, color:'var(--tmu)' }}>
                         {c.class_schedules
-  ?.filter((s,i,arr) => arr.findIndex(x => x.start_time===s.start_time && x.end_time===s.end_time)===i)
+  ?.filter(s => s.day_of_week === new Date(year, month, selDay).getDay())
+  .filter((s,i,arr) => arr.findIndex(x => x.start_time===s.start_time && x.end_time===s.end_time)===i)
   .sort((a,b) => a.start_time.localeCompare(b.start_time))
   .map(s=>`${s.start_time}~${s.end_time}`)
   .join(' / ')}
