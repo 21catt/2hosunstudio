@@ -12,6 +12,12 @@ const CAT_NAME = { drawing:'드로잉', painting:'페인팅', sculpture:'조소'
 const CAT_COLOR = { drawing:'#e8f5e0', painting:'#EDE7F6', sculpture:'#FFF3E0', free:'#E3F2FD', meeting:'#FFF8E1' }
 const CAT_TEXT = { drawing:'var(--g5)', painting:'#4A148C', sculpture:'#E65100', free:'#0D47A1', meeting:'#F57F17' }
 
+const ACCENT = '#3B6D11'
+const ACCENT_BG = '#EAF3DE'
+const ACCENT_TEXT = '#27500A'
+const CARD = '#F1EFE8'
+const BORDER = 'rgba(0,0,0,0.14)'
+
 const CAT_IMAGES = [
   '/cats/cat01.png',
   '/cats/cat02.png',
@@ -449,7 +455,7 @@ export default function StudentPage() {
           ))}
         </div>
 
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:2, marginBottom:12 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:2, marginBottom:6 }}>
           {Array(firstDow).fill(null).map((_,i)=><div key={`e${i}`} style={{ height:52 }}/>)}
           {Array(daysInMonth).fill(null).map((_,i)=>{
             const d = i+1
@@ -462,7 +468,7 @@ export default function StudentPage() {
             const hasCls = dayClasses(d).length > 0
 
             return (
-              <div key={d} ref={el => cellRefs.current[d] = el} onClick={()=>handleDayClick(d)} style={{ height:52, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:isMon?'default':'pointer', borderRadius:12, opacity:isMon?0.3:1, position:'relative', background:isSel?'#e8f5e0':'transparent', border:isSel?'1.5px solid var(--g3)':'1.5px solid transparent' }}>
+              <div key={d} ref={el => cellRefs.current[d] = el} onClick={()=>handleDayClick(d)} style={{ height:52, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:isMon?'default':'pointer', borderRadius:12, opacity:isMon?0.3:1, position:'relative', background:isSel?ACCENT_BG:'transparent', border:isSel?`1.5px solid ${ACCENT}`:'1.5px solid transparent' }}>
                 {isT && todayWeather && (
                   <div style={{ position:'absolute', top:-2, left:'50%', transform:'translateX(-50%)', fontSize:13, zIndex:1 }}>{todayWeather.icon}</div>
                 )}
@@ -482,6 +488,10 @@ export default function StudentPage() {
               </div>
             )
           })}
+        </div>
+        <div style={{ display:'flex', alignItems:'center', gap:5, marginBottom:12, paddingLeft:2 }}>
+          <div style={{ width:5, height:5, borderRadius:'50%', background:'var(--g3)', flexShrink:0 }}/>
+          <span style={{ fontSize:10, color:'var(--tmu)', fontWeight:500 }}>수업 있는 날</span>
         </div>
 
         <div style={{ background:'var(--g1)', borderRadius:14, padding:'10px 14px', marginBottom:12, display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid var(--g2)' }}>
@@ -538,9 +548,9 @@ export default function StudentPage() {
                     <div key={cat} onClick={() => {
                       if (cat === 'free') { router.push('/student/free'); return }
                       setSelCat(cat); setSelCourse(null); setSelSchedule(null)
-                    }} style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', borderRadius:20, cursor:'pointer', background:selCat===cat?CAT_COLOR[cat]:'var(--bg)', border:`1.5px solid ${selCat===cat?CAT_TEXT[cat]:'var(--g2)'}` }}>
+                    }} style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', borderRadius:20, cursor:'pointer', background:selCat===cat?ACCENT_BG:CARD, border:`1.5px solid ${selCat===cat?ACCENT:BORDER}` }}>
                       <span style={{ fontSize:16 }}>{EMOJI[cat]||'🎨'}</span>
-                      <span style={{ fontSize:12, fontWeight:700, color:selCat===cat?CAT_TEXT[cat]:'var(--td)' }}>{CAT_NAME[cat]}</span>
+                      <span style={{ fontSize:12, fontWeight:500, color:selCat===cat?ACCENT_TEXT:'var(--td)' }}>{CAT_NAME[cat]}</span>
                     </div>
                   ))}
                 </div>
@@ -559,46 +569,65 @@ export default function StudentPage() {
 
             {cats.length === 1 && cats[0] !== 'free' && selCat !== cats[0] && (() => { setTimeout(() => setSelCat(cats[0]), 0); return null })()}
 
-            {selCat && selCat !== 'free' && catCourses.length > 1 && (
-              <div className="slide-up" style={{ marginBottom:12 }}>
-                <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>수업 선택</div>
-                {catCourses.map(c => (
-                  <div key={c.id} onClick={() => { setSelCourse(c); setSelSchedule(null) }} style={{ padding:'10px 14px', borderRadius:12, marginBottom:6, cursor:'pointer', background:selCourse?.id===c.id?CAT_COLOR[c.category]:'var(--bg)', border:`1.5px solid ${selCourse?.id===c.id?CAT_TEXT[c.category]:'var(--g2)'}` }}>
-                    <div style={{ fontSize:12, fontWeight:800, color:'var(--td)' }}>{c.name}</div>
-                    <div style={{ fontSize:10, color:'var(--tmu)' }}>
-                      강사 {c.teacher}
-                      {getSchedulesForDay(c, selectedDay).length > 0 && (
-                        <span style={{ marginLeft:6 }}>
-                          {getSchedulesForDay(c, selectedDay).map(s=>`${s.start_time}~${s.end_time}`).join(' / ')}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
             {selCat && selCat !== 'free' && catCourses.length === 1 && selCourse !== catCourses[0] && (() => { setTimeout(() => setSelCourse(catCourses[0]), 0); return null })()}
 
-            {selCourse && (
+            {selCat && selCat !== 'free' && catCourses.length > 0 && (
               <div className="slide-up" style={{ marginBottom:12 }}>
-                <div style={{ fontSize:15, fontWeight:800, color:'var(--td)', marginBottom:10 }}>{selCourse.name}</div>
-                <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>시간 선택</div>
-                {getSchedulesForDay(selCourse, selectedDay).map(s => {
-                  const booked = isBooked(selCourse.id, s.id, selectedDay)
-                  const booking = getBooking(selCourse.id, s.id, selectedDay)
-                  const isSel = selSchedule?.id === s.id
+                {catCourses.length > 1 && (
+                  <div style={{ fontSize:11, fontWeight:500, color:'var(--tmu)', marginBottom:8 }}>수업 선택</div>
+                )}
+                {catCourses.map(c => {
+                  const isOpen = selCourse?.id === c.id
+                  const daySchedules = getSchedulesForDay(c, selectedDay)
                   return (
-                    <div key={s.id} onClick={() => !booked && setSelSchedule(s)} style={{ padding:'10px 14px', borderRadius:12, marginBottom:6, cursor:booked?'default':'pointer', display:'flex', alignItems:'center', justifyContent:'space-between', background:booked?'#e8f5e0':isSel?CAT_COLOR[selCourse.category]:'var(--bg)', border:`1.5px solid ${booked?'var(--g3)':isSel?CAT_TEXT[selCourse.category]:'var(--g2)'}` }}>
-                      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                        <div style={{ width:8, height:8, borderRadius:'50%', background:booked?'var(--g4)':'var(--g2)', flexShrink:0 }}/>
-                        <span style={{ fontSize:13, fontWeight:700, color:'var(--td)' }}>{s.start_time}~{s.end_time}</span>
-                        <span style={{ fontSize:10, fontWeight:700, color:'var(--tmu)' }}>· {getBookingCount(selCourse.id, s.id, selectedDay)}/{selCourse.max_count}명</span>
+                    <div key={c.id} style={{ borderRadius:14, marginBottom:8, overflow:'hidden', border:`1.5px solid ${isOpen?ACCENT:BORDER}`, background:isOpen?ACCENT_BG:CARD }}>
+                      <div onClick={() => { if (isOpen) { setSelCourse(null); setSelSchedule(null) } else { setSelCourse(c); setSelSchedule(null) } }}
+                        style={{ padding:'12px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', cursor:'pointer' }}>
+                        <div>
+                          <div style={{ fontSize:13, fontWeight:600, color:isOpen?ACCENT_TEXT:'var(--td)' }}>{c.name}</div>
+                          <div style={{ fontSize:11, color:'var(--tmu)', marginTop:2 }}>
+                            강사 {c.teacher}
+                            {daySchedules.length > 0 && <span style={{ marginLeft:6 }}>{daySchedules.map(s=>`${s.start_time}~${s.end_time}`).join(' / ')}</span>}
+                          </div>
+                        </div>
+                        <span style={{ fontSize:16, color:isOpen?ACCENT:'var(--tmu)', display:'inline-block', transition:'transform 0.2s', transform:isOpen?'rotate(90deg)':'rotate(0deg)' }}>›</span>
                       </div>
-                      {booked ? (
-                        <button onClick={e=>{e.stopPropagation(); handleCancel(booking)}} style={{ fontSize:10, padding:'3px 10px', borderRadius:20, background:'var(--g1)', color:'var(--tm)', border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>예약취소</button>
-                      ) : (
-                        <span style={{ fontSize:10, color:isSel?CAT_TEXT[selCourse.category]:'var(--tmu)', fontWeight:700 }}>{isSel?'✓ 선택됨':'선택'}</span>
+                      {isOpen && (
+                        <div style={{ borderTop:`1px solid ${ACCENT}28`, padding:'6px 12px 12px' }}>
+                          {daySchedules.length === 0 ? (
+                            <div style={{ fontSize:11, color:'var(--tmu)', padding:'8px 0', textAlign:'center' }}>이 날 수업 시간이 없어요</div>
+                          ) : daySchedules.map(s => {
+                            const booked = isBooked(c.id, s.id, selectedDay)
+                            const booking = getBooking(c.id, s.id, selectedDay)
+                            const cnt = getBookingCount(c.id, s.id, selectedDay)
+                            const remain = c.max_count - cnt
+                            const full = remain <= 0 && !booked
+                            const isSel = selSchedule?.id === s.id
+                            return (
+                              <div key={s.id}
+                                onClick={() => { if (!full && !booked) setSelSchedule(isSel ? null : s) }}
+                                style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 12px', borderRadius:10, marginBottom:6, background:booked?'#E8F5E0':'#fff', border:`1.5px solid ${booked?'#a8d9a0':isSel?ACCENT:BORDER}`, cursor:full||booked?'default':'pointer', opacity:full?0.45:1 }}>
+                                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                                  <div style={{ width:18, height:18, borderRadius:'50%', flexShrink:0, background:booked?'#6db870':isSel?ACCENT:'transparent', border:`2px solid ${booked?'#6db870':isSel?ACCENT:BORDER}`, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                                    {(booked||isSel) && <svg width="9" height="7" viewBox="0 0 9 7"><polyline points="1,3.5 3,6 8,1" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                                  </div>
+                                  <span style={{ fontSize:13, fontWeight:500, color:isSel?ACCENT_TEXT:'var(--td)' }}>{s.start_time}~{s.end_time}</span>
+                                </div>
+                                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                                  <span style={{ fontSize:11, fontWeight:500, color:full?'#c0392b':booked?'#6db870':isSel?ACCENT_TEXT:'var(--tmu)' }}>
+                                    {booked?'예약됨':full?'마감':`${remain}자리 남음`}
+                                  </span>
+                                  {booked && (
+                                    <button onClick={e=>{e.stopPropagation();handleCancel(booking)}}
+                                      style={{ fontSize:10, padding:'3px 8px', borderRadius:20, background:'rgba(255,255,255,0.8)', color:'var(--tm)', border:`1px solid ${BORDER}`, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:500 }}>
+                                      취소
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
                       )}
                     </div>
                   )
@@ -607,15 +636,18 @@ export default function StudentPage() {
             )}
 
             {selSchedule && !isBooked(selCourse?.id, selSchedule?.id, selectedDay) && (
-              <div className="slide-up">
+              <div className="slide-up" style={{ marginBottom:14 }}>
                 {isBookable(selectedDay) ? (
                   selCourse?.category === 'meeting' || (ticket && ticket.remain > 0) ? (
-                    <button className="btn-primary" onClick={handleBook}>{selCourse?.name} {selSchedule?.start_time}~{selSchedule?.end_time} 예약하기</button>
+                    <button onClick={handleBook}
+                      style={{ width:'100%', padding:'15px 20px', background:ACCENT, color:'#fff', border:'none', borderRadius:14, fontSize:14, fontWeight:600, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                      {selCourse?.name} {selSchedule?.start_time}~{selSchedule?.end_time} 예약하기
+                    </button>
                   ) : (
-                    <div style={{ padding:'14px', background:'#ffebee', borderRadius:14, textAlign:'center', color:'#c0392b', fontSize:12, fontWeight:700 }}>잔여 수강권이 없어요 🐾</div>
+                    <div style={{ padding:'14px', background:'#ffebee', borderRadius:14, textAlign:'center', color:'#c0392b', fontSize:12, fontWeight:500 }}>잔여 수강권이 없어요 🐾</div>
                   )
                 ) : (
-                  <div style={{ padding:'14px', background:'var(--bg)', borderRadius:14, textAlign:'center', color:'var(--tmu)', fontSize:12, fontWeight:600 }}>{monthDiff() < 0 ? '지난 날짜는 예약할 수 없어요' : '예약은 다음 달까지만 가능해요'}</div>
+                  <div style={{ padding:'14px', background:CARD, borderRadius:14, textAlign:'center', color:'var(--tmu)', fontSize:12, fontWeight:500 }}>{monthDiff() < 0 ? '지난 날짜는 예약할 수 없어요' : '예약은 다음 달까지만 가능해요'}</div>
                 )}
               </div>
             )}
