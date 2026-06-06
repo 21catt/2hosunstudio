@@ -28,18 +28,20 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
   const [startDate, setStartDate] = useState(initial?.start_date || '')
   const [endDate, setEndDate] = useState(initial?.end_date || '')
   const [selectedDays, setSelectedDays] = useState(() => [...new Set(initial?.class_schedules?.map(s => s.day_of_week) || [])])
- const [timeSlots, setTimeSlots] = useState(() => {
-  const defaultMap = new Map(DEFAULT_SLOTS.map(s => [`${s.start}-${s.end}`, false]))
-  const savedSchedules = initial?.class_schedules || []
-  savedSchedules.forEach(x => {
-    const key = `${x.start_time}-${x.end_time}`
-    defaultMap.set(key, true)
+  const [daySlots, setDaySlots] = useState(() => {
+    const result = {}
+    const saved = initial?.class_schedules || []
+    const days = [...new Set(saved.map(s => s.day_of_week))]
+    days.forEach(day => {
+      const m = new Map(DEFAULT_SLOTS.map(s => [`${s.start}-${s.end}`, false]))
+      saved.filter(s => s.day_of_week === day).forEach(x => m.set(`${x.start_time}-${x.end_time}`, true))
+      result[day] = Array.from(m.entries()).map(([key, sel]) => {
+        const [start, end] = key.split('-')
+        return { start, end, selected: sel }
+      })
+    })
+    return result
   })
-  return Array.from(defaultMap.entries()).map(([key, selected]) => {
-    const [start, end] = key.split('-')
-    return { start, end, selected }
-  })
-})
   const [exceptions, setExceptions] = useState(initial?.class_exceptions || [])
   const [newExcDay, setNewExcDay] = useState(2)
   const [newExcStart, setNewExcStart] = useState('')
@@ -47,13 +49,28 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
   const [saving, setSaving] = useState(false)
 
   function toggleDay(d) {
-    setSelectedDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d])
+    if (selectedDays.includes(d)) {
+      setSelectedDays(prev => prev.filter(x => x !== d))
+      setDaySlots(prev => { const n = {...prev}; delete n[d]; return n })
+    } else {
+      setSelectedDays(prev => [...prev, d])
+      setDaySlots(prev => prev[d] ? prev : {
+        ...prev,
+        [d]: DEFAULT_SLOTS.map(s => ({ start:s.start, end:s.end, selected:false }))
+      })
+    }
   }
-  function toggleSlot(i) {
-    setTimeSlots(prev => prev.map((s,idx) => idx===i ? {...s,selected:!s.selected} : s))
+  function selectAllDays() {
+    const all = [2,3,4,5,6,0]
+    setSelectedDays(all)
+    setDaySlots(prev => {
+      const n = {...prev}
+      all.forEach(d => { if (!n[d]) n[d] = DEFAULT_SLOTS.map(s => ({ start:s.start, end:s.end, selected:false })) })
+      return n
+    })
   }
-  function updateSlotTime(i, field, val) {
-    setTimeSlots(prev => prev.map((s,idx) => idx===i ? {...s,[field]:val} : s))
+  function toggleDaySlot(day, i) {
+    setDaySlots(prev => ({...prev, [day]: prev[day].map((s,idx) => idx===i ? {...s,selected:!s.selected} : s)}))
   }
   function addException() {
     if (!newExcStart||!newExcEnd) return
@@ -63,7 +80,7 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
   function removeException(i) { setExceptions(prev => prev.filter((_,idx) => idx!==i)) }
 
   async function handleSave() {
-    if (!name||selectedDays.length===0||!timeSlots.some(s=>s.selected)) {
+    if (!name||selectedDays.length===0||!selectedDays.some(d => daySlots[d]?.some(s=>s.selected))) {
       alert('수업 이름, 요일, 시간을 선택해 주세요'); return
     }
     setSaving(true)
@@ -81,7 +98,7 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
         const oldSchedules = initial?.class_schedules || []
         const newSet = []
         selectedDays.forEach(day => {
-          timeSlots.filter(s=>s.selected).forEach(slot => {
+          ;(daySlots[day] || []).filter(s=>s.selected).forEach(slot => {
             newSet.push({ day_of_week:day, start_time:slot.start, end_time:slot.end })
           })
         })
@@ -148,7 +165,7 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
         if (courseId) {
           const schedules = []
           selectedDays.forEach(day => {
-            timeSlots.filter(s=>s.selected).forEach(slot => {
+            ;(daySlots[day] || []).filter(s=>s.selected).forEach(slot => {
               schedules.push({ course_id:courseId, day_of_week:day, start_time:slot.start, end_time:slot.end })
             })
           })
@@ -198,7 +215,7 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
                 color:selectedDays.includes(i)?'#fff':'var(--tm)',
                 border:`1.5px solid ${selectedDays.includes(i)?'var(--g4)':'var(--g2)'}` }}>{d}</div>
           ))}
-          <div onClick={()=>setSelectedDays([2,3,4,5,6,0])}
+          <div onClick={selectAllDays}
             style={{ padding:'0 10px', height:36, borderRadius:10, display:'flex', alignItems:'center',
               fontSize:11, fontWeight:700, cursor:'pointer', background:'var(--g1)', color:'var(--tm)', border:'1.5px solid var(--g2)' }}>
             전체
@@ -207,19 +224,23 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
       </div>
 
       <div style={{ marginBottom:14 }}>
-        <div style={{ fontSize:11, fontWeight:700, color:'var(--tm)', marginBottom:8 }}>운영 시간</div>
-        {timeSlots.map((slot,i) => (
-          <div key={i} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
-            <div onClick={()=>toggleSlot(i)}
-              style={{ width:20, height:20, borderRadius:6, border:`2px solid ${slot.selected?'var(--g4)':'var(--g2)'}`,
-                background:slot.selected?'var(--g4)':'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', flexShrink:0 }}>
-              {slot.selected&&<svg width="10" height="8" viewBox="0 0 10 8"><polyline points="1,4 3.5,7 9,1" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round"/></svg>}
+        <div style={{ fontSize:11, fontWeight:700, color:'var(--tm)', marginBottom:8 }}>요일별 운영 시간</div>
+        {selectedDays.length === 0 ? (
+          <div style={{ fontSize:11, color:'var(--tmu)', padding:'6px 0' }}>요일을 먼저 선택해 주세요</div>
+        ) : [...selectedDays].sort((a,b)=>a-b).map(day => (
+          <div key={day} style={{ marginBottom:8, padding:'8px 10px', background:'var(--bg)', borderRadius:10, border:'1px solid var(--g1)' }}>
+            <div style={{ fontSize:11, fontWeight:800, color:'var(--td)', marginBottom:6 }}>{DAYS[day]}요일</div>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
+              {(daySlots[day] || []).map((slot, i) => (
+                <div key={i} onClick={() => toggleDaySlot(day, i)}
+                  style={{ padding:'5px 9px', borderRadius:8, fontSize:11, fontWeight:700, cursor:'pointer',
+                    background: slot.selected ? 'var(--g4)' : 'var(--g1)',
+                    color: slot.selected ? '#fff' : 'var(--tm)',
+                    border: `1.5px solid ${slot.selected ? 'var(--g4)' : 'var(--g2)'}` }}>
+                  {slot.start}~{slot.end}
+                </div>
+              ))}
             </div>
-            <input value={slot.start} onChange={e=>updateSlotTime(i,'start',e.target.value)}
-              style={{ width:70, background:'var(--bg)', border:'1.5px solid var(--g1)', borderRadius:8, padding:'5px 8px', fontSize:12, fontFamily:'Nunito,sans-serif', color:'var(--td)', outline:'none' }}/>
-            <span style={{ fontSize:11, color:'var(--tmu)' }}>~</span>
-            <input value={slot.end} onChange={e=>updateSlotTime(i,'end',e.target.value)}
-              style={{ width:70, background:'var(--bg)', border:'1.5px solid var(--g1)', borderRadius:8, padding:'5px 8px', fontSize:12, fontFamily:'Nunito,sans-serif', color:'var(--td)', outline:'none' }}/>
           </div>
         ))}
       </div>
