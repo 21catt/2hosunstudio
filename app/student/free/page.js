@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
 import { sendPushToAdmins } from '../../../lib/pushNotify'
-import { sendKakaoToAdmins } from '../../../lib/kakaoNotify'
+
 
 function getHourlyRate(date, hour) {
   const dow = date.getDay()
@@ -190,7 +190,7 @@ export default function FreePage() {
       })
     }
     sendPushToAdmins('🎨 자율창작 예약', pushMsg)
-    sendKakaoToAdmins('🎨 자율창작 예약', pushMsg)
+   
 
    // 관리자에게 카카오 알림 (실패해도 예약엔 영향 없음)
     try {
