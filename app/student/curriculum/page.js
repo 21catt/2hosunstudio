@@ -10,6 +10,9 @@ const ACCENT_TEXT = '#27500A'
 const CARD = '#F1EFE8'
 const BORDER = 'rgba(0,0,0,0.14)'
 
+const CAT_LABEL = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', free:'자율창작', meeting:'모임' }
+const CAT_ORDER = ['drawing', 'painting', 'sculpture', 'free', 'meeting']
+
 // ─────────────────────────────────────────────
 // Record bottom sheet
 // ─────────────────────────────────────────────
@@ -106,7 +109,6 @@ function RecordSheet({ params, userId, onClose, onSaved }) {
       let recId = record?.id
 
       if (!recId) {
-        // Guard: user must have at least one booking for this course name
         const { data: guard } = await supabase
           .from('bookings')
           .select('id')
@@ -119,7 +121,6 @@ function RecordSheet({ params, userId, onClose, onSaved }) {
           return
         }
 
-        // Look up course by name for teacher_id / course_id
         const { data: courses } = await supabase
           .from('class_courses')
           .select('id, teacher_id')
@@ -309,7 +310,11 @@ function RecordSheet({ params, userId, onClose, onSaved }) {
 function CurriculumInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
+
   const [user, setUser] = useState(null)
+  const [tab, setTab] = useState('my')
+
+  // 내 경로
   const [courseNames, setCourseNames] = useState([])
   const [selectedName, setSelectedName] = useState(null)
   const [steps, setSteps] = useState([])
@@ -319,6 +324,12 @@ function CurriculumInner() {
   const [recordMap, setRecordMap] = useState({})
   const [loading, setLoading] = useState(true)
   const [recordSheet, setRecordSheet] = useState(null)
+
+  // 둘러보기
+  const [browseGroups, setBrowseGroups] = useState([])
+  const [browseLoaded, setBrowseLoaded] = useState(false)
+  const [browseLoading, setBrowseLoading] = useState(false)
+  const [expandedCourse, setExpandedCourse] = useState(null)
 
   const today = new Date()
   const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`
@@ -332,21 +343,18 @@ function CurriculumInner() {
   }, [])
 
   async function loadInitial(userId) {
-    // Course names that have curriculum entries
     const { data: currRows } = await supabase
       .from('course_curriculum')
       .select('course_name')
     const currNameSet = new Set((currRows || []).map(r => r.course_name).filter(Boolean))
     if (currNameSet.size === 0) { setLoading(false); return }
 
-    // Student's bookings to find enrolled course names (any status, any date)
     const { data: bks } = await supabase
       .from('bookings')
       .select('class_name, class_date')
       .eq('user_id', userId)
       .order('class_date', { ascending: false })
 
-    // Unique class_names (ordered by most recent), filtered to those with curriculum
     const seen = new Set()
     const enrolledNames = []
     for (const b of (bks || [])) {
@@ -430,6 +438,61 @@ function CurriculumInner() {
     return 'upcoming'
   }
 
+  async function loadBrowse(enrolledSet) {
+    if (browseLoaded || browseLoading) return
+    setBrowseLoading(true)
+
+    const [{ data: currRows }, { data: courseRows }] = await Promise.all([
+      supabase.from('course_curriculum').select('*').order('course_name').order('step_order'),
+      supabase.from('class_courses').select('name, teacher, category').eq('is_active', true),
+    ])
+
+    const stepsByName = {}
+    for (const row of (currRows || [])) {
+      if (!row.course_name) continue
+      if (!stepsByName[row.course_name]) stepsByName[row.course_name] = []
+      stepsByName[row.course_name].push(row)
+    }
+    for (const name in stepsByName) {
+      stepsByName[name].sort((a, b) => a.step_order - b.step_order)
+    }
+
+    const courseByName = {}
+    for (const c of (courseRows || [])) {
+      if (c.name) courseByName[c.name] = c
+    }
+
+    const groupMap = {}
+    for (const [name, courseSteps] of Object.entries(stepsByName)) {
+      const info = courseByName[name]
+      const cat = info?.category || 'other'
+      if (!groupMap[cat]) groupMap[cat] = []
+      groupMap[cat].push({ name, steps: courseSteps, teacher: info?.teacher || null, isEnrolled: enrolledSet.has(name) })
+    }
+    for (const cat in groupMap) {
+      groupMap[cat].sort((a, b) => a.name.localeCompare(b.name))
+    }
+
+    const groups = []
+    for (const cat of CAT_ORDER) {
+      if (groupMap[cat]) groups.push({ category: cat, label: CAT_LABEL[cat] || cat, courses: groupMap[cat] })
+    }
+    for (const [cat, courses] of Object.entries(groupMap)) {
+      if (!CAT_ORDER.includes(cat)) groups.push({ category: cat, label: cat, courses })
+    }
+
+    setBrowseGroups(groups)
+    setBrowseLoaded(true)
+    setBrowseLoading(false)
+  }
+
+  function handleTabSwitch(newTab) {
+    setTab(newTab)
+    if (newTab === 'browse' && !browseLoaded && !browseLoading) {
+      loadBrowse(new Set(courseNames))
+    }
+  }
+
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh' }}>
       <div style={{ fontSize:32 }}>🐱</div>
@@ -447,116 +510,214 @@ function CurriculumInner() {
 
       <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 0', minHeight:'80vh' }}>
 
-        {courseNames.length === 0 ? (
-          <div style={{ textAlign:'center', padding:40, color:'var(--tmu)', fontSize:13, lineHeight:1.8 }}>
-            커리큘럼이 등록된 수업이 없어요 🐾<br/>
-            <span style={{ fontSize:11 }}>강사님이 학습 경로를 등록하면 여기서 볼 수 있어요</span>
-          </div>
-        ) : (
+        {/* Segment toggle */}
+        <div style={{ display:'flex', gap:4, marginBottom:18, background:'var(--g1)', borderRadius:12, padding:3 }}>
+          <button onClick={() => setTab('my')}
+            style={{ flex:1, padding:'8px', borderRadius:10, background: tab==='my' ? '#fff' : 'transparent', border:'none', fontSize:13, fontWeight:700, cursor:'pointer', color: tab==='my' ? 'var(--td)' : 'var(--tmu)', fontFamily:'Nunito,sans-serif', boxShadow: tab==='my' ? '0 1px 4px rgba(0,0,0,0.1)' : 'none' }}>
+            내 경로
+          </button>
+          <button onClick={() => handleTabSwitch('browse')}
+            style={{ flex:1, padding:'8px', borderRadius:10, background: tab==='browse' ? '#fff' : 'transparent', border:'none', fontSize:13, fontWeight:700, cursor:'pointer', color: tab==='browse' ? 'var(--td)' : 'var(--tmu)', fontFamily:'Nunito,sans-serif', boxShadow: tab==='browse' ? '0 1px 4px rgba(0,0,0,0.1)' : 'none' }}>
+            둘러보기
+          </button>
+        </div>
+
+        {/* 내 경로 */}
+        {tab === 'my' && (
           <>
-            {courseNames.length > 1 && (
-              <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:16 }}>
-                {courseNames.map(name => (
-                  <button key={name} onClick={() => handleSelectName(name)}
-                    style={{
-                      padding:'6px 14px', borderRadius:20,
-                      border:`1.5px solid ${selectedName === name ? ACCENT : BORDER}`,
-                      background: selectedName === name ? ACCENT_BG : CARD,
-                      color: selectedName === name ? ACCENT_TEXT : 'var(--td)',
-                      fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'Nunito,sans-serif'
-                    }}>
-                    {name}
-                  </button>
-                ))}
+            {courseNames.length === 0 ? (
+              <div style={{ textAlign:'center', padding:40, color:'var(--tmu)', fontSize:13, lineHeight:1.8 }}>
+                커리큘럼이 등록된 수업이 없어요 🐾<br/>
+                <span style={{ fontSize:11 }}>강사님이 학습 경로를 등록하면 여기서 볼 수 있어요</span>
               </div>
-            )}
-
-            {selectedName && (
+            ) : (
               <>
-                <div style={{ background:ACCENT_BG, borderRadius:14, padding:'14px', marginBottom:18, border:`1.5px solid ${ACCENT}33` }}>
-                  <div style={{ fontSize:13, fontWeight:700, color:ACCENT_TEXT, marginBottom:2 }}>{selectedName}</div>
-                  <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:8 }}>
-                    {n} / {steps.length}회차 완료
-                    {hasTodayBooking && <span style={{ marginLeft:6, color:'#FF8F00', fontWeight:700 }}>· 오늘 수업!</span>}
-                  </div>
-                  <div style={{ height:6, borderRadius:3, background:'rgba(0,0,0,0.08)', overflow:'hidden' }}>
-                    <div style={{ height:'100%', borderRadius:3, background:ACCENT, width: steps.length > 0 ? `${Math.min(100,(n/steps.length)*100)}%` : '0%', transition:'width 0.5s' }}/>
-                  </div>
-                </div>
-
-                {steps.length === 0 ? (
-                  <div style={{ textAlign:'center', padding:30, color:'var(--tmu)', fontSize:13 }}>회차를 준비 중이에요 🐾</div>
-                ) : (
-                  <div style={{ position:'relative', paddingLeft:34 }}>
-                    <div style={{ position:'absolute', left:10, top:14, bottom:14, width:2, background:`${ACCENT}1A` }}/>
-
-                    {steps.map((step, idx) => {
-                      const i = idx + 1
-                      const status = getStepStatus(i)
-                      const isDone = status === 'done'
-                      const isToday = status === 'today'
-                      const isNext = status === 'next'
-                      const isUpcoming = status === 'upcoming'
-                      const rec = recordMap[step.id] || null
-
-                      return (
-                        <div key={step.id} style={{ marginBottom:10, display:'flex', alignItems:'flex-start' }}>
-                          <div style={{
-                            position:'absolute', left:0, width:22, height:22, borderRadius:11,
-                            background: isDone ? ACCENT : isToday ? '#FF8F00' : '#fff',
-                            border:`2px solid ${isDone ? ACCENT : isToday ? '#FF8F00' : isNext ? ACCENT : BORDER}`,
-                            display:'flex', alignItems:'center', justifyContent:'center',
-                            fontSize:10, fontWeight:800, zIndex:1,
-                            color: isDone || isToday ? '#fff' : isNext ? ACCENT : 'var(--tmu)'
-                          }}>
-                            {isDone ? '✓' : isToday ? '★' : i}
-                          </div>
-
-                          <div style={{
-                            flex:1, borderRadius:12, padding:'10px 12px',
-                            background: isToday ? '#FFF8E1' : isNext ? ACCENT_BG : isDone ? CARD : 'var(--g1)',
-                            border:`1.5px solid ${isToday ? '#FFB300' : isNext ? ACCENT : isDone ? BORDER : 'transparent'}`,
-                            opacity: isUpcoming ? 0.55 : 1
-                          }}>
-                            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                              <div>
-                                <span style={{ fontSize:10, color:'var(--tmu)', marginRight:4 }}>{i}회차</span>
-                                <span style={{ fontSize:13, fontWeight:700, color: isToday ? '#E65100' : isNext ? ACCENT_TEXT : isDone ? 'var(--td)' : 'var(--tmu)' }}>
-                                  {step.title}
-                                </span>
-                              </div>
-                              {isToday && <span style={{ fontSize:10, background:'#FF8F00', color:'#fff', borderRadius:20, padding:'2px 8px', fontWeight:700, flexShrink:0 }}>오늘</span>}
-                              {isNext  && <span style={{ fontSize:10, background:ACCENT, color:'#fff', borderRadius:20, padding:'2px 8px', fontWeight:700, flexShrink:0 }}>다음</span>}
-                            </div>
-
-                            {step.keyword && (
-                              <div style={{ fontSize:11, color:'var(--tmu)', marginTop:3 }}>
-                                {step.keyword.split(',').map(k=>k.trim()).filter(Boolean).map(k=>`#${k}`).join(' ')}
-                              </div>
-                            )}
-
-                            {(isDone || isToday) && (
-                              <div style={{ marginTop:7 }}>
-                                {rec ? (
-                                  <button onClick={() => openRecordSheet(step, i, status, 'view')}
-                                    style={{ fontSize:11, padding:'4px 10px', borderRadius:20, background:ACCENT_BG, color:ACCENT_TEXT, border:`1px solid ${ACCENT}44`, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
-                                    내 기록 보기
-                                  </button>
-                                ) : (
-                                  <button onClick={() => openRecordSheet(step, i, status, 'create')}
-                                    style={{ fontSize:11, padding:'4px 10px', borderRadius:20, background: isToday ? '#FF8F00' : 'var(--g1)', color: isToday ? '#fff' : 'var(--tmu)', border: isToday ? 'none' : `1px solid ${BORDER}`, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
-                                    기록 남기기
-                                  </button>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })}
+                {courseNames.length > 1 && (
+                  <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:16 }}>
+                    {courseNames.map(name => (
+                      <button key={name} onClick={() => handleSelectName(name)}
+                        style={{
+                          padding:'6px 14px', borderRadius:20,
+                          border:`1.5px solid ${selectedName === name ? ACCENT : BORDER}`,
+                          background: selectedName === name ? ACCENT_BG : CARD,
+                          color: selectedName === name ? ACCENT_TEXT : 'var(--td)',
+                          fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'Nunito,sans-serif'
+                        }}>
+                        {name}
+                      </button>
+                    ))}
                   </div>
                 )}
+
+                {selectedName && (
+                  <>
+                    <div style={{ background:ACCENT_BG, borderRadius:14, padding:'14px', marginBottom:18, border:`1.5px solid ${ACCENT}33` }}>
+                      <div style={{ fontSize:13, fontWeight:700, color:ACCENT_TEXT, marginBottom:2 }}>{selectedName}</div>
+                      <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:8 }}>
+                        {n} / {steps.length}회차 완료
+                        {hasTodayBooking && <span style={{ marginLeft:6, color:'#FF8F00', fontWeight:700 }}>· 오늘 수업!</span>}
+                      </div>
+                      <div style={{ height:6, borderRadius:3, background:'rgba(0,0,0,0.08)', overflow:'hidden' }}>
+                        <div style={{ height:'100%', borderRadius:3, background:ACCENT, width: steps.length > 0 ? `${Math.min(100,(n/steps.length)*100)}%` : '0%', transition:'width 0.5s' }}/>
+                      </div>
+                    </div>
+
+                    {steps.length === 0 ? (
+                      <div style={{ textAlign:'center', padding:30, color:'var(--tmu)', fontSize:13 }}>회차를 준비 중이에요 🐾</div>
+                    ) : (
+                      <div style={{ position:'relative', paddingLeft:34 }}>
+                        <div style={{ position:'absolute', left:10, top:14, bottom:14, width:2, background:`${ACCENT}1A` }}/>
+
+                        {steps.map((step, idx) => {
+                          const i = idx + 1
+                          const status = getStepStatus(i)
+                          const isDone = status === 'done'
+                          const isToday = status === 'today'
+                          const isNext = status === 'next'
+                          const isUpcoming = status === 'upcoming'
+                          const rec = recordMap[step.id] || null
+
+                          return (
+                            <div key={step.id} style={{ marginBottom:10, display:'flex', alignItems:'flex-start' }}>
+                              <div style={{
+                                position:'absolute', left:0, width:22, height:22, borderRadius:11,
+                                background: isDone ? ACCENT : isToday ? '#FF8F00' : '#fff',
+                                border:`2px solid ${isDone ? ACCENT : isToday ? '#FF8F00' : isNext ? ACCENT : BORDER}`,
+                                display:'flex', alignItems:'center', justifyContent:'center',
+                                fontSize:10, fontWeight:800, zIndex:1,
+                                color: isDone || isToday ? '#fff' : isNext ? ACCENT : 'var(--tmu)'
+                              }}>
+                                {isDone ? '✓' : isToday ? '★' : i}
+                              </div>
+
+                              <div style={{
+                                flex:1, borderRadius:12, padding:'10px 12px',
+                                background: isToday ? '#FFF8E1' : isNext ? ACCENT_BG : isDone ? CARD : 'var(--g1)',
+                                border:`1.5px solid ${isToday ? '#FFB300' : isNext ? ACCENT : isDone ? BORDER : 'transparent'}`,
+                                opacity: isUpcoming ? 0.55 : 1
+                              }}>
+                                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                                  <div>
+                                    <span style={{ fontSize:10, color:'var(--tmu)', marginRight:4 }}>{i}회차</span>
+                                    <span style={{ fontSize:13, fontWeight:700, color: isToday ? '#E65100' : isNext ? ACCENT_TEXT : isDone ? 'var(--td)' : 'var(--tmu)' }}>
+                                      {step.title}
+                                    </span>
+                                  </div>
+                                  {isToday && <span style={{ fontSize:10, background:'#FF8F00', color:'#fff', borderRadius:20, padding:'2px 8px', fontWeight:700, flexShrink:0 }}>오늘</span>}
+                                  {isNext  && <span style={{ fontSize:10, background:ACCENT, color:'#fff', borderRadius:20, padding:'2px 8px', fontWeight:700, flexShrink:0 }}>다음</span>}
+                                </div>
+
+                                {step.keyword && (
+                                  <div style={{ fontSize:11, color:'var(--tmu)', marginTop:3 }}>
+                                    {step.keyword.split(',').map(k=>k.trim()).filter(Boolean).map(k=>`#${k}`).join(' ')}
+                                  </div>
+                                )}
+
+                                {(isDone || isToday) && (
+                                  <div style={{ marginTop:7 }}>
+                                    {rec ? (
+                                      <button onClick={() => openRecordSheet(step, i, status, 'view')}
+                                        style={{ fontSize:11, padding:'4px 10px', borderRadius:20, background:ACCENT_BG, color:ACCENT_TEXT, border:`1px solid ${ACCENT}44`, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                                        내 기록 보기
+                                      </button>
+                                    ) : (
+                                      <button onClick={() => openRecordSheet(step, i, status, 'create')}
+                                        style={{ fontSize:11, padding:'4px 10px', borderRadius:20, background: isToday ? '#FF8F00' : 'var(--g1)', color: isToday ? '#fff' : 'var(--tmu)', border: isToday ? 'none' : `1px solid ${BORDER}`, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                                        기록 남기기
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </>
+                )}
               </>
+            )}
+          </>
+        )}
+
+        {/* 둘러보기 */}
+        {tab === 'browse' && (
+          <>
+            {browseLoading ? (
+              <div style={{ display:'flex', justifyContent:'center', padding:48 }}>
+                <span style={{ fontSize:30 }}>🐱</span>
+              </div>
+            ) : browseGroups.length === 0 ? (
+              <div style={{ textAlign:'center', padding:40, color:'var(--tmu)', fontSize:13, lineHeight:1.8 }}>
+                등록된 커리큘럼이 없어요 🐾
+              </div>
+            ) : (
+              browseGroups.map(group => (
+                <div key={group.category} style={{ marginBottom:24 }}>
+                  <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:8, letterSpacing:0.3 }}>
+                    {group.label}
+                  </div>
+                  {group.courses.map(course => {
+                    const key = `${group.category}__${course.name}`
+                    const isOpen = expandedCourse === key
+                    return (
+                      <div key={course.name} style={{ borderRadius:14, marginBottom:8, border:`1.5px solid ${isOpen ? ACCENT : BORDER}`, background: isOpen ? ACCENT_BG : CARD, overflow:'hidden' }}>
+                        <div onClick={() => setExpandedCourse(isOpen ? null : key)}
+                          style={{ padding:'12px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', cursor:'pointer' }}>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+                              <span style={{ fontSize:13, fontWeight:700, color: isOpen ? ACCENT_TEXT : 'var(--td)' }}>{course.name}</span>
+                              {course.isEnrolled && (
+                                <span style={{ fontSize:10, background:ACCENT, color:'#fff', borderRadius:20, padding:'2px 7px', fontWeight:700, flexShrink:0 }}>수강 중</span>
+                              )}
+                            </div>
+                            <div style={{ fontSize:11, color:'var(--tmu)', marginTop:2 }}>
+                              총 {course.steps.length}회차{course.teacher ? ` · ${course.teacher}` : ''}
+                            </div>
+                          </div>
+                          <span style={{ fontSize:16, color: isOpen ? ACCENT : 'var(--tmu)', display:'inline-block', transition:'transform 0.2s', transform: isOpen ? 'rotate(90deg)' : 'none', marginLeft:8, flexShrink:0 }}>›</span>
+                        </div>
+
+                        {isOpen && (
+                          <div style={{ borderTop:`1px solid ${ACCENT}28`, padding:'12px 14px 14px' }}>
+                            {course.isEnrolled && (
+                              <div style={{ marginBottom:12 }}>
+                                <button
+                                  onClick={() => {
+                                    setTab('my')
+                                    if (courseNames.includes(course.name)) handleSelectName(course.name)
+                                  }}
+                                  style={{ fontSize:11, padding:'5px 12px', borderRadius:20, background:ACCENT, color:'#fff', border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:600 }}>
+                                  내 경로 보기 →
+                                </button>
+                              </div>
+                            )}
+                            <div style={{ position:'relative', paddingLeft:28 }}>
+                              <div style={{ position:'absolute', left:7, top:10, bottom:10, width:2, background:`${ACCENT}18` }}/>
+                              {course.steps.map((step, idx) => (
+                                <div key={step.id} style={{ marginBottom:9, position:'relative', display:'flex', alignItems:'flex-start' }}>
+                                  <div style={{ position:'absolute', left:-28, width:16, height:16, borderRadius:8, background:'var(--g1)', border:`1.5px solid ${BORDER}`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, color:'var(--tmu)', fontWeight:700, flexShrink:0, zIndex:1 }}>
+                                    {idx + 1}
+                                  </div>
+                                  <div>
+                                    <div style={{ fontSize:12, fontWeight:600, color:'var(--td)' }}>{step.title}</div>
+                                    {step.keyword && (
+                                      <div style={{ fontSize:10, color:'var(--tmu)', marginTop:2 }}>
+                                        {step.keyword.split(',').map(k=>k.trim()).filter(Boolean).map(k=>`#${k}`).join(' ')}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              ))
             )}
           </>
         )}
