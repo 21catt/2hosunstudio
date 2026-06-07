@@ -1,6 +1,6 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
 
@@ -11,8 +11,9 @@ const CARD = '#F1EFE8'
 const BORDER = 'rgba(0,0,0,0.14)'
 const DOW = ['일','월','화','수','목','금','토']
 
-export default function RecordsPage() {
+function RecordsInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [user, setUser] = useState(null)
   const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(true)
@@ -20,12 +21,20 @@ export default function RecordsPage() {
   const [signedUrls, setSignedUrls] = useState({})
   const [creating, setCreating] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [initialized, setInitialized] = useState(false)
 
   const now = new Date()
   const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`
 
-  const [newDate, setNewDate] = useState(todayStr)
-  const [newClass, setNewClass] = useState('')
+  // URL params
+  const qDate = searchParams.get('date')
+  const qClass = searchParams.get('class')
+  const qExpand = searchParams.get('expand')
+
+  const validDate = /^\d{4}-\d{2}-\d{2}$/.test(qDate || '') ? qDate : todayStr
+
+  const [newDate, setNewDate] = useState(validDate)
+  const [newClass, setNewClass] = useState(qClass || '')
   const [newMemo, setNewMemo] = useState('')
   const [pendingFiles, setPendingFiles] = useState([])
   const [previewUrls, setPreviewUrls] = useState([])
@@ -37,6 +46,22 @@ export default function RecordsPage() {
       loadRecords(data.user.id)
     })
   }, [])
+
+  // Apply URL params after records load
+  useEffect(() => {
+    if (initialized) return
+    if (loading) return
+    setInitialized(true)
+
+    if (qExpand) {
+      setExpanded(qExpand)
+      // load photos for that record
+      const rec = records.find(r => r.id === qExpand)
+      if (rec) loadPhotos(rec)
+    } else if (qDate || qClass) {
+      setCreating(true)
+    }
+  }, [loading, records])
 
   async function loadRecords(userId) {
     const { data } = await supabase
@@ -279,5 +304,13 @@ export default function RecordsPage() {
 
       <StudentNav active="records"/>
     </>
+  )
+}
+
+export default function RecordsPage() {
+  return (
+    <Suspense fallback={null}>
+      <RecordsInner />
+    </Suspense>
   )
 }

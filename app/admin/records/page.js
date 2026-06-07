@@ -50,17 +50,14 @@ export default function AdminRecordsPage() {
 
   async function loadPhotos(record) {
     if (!record.class_record_photos?.length) return
-    const { data: { session } } = await supabase.auth.getSession()
-    const token = session?.access_token
     const pairs = await Promise.all(
       record.class_record_photos
         .filter(p => !signedUrls[p.storage_path])
         .map(async p => {
-          const res = await fetch(`/api/records/signed-url?path=${encodeURIComponent(p.storage_path)}`, {
-            headers: { Authorization: `Bearer ${token}` }
-          })
-          const json = await res.json()
-          return [p.storage_path, json.url || null]
+          const { data } = await supabase.storage
+            .from('class-records')
+            .createSignedUrl(p.storage_path, 300)
+          return [p.storage_path, data?.signedUrl || null]
         })
     )
     const next = Object.fromEntries(pairs.filter(([, url]) => url))
@@ -85,7 +82,7 @@ export default function AdminRecordsPage() {
 
   async function handleFeedbackUpdate(fbId, body) {
     if (!body.trim()) return
-    await supabase.from('class_record_feedback').update({ body }).eq('id', fbId)
+    await supabase.from('class_record_feedback').update({ body, updated_at: new Date().toISOString() }).eq('id', fbId)
     setFbEditing(prev => { const n = { ...prev }; delete n[fbId]; return n })
     loadAll()
   }

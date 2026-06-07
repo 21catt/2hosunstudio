@@ -25,8 +25,8 @@ export default function StudentNav({ active }) {
   const items = [
     { href:'/student', label:'일정', icon:'📅', key:'schedule' },
     { href:'/student/records', label:'기록', icon:'📋', key:'records' },
+    { href:'/student/curriculum', label:'경로', icon:'📚', key:'curriculum' },
     { href:'/student/notification', label:'알림', icon:'🔔', key:'notification' },
-    { href:'/student/farm', label:'냥밭', icon:'🌱', key:'farm' },
     { href:'/lounge', label:'라운지', icon:'💬', key:'lounge' },
   ]
 
