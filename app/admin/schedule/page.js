@@ -663,7 +663,7 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
       borderRadius:10, fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
     {isMeeting?'회의 수정':'수업 수정'}
   </button>
-  <button onClick={() => router.push(`/admin/curriculum?course=${c.id}`)}
+  <button onClick={() => router.push(`/admin/curriculum?course=${encodeURIComponent(c.name)}`)}
     style={{ flex:1, padding:'7px', background:'#EAF3DE', color:'#27500A', border:'none',
       borderRadius:10, fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
     커리큘럼
@@ -734,7 +734,7 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
                       <button onClick={() => { setEditCourse(c); setShowForm(false) }}
                         style={{ fontSize:9, padding:'3px 8px', borderRadius:8, border:'1px solid var(--g2)',
                           background:'var(--surf)', color:'var(--tm)', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>수정</button>
-                      <button onClick={() => router.push(`/admin/curriculum?course=${c.id}`)}
+                      <button onClick={() => router.push(`/admin/curriculum?course=${encodeURIComponent(c.name)}`)}
                         style={{ fontSize:9, padding:'3px 8px', borderRadius:8, border:'1px solid #b8d9a0',
                           background:'#EAF3DE', color:'#27500A', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>커리큘럼</button>
                       <button onClick={() => toggleCourse(c.id, c.is_active)}

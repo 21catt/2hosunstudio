@@ -14,10 +14,10 @@ const BORDER = 'rgba(0,0,0,0.14)'
 // Record bottom sheet
 // ─────────────────────────────────────────────
 function RecordSheet({ params, userId, onClose, onSaved }) {
-  const { curriculumId, courseId, classDate, classTitle, mode: initMode } = params
+  const { curriculumId, courseName, classDate, classTitle, mode: initMode } = params
   const [mode, setMode] = useState(initMode)
   const [record, setRecord] = useState(null)
-  const [photos, setPhotos] = useState([])       // { id, storage_path, signedUrl }
+  const [photos, setPhotos] = useState([])
   const [feedback, setFeedback] = useState([])
   const [memo, setMemo] = useState('')
   const [pendingFiles, setPendingFiles] = useState([])
@@ -106,19 +106,33 @@ function RecordSheet({ params, userId, onClose, onSaved }) {
       let recId = record?.id
 
       if (!recId) {
-        // Get teacher_id from course
-        const { data: course } = await supabase
+        // Guard: user must have at least one booking for this course name
+        const { data: guard } = await supabase
+          .from('bookings')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('class_name', courseName)
+          .limit(1)
+        if (!guard?.length) {
+          setErr('이 수업의 예약 내역이 없어요. 먼저 수업을 예약해 주세요.')
+          setSaving(false)
+          return
+        }
+
+        // Look up course by name for teacher_id / course_id
+        const { data: courses } = await supabase
           .from('class_courses')
-          .select('teacher_id')
-          .eq('id', courseId)
-          .maybeSingle()
+          .select('id, teacher_id')
+          .eq('name', courseName)
+          .limit(1)
+        const course = courses?.[0]
 
         const { data: newRec, error: insErr } = await supabase
           .from('class_records')
           .insert({
             user_id: userId,
             curriculum_id: curriculumId,
-            course_id: courseId,
+            course_id: course?.id || null,
             class_date: classDate,
             class_name: classTitle,
             teacher_id: course?.teacher_id || null,
@@ -137,7 +151,6 @@ function RecordSheet({ params, userId, onClose, onSaved }) {
         if (updErr) throw updErr
       }
 
-      // Upload pending photos
       const failed = []
       for (const file of pendingFiles) {
         try {
@@ -174,17 +187,14 @@ function RecordSheet({ params, userId, onClose, onSaved }) {
   const dateLabel = classDate?.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$2/$3') || ''
 
   return (
-    <div
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    <div onClick={e => { if (e.target === e.currentTarget) onClose() }}
       style={{ position:'fixed', inset:0, zIndex:1000, background:'rgba(0,0,0,0.45)', display:'flex', flexDirection:'column', justifyContent:'flex-end' }}>
       <div style={{ background:'#fff', borderRadius:'20px 20px 0 0', maxHeight:'88vh', overflowY:'auto' }}>
 
-        {/* drag handle */}
         <div style={{ display:'flex', justifyContent:'center', padding:'12px 0 0' }}>
           <div style={{ width:36, height:4, borderRadius:2, background:'#ddd' }}/>
         </div>
 
-        {/* header */}
         <div style={{ padding:'10px 16px 12px', display:'flex', alignItems:'center', justifyContent:'space-between', borderBottom:`1px solid ${BORDER}` }}>
           <div>
             <div style={{ fontSize:13, fontWeight:700, color:'var(--td)' }}>{classTitle}</div>
@@ -211,11 +221,9 @@ function RecordSheet({ params, userId, onClose, onSaved }) {
         ) : (
           <div style={{ padding:'16px 16px 36px' }}>
 
-            {/* Photos */}
             <div style={{ marginBottom:16 }}>
               <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>사진</div>
               <div style={{ display:'flex', gap:7, flexWrap:'wrap' }}>
-                {/* saved photos */}
                 {photos.map(p => (
                   <div key={p.id} style={{ position:'relative', width:82, height:82, borderRadius:10, overflow:'hidden', background:'var(--g1)', flexShrink:0 }}>
                     {p.signedUrl
@@ -230,7 +238,6 @@ function RecordSheet({ params, userId, onClose, onSaved }) {
                     )}
                   </div>
                 ))}
-                {/* pending previews */}
                 {previewUrls.map((url, i) => (
                   <div key={`pr${i}`} style={{ position:'relative', width:82, height:82, borderRadius:10, overflow:'hidden', flexShrink:0 }}>
                     <img src={url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', opacity:0.72 }}/>
@@ -240,7 +247,6 @@ function RecordSheet({ params, userId, onClose, onSaved }) {
                     </button>
                   </div>
                 ))}
-                {/* add button */}
                 {isEdit && (
                   <label style={{ width:82, height:82, borderRadius:10, border:`1.5px dashed ${BORDER}`, background:'var(--g1)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:'pointer', flexShrink:0, gap:2 }}>
                     <span style={{ fontSize:24, color:'#ccc', lineHeight:1 }}>+</span>
@@ -254,7 +260,6 @@ function RecordSheet({ params, userId, onClose, onSaved }) {
               </div>
             </div>
 
-            {/* Memo */}
             <div style={{ marginBottom:16 }}>
               <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:6 }}>메모</div>
               {isEdit ? (
@@ -268,7 +273,6 @@ function RecordSheet({ params, userId, onClose, onSaved }) {
               )}
             </div>
 
-            {/* Teacher feedback (view only) */}
             {!isEdit && feedback.length > 0 && (
               <div style={{ marginBottom:16, background:ACCENT_BG, borderRadius:12, padding:'12px 14px', border:`1.5px solid ${ACCENT}33` }}>
                 <div style={{ fontSize:10, fontWeight:700, color:ACCENT, marginBottom:8 }}>강사 피드백</div>
@@ -280,14 +284,12 @@ function RecordSheet({ params, userId, onClose, onSaved }) {
               </div>
             )}
 
-            {/* Error */}
             {err && (
               <div style={{ fontSize:12, color:'#c0392b', background:'#fdf3f3', borderRadius:8, padding:'8px 12px', marginBottom:14, lineHeight:1.5 }}>
                 {err}
               </div>
             )}
 
-            {/* Save */}
             {isEdit && (
               <button onClick={handleSave} disabled={saving}
                 style={{ width:'100%', padding:'13px', background: saving ? '#aaa' : ACCENT, color:'#fff', border:'none', borderRadius:14, fontSize:14, fontWeight:700, cursor: saving ? 'default' : 'pointer', fontFamily:'Nunito,sans-serif' }}>
@@ -308,15 +310,15 @@ function CurriculumInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [user, setUser] = useState(null)
-  const [courses, setCourses] = useState([])
-  const [selectedCourse, setSelectedCourse] = useState(null)
+  const [courseNames, setCourseNames] = useState([])
+  const [selectedName, setSelectedName] = useState(null)
   const [steps, setSteps] = useState([])
   const [n, setN] = useState(0)
   const [hasTodayBooking, setHasTodayBooking] = useState(false)
-  const [bookingDates, setBookingDates] = useState([]) // sorted asc, for classDate mapping
-  const [recordMap, setRecordMap] = useState({})       // curriculum_id → record row
+  const [bookingDates, setBookingDates] = useState([])
+  const [recordMap, setRecordMap] = useState({})
   const [loading, setLoading] = useState(true)
-  const [recordSheet, setRecordSheet] = useState(null) // params for RecordSheet
+  const [recordSheet, setRecordSheet] = useState(null)
 
   const today = new Date()
   const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`
@@ -330,48 +332,50 @@ function CurriculumInner() {
   }, [])
 
   async function loadInitial(userId) {
-    const { data: currRows } = await supabase.from('course_curriculum').select('course_id')
-    const currCourseIds = [...new Set((currRows || []).map(r => r.course_id))]
-    if (currCourseIds.length === 0) { setLoading(false); return }
+    // Course names that have curriculum entries
+    const { data: currRows } = await supabase
+      .from('course_curriculum')
+      .select('course_name')
+    const currNameSet = new Set((currRows || []).map(r => r.course_name).filter(Boolean))
+    if (currNameSet.size === 0) { setLoading(false); return }
 
-    const { data: allBookings } = await supabase
+    // Student's bookings to find enrolled course names (any status, any date)
+    const { data: bks } = await supabase
       .from('bookings')
-      .select('course_id, class_date')
+      .select('class_name, class_date')
       .eq('user_id', userId)
-      .in('course_id', currCourseIds)
       .order('class_date', { ascending: false })
 
-    const enrolledIds = [...new Set((allBookings || []).map(b => b.course_id).filter(Boolean))]
-    if (enrolledIds.length === 0) { setLoading(false); return }
-
-    const { data: crs } = await supabase
-      .from('class_courses')
-      .select('id, name, category')
-      .in('id', enrolledIds)
-      .order('name')
-    setCourses(crs || [])
-
-    const qCourseId = searchParams.get('course')
-    const mostRecentCourseId = (allBookings || [])[0]?.course_id
-    const defaultCourse =
-      (crs || []).find(c => c.id === qCourseId) ||
-      (crs || []).find(c => c.id === mostRecentCourseId) ||
-      (crs || [])[0] || null
-
-    if (defaultCourse) {
-      setSelectedCourse(defaultCourse)
-      await loadCourseData(userId, defaultCourse.id)
+    // Unique class_names (ordered by most recent), filtered to those with curriculum
+    const seen = new Set()
+    const enrolledNames = []
+    for (const b of (bks || [])) {
+      if (b.class_name && currNameSet.has(b.class_name) && !seen.has(b.class_name)) {
+        seen.add(b.class_name)
+        enrolledNames.push(b.class_name)
+      }
     }
+
+    if (enrolledNames.length === 0) { setLoading(false); return }
+    setCourseNames(enrolledNames)
+
+    const qName = searchParams.get('course')
+    const defaultName = enrolledNames.includes(qName) ? qName : enrolledNames[0]
+    setSelectedName(defaultName)
+    await loadCourseData(userId, defaultName)
     setLoading(false)
   }
 
-  async function loadCourseData(userId, courseId) {
+  async function loadCourseData(userId, courseName) {
     const [{ data: stepsData }, { data: bks }] = await Promise.all([
-      supabase.from('course_curriculum').select('*').eq('course_id', courseId).order('step_order'),
+      supabase.from('course_curriculum')
+        .select('*')
+        .eq('course_name', courseName)
+        .order('step_order'),
       supabase.from('bookings')
         .select('class_date')
         .eq('user_id', userId)
-        .eq('course_id', courseId)
+        .eq('class_name', courseName)
         .eq('status', 'booked')
         .lte('class_date', todayStr),
     ])
@@ -398,25 +402,22 @@ function CurriculumInner() {
     }
   }
 
-  async function handleSelectCourse(course) {
-    if (!user || selectedCourse?.id === course.id) return
-    setSelectedCourse(course)
+  async function handleSelectName(name) {
+    if (!user || selectedName === name) return
+    setSelectedName(name)
     setSteps([])
     setN(0)
     setHasTodayBooking(false)
     setBookingDates([])
     setRecordMap({})
-    await loadCourseData(user.id, course.id)
+    await loadCourseData(user.id, name)
   }
 
   function openRecordSheet(step, i, status, mode) {
-    // i is 1-based; bookingDates[i-1] is the date of the i-th session
-    const classDate = status === 'today'
-      ? todayStr
-      : (bookingDates[i - 1] || todayStr)
+    const classDate = status === 'today' ? todayStr : (bookingDates[i - 1] || todayStr)
     setRecordSheet({
       curriculumId: step.id,
-      courseId: selectedCourse.id,
+      courseName: selectedName,
       classDate,
       classTitle: step.title,
       mode,
@@ -446,35 +447,34 @@ function CurriculumInner() {
 
       <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 0', minHeight:'80vh' }}>
 
-        {courses.length === 0 ? (
+        {courseNames.length === 0 ? (
           <div style={{ textAlign:'center', padding:40, color:'var(--tmu)', fontSize:13, lineHeight:1.8 }}>
             커리큘럼이 등록된 수업이 없어요 🐾<br/>
             <span style={{ fontSize:11 }}>강사님이 학습 경로를 등록하면 여기서 볼 수 있어요</span>
           </div>
         ) : (
           <>
-            {courses.length > 1 && (
+            {courseNames.length > 1 && (
               <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:16 }}>
-                {courses.map(c => (
-                  <button key={c.id} onClick={() => handleSelectCourse(c)}
+                {courseNames.map(name => (
+                  <button key={name} onClick={() => handleSelectName(name)}
                     style={{
                       padding:'6px 14px', borderRadius:20,
-                      border:`1.5px solid ${selectedCourse?.id === c.id ? ACCENT : BORDER}`,
-                      background: selectedCourse?.id === c.id ? ACCENT_BG : CARD,
-                      color: selectedCourse?.id === c.id ? ACCENT_TEXT : 'var(--td)',
+                      border:`1.5px solid ${selectedName === name ? ACCENT : BORDER}`,
+                      background: selectedName === name ? ACCENT_BG : CARD,
+                      color: selectedName === name ? ACCENT_TEXT : 'var(--td)',
                       fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'Nunito,sans-serif'
                     }}>
-                    {c.name}
+                    {name}
                   </button>
                 ))}
               </div>
             )}
 
-            {selectedCourse && (
+            {selectedName && (
               <>
-                {/* progress header */}
                 <div style={{ background:ACCENT_BG, borderRadius:14, padding:'14px', marginBottom:18, border:`1.5px solid ${ACCENT}33` }}>
-                  <div style={{ fontSize:13, fontWeight:700, color:ACCENT_TEXT, marginBottom:2 }}>{selectedCourse.name}</div>
+                  <div style={{ fontSize:13, fontWeight:700, color:ACCENT_TEXT, marginBottom:2 }}>{selectedName}</div>
                   <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:8 }}>
                     {n} / {steps.length}회차 완료
                     {hasTodayBooking && <span style={{ marginLeft:6, color:'#FF8F00', fontWeight:700 }}>· 오늘 수업!</span>}
@@ -501,7 +501,6 @@ function CurriculumInner() {
 
                       return (
                         <div key={step.id} style={{ marginBottom:10, display:'flex', alignItems:'flex-start' }}>
-                          {/* dot */}
                           <div style={{
                             position:'absolute', left:0, width:22, height:22, borderRadius:11,
                             background: isDone ? ACCENT : isToday ? '#FF8F00' : '#fff',
@@ -513,7 +512,6 @@ function CurriculumInner() {
                             {isDone ? '✓' : isToday ? '★' : i}
                           </div>
 
-                          {/* card */}
                           <div style={{
                             flex:1, borderRadius:12, padding:'10px 12px',
                             background: isToday ? '#FFF8E1' : isNext ? ACCENT_BG : isDone ? CARD : 'var(--g1)',
@@ -573,7 +571,7 @@ function CurriculumInner() {
           params={recordSheet}
           userId={user.id}
           onClose={() => setRecordSheet(null)}
-          onSaved={() => { setRecordSheet(null); loadCourseData(user.id, selectedCourse.id) }}
+          onSaved={() => { setRecordSheet(null); loadCourseData(user.id, selectedName) }}
         />
       )}
     </>

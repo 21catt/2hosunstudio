@@ -95,6 +95,8 @@ export default function StudentPage() {
   const [selSchedule, setSelSchedule] = useState(null)
   const [paymentModal, setPaymentModal] = useState(null)
   const [selectedCount, setSelectedCount] = useState(1)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [sheetSlot, setSheetSlot] = useState(null)
   const now = new Date()
   const todayY = now.getFullYear()
   const todayM = now.getMonth()
@@ -525,6 +527,43 @@ export default function StudentPage() {
         </div>
       )}
 
+      {sheetOpen && sheetSlot && (
+        <div onClick={() => setSheetOpen(false)}
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', zIndex:1000, display:'flex', alignItems:'flex-end' }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background:'#fff', borderRadius:'20px 20px 0 0', padding:'20px 18px 32px', width:'100%', maxHeight:'60vh', overflowY:'auto' }}>
+            <div style={{ fontSize:13, fontWeight:800, color:'var(--td)', marginBottom:4 }}>{sheetSlot.course.name} 예약</div>
+            <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:14 }}>이번 주 다른 시간대</div>
+            {(!ticket || ticket.remain <= 0) ? (
+              <div style={{ textAlign:'center', padding:'12px', background:'var(--g1)', borderRadius:12, fontSize:12, color:'var(--tmu)', marginBottom:12 }}>수강권 충전 필요</div>
+            ) : sheetSlot.chips.length === 0 ? (
+              <div style={{ textAlign:'center', padding:'12px', background:'var(--g1)', borderRadius:12, fontSize:12, color:'var(--tmu)', marginBottom:12 }}>이번 주 다른 시간대 없음</div>
+            ) : (
+              <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:14 }}>
+                {sheetSlot.chips.map(chip => {
+                  const cd = new Date(chip.dateStr + 'T00:00:00')
+                  const cdow = ['일','월','화','수','목','금','토'][cd.getDay()]
+                  const cmmdd = `${String(cd.getMonth()+1).padStart(2,'0')}/${String(cd.getDate()).padStart(2,'0')}`
+                  return (
+                    <button key={`${chip.schedule.id}-${chip.dateStr}`}
+                      onClick={() => { handleQuickBook(sheetSlot.course, chip.schedule, chip.dateStr); setSheetOpen(false) }}
+                      style={{ padding:'8px 14px', borderRadius:20, background:ACCENT_BG, color:ACCENT_TEXT, border:`1.5px solid ${ACCENT}55`, fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                      {cdow} {chip.schedule.start_time} · {cmmdd}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+            <div style={{ textAlign:'center' }}>
+              <span onClick={() => { navigateToDate(sheetSlot.next.dateStr); setSheetOpen(false) }}
+                style={{ fontSize:12, color:'var(--tmu)', cursor:'pointer', textDecoration:'underline', textUnderlineOffset:2 }}>
+                전체 일정에서 고르기 →
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <span style={{ fontSize:20 }}>🐱</span>
@@ -535,88 +574,61 @@ export default function StudentPage() {
 
       <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 0' }}>
 
-        {upcomingBookings.length > 0 && (
-          <div style={{ marginBottom:16 }}>
-            <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>다가오는 수업</div>
-            {upcomingBookings.map(b => {
-              const d = new Date(b.class_date + 'T00:00:00')
-              const dow = ['일','월','화','수','목','금','토'][d.getDay()]
-              return (
-                <div key={b.id} onClick={() => navigateToDate(b.class_date)}
-                  style={{ background:ACCENT_BG, borderRadius:14, padding:'12px 14px', marginBottom:8, border:`1.5px solid ${ACCENT}55`, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                  <div>
-                    <div style={{ fontSize:13, fontWeight:600, color:ACCENT_TEXT }}>{b.class_name}</div>
-                    <div style={{ fontSize:11, color:'var(--tm)', marginTop:3 }}>
-                      {b.class_date} ({dow}) · {b.class_time}
-                    </div>
-                    {b.teacher && <div style={{ fontSize:11, color:'var(--tmu)', marginTop:2 }}>{b.teacher}</div>}
-                    {b.seat && <div style={{ fontSize:10, color:'var(--tmu)', marginTop:1 }}>자리 {b.seat}</div>}
-                  </div>
-                  <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6 }}>
-                    <span style={{ fontSize:16, color:ACCENT }}>›</span>
-                    <button onClick={e => { e.stopPropagation(); handleCancel(b) }}
-                      style={{ fontSize:10, padding:'3px 8px', borderRadius:20, background:'rgba(255,255,255,0.8)', color:'var(--tm)', border:`1px solid ${BORDER}`, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:500 }}>
-                      취소
-                    </button>
+        {(() => {
+          if (upcomingBookings.length > 0) {
+            const b = upcomingBookings[0]
+            const d = new Date(b.class_date + 'T00:00:00')
+            const dow = ['일','월','화','수','목','금','토'][d.getDay()]
+            const mmdd = `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`
+            return (
+              <div style={{ marginBottom:16, background:ACCENT_BG, borderRadius:14, padding:'10px 14px', border:`1.5px solid ${ACCENT}55`, display:'flex', alignItems:'center', gap:8 }}>
+                <div onClick={() => navigateToDate(b.class_date)} style={{ flex:1, minWidth:0, cursor:'pointer' }}>
+                  <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:1 }}>다음 수업</div>
+                  <div style={{ fontSize:13, fontWeight:600, color:ACCENT_TEXT, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                    {b.class_name} · {mmdd}({dow}) {b.class_time?.split('~')[0]}
                   </div>
                 </div>
-              )
-            })}
-          </div>
-        )}
-
-        {showQuickBook && (
-          <div style={{ marginBottom:16 }}>
-            <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>원탭 재예약</div>
-            {habitSlots.map(slot => {
-              const { course, schedule, next, isFull, chips } = slot
-              const nd = new Date(next.dateStr + 'T00:00:00')
-              const dowLabel = ['일','월','화','수','목','금','토'][nd.getDay()]
-              const mmdd = `${String(nd.getMonth()+1).padStart(2,'0')}/${String(nd.getDate()).padStart(2,'0')}`
-              const hasChips = chips.length > 0
-              return (
-                <div key={`${course.id}-${schedule.id}`} style={{ background:CARD, borderRadius:14, padding:'12px 14px', marginBottom:8, border:`1.5px solid ${BORDER}` }}>
-                  {(!ticket || ticket.remain <= 0) ? (
-                    <div style={{ padding:'10px 14px', background:'#f5f5f5', color:'var(--tmu)', border:`1.5px solid ${BORDER}`, borderRadius:12, fontSize:12, fontWeight:500, textAlign:'center', marginBottom: hasChips?10:0 }}>
-                      수강권 충전 필요
-                    </div>
-                  ) : isFull ? (
-                    <div style={{ padding:'10px 14px', background:'#fff0f0', color:'#c0392b', border:'1.5px solid #f5c6cb', borderRadius:12, fontSize:12, fontWeight:500, textAlign:'center', marginBottom: hasChips?10:0 }}>
-                      {dowLabel} {schedule.start_time} 마감
-                    </div>
-                  ) : (
-                    <button onClick={() => handleQuickBook(course, schedule, next.dateStr)}
-                      style={{ width:'100%', padding:'10px 14px', background:ACCENT, color:'#fff', border:'none', borderRadius:12, fontSize:13, fontWeight:500, cursor:'pointer', fontFamily:'Nunito,sans-serif', textAlign:'left', display:'block', marginBottom: hasChips?10:0 }}>
-                      {dowLabel}요일 {schedule.start_time} · {mmdd} 예약
-                    </button>
-                  )}
-                  {hasChips && (
-                    <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:10 }}>
-                      {chips.map(chip => {
-                        const cd = new Date(chip.dateStr + 'T00:00:00')
-                        const cdow = ['일','월','화','수','목','금','토'][cd.getDay()]
-                        const cmmdd = `${String(cd.getMonth()+1).padStart(2,'0')}/${String(cd.getDate()).padStart(2,'0')}`
-                        return (
-                          <button key={`${chip.schedule.id}-${chip.dateStr}`}
-                            onClick={() => handleQuickBook(course, chip.schedule, chip.dateStr)}
-                            style={{ padding:'5px 10px', borderRadius:20, background:'#fff', color:'var(--td)', border:`1.5px solid ${BORDER}`, fontSize:11, fontWeight:500, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
-                            {cdow} {chip.schedule.start_time} · {cmmdd}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  )}
-                  <div style={{ textAlign:'right' }}>
-                    <span onClick={() => { setYear(next.year); setMonth(next.month); setSelectedDay(next.day) }}
-                      style={{ fontSize:11, color:'var(--tmu)', cursor:'pointer', textDecoration:'underline', textUnderlineOffset:2 }}>
-                      전체 일정에서 고르기 →
-                    </span>
-                  </div>
+                <button
+                  onClick={() => { if (habitSlots.length > 0) { setSheetSlot(habitSlots[0]); setSheetOpen(true) } else { navigateToDate(b.class_date) } }}
+                  style={{ flexShrink:0, padding:'5px 12px', borderRadius:20, background:ACCENT, color:'#fff', border:'none', fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                  또 예약
+                </button>
+              </div>
+            )
+          }
+          if (habitSlots.length > 0) {
+            return (
+              <div style={{ marginBottom:16, background:CARD, borderRadius:14, padding:'10px 14px', border:`1.5px solid ${BORDER}`, display:'flex', alignItems:'center', gap:8 }}>
+                <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', flexShrink:0 }}>또 듣기</div>
+                <div style={{ display:'flex', gap:6, flex:1, overflow:'hidden' }}>
+                  {habitSlots.map(slot => {
+                    const nd = new Date(slot.next.dateStr + 'T00:00:00')
+                    const dow = ['일','월','화','수','목','금','토'][nd.getDay()]
+                    const mmdd = `${String(nd.getMonth()+1).padStart(2,'0')}/${String(nd.getDate()).padStart(2,'0')}`
+                    const disabled = !ticket || ticket.remain <= 0 || slot.isFull
+                    return (
+                      <button key={`${slot.course.id}-${slot.schedule.id}`}
+                        onClick={() => !disabled && handleQuickBook(slot.course, slot.schedule, slot.next.dateStr)}
+                        style={{ padding:'5px 10px', borderRadius:20, background:disabled?'var(--g1)':ACCENT_BG, color:disabled?'var(--tmu)':ACCENT_TEXT, border:`1.5px solid ${disabled?BORDER:ACCENT+'55'}`, fontSize:11, fontWeight:600, cursor:disabled?'default':'pointer', fontFamily:'Nunito,sans-serif', flexShrink:0 }}>
+                        {slot.course.name.length <= 4 ? slot.course.name : slot.course.name.slice(0,4)+'…'} {dow} · {mmdd}
+                      </button>
+                    )
+                  })}
                 </div>
-              )
-            })}
-          </div>
-        )}
+                <button onClick={() => { setSheetSlot(habitSlots[0]); setSheetOpen(true) }}
+                  style={{ flexShrink:0, padding:'4px 8px', borderRadius:20, background:'transparent', color:'var(--tmu)', border:`1px solid ${BORDER}`, fontSize:12, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                  ⋯
+                </button>
+              </div>
+            )
+          }
+          return (
+            <div style={{ marginBottom:16, background:CARD, borderRadius:14, padding:'10px 14px', border:`1.5px solid ${BORDER}`, display:'flex', alignItems:'center', cursor:'pointer' }}
+              onClick={() => { setYear(todayY); setMonth(todayM); setSelectedDay(todayD) }}>
+              <div style={{ fontSize:13, fontWeight:600, color:'var(--td)' }}>수업 예약하기 →</div>
+            </div>
+          )
+        })()}
 
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
           <button onClick={() => changeMonth(-1)} disabled={monthDiff() <= -3} style={{ background:'transparent', border:'none', cursor:'pointer', fontSize:20, color:'var(--g4)', padding:'4px 10px', opacity: monthDiff() <= -3 ? 0.3 : 1 }}>‹</button>

@@ -1,6 +1,6 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import AdminNav from '../../../components/AdminNav'
 
@@ -10,65 +10,72 @@ const ACCENT_TEXT = '#27500A'
 const CARD = '#F1EFE8'
 const BORDER = 'rgba(0,0,0,0.14)'
 
-export default function AdminCurriculumPage() {
+function AdminCurriculumInner() {
   const router = useRouter()
-  const [user, setUser] = useState(null)
-  const [courses, setCourses] = useState([])
-  const [selectedCourse, setSelectedCourse] = useState(null)
+  const searchParams = useSearchParams()
+  const [courseNames, setCourseNames] = useState([])
+  const [selectedName, setSelectedName] = useState(null)
   const [steps, setSteps] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-
-  // New step form
   const [newTitle, setNewTitle] = useState('')
   const [newKeyword, setNewKeyword] = useState('')
   const [addingNew, setAddingNew] = useState(false)
-
-  // Inline editing
   const [editing, setEditing] = useState({})
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) { router.push('/login'); return }
       if (data.user.user_metadata?.role !== 'admin') { router.push('/student'); return }
-      setUser(data.user)
       loadCourses()
     })
   }, [])
 
   async function loadCourses() {
-    const { data } = await supabase.from('class_courses').select('id, name, category').order('name')
-    setCourses(data || [])
+    const { data } = await supabase.from('class_courses').select('name').order('name')
+    const uniqueNames = [...new Set((data || []).map(c => c.name).filter(Boolean))]
+    setCourseNames(uniqueNames)
+
+    const qName = searchParams.get('course')
+    const defaultName = uniqueNames.includes(qName) ? qName : (uniqueNames[0] || null)
+    if (defaultName) {
+      setSelectedName(defaultName)
+      await loadSteps(defaultName)
+    }
     setLoading(false)
   }
 
-  async function selectCourse(course) {
-    setSelectedCourse(course)
-    setAddingNew(false)
-    setEditing({})
+  async function loadSteps(name) {
     const { data } = await supabase
       .from('course_curriculum')
       .select('*')
-      .eq('course_id', course.id)
+      .eq('course_name', name)
       .order('step_order')
     setSteps(data || [])
   }
 
+  async function selectName(name) {
+    setSelectedName(name)
+    setAddingNew(false)
+    setEditing({})
+    await loadSteps(name)
+  }
+
   async function handleAdd() {
-    if (!newTitle.trim() || !selectedCourse) return
+    if (!newTitle.trim() || !selectedName) return
     setSaving(true)
     const maxOrder = steps.length > 0 ? Math.max(...steps.map(s => s.step_order)) : 0
     await supabase.from('course_curriculum').insert({
-      course_id: selectedCourse.id,
+      course_name: selectedName,
       step_order: maxOrder + 1,
       title: newTitle.trim(),
-      keyword: newKeyword.trim() || null
+      keyword: newKeyword.trim() || null,
     })
     setNewTitle('')
     setNewKeyword('')
     setAddingNew(false)
     setSaving(false)
-    await selectCourse(selectedCourse)
+    await loadSteps(selectedName)
   }
 
   async function handleUpdate(step) {
@@ -78,22 +85,21 @@ export default function AdminCurriculumPage() {
     await supabase.from('course_curriculum').update({
       title: e.title.trim(),
       keyword: e.keyword?.trim() || null,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     }).eq('id', step.id)
-    setEditing(prev => { const n = {...prev}; delete n[step.id]; return n })
+    setEditing(prev => { const n = { ...prev }; delete n[step.id]; return n })
     setSaving(false)
-    await selectCourse(selectedCourse)
+    await loadSteps(selectedName)
   }
 
   async function handleDelete(stepId) {
     if (!confirm('이 회차를 삭제할까요?')) return
     await supabase.from('course_curriculum').delete().eq('id', stepId)
-    // Re-order remaining steps
     const remaining = steps.filter(s => s.id !== stepId)
     for (let i = 0; i < remaining.length; i++) {
       await supabase.from('course_curriculum').update({ step_order: i + 1 }).eq('id', remaining[i].id)
     }
-    await selectCourse(selectedCourse)
+    await loadSteps(selectedName)
   }
 
   async function moveStep(index, direction) {
@@ -105,7 +111,7 @@ export default function AdminCurriculumPage() {
       supabase.from('course_curriculum').update({ step_order: b.step_order }).eq('id', a.id),
       supabase.from('course_curriculum').update({ step_order: a.step_order }).eq('id', b.id),
     ])
-    await selectCourse(selectedCourse)
+    await loadSteps(selectedName)
   }
 
   if (loading) return (
@@ -125,36 +131,41 @@ export default function AdminCurriculumPage() {
 
       <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 0', minHeight:'80vh' }}>
 
-        {/* Course list */}
+        {/* Course name chips */}
         <div style={{ marginBottom:16 }}>
           <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>수업 선택</div>
-          <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-            {courses.map(c => (
-              <button key={c.id} onClick={() => selectCourse(c)}
-                style={{
-                  padding:'6px 14px', borderRadius:20, border:`1.5px solid ${selectedCourse?.id === c.id ? ACCENT : BORDER}`,
-                  background: selectedCourse?.id === c.id ? ACCENT_BG : CARD,
-                  color: selectedCourse?.id === c.id ? ACCENT_TEXT : 'var(--td)',
-                  fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'Nunito,sans-serif'
-                }}>
-                {c.name}
-              </button>
-            ))}
-          </div>
+          {courseNames.length === 0 ? (
+            <div style={{ fontSize:12, color:'var(--tmu)' }}>등록된 수업이 없어요</div>
+          ) : (
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+              {courseNames.map(name => (
+                <button key={name} onClick={() => selectName(name)}
+                  style={{
+                    padding:'6px 14px', borderRadius:20,
+                    border:`1.5px solid ${selectedName === name ? ACCENT : BORDER}`,
+                    background: selectedName === name ? ACCENT_BG : CARD,
+                    color: selectedName === name ? ACCENT_TEXT : 'var(--td)',
+                    fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'Nunito,sans-serif'
+                  }}>
+                  {name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
-        {!selectedCourse ? (
+        {!selectedName ? (
           <div style={{ textAlign:'center', padding:40, color:'var(--tmu)', fontSize:13 }}>수업을 선택하세요</div>
         ) : (
           <>
             <div style={{ fontSize:12, fontWeight:700, color:ACCENT_TEXT, marginBottom:10 }}>
-              {selectedCourse.name} — {steps.length}회차
+              {selectedName} — {steps.length}회차
             </div>
 
-            {/* Steps list */}
+            {/* Steps */}
             {steps.map((step, i) => (
               <div key={step.id} style={{ borderRadius:12, marginBottom:8, border:`1.5px solid ${BORDER}`, background:CARD, overflow:'hidden' }}>
-                {editing[step.id] ? (
+                {editing[step.id] !== undefined ? (
                   <div style={{ padding:'10px 12px' }}>
                     <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:4 }}>{i+1}회차 수정</div>
                     <input value={editing[step.id].title || ''}
@@ -178,14 +189,14 @@ export default function AdminCurriculumPage() {
                   </div>
                 ) : (
                   <div style={{ padding:'10px 12px', display:'flex', alignItems:'center', gap:8 }}>
-                    {/* reorder buttons */}
+                    {/* reorder */}
                     <div style={{ display:'flex', flexDirection:'column', gap:2, flexShrink:0 }}>
                       <button onClick={() => moveStep(i, -1)} disabled={i === 0}
-                        style={{ width:20, height:20, borderRadius:4, border:`1px solid ${BORDER}`, background:'#fff', fontSize:10, cursor: i===0 ? 'default' : 'pointer', opacity: i===0 ? 0.3 : 1, display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Nunito,sans-serif' }}>
+                        style={{ width:20, height:20, borderRadius:4, border:`1px solid ${BORDER}`, background:'#fff', fontSize:10, cursor:i===0?'default':'pointer', opacity:i===0?0.3:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
                         ↑
                       </button>
                       <button onClick={() => moveStep(i, 1)} disabled={i === steps.length - 1}
-                        style={{ width:20, height:20, borderRadius:4, border:`1px solid ${BORDER}`, background:'#fff', fontSize:10, cursor: i===steps.length-1 ? 'default' : 'pointer', opacity: i===steps.length-1 ? 0.3 : 1, display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Nunito,sans-serif' }}>
+                        style={{ width:20, height:20, borderRadius:4, border:`1px solid ${BORDER}`, background:'#fff', fontSize:10, cursor:i===steps.length-1?'default':'pointer', opacity:i===steps.length-1?0.3:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
                         ↓
                       </button>
                     </div>
@@ -197,7 +208,7 @@ export default function AdminCurriculumPage() {
                       </div>
                       {step.keyword && (
                         <div style={{ fontSize:10, color:'var(--tmu)', marginTop:2 }}>
-                          #{step.keyword.split(',').map(k => k.trim()).join(' #')}
+                          #{step.keyword.split(',').map(k=>k.trim()).join(' #')}
                         </div>
                       )}
                     </div>
@@ -217,7 +228,7 @@ export default function AdminCurriculumPage() {
               </div>
             ))}
 
-            {/* Add new step */}
+            {/* Add */}
             {addingNew ? (
               <div style={{ borderRadius:12, padding:'12px', border:`1.5px solid ${ACCENT}55`, background:ACCENT_BG, marginTop:6 }}>
                 <div style={{ fontSize:10, fontWeight:700, color:ACCENT_TEXT, marginBottom:8 }}>{steps.length + 1}회차 추가</div>
@@ -252,5 +263,13 @@ export default function AdminCurriculumPage() {
 
       <AdminNav active="curriculum"/>
     </>
+  )
+}
+
+export default function AdminCurriculumPage() {
+  return (
+    <Suspense fallback={null}>
+      <AdminCurriculumInner />
+    </Suspense>
   )
 }
