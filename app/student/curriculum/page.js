@@ -48,7 +48,7 @@ function RecordSheet({ params, userId, onClose, onSaved }) {
 
     if (rec) {
       setRecord(rec)
-      setMemo(rec.memo || '')
+      setMemo(rec.note || '')
 
       const { data: photoRows } = await supabase
         .from('class_record_photos')
@@ -137,7 +137,7 @@ function RecordSheet({ params, userId, onClose, onSaved }) {
             class_date: classDate,
             class_name: classTitle,
             teacher_id: course?.teacher_id || null,
-            memo: memo.trim() || null,
+            note: memo.trim() || null,
           })
           .select('id')
           .single()
@@ -147,7 +147,7 @@ function RecordSheet({ params, userId, onClose, onSaved }) {
       } else {
         const { error: updErr } = await supabase
           .from('class_records')
-          .update({ memo: memo.trim() || null, updated_at: new Date().toISOString() })
+          .update({ note: memo.trim() || null, updated_at: new Date().toISOString() })
           .eq('id', recId)
         if (updErr) throw updErr
       }

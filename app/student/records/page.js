@@ -111,7 +111,7 @@ function RecordsInner() {
     try {
       const { data: rec } = await supabase
         .from('class_records')
-        .insert({ user_id: user.id, class_date: newDate, class_name: newClass || null, memo: newMemo || null })
+        .insert({ user_id: user.id, class_date: newDate, class_name: newClass || null, note: newMemo || null })
         .select().single()
       if (!rec) throw new Error('insert failed')
 
@@ -257,9 +257,9 @@ function RecordsInner() {
 
               {isOpen && (
                 <div style={{ borderTop:`1px solid ${ACCENT}28`, padding:'10px 14px 14px' }}>
-                  {r.memo && (
+                  {r.note && (
                     <div style={{ fontSize:12, color:'var(--td)', lineHeight:1.7, marginBottom:10, whiteSpace:'pre-wrap' }}>
-                      {r.memo}
+                      {r.note}
                     </div>
                   )}
 

@@ -154,10 +154,10 @@ export default function AdminRecordsPage() {
               {isOpen && (
                 <div style={{ borderTop:`1px solid ${ACCENT}28`, padding:'10px 14px 14px' }}>
 
-                  {r.memo && (
+                  {r.note && (
                     <div style={{ background:'#fff', borderRadius:10, padding:'10px 12px', border:`1px solid ${BORDER}`, marginBottom:10 }}>
                       <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:4 }}>학생 메모</div>
-                      <div style={{ fontSize:12, color:'var(--td)', lineHeight:1.7, whiteSpace:'pre-wrap' }}>{r.memo}</div>
+                      <div style={{ fontSize:12, color:'var(--td)', lineHeight:1.7, whiteSpace:'pre-wrap' }}>{r.note}</div>
                     </div>
                   )}
 
