@@ -381,7 +381,7 @@ function CurriculumInner() {
         .eq('course_name', courseName)
         .order('step_order'),
       supabase.from('bookings')
-        .select('class_date')
+        .select('class_date, attended')
         .eq('user_id', userId)
         .eq('class_name', courseName)
         .eq('status', 'booked')
@@ -390,10 +390,15 @@ function CurriculumInner() {
 
     setSteps(stepsData || [])
 
-    const sorted = (bks || []).map(b => b.class_date).sort()
-    setBookingDates(sorted)
-    setN(sorted.length)
-    setHasTodayBooking(sorted.includes(todayStr))
+    const allBks = bks || []
+    // attended=true is canonical; past dates without attendance data are treated as done for backward compat
+    const doneDates = allBks
+      .filter(b => b.attended === true || b.class_date < todayStr)
+      .map(b => b.class_date)
+      .sort()
+    setBookingDates(doneDates)
+    setN(doneDates.length)
+    setHasTodayBooking(allBks.some(b => b.class_date === todayStr))
 
     const stepIds = (stepsData || []).map(s => s.id)
     if (stepIds.length > 0) {
