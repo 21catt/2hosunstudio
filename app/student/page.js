@@ -12,6 +12,8 @@ const CAT_NAME = { drawing:'드로잉', painting:'페인팅', sculpture:'조소'
 const CAT_COLOR = { drawing:'#e8f5e0', painting:'#EDE7F6', sculpture:'#FFF3E0', free:'#E3F2FD', meeting:'#FFF8E1' }
 const CAT_TEXT = { drawing:'var(--g5)', painting:'#4A148C', sculpture:'#E65100', free:'#0D47A1', meeting:'#F57F17' }
 
+const DEPOSIT = { bank: '카카오뱅크', account: '3333038381397', holder: '양승민' }
+
 const ACCENT = '#3B6D11'
 const ACCENT_BG = '#EAF3DE'
 const ACCENT_TEXT = '#27500A'
@@ -97,6 +99,8 @@ export default function StudentPage() {
   const [selectedCount, setSelectedCount] = useState(1)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [sheetSlot, setSheetSlot] = useState(null)
+  const [profileName, setProfileName] = useState('')
+  const [depositModal, setDepositModal] = useState(null)
   const now = new Date()
   const todayY = now.getFullYear()
   const todayM = now.getMonth()
@@ -119,10 +123,12 @@ export default function StudentPage() {
   async function loadData(userId) {
     const { data: t } = await supabase.from('tickets').select('*').eq('user_id', userId).single()
     setTicket(t)
-    const { data: b } = await supabase.from('bookings').select('*').eq('user_id', userId)
+    const { data: b } = await supabase.from('bookings').select('*').eq('user_id', userId).neq('status', 'cancelled')
     setBookings(b || [])
-    const { data: ab } = await supabase.from('bookings').select('course_id, schedule_id, class_date')
+    const { data: ab } = await supabase.from('bookings').select('course_id, schedule_id, class_date').eq('status', 'booked')
     setAllBookings(ab || [])
+    const { data: profile } = await supabase.from('users').select('name').eq('id', userId).single()
+    setProfileName(profile?.name || '')
     const { data: c } = await supabase.from('class_courses').select('*, class_schedules(*)').eq('is_active', true)
     setClasses(c || [])
     const { data: mt } = await supabase.from('meeting_tickets').select('*').eq('user_id', userId).eq('status', 'confirmed').gt('remain', 0).gte('expires_at', new Date().toISOString().split('T')[0])
@@ -346,7 +352,7 @@ export default function StudentPage() {
       if (mt && mt.length > 0) {
         await supabase.from('meeting_tickets').update({ remain: mt[0].remain + 1 }).eq('id', mt[0].id)
       }
-    } else {
+    } else if (course?.category !== 'free') {
       await supabase.from('tickets').update({ remain: ticket.remain+1 }).eq('id', ticket.id)
     }
 
@@ -492,6 +498,46 @@ export default function StudentPage() {
         .slide-up { animation: slideUp 0.25s ease forwards; }
       `}</style>
 
+      {depositModal && (
+        <div onClick={() => setDepositModal(null)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', zIndex:1100, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:20, padding:'22px 20px', maxWidth:340, width:'100%' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+              <div style={{ fontSize:16, fontWeight:800, color:'var(--td)' }}>입금 안내</div>
+              <span style={{ fontSize:10, fontWeight:700, background:'#FFF3CD', color:'#856404', padding:'3px 8px', borderRadius:20, border:'1px solid #FFD700' }}>입금 대기</span>
+            </div>
+            <div style={{ background:'#FBF8F2', borderRadius:12, padding:'12px 14px', marginBottom:12 }}>
+              <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:4 }}>
+                {depositModal.class_date?.slice(5).replace('-','/')} {depositModal.class_time}
+                {depositModal.seat ? ` · ${depositModal.seat}자리` : ''}
+              </div>
+              <div style={{ fontSize:20, fontWeight:800, color:'var(--td)' }}>{(depositModal.amount || 0).toLocaleString()}원</div>
+            </div>
+            <div style={{ background:'var(--bg)', borderRadius:12, padding:'12px 14px', marginBottom:10 }}>
+              <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:6 }}>입금 계좌</div>
+              <div style={{ fontSize:13, fontWeight:700, color:'var(--td)', lineHeight:1.8 }}>
+                {DEPOSIT.bank}<br/>{DEPOSIT.account}<br/>예금주: {DEPOSIT.holder}
+              </div>
+            </div>
+            <div style={{ fontSize:11, color:'var(--tmu)', lineHeight:1.7, marginBottom:14 }}>
+              · 입금자명: <strong>{profileName}</strong> 으로 입금해 주세요.<br/>
+              · 24시간 내 입금하지 않으면 자동으로 취소됩니다.
+            </div>
+            <div style={{ display:'flex', gap:8 }}>
+              <button
+                onClick={() => { navigator.clipboard?.writeText(DEPOSIT.account).catch(() => {}); alert(`계좌번호가 복사됐어요!\n${DEPOSIT.account}`) }}
+                style={{ flex:1, padding:'11px', background:'#EAF3DE', color:'#27500A', border:'1px solid #3B6D1133', borderRadius:12, fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                계좌 복사
+              </button>
+              <button
+                onClick={() => setDepositModal(null)}
+                style={{ flex:1, padding:'11px', background:'var(--g4)', color:'#fff', border:'none', borderRadius:12, fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {paymentModal && (
         <div onClick={()=>{setPaymentModal(null); setSelectedCount(1)}} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
           <div onClick={e=>e.stopPropagation()} style={{ background:'#fff', borderRadius:20, padding:'20px 18px', maxWidth:340, width:'100%' }}>
@@ -580,19 +626,25 @@ export default function StudentPage() {
             const d = new Date(b.class_date + 'T00:00:00')
             const dow = ['일','월','화','수','목','금','토'][d.getDay()]
             const mmdd = `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`
+            const isPending = b.confirmed === false
             return (
-              <div style={{ marginBottom:16, background:ACCENT_BG, borderRadius:14, padding:'10px 14px', border:`1.5px solid ${ACCENT}55`, display:'flex', alignItems:'center', gap:8 }}>
-                <div onClick={() => navigateToDate(b.class_date)} style={{ flex:1, minWidth:0, cursor:'pointer' }}>
-                  <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:1 }}>다음 수업</div>
-                  <div style={{ fontSize:13, fontWeight:600, color:ACCENT_TEXT, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+              <div style={{ marginBottom:16, background:isPending?'#FFF8E1':ACCENT_BG, borderRadius:14, padding:'10px 14px', border:`1.5px solid ${isPending?'#E65100':ACCENT}55`, display:'flex', alignItems:'center', gap:8 }}>
+                <div onClick={() => isPending ? setDepositModal(b) : navigateToDate(b.class_date)} style={{ flex:1, minWidth:0, cursor:'pointer' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:1 }}>
+                    <span style={{ fontSize:10, fontWeight:700, color:'var(--tmu)' }}>다음 수업</span>
+                    {isPending && <span style={{ fontSize:9, fontWeight:700, background:'#FFF3CD', color:'#856404', padding:'1px 6px', borderRadius:10, border:'1px solid #FFD700' }}>입금 대기</span>}
+                  </div>
+                  <div style={{ fontSize:13, fontWeight:600, color:isPending?'#E65100':ACCENT_TEXT, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                     {b.class_name} · {mmdd}({dow}) {b.class_time?.split('~')[0]}
                   </div>
                 </div>
-                <button
-                  onClick={() => { if (habitSlots.length > 0) { setSheetSlot(habitSlots[0]); setSheetOpen(true) } else { navigateToDate(b.class_date) } }}
-                  style={{ flexShrink:0, padding:'5px 12px', borderRadius:20, background:ACCENT, color:'#fff', border:'none', fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
-                  또 예약
-                </button>
+                {!isPending && (
+                  <button
+                    onClick={() => { if (habitSlots.length > 0) { setSheetSlot(habitSlots[0]); setSheetOpen(true) } else { navigateToDate(b.class_date) } }}
+                    style={{ flexShrink:0, padding:'5px 12px', borderRadius:20, background:ACCENT, color:'#fff', border:'none', fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                    또 예약
+                  </button>
+                )}
               </div>
             )
           }
@@ -843,16 +895,29 @@ export default function StudentPage() {
         {dayBookings.length > 0 && (
           <div style={{ marginTop:14 }}>
             <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>내 예약</div>
-            {dayBookings.map(b => (
-              <div key={b.id} style={{ background:b.status==='pending'?'#FFF3E0':'#e8f5e0', borderRadius:12, padding:'10px 14px', marginBottom:6, display:'flex', alignItems:'center', justifyContent:'space-between', border:`1.5px solid ${b.status==='pending'?'#E65100':'var(--g3)'}` }}>
-                <div>
-                  <div style={{ fontSize:12, fontWeight:800, color:'var(--td)' }}>{b.class_name}{b.seat?` · ${b.seat}자리`:''}</div>
-                  <div style={{ fontSize:10, color:'var(--tm)' }}>{b.class_time}</div>
-                  {b.status==='pending' && (<div style={{ fontSize:9, color:'#E65100', fontWeight:700, marginTop:2 }}>모임 확정 대기중</div>)}
+            {dayBookings.map(b => {
+              const isDepositPending = b.confirmed === false
+              const isMeetingPending = b.status === 'pending'
+              const bg = isDepositPending ? '#FFF8E1' : isMeetingPending ? '#FFF3E0' : '#e8f5e0'
+              const borderColor = isDepositPending ? '#E65100' : isMeetingPending ? '#E65100' : 'var(--g3)'
+              return (
+                <div key={b.id}
+                  onClick={() => isDepositPending ? setDepositModal(b) : undefined}
+                  style={{ background:bg, borderRadius:12, padding:'10px 14px', marginBottom:6, display:'flex', alignItems:'center', justifyContent:'space-between', border:`1.5px solid ${borderColor}`, cursor:isDepositPending?'pointer':'default' }}>
+                  <div>
+                    <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                      <span style={{ fontSize:12, fontWeight:800, color:'var(--td)' }}>{b.class_name}{b.seat?` · ${b.seat}자리`:''}</span>
+                      {isDepositPending && <span style={{ fontSize:9, fontWeight:700, background:'#FFF3CD', color:'#856404', padding:'1px 6px', borderRadius:10, border:'1px solid #FFD700' }}>입금 대기</span>}
+                      {!isDepositPending && b.class_name === '자율창작' && <span style={{ fontSize:9, fontWeight:700, background:'#EAF3DE', color:'#27500A', padding:'1px 6px', borderRadius:10, border:'1px solid #3B6D1133' }}>예약 확정</span>}
+                    </div>
+                    <div style={{ fontSize:10, color:'var(--tm)' }}>{b.class_time}</div>
+                    {isMeetingPending && <div style={{ fontSize:9, color:'#E65100', fontWeight:700, marginTop:2 }}>모임 확정 대기중</div>}
+                    {isDepositPending && <div style={{ fontSize:9, color:'#856404', fontWeight:700, marginTop:2 }}>탭하여 입금 안내 보기</div>}
+                  </div>
+                  <button onClick={e => { e.stopPropagation(); handleCancel(b) }} style={{ fontSize:10, padding:'3px 10px', borderRadius:20, background:'var(--g1)', color:'var(--tm)', border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>취소</button>
                 </div>
-                <button onClick={() => handleCancel(b)} style={{ fontSize:10, padding:'3px 10px', borderRadius:20, background:'var(--g1)', color:'var(--tm)', border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>취소</button>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
 

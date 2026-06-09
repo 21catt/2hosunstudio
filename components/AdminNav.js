@@ -26,6 +26,7 @@ export default function AdminNav({ active }) {
     { href:'/admin', label:'회원', icon:'👥', key:'member' },
     { href:'/admin/schedule', label:'수업현황', icon:'📅', key:'schedule' },
     { href:'/admin/attendance', label:'출석', icon:'✅', key:'attendance' },
+    { href:'/admin/payment', label:'입금', icon:'💳', key:'payment' },
     { href:'/admin/records', label:'기록', icon:'📋', key:'records' },
     { href:'/admin/curriculum', label:'커리큘럼', icon:'📚', key:'curriculum' },
     { href:'/admin/notification', label:'알림', icon:'🔔', key:'notification' },

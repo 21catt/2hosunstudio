@@ -6,6 +6,8 @@ import StudentNav from '../../../components/StudentNav'
 import { sendPushToAdmins } from '../../../lib/pushNotify'
 
 
+const DEPOSIT = { bank: '카카오뱅크', account: '3333038381397', holder: '양승민' }
+
 function getHourlyRate(date, hour) {
   const dow = date.getDay()
   const isWeekend = dow === 0 || dow === 6
@@ -39,9 +41,11 @@ function FreeInner() {
   })()
 
   const [user, setUser] = useState(null)
+  const [userName, setUserName] = useState('')
   const [allBookings, setAllBookings] = useState([])
   const [freeCourse, setFreeCourse] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [depositModal, setDepositModal] = useState(null)
 
   const [year, setYear] = useState(initDate ? initDate.getFullYear() : todayY)
   const [month, setMonth] = useState(initDate ? initDate.getMonth() : todayM)
@@ -71,9 +75,11 @@ function FreeInner() {
   }, [selSeat, startHour, duration, selectedDay])
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) { router.push('/login'); return }
       setUser(data.user)
+      const { data: profile } = await supabase.from('users').select('name').eq('id', data.user.id).single()
+      setUserName(profile?.name || '')
       loadData()
     })
   }, [])
@@ -87,7 +93,7 @@ function FreeInner() {
     })
     setSeatPhotos(grouped)
 
-    const { data: ab } = await supabase.from('bookings').select('class_date, class_time, seat')
+    const { data: ab } = await supabase.from('bookings').select('class_date, class_time, seat').eq('status', 'booked')
     setAllBookings(ab || [])
 
     const { data: courses } = await supabase
@@ -175,6 +181,7 @@ function FreeInner() {
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
     const startStr = `${String(startHour).padStart(2,'0')}:00`
     const endStr = `${String(startHour + duration).padStart(2,'0')}:00`
+    const amount = calcPrice(selectedDay, startHour, duration)
 
     await supabase.from('bookings').insert({
       user_id: user.id,
@@ -185,36 +192,36 @@ function FreeInner() {
       class_time: `${startStr}~${endStr}`,
       teacher: freeCourse?.teacher || '',
       status: 'booked',
-      seat: selSeat
+      seat: selSeat,
+      confirmed: false,
+      amount,
     })
 
     const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
-    const pushMsg = `${profile?.name || '학생'}님 자율창작 ${dateStr} ${startStr}~${endStr} ${selSeat}자리`
+    const name = profile?.name || userName || '학생'
+    const pushMsg = `${name}님 자율창작 ${dateStr} ${startStr}~${endStr} ${selSeat}자리 (입금대기)`
     if (freeCourse?.teacher_id) {
       await supabase.from('notifications').insert({
         user_id: freeCourse.teacher_id,
         type: 'booking_created',
-        title: '자율창작 예약',
+        title: '자율창작 예약 (입금대기)',
         body: pushMsg
       })
     }
     sendPushToAdmins('🎨 자율창작 예약', pushMsg)
-   
 
-   // 관리자에게 카카오 알림 (실패해도 예약엔 영향 없음)
     try {
       await fetch('/api/kakao/notify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          text: `새 자율창작 예약 🐾\n${dateStr} ${startStr}~${endStr}\n${selSeat}자리`,
+          text: `새 자율창작 예약 🐾 (입금대기)\n${dateStr} ${startStr}~${endStr}\n${selSeat}자리 · ${amount.toLocaleString()}원`,
           link: 'https://2hosunstudio.vercel.app/admin',
         }),
       })
     } catch (e) {}
 
-    alert('예약 완료! 🐾')
-    router.push('/student')
+    setDepositModal({ amount, dateStr, time: `${startStr}~${endStr}`, seat: selSeat, name })
   }
 
   if (loading) return (
@@ -236,6 +243,52 @@ function FreeInner() {
 
   return (
     <>
+      {depositModal && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', zIndex:1100, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+          <div style={{ background:'#fff', borderRadius:20, padding:'22px 20px', maxWidth:340, width:'100%' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+              <div style={{ fontSize:16, fontWeight:800, color:'var(--td)' }}>예약 접수 완료</div>
+              <span style={{ fontSize:10, fontWeight:700, background:'#FFF3CD', color:'#856404', padding:'3px 8px', borderRadius:20, border:'1px solid #FFD700' }}>입금 대기</span>
+            </div>
+
+            <div style={{ background:'#FBF8F2', borderRadius:12, padding:'12px 14px', marginBottom:12 }}>
+              <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:4 }}>{depositModal.dateStr} {depositModal.time} · {depositModal.seat}자리</div>
+              <div style={{ fontSize:20, fontWeight:800, color:'var(--td)' }}>{depositModal.amount.toLocaleString()}원</div>
+            </div>
+
+            <div style={{ background:'var(--bg)', borderRadius:12, padding:'12px 14px', marginBottom:10 }}>
+              <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:6 }}>입금 계좌</div>
+              <div style={{ fontSize:13, fontWeight:700, color:'var(--td)', lineHeight:1.8 }}>
+                {DEPOSIT.bank}<br/>
+                {DEPOSIT.account}<br/>
+                예금주: {DEPOSIT.holder}
+              </div>
+            </div>
+
+            <div style={{ fontSize:11, color:'var(--tmu)', lineHeight:1.7, marginBottom:14 }}>
+              · 입금자명: <strong>{depositModal.name}</strong> 으로 입금해 주세요.<br/>
+              · 24시간 내 입금하지 않으면 자동으로 취소됩니다.
+            </div>
+
+            <div style={{ display:'flex', gap:8 }}>
+              <button
+                onClick={() => {
+                  navigator.clipboard?.writeText(DEPOSIT.account).catch(() => {})
+                  alert(`계좌번호가 복사됐어요!\n${DEPOSIT.account}`)
+                }}
+                style={{ flex:1, padding:'11px', background:'#EAF3DE', color:'#27500A', border:'1px solid #3B6D1133', borderRadius:12, fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                계좌 복사
+              </button>
+              <button
+                onClick={() => { setDepositModal(null); router.push('/student') }}
+                style={{ flex:1, padding:'11px', background:'var(--g4)', color:'#fff', border:'none', borderRadius:12, fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <button onClick={()=>router.push('/student')}
