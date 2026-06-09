@@ -340,6 +340,31 @@ export default function StudentPage() {
   }
 
   async function handleCancel(booking) {
+    // ── 자율창작: 입금 상태에 따른 취소·환불 분기 ──────────────────
+    if (booking.class_name === '자율창작') {
+      const startStr = (booking.class_time || '').split('~')[0] || '00:00'
+      const classStart = new Date(`${booking.class_date}T${startStr}:00`)
+      const hoursLeft = (classStart - new Date()) / (1000 * 60 * 60)
+
+      if (booking.confirmed === false) {
+        if (!confirm('예약이 취소됩니다.')) return
+        await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', booking.id)
+        alert('예약이 취소됐어요.')
+      } else if (hoursLeft > 6) {
+        if (!confirm('예약을 취소할까요?\n환불은 관리자 확인 후 처리돼요.')) return
+        await supabase.from('bookings').update({ status: 'cancelled', refund_status: 'required' }).eq('id', booking.id)
+        const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
+        const name = profile?.name || profileName || '학생'
+        sendPushToAdmins('💰 환불 필요', `${name}님 자율창작 ${booking.class_date} ${booking.class_time} ${(booking.amount || 0).toLocaleString()}원`)
+      } else {
+        if (!confirm('수업 6시간 전부터는 환불이 안 돼요.\n그래도 취소할까요?')) return
+        await supabase.from('bookings').update({ status: 'cancelled', refund_status: 'not_required' }).eq('id', booking.id)
+      }
+      loadData(user.id)
+      return
+    }
+
+    // ── 수업·모임 취소 (기존 로직) ─────────────────────────────────
     const diff = (new Date(booking.class_date) - new Date()) / (1000*60*60)
     if (diff < 4) { alert('수업 4시간 전에는 취소할 수 없어요'); return }
 
