@@ -55,17 +55,22 @@ export default function AdminSeatsPage() {
       return
     }
     setUploading(true)
+    let nextOrder = current.length > 0
+      ? Math.max(...current.map(p => p.sort_order)) + 1
+      : 0
     for (const file of files) {
       const ext = file.name.split('.').pop()
       const path = `${selSeat}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
       const { error: upErr } = await supabase.storage.from('seat-photos').upload(path, file)
       if (upErr) { alert('업로드 실패: ' + upErr.message); continue }
       const { data: urlData } = supabase.storage.from('seat-photos').getPublicUrl(path)
-      await supabase.from('seat_photos').insert({
+      const { error: insErr } = await supabase.from('seat_photos').insert({
         seat_id: selSeat,
         image_url: urlData.publicUrl,
-        sort_order: current.length
+        sort_order: nextOrder,
       })
+      if (insErr) { alert('저장 실패: ' + insErr.message); continue }
+      nextOrder++
     }
     await loadPhotos()
     setUploading(false)
