@@ -178,6 +178,12 @@ export default function StudentPage() {
     return bookings.find(b => b.course_id === courseId && b.schedule_id === scheduleId && b.class_date === dateStr)
   }
 
+  function canCancel(b) {
+    if (b.attended === true) return false
+    const startStr = (b.class_time || '00:00').split('~')[0]
+    return new Date() < new Date(`${b.class_date}T${startStr}:00`)
+  }
+
   function spawnParticles(el) {
     if (!el) return
     const colors = ['#c8e6c0','#6db870','#3d8b50','#a8d4a0','#fff']
@@ -340,6 +346,15 @@ export default function StudentPage() {
   }
 
   async function handleCancel(booking) {
+    if (booking.attended === true) {
+      alert('출석 완료된 수업은 취소할 수 없어요.')
+      return
+    }
+    const _gs = (booking.class_time || '00:00').split('~')[0]
+    if (new Date() >= new Date(`${booking.class_date}T${_gs}:00`)) {
+      alert('지난 수업은 취소할 수 없어요.')
+      return
+    }
     // ── 자율창작: 입금 상태에 따른 취소·환불 분기 ──────────────────
     if (booking.class_name === '자율창작') {
       const startStr = (booking.class_time || '').split('~')[0] || '00:00'
@@ -657,7 +672,12 @@ export default function StudentPage() {
                 <div onClick={() => isPending ? setDepositModal(b) : navigateToDate(b.class_date)} style={{ flex:1, minWidth:0, cursor:'pointer' }}>
                   <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:1 }}>
                     <span style={{ fontSize:10, fontWeight:700, color:'var(--tmu)' }}>다음 수업</span>
-                    {isPending && <span style={{ fontSize:9, fontWeight:700, background:'#FFF3CD', color:'#856404', padding:'1px 6px', borderRadius:10, border:'1px solid #FFD700' }}>입금 대기</span>}
+                    {b.attended === true
+                      ? <span style={{ fontSize:9, fontWeight:700, background:'#C8E6C9', color:'#1B5E20', padding:'1px 6px', borderRadius:10, border:'1px solid #A5D6A7' }}>✓ 출석</span>
+                      : isPending
+                        ? <span style={{ fontSize:9, fontWeight:700, background:'#FFF3CD', color:'#856404', padding:'1px 6px', borderRadius:10, border:'1px solid #FFD700' }}>입금 대기</span>
+                        : <span style={{ fontSize:9, fontWeight:700, background:'#EAF3DE', color:'#27500A', padding:'1px 6px', borderRadius:10, border:'1px solid #3B6D1133' }}>예약 확정</span>
+                    }
                   </div>
                   <div style={{ fontSize:13, fontWeight:600, color:isPending?'#E65100':ACCENT_TEXT, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                     {b.class_name} · {mmdd}({dow}) {b.class_time?.split('~')[0]}
@@ -878,9 +898,9 @@ export default function StudentPage() {
                                 </div>
                                 <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                                   <span style={{ fontSize:11, fontWeight:500, color:full?'#c0392b':booked?'#6db870':isSel?ACCENT_TEXT:'var(--tmu)' }}>
-                                    {booked?'예약됨':full?'마감':`${remain}자리 남음`}
+                                    {booked ? (booking?.attended === true ? '출석' : '예약됨') : full ? '마감' : `${remain}자리 남음`}
                                   </span>
-                                  {booked && (
+                                  {booked && canCancel(booking) && (
                                     <button onClick={e=>{e.stopPropagation();handleCancel(booking)}}
                                       style={{ fontSize:10, padding:'3px 8px', borderRadius:20, background:'rgba(255,255,255,0.8)', color:'var(--tm)', border:`1px solid ${BORDER}`, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:500 }}>
                                       취소
@@ -921,10 +941,17 @@ export default function StudentPage() {
           <div style={{ marginTop:14 }}>
             <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>내 예약</div>
             {dayBookings.map(b => {
+              const isAttended = b.attended === true
               const isDepositPending = b.confirmed === false
               const isMeetingPending = b.status === 'pending'
-              const bg = isDepositPending ? '#FFF8E1' : isMeetingPending ? '#FFF3E0' : '#e8f5e0'
-              const borderColor = isDepositPending ? '#E65100' : isMeetingPending ? '#E65100' : 'var(--g3)'
+              const startStr = (b.class_time || '00:00').split('~')[0]
+              const isPast = new Date() >= new Date(`${b.class_date}T${startStr}:00`)
+              const cancellable = canCancel(b)
+              let bg, borderColor
+              if (isAttended) { bg = '#E8F5E0'; borderColor = '#a8d9a0' }
+              else if (isDepositPending || isMeetingPending) { bg = '#FFF8E1'; borderColor = '#E65100' }
+              else if (isPast) { bg = 'var(--g1)'; borderColor = 'var(--g2)' }
+              else { bg = '#e8f5e0'; borderColor = 'var(--g3)' }
               return (
                 <div key={b.id}
                   onClick={() => isDepositPending ? setDepositModal(b) : undefined}
@@ -932,14 +959,22 @@ export default function StudentPage() {
                   <div>
                     <div style={{ display:'flex', alignItems:'center', gap:6 }}>
                       <span style={{ fontSize:12, fontWeight:800, color:'var(--td)' }}>{b.class_name}{b.seat?` · ${b.seat}자리`:''}</span>
-                      {isDepositPending && <span style={{ fontSize:9, fontWeight:700, background:'#FFF3CD', color:'#856404', padding:'1px 6px', borderRadius:10, border:'1px solid #FFD700' }}>입금 대기</span>}
-                      {!isDepositPending && b.class_name === '자율창작' && <span style={{ fontSize:9, fontWeight:700, background:'#EAF3DE', color:'#27500A', padding:'1px 6px', borderRadius:10, border:'1px solid #3B6D1133' }}>예약 확정</span>}
+                      {isAttended
+                        ? <span style={{ fontSize:9, fontWeight:700, background:'#C8E6C9', color:'#1B5E20', padding:'1px 6px', borderRadius:10, border:'1px solid #A5D6A7' }}>✓ 출석</span>
+                        : (isDepositPending || isMeetingPending)
+                          ? <span style={{ fontSize:9, fontWeight:700, background:'#FFF3CD', color:'#856404', padding:'1px 6px', borderRadius:10, border:'1px solid #FFD700' }}>입금 대기</span>
+                          : isPast
+                            ? <span style={{ fontSize:9, fontWeight:700, background:'var(--g1)', color:'var(--tmu)', padding:'1px 6px', borderRadius:10, border:'1px solid var(--g2)' }}>지난 수업</span>
+                            : <span style={{ fontSize:9, fontWeight:700, background:'#EAF3DE', color:'#27500A', padding:'1px 6px', borderRadius:10, border:'1px solid #3B6D1133' }}>예약 확정</span>
+                      }
                     </div>
                     <div style={{ fontSize:10, color:'var(--tm)' }}>{b.class_time}</div>
                     {isMeetingPending && <div style={{ fontSize:9, color:'#E65100', fontWeight:700, marginTop:2 }}>모임 확정 대기중</div>}
                     {isDepositPending && <div style={{ fontSize:9, color:'#856404', fontWeight:700, marginTop:2 }}>탭하여 입금 안내 보기</div>}
                   </div>
-                  <button onClick={e => { e.stopPropagation(); handleCancel(b) }} style={{ fontSize:10, padding:'3px 10px', borderRadius:20, background:'var(--g1)', color:'var(--tm)', border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>취소</button>
+                  {cancellable && (
+                    <button onClick={e => { e.stopPropagation(); handleCancel(b) }} style={{ fontSize:10, padding:'3px 10px', borderRadius:20, background:'var(--g1)', color:'var(--tm)', border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>취소</button>
+                  )}
                 </div>
               )
             })}

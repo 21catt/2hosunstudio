@@ -86,6 +86,8 @@ function Carrot({ pt, index, onHarvest }) {
 
 export default function FarmPage() {
   const router = useRouter()
+  const today = new Date()
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`
   const [user, setUser] = useState(null)
   const [carrots, setCarrots] = useState(Array(8).fill(0))
   const [history, setHistory] = useState([])
@@ -104,10 +106,11 @@ export default function FarmPage() {
   async function loadData(userId) {
     const { data: b } = await supabase
       .from('bookings').select('*').eq('user_id', userId)
+      .neq('status', 'cancelled')
       .order('class_date', { ascending: false })
     const h = b || []
     setHistory(h)
-    const attended = h.filter(x => x.status === 'attended').length
+    const attended = h.filter(x => x.attended === true).length
     const newCarrots = Array(8).fill(0).map((_, i) => {
       const share = Math.floor(attended / 8)
       const extra = i < (attended % 8) ? 1 : 0
@@ -128,8 +131,8 @@ export default function FarmPage() {
     setCarrots(newCarrots)
   }
 
-  const attended = history.filter(h => h.status === 'attended').length
-  const absent = history.filter(h => h.status === 'absent').length
+  const attended = history.filter(h => h.attended === true).length
+  const absent = history.filter(h => h.class_date < todayStr && !h.attended).length
   const readyCount = carrots.filter(p => getStage(p) === 4).length
 
   if (loading) return (
@@ -315,13 +318,13 @@ export default function FarmPage() {
           {history.slice(0,6).map(h => (
             <div key={h.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 0', borderBottom:'1px solid var(--g1)' }}>
               <div style={{ width:8, height:8, borderRadius:'50%', flexShrink:0,
-                background:h.status==='attended'?'var(--g4)':h.status==='absent'?'#d4a0a0':'var(--tmu)' }}/>
+                background:h.attended===true?'var(--g4)':h.class_date<todayStr&&!h.attended?'#d4a0a0':'var(--tmu)' }}/>
               <div style={{ flex:1 }}>
                 <div style={{ fontSize:11, color:'var(--td)', fontWeight:600 }}>{h.class_name}</div>
                 <div style={{ fontSize:10, color:'var(--tmu)' }}>{h.class_date}</div>
               </div>
-              <span style={{ fontSize:11, fontWeight:800, color:h.status==='attended'?'var(--g4)':'var(--tmu)' }}>
-                {h.status==='attended'?'+1 pt':'0 pt'}
+              <span style={{ fontSize:11, fontWeight:800, color:h.attended===true?'var(--g4)':'var(--tmu)' }}>
+                {h.attended===true?'+1 pt':'0 pt'}
               </span>
             </div>
           ))}

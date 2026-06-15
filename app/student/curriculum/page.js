@@ -391,9 +391,8 @@ function CurriculumInner() {
     setSteps(stepsData || [])
 
     const allBks = bks || []
-    // attended=true is canonical; past dates without attendance data are treated as done for backward compat
     const doneDates = allBks
-      .filter(b => b.attended === true || b.class_date < todayStr)
+      .filter(b => b.attended === true)
       .map(b => b.class_date)
       .sort()
     setBookingDates(doneDates)
