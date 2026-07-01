@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useId } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import { useTodayWeather } from '../../components/WeatherBar'
@@ -82,6 +82,57 @@ function PixelPlant({ ratio }) {
   )
 }
 
+// 수강권 무드 인디케이터 — ratio(remain/total)에 반응. style: orb | cup | plant
+function MoodIndicator({ ratio, style, size = 52 }) {
+  const uid = useId()
+  const r0 = Number(ratio)
+  const r = Math.max(0, Math.min(1, isFinite(r0) ? r0 : 0))
+  if (style === 'plant') return <PixelPlant ratio={r} />
+
+  const col = r <= 0 ? '#B4AEA1' : r < 0.3 ? '#C1564D' : r < 0.6 ? '#E08A1E' : '#4C8B29'
+
+  if (style === 'orb') {
+    const wy = 50 - r * 40
+    const cid = `orb-${uid}`
+    return (
+      <svg width={size} height={size} viewBox="0 0 60 60">
+        <defs><clipPath id={cid}><circle cx="30" cy="31" r="21"/></clipPath></defs>
+        <g className="mood-bob" style={{ transformBox:'fill-box', transformOrigin:'center' }}>
+          <circle cx="30" cy="31" r="21" fill="#efece4"/>
+          <g clipPath={`url(#${cid})`}>
+            <rect x="0" y={wy} width="60" height="60" fill={col}/>
+            <path className="mood-wave" d={`M0 ${wy} q7.5 -5 15 0 t15 0 t15 0 t15 0 t15 0 v40 h-90 z`} fill={col} opacity="0.85"/>
+          </g>
+          <circle cx="30" cy="31" r="21" fill="none" stroke="#dcd6c9" strokeWidth="1.6"/>
+        </g>
+      </svg>
+    )
+  }
+
+  // cup (기본값)
+  const ly = 50 - r * 35
+  const glass = 'M21 15 L39 15 L36.5 48 Q36.5 51 34 51 L26 51 Q23.5 51 23.5 48 Z'
+  const cid = `cup-${uid}`
+  return (
+    <svg width={size} height={size} viewBox="0 0 60 60">
+      <defs><clipPath id={cid}><path d={glass}/></clipPath></defs>
+      {r >= 0.5 && (
+        <g>
+          <path className="mood-st1" d="M27 12 q-2.5 -3 0 -6 q2.5 -3 0 -6" stroke="#c7bfb0" strokeWidth="1.6" fill="none" strokeLinecap="round"/>
+          <path className="mood-st2" d="M33 12 q2.5 -3 0 -6 q-2.5 -3 0 -6" stroke="#c7bfb0" strokeWidth="1.6" fill="none" strokeLinecap="round"/>
+        </g>
+      )}
+      <path d={glass} fill="#f3f1ec"/>
+      <g clipPath={`url(#${cid})`}>
+        <rect x="0" y={ly} width="60" height="60" fill="#7A4A2C"/>
+        {r > 0 && <rect x="0" y={ly} width="60" height="3" fill="#D8B78C"/>}
+      </g>
+      <path d={glass} fill="none" stroke="#cfc7b6" strokeWidth="1.6"/>
+      {r <= 0 && <circle cx="30" cy="46" r="1.6" fill="#7A4A2C" opacity="0.5"/>}
+    </svg>
+  )
+}
+
 export default function StudentPage() {
   const router = useRouter()
   const todayWeather = useTodayWeather()
@@ -102,6 +153,8 @@ export default function StudentPage() {
   const [sheetSlot, setSheetSlot] = useState(null)
   const [profileName, setProfileName] = useState('')
   const [depositModal, setDepositModal] = useState(null)
+  const [moodStyle, setMoodStyle] = useState('cup')
+  const [moodSheet, setMoodSheet] = useState(false)
   const now = new Date()
   const todayY = now.getFullYear()
   const todayM = now.getMonth()
@@ -130,11 +183,19 @@ export default function StudentPage() {
     setAllBookings(ab || [])
     const { data: profile } = await supabase.from('users').select('name').eq('id', userId).single()
     setProfileName(profile?.name || '')
+    const { data: pref } = await supabase.from('user_prefs').select('mood_style').eq('user_id', userId).single()
+    setMoodStyle(pref?.mood_style || 'cup')
     const { data: c } = await supabase.from('class_courses').select('*, class_schedules(*)').eq('is_active', true)
     setClasses(c || [])
     const { data: mt } = await supabase.from('meeting_tickets').select('*').eq('user_id', userId).eq('status', 'confirmed').gt('remain', 0).gte('expires_at', new Date().toISOString().split('T')[0])
     setMeetingTickets(mt || [])
     setLoading(false)
+  }
+
+  async function changeMood(style) {
+    setMoodStyle(style)
+    setMoodSheet(false)
+    if (user?.id) await supabase.from('user_prefs').upsert({ user_id: user.id, mood_style: style })
   }
 
   function bookingsInView() {
@@ -537,6 +598,13 @@ export default function StudentPage() {
         .cat-anim { animation: catPop 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards; }
         @keyframes slideUp { from { transform: translateY(10px); opacity:0; } to { transform: translateY(0); opacity:1; } }
         .slide-up { animation: slideUp 0.25s ease forwards; }
+        @keyframes moodBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+        @keyframes moodWave{to{transform:translateX(-30px)}}
+        @keyframes moodSteam{0%{opacity:0;transform:translateY(3px)}35%{opacity:.5}100%{opacity:0;transform:translateY(-7px)}}
+        .mood-bob{animation:moodBob 3s ease-in-out infinite}
+        .mood-wave{animation:moodWave 2.4s linear infinite}
+        .mood-st1{animation:moodSteam 2.6s ease-in-out infinite; transform-box:fill-box; transform-origin:center}
+        .mood-st2{animation:moodSteam 2.6s ease-in-out .9s infinite; transform-box:fill-box; transform-origin:center}
       `}</style>
 
       {depositModal && (
@@ -646,6 +714,29 @@ export default function StudentPage() {
                 style={{ fontSize:12, color:'var(--tmu)', cursor:'pointer', textDecoration:'underline', textUnderlineOffset:2 }}>
                 전체 일정에서 고르기 →
               </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {moodSheet && (
+        <div onClick={() => setMoodSheet(false)}
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', zIndex:1000, display:'flex', alignItems:'flex-end' }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background:'#fff', borderRadius:'20px 20px 0 0', padding:'18px 18px 32px', width:'100%', maxWidth:390, margin:'0 auto' }}>
+            <div style={{ fontSize:14, fontWeight:800, color:'var(--td)', marginBottom:4 }}>수강권 무드 선택</div>
+            <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:14 }}>잔여가 줄면 표정이 바뀌어요 🐾</div>
+            <div style={{ display:'flex', gap:8 }}>
+              {[['orb','리퀴드 오브'],['cup','커피 유리컵'],['plant','식물']].map(([k, label]) => {
+                const on = moodStyle === k
+                return (
+                  <div key={k} onClick={() => changeMood(k)}
+                    style={{ flex:1, cursor:'pointer', background: on ? ACCENT_BG : CARD, border:`${on?2:1}px solid ${on?ACCENT:'rgba(0,0,0,0.08)'}`, borderRadius:14, padding:'12px 4px 9px', display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
+                    <MoodIndicator ratio={0.7} style={k} size={48} />
+                    <span style={{ fontSize:10, fontWeight: on?800:700, color: on?ACCENT_TEXT:'var(--tmu)' }}>{label}</span>
+                  </div>
+                )
+              })}
             </div>
           </div>
         </div>
@@ -793,7 +884,9 @@ export default function StudentPage() {
               </>
             )}
           </div>
-          <div style={{ marginLeft:12 }}><PixelPlant ratio={ticket ? (ticket.remain / ticket.total) : 0}/></div>
+          <div onClick={() => setMoodSheet(true)} style={{ marginLeft:12, cursor:'pointer' }} title="무드 스타일 변경">
+            <MoodIndicator ratio={ticket ? (ticket.remain / ticket.total) : 0} style={moodStyle} size={52} />
+          </div>
         </div>
 
         {meetingTickets.length > 0 && (
