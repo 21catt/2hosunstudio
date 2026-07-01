@@ -3,12 +3,8 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import AdminNav from '../../../components/AdminNav'
+import { HEADER_BG, PRIMARY, T, OK, WARN, BAD } from '../../../lib/adminTheme'
 
-const ACCENT = '#3B6D11'
-const ACCENT_BG = '#EAF3DE'
-const ACCENT_TEXT = '#27500A'
-const CARD = '#F1EFE8'
-const BORDER = 'rgba(0,0,0,0.14)'
 const DOW = ['일','월','화','수','목','금','토']
 
 function fmt(b) {
@@ -19,6 +15,17 @@ function fmtTs(ts) {
   if (!ts) return ''
   const d = new Date(ts)
   return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
+}
+
+function SectionHead({ dot, tx, label, count }) {
+  return (
+    <div style={{ display:'flex', alignItems:'center', gap:7, margin:'0 3px 9px' }}>
+      <span style={{ width:6, height:6, borderRadius:'50%', background: dot }}/>
+      <span style={{ fontSize:11, fontWeight:800, color: tx, letterSpacing:'0.2px' }}>{label}</span>
+      <span style={{ fontSize:10, fontWeight:700, color: T.faint }}>{count}</span>
+      <span style={{ flex:1, height:1, background:'rgba(0,0,0,0.05)' }}/>
+    </div>
+  )
 }
 
 export default function AdminPaymentPage() {
@@ -90,7 +97,7 @@ export default function AdminPaymentPage() {
 
   return (
     <>
-      <div className="header">
+      <div className="header" style={{ background: HEADER_BG }}>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <span style={{ fontSize:20 }}>💳</span>
           <span className="header-title">입금·환불</span>
@@ -100,12 +107,10 @@ export default function AdminPaymentPage() {
       <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 0', minHeight:'80vh' }}>
 
         {/* ── 입금 대기 ─────────────────────────────────────────── */}
-        <div style={{ fontSize:12, fontWeight:700, color:ACCENT_TEXT, marginBottom:8 }}>
-          입금 대기 <span style={{ fontWeight:400, color:'var(--tmu)' }}>{pending.length}건</span>
-        </div>
+        <SectionHead dot={OK.dot} tx={OK.tx} label="입금 대기" count={pending.length} />
 
         {pending.length === 0 ? (
-          <div style={{ textAlign:'center', padding:'16px 0 20px', color:'var(--tmu)', fontSize:12 }}>입금 대기 없음</div>
+          <div style={{ textAlign:'center', padding:'12px 0 20px', color: T.mut, fontSize:12 }}>입금 대기 없음</div>
         ) : pending.map(b => {
           const expireAt = new Date(new Date(b.created_at).getTime() + 24*60*60*1000)
           const msLeft = expireAt - new Date()
@@ -114,22 +119,22 @@ export default function AdminPaymentPage() {
           const timeLeft = msLeft <= 0 ? '만료됨' : hl > 0 ? `${hl}시간 ${ml}분 남음` : `${ml}분 남음`
           const isExp = msLeft <= 0
           return (
-            <div key={b.id} style={{ borderRadius:14, marginBottom:8, padding:'12px 14px', border:`1.5px solid ${isExp?'#f5c6cb':BORDER}`, background:isExp?'#fff5f5':CARD }}>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 }}>
+            <div key={b.id} style={{ borderRadius:15, marginBottom:8, padding:'13px 14px', border:`0.5px solid ${isExp ? 'rgba(193,86,77,0.35)' : T.card}`, background: isExp ? BAD.soft : '#fff' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:11 }}>
                 <div>
-                  <div style={{ fontSize:14, fontWeight:700, color:'var(--td)', marginBottom:2 }}>{userMap[b.user_id] || '학생'}</div>
-                  <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:2 }}>{fmt(b)}{b.seat ? ` · ${b.seat}자리` : ''}</div>
-                  <div style={{ fontSize:10, color:isExp?'#c0392b':'var(--tmu)' }}>신청 {fmtTs(b.created_at)} · <span style={{ fontWeight:600 }}>{timeLeft}</span></div>
+                  <div style={{ fontSize:14, fontWeight:800, color: T.text, marginBottom:3, letterSpacing:'-0.2px' }}>{userMap[b.user_id] || '학생'}</div>
+                  <div style={{ fontSize:11, color: T.mut, marginBottom:3 }}>{fmt(b)}{b.seat ? ` · ${b.seat}자리` : ''}</div>
+                  <div style={{ fontSize:10, color: T.mut }}>신청 {fmtTs(b.created_at)} · <span style={{ fontWeight:700, color: isExp ? BAD.tx : WARN.tx }}>{timeLeft}</span></div>
                 </div>
-                <div style={{ fontSize:16, fontWeight:800, color:ACCENT_TEXT, flexShrink:0, marginLeft:8 }}>{(b.amount||0).toLocaleString()}원</div>
+                <div style={{ fontSize:16, fontWeight:800, color: OK.tx, flexShrink:0, marginLeft:8, fontVariantNumeric:'tabular-nums' }}>{(b.amount||0).toLocaleString()}원</div>
               </div>
-              <div style={{ display:'flex', gap:6 }}>
+              <div style={{ display:'flex', gap:7 }}>
                 <button onClick={() => handleCancelPending(b.id)} disabled={!!cancelling[b.id]}
-                  style={{ flex:1, padding:'9px', background:'var(--g1)', color:'var(--g5)', border:'none', borderRadius:10, fontSize:12, cursor:'pointer', fontFamily:'Nunito,sans-serif', opacity:cancelling[b.id]?0.5:1 }}>
+                  style={{ flex:1, padding:'9px', background: T.fieldBg, color:'#5c6b5f', border:'none', borderRadius:11, fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif', opacity: cancelling[b.id] ? 0.5 : 1 }}>
                   취소
                 </button>
                 <button onClick={() => handleConfirm(b.id)} disabled={!!confirming[b.id]}
-                  style={{ flex:2, padding:'9px', background:ACCENT, color:'#fff', border:'none', borderRadius:10, fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif', opacity:confirming[b.id]?0.5:1 }}>
+                  style={{ flex:2, padding:'9px', background: PRIMARY, color:'#fff', border:'none', borderRadius:11, fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif', opacity: confirming[b.id] ? 0.5 : 1 }}>
                   {confirming[b.id] ? '처리중...' : '✓ 입금 확인'}
                 </button>
               </div>
@@ -138,29 +143,29 @@ export default function AdminPaymentPage() {
         })}
 
         {/* ── 환불 필요 ─────────────────────────────────────────── */}
-        <div style={{ fontSize:12, fontWeight:700, color:'#9B2F2F', marginTop:20, marginBottom:8 }}>
-          환불 필요 <span style={{ fontWeight:400, color:'var(--tmu)' }}>{refunds.length}건</span>
+        <div style={{ marginTop:18 }}>
+          <SectionHead dot={BAD.dot} tx={BAD.tx} label="환불 필요" count={refunds.length} />
         </div>
 
         {refunds.length === 0 ? (
-          <div style={{ textAlign:'center', padding:'16px 0 20px', color:'var(--tmu)', fontSize:12 }}>환불 대기 없음</div>
+          <div style={{ textAlign:'center', padding:'12px 0 20px', color: T.mut, fontSize:12 }}>환불 대기 없음</div>
         ) : (
           <>
-            <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:8, lineHeight:1.5 }}>
+            <div style={{ fontSize:11, color: T.mut, marginBottom:8, lineHeight:1.5 }}>
               학생 계좌를 확인 후 직접 송금하세요. 완료 후 [환불 완료]를 눌러주세요.
             </div>
             {refunds.map(b => (
-              <div key={b.id} style={{ borderRadius:14, marginBottom:8, padding:'12px 14px', border:'1.5px solid #f5c6cb', background:'#fff5f5' }}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 }}>
+              <div key={b.id} style={{ borderRadius:15, marginBottom:8, padding:'13px 14px', border:'0.5px solid rgba(193,86,77,0.35)', background: BAD.soft }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:11 }}>
                   <div>
-                    <div style={{ fontSize:14, fontWeight:700, color:'var(--td)', marginBottom:2 }}>{userMap[b.user_id] || '학생'}</div>
-                    <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:2 }}>{fmt(b)}{b.seat ? ` · ${b.seat}자리` : ''}</div>
-                    <div style={{ fontSize:10, color:'var(--tmu)' }}>예약 {fmtTs(b.created_at)}</div>
+                    <div style={{ fontSize:14, fontWeight:800, color: T.text, marginBottom:3, letterSpacing:'-0.2px' }}>{userMap[b.user_id] || '학생'}</div>
+                    <div style={{ fontSize:11, color: T.mut, marginBottom:3 }}>{fmt(b)}{b.seat ? ` · ${b.seat}자리` : ''}</div>
+                    <div style={{ fontSize:10, color: T.mut }}>예약 {fmtTs(b.created_at)}</div>
                   </div>
-                  <div style={{ fontSize:16, fontWeight:800, color:'#9B2F2F', flexShrink:0, marginLeft:8 }}>{(b.amount||0).toLocaleString()}원</div>
+                  <div style={{ fontSize:16, fontWeight:800, color: BAD.tx, flexShrink:0, marginLeft:8, fontVariantNumeric:'tabular-nums' }}>{(b.amount||0).toLocaleString()}원</div>
                 </div>
                 <button onClick={() => handleRefundDone(b.id)} disabled={!!refunding[b.id]}
-                  style={{ width:'100%', padding:'9px', background:'#9B2F2F', color:'#fff', border:'none', borderRadius:10, fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif', opacity:refunding[b.id]?0.5:1 }}>
+                  style={{ width:'100%', padding:'9px', background: BAD.main, color:'#fff', border:'none', borderRadius:11, fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif', opacity: refunding[b.id] ? 0.5 : 1 }}>
                   {refunding[b.id] ? '처리중...' : '✓ 환불 완료'}
                 </button>
               </div>
@@ -171,17 +176,17 @@ export default function AdminPaymentPage() {
         {/* ── 취소·환불 불필요 (히스토리) ──────────────────────── */}
         {history.length > 0 && (
           <>
-            <div style={{ fontSize:12, fontWeight:700, color:'var(--tmu)', marginTop:20, marginBottom:8 }}>
-              환불 불필요 <span style={{ fontWeight:400 }}>(6시간 이내 취소 · 최근 {history.length}건)</span>
+            <div style={{ marginTop:18 }}>
+              <SectionHead dot={T.faint} tx={T.mut} label="환불 불필요" count={`6시간 이내 취소 · 최근 ${history.length}건`} />
             </div>
             {history.map(b => (
-              <div key={b.id} style={{ borderRadius:12, marginBottom:6, padding:'10px 14px', border:`1px solid ${BORDER}`, background:'#fafafa', opacity:0.7 }}>
+              <div key={b.id} style={{ borderRadius:13, marginBottom:6, padding:'10px 14px', background: T.tileBg, opacity:0.85 }}>
                 <div style={{ display:'flex', justifyContent:'space-between' }}>
                   <div>
-                    <div style={{ fontSize:12, fontWeight:600, color:'var(--td)' }}>{userMap[b.user_id] || '학생'}</div>
-                    <div style={{ fontSize:10, color:'var(--tmu)' }}>{fmt(b)}</div>
+                    <div style={{ fontSize:12, fontWeight:700, color: T.text }}>{userMap[b.user_id] || '학생'}</div>
+                    <div style={{ fontSize:10, color: T.mut }}>{fmt(b)}</div>
                   </div>
-                  <div style={{ fontSize:13, fontWeight:700, color:'var(--tmu)' }}>{(b.amount||0).toLocaleString()}원</div>
+                  <div style={{ fontSize:13, fontWeight:700, color: T.mut, fontVariantNumeric:'tabular-nums' }}>{(b.amount||0).toLocaleString()}원</div>
                 </div>
               </div>
             ))}

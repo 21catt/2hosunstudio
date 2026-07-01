@@ -3,12 +3,9 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import AdminNav from '../../../components/AdminNav'
+import { HEADER_BG, PRIMARY, T, OK } from '../../../lib/adminTheme'
 
-const ACCENT      = '#3B6D11'
-const ACCENT_BG   = '#EAF3DE'
-const ACCENT_TEXT = '#27500A'
-const BORDER      = 'rgba(0,0,0,0.10)'
-const DOW         = ['일','월','화','수','목','금','토']
+const DOW = ['일','월','화','수','목','금','토']
 
 function toDateStr(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
@@ -22,18 +19,6 @@ export default function AdminAttendancePage() {
   const [userNames,   setUserNames]   = useState({})
   const [loading,     setLoading]     = useState(true)
   const [toggling,    setToggling]    = useState({})
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) { router.push('/login'); return }
-      if (data.user.user_metadata?.role !== 'admin') { router.push('/student'); return }
-      setUser(data.user)
-    })
-  }, [])
-
-  useEffect(() => {
-    if (user) load(selectedDate)
-  }, [user, selectedDate])
 
   async function load(date) {
     setLoading(true)
@@ -58,6 +43,18 @@ export default function AdminAttendancePage() {
     }
     setLoading(false)
   }
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) { router.push('/login'); return }
+      if (data.user.user_metadata?.role !== 'admin') { router.push('/student'); return }
+      setUser(data.user)
+    })
+  }, [])
+
+  useEffect(() => {
+    if (user) load(selectedDate)
+  }, [user, selectedDate])
 
   async function toggleAttended(b) {
     const next = !b.attended
@@ -104,7 +101,7 @@ export default function AdminAttendancePage() {
 
   return (
     <>
-      <div className="header">
+      <div className="header" style={{ background: HEADER_BG }}>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <span style={{ fontSize:20 }}>✅</span>
           <span className="header-title">출석 체크</span>
@@ -114,17 +111,17 @@ export default function AdminAttendancePage() {
       <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'16px 14px 80px', minHeight:'80vh' }}>
 
         {/* Date nav */}
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:20, marginBottom:22 }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:18, marginBottom:20 }}>
           <button onClick={() => shift(-1)}
-            style={{ width:38, height:38, borderRadius:'50%', background:'var(--g1)', border:'none', fontSize:20, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--g5)', fontFamily:'Nunito,sans-serif' }}>
+            style={{ width:36, height:36, borderRadius:'50%', background: T.navBg, border:'none', fontSize:18, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'#5c6b5f', fontFamily:'Nunito,sans-serif' }}>
             ‹
           </button>
-          <div style={{ textAlign:'center', minWidth:100 }}>
-            <div style={{ fontSize:17, fontWeight:800, color:'var(--td)' }}>{dateLabel}</div>
-            {isToday && <div style={{ fontSize:10, color: ACCENT, fontWeight:700, marginTop:1 }}>오늘</div>}
+          <div style={{ textAlign:'center', minWidth:96 }}>
+            <div style={{ fontSize:16, fontWeight:800, color: T.text }}>{dateLabel}</div>
+            {isToday && <div style={{ fontSize:10, color: OK.main, fontWeight:700, marginTop:1 }}>오늘</div>}
           </div>
           <button onClick={() => shift(1)}
-            style={{ width:38, height:38, borderRadius:'50%', background:'var(--g1)', border:'none', fontSize:20, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--g5)', fontFamily:'Nunito,sans-serif' }}>
+            style={{ width:36, height:36, borderRadius:'50%', background: T.navBg, border:'none', fontSize:18, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'#5c6b5f', fontFamily:'Nunito,sans-serif' }}>
             ›
           </button>
         </div>
@@ -134,7 +131,7 @@ export default function AdminAttendancePage() {
             <span style={{ fontSize:30 }}>🐱</span>
           </div>
         ) : groups.length === 0 ? (
-          <div style={{ textAlign:'center', padding:56, color:'var(--tmu)', fontSize:13 }}>
+          <div style={{ textAlign:'center', padding:56, color: T.mut, fontSize:13 }}>
             이 날 예약이 없어요 🐾
           </div>
         ) : (
@@ -144,26 +141,26 @@ export default function AdminAttendancePage() {
             const allDone = attendedCnt === grp.length
 
             return (
-              <div key={key} style={{ marginBottom:24 }}>
+              <div key={key} style={{ marginBottom:22 }}>
                 {/* Group header */}
-                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8, paddingLeft:2, paddingRight:2 }}>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8, padding:'0 2px' }}>
                   <div>
-                    <div style={{ fontSize:14, fontWeight:800, color:'var(--td)' }}>{class_name}</div>
-                    <div style={{ fontSize:11, color:'var(--tmu)', marginTop:1 }}>
+                    <div style={{ fontSize:14, fontWeight:800, color: T.text, letterSpacing:'-0.2px' }}>{class_name}</div>
+                    <div style={{ fontSize:11, color: T.mut, marginTop:1 }}>
                       {class_time} &nbsp;·&nbsp;
-                      <span style={{ color: attendedCnt > 0 ? ACCENT_TEXT : 'var(--tmu)', fontWeight:700 }}>
+                      <span style={{ color: attendedCnt > 0 ? OK.tx : T.mut, fontWeight:700 }}>
                         {attendedCnt}/{grp.length}명 출석
                       </span>
                     </div>
                   </div>
                   <button onClick={() => markAllAttended(grp)} disabled={allDone}
-                    style={{ padding:'7px 14px', background: allDone ? 'var(--g1)' : ACCENT, color: allDone ? 'var(--tmu)' : '#fff', border:'none', borderRadius:20, fontSize:11, fontWeight:700, cursor: allDone ? 'default' : 'pointer', fontFamily:'Nunito,sans-serif', opacity: allDone ? 0.55 : 1 }}>
+                    style={{ padding:'7px 14px', background: allDone ? T.navBg : PRIMARY, color: allDone ? T.mut : '#fff', border:'none', borderRadius:11, fontSize:11, fontWeight:700, cursor: allDone ? 'default' : 'pointer', fontFamily:'Nunito,sans-serif', opacity: allDone ? 0.7 : 1 }}>
                     {allDone ? '전원 ✓' : '전원 출석'}
                   </button>
                 </div>
 
                 {/* Student rows */}
-                <div style={{ borderRadius:16, border:`1px solid ${BORDER}`, overflow:'hidden', background:'#fff' }}>
+                <div style={{ borderRadius:16, border:`0.5px solid ${T.card}`, overflow:'hidden', background:'#fff' }}>
                   {grp.map((b, idx) => {
                     const name = userNames[b.user_id] || '학생'
                     const attended = !!b.attended
@@ -171,23 +168,23 @@ export default function AdminAttendancePage() {
 
                     return (
                       <div key={b.id} onClick={() => !busy && toggleAttended(b)}
-                        style={{ display:'flex', alignItems:'center', gap:14, padding:'14px 16px', cursor:'pointer', background: attended ? '#F4FBF0' : '#fff', borderTop: idx === 0 ? 'none' : `1px solid ${BORDER}`, transition:'background 0.12s' }}>
+                        style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 14px', cursor:'pointer', background: attended ? '#F1F8EC' : '#fff', borderTop: idx === 0 ? 'none' : `0.5px solid ${T.line}`, opacity: busy ? 0.55 : 1, transition:'background 0.12s' }}>
 
                         {/* Avatar */}
-                        <div style={{ width:42, height:42, borderRadius:'50%', background: attended ? ACCENT_BG : 'var(--g1)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, fontWeight:800, color: attended ? ACCENT_TEXT : 'var(--tmu)', flexShrink:0, transition:'all 0.12s' }}>
+                        <div style={{ width:38, height:38, borderRadius:'50%', background: attended ? OK.soft : T.navBg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:15, fontWeight:800, color: attended ? OK.tx : T.mut, flexShrink:0, transition:'all 0.12s' }}>
                           {name[0] || '?'}
                         </div>
 
                         {/* Name */}
-                        <div style={{ flex:1, fontSize:15, fontWeight:700, color: attended ? ACCENT_TEXT : 'var(--td)' }}>
+                        <div style={{ flex:1, fontSize:14, fontWeight:700, color: attended ? OK.tx : T.text }}>
                           {name}
                         </div>
 
                         {/* Toggle circle */}
-                        <div style={{ width:38, height:38, borderRadius:'50%', background: attended ? ACCENT : 'var(--g1)', border: `2px solid ${attended ? ACCENT : BORDER}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, opacity: busy ? 0.45 : 1, transition:'all 0.15s' }}>
+                        <div style={{ width:34, height:34, borderRadius:'50%', background: attended ? OK.main : '#fff', border: `2px solid ${attended ? OK.main : 'rgba(0,0,0,0.12)'}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, transition:'all 0.15s' }}>
                           {attended
-                            ? <span style={{ color:'#fff', fontSize:18, lineHeight:1 }}>✓</span>
-                            : <div style={{ width:12, height:12, borderRadius:'50%', background:'var(--g2)' }}/>
+                            ? <span style={{ color:'#fff', fontSize:17, lineHeight:1 }}>✓</span>
+                            : <div style={{ width:11, height:11, borderRadius:'50%', background:'#d5d3ca' }}/>
                           }
                         </div>
                       </div>
