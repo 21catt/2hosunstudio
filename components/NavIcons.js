@@ -65,12 +65,33 @@ const PATHS = {
       <line x1="8" y1="15" x2="13" y2="15"/>
     </>
   ),
+  pencil: (
+    <>
+      <path d="M12 20h9"/>
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
+    </>
+  ),
+  palette: (
+    <>
+      <path d="M12 21a9 9 0 1 1 0-18c4.97 0 9 3.58 9 8 0 2.5-2 4-4.5 4H14a2 2 0 0 0-1.6 3.2 1.5 1.5 0 0 1-.4 2.8z"/>
+      <circle cx="7.5" cy="11.5" r="1"/>
+      <circle cx="12" cy="8" r="1"/>
+      <circle cx="16.5" cy="11.5" r="1"/>
+    </>
+  ),
+  box: (
+    <>
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+      <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+      <line x1="12" y1="22.08" x2="12" y2="12"/>
+    </>
+  ),
 }
 
-export function NavIcon({ name, active, size = 22 }) {
+export function NavIcon({ name, active, color, size = 22 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke={active ? NAV_ACTIVE : NAV_MUTED} strokeWidth={1.9}
+      stroke={color || (active ? NAV_ACTIVE : NAV_MUTED)} strokeWidth={1.9}
       strokeLinecap="round" strokeLinejoin="round">
       {PATHS[name]}
     </svg>

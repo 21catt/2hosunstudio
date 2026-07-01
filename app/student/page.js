@@ -4,10 +4,11 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import { useTodayWeather } from '../../components/WeatherBar'
 import StudentNav from '../../components/StudentNav'
+import { NavIcon } from '../../components/NavIcons'
 import { sendPushToAdmins } from '../../lib/pushNotify'
 import { sendKakaoToAdmins } from '../../lib/kakaoNotify'
 
-const EMOJI = { drawing:'✏️', painting:'🎨', sculpture:'🗿', free:'🖼️', meeting:'👥' }
+const CAT_ICON = { drawing:'pencil', painting:'palette', sculpture:'box', free:'photo', meeting:'users' }
 const CAT_NAME = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', free:'자율창작', meeting:'모임' }
 const CAT_COLOR = { drawing:'#e8f5e0', painting:'#EDE7F6', sculpture:'#FFF3E0', free:'#E3F2FD', meeting:'#FFF8E1' }
 const CAT_TEXT = { drawing:'var(--g5)', painting:'#4A148C', sculpture:'#E65100', free:'#0D47A1', meeting:'#F57F17' }
@@ -827,15 +828,18 @@ export default function StudentPage() {
               <div className="slide-up" style={{ marginBottom:12 }}>
                 <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>수업 종류 선택</div>
                 <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                  {cats.map(cat => (
-                    <div key={cat} onClick={() => {
-                      if (cat === 'free') { router.push(`/student/free?date=${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`); return }
-                      setSelCat(cat); setSelCourse(null); setSelSchedule(null)
-                    }} style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', borderRadius:20, cursor:'pointer', background:selCat===cat?ACCENT_BG:CARD, border:`1.5px solid ${selCat===cat?ACCENT:BORDER}` }}>
-                      <span style={{ fontSize:16 }}>{EMOJI[cat]||'🎨'}</span>
-                      <span style={{ fontSize:12, fontWeight:500, color:selCat===cat?ACCENT_TEXT:'var(--td)' }}>{CAT_NAME[cat]}</span>
-                    </div>
-                  ))}
+                  {cats.map(cat => {
+                    const on = selCat === cat
+                    return (
+                      <div key={cat} onClick={() => {
+                        if (cat === 'free') { router.push(`/student/free?date=${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`); return }
+                        setSelCat(cat); setSelCourse(null); setSelSchedule(null)
+                      }} style={{ display:'flex', alignItems:'center', gap:7, padding:'8px 14px', borderRadius:20, cursor:'pointer', background: on ? ACCENT_BG : CARD, border:`1px solid ${on ? ACCENT : 'rgba(0,0,0,0.08)'}` }}>
+                        <NavIcon name={CAT_ICON[cat] || 'palette'} color={on ? ACCENT_TEXT : '#4a5a4e'} size={17} />
+                        <span style={{ fontSize:12, fontWeight: on ? 800 : 600, color: on ? ACCENT_TEXT : 'var(--td)' }}>{CAT_NAME[cat]}</span>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )}
@@ -863,7 +867,7 @@ export default function StudentPage() {
                   const isOpen = selCourse?.id === c.id
                   const daySchedules = getSchedulesForDay(c, selectedDay)
                   return (
-                    <div key={c.id} style={{ borderRadius:14, marginBottom:8, overflow:'hidden', border:`1.5px solid ${isOpen?ACCENT:BORDER}`, background:isOpen?ACCENT_BG:CARD }}>
+                    <div key={c.id} style={{ borderRadius:14, marginBottom:8, overflow:'hidden', border:`1px solid ${isOpen?ACCENT:'rgba(0,0,0,0.08)'}`, background:isOpen?ACCENT_BG:CARD }}>
                       <div onClick={() => { if (isOpen) { setSelCourse(null); setSelSchedule(null) } else { setSelCourse(c); setSelSchedule(null) } }}
                         style={{ padding:'12px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', cursor:'pointer' }}>
                         <div>
@@ -889,7 +893,7 @@ export default function StudentPage() {
                             return (
                               <div key={s.id}
                                 onClick={() => { if (!full && !booked) setSelSchedule(isSel ? null : s) }}
-                                style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 12px', borderRadius:10, marginBottom:6, background:booked?'#E8F5E0':'#fff', border:`1.5px solid ${booked?'#a8d9a0':isSel?ACCENT:BORDER}`, cursor:full||booked?'default':'pointer', opacity:full?0.45:1 }}>
+                                style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 12px', borderRadius:11, marginBottom:6, background:booked?'#E8F5E0':'#fff', border:`1px solid ${booked?'#a8d9a0':isSel?ACCENT:'rgba(0,0,0,0.08)'}`, cursor:full||booked?'default':'pointer', opacity:full?0.45:1 }}>
                                 <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                                   <div style={{ width:18, height:18, borderRadius:'50%', flexShrink:0, background:booked?'#6db870':isSel?ACCENT:'transparent', border:`2px solid ${booked?'#6db870':isSel?ACCENT:BORDER}`, display:'flex', alignItems:'center', justifyContent:'center' }}>
                                     {(booked||isSel) && <svg width="9" height="7" viewBox="0 0 9 7"><polyline points="1,3.5 3,6 8,1" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
