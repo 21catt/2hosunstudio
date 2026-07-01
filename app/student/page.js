@@ -33,63 +33,29 @@ function getCatImage(d) {
   return CAT_IMAGES[(d * 7 + 3) % CAT_IMAGES.length]
 }
 
-function PixelPlant({ ratio }) {
-  const stage = ratio >= 0.6 ? 'healthy' : ratio >= 0.3 ? 'mild' : 'wilted'
-  const palette = {
-    healthy: { leaf: '#3d6b4f', leafDark: '#2a4a37', flower: '#6b9bc4', flowerDark: '#4a7aa3', pot: '#c97a4a', potDark: '#a05c33', potLight: '#e09060', drop: '#7a9bbf' },
-    mild: { leaf: '#5a7a6a', leafDark: '#3d5a4d', flower: '#8ba8c4', flowerDark: '#6b8aa8', pot: '#c97a4a', potDark: '#a05c33', potLight: '#e09060', drop: 'transparent' },
-    wilted: { leaf: '#8a8a78', leafDark: '#6a6a5a', flower: 'transparent', flowerDark: 'transparent', pot: '#b8704a', potDark: '#946238', potLight: '#c98860', drop: 'transparent' }
-  }
-  const c = palette[stage]
-  const leavesHealthy = [[5,4],[5,5],[5,6],[5,7],[5,8],[5,9],[6,4],[6,5],[6,6],[6,7],[6,8],[6,9],[3,8],[4,7],[2,9],[3,7],[4,6],[2,6],[3,5],[2,5],[1,6],[3,3],[2,4],[7,7],[8,8],[9,9],[7,6],[8,7],[8,5],[9,6],[9,5],[10,6],[8,3],[9,4]]
-  const leavesWilted = [[5,5],[5,6],[5,7],[5,8],[5,9],[6,5],[6,6],[6,7],[6,8],[6,9],[3,9],[4,8],[7,8],[8,9],[3,7],[4,7],[7,7],[8,7]]
-  const leaves = stage === 'wilted' ? leavesWilted : leavesHealthy
-  const flowers = [[4,2],[5,2],[6,2],[7,2],[5,1],[6,1],[5,3],[6,3],[2,3],[3,3],[2,2],[8,3],[9,3],[9,2]]
-
-  return (
-    <div style={{ position:'relative', width:48, height:48 }}>
-      <style>{`
-        @keyframes pSwayH { 0%,100% { transform: rotate(-1.5deg); } 50% { transform: rotate(1.5deg); } }
-        @keyframes pSwayM { 0%,100% { transform: rotate(-0.6deg); } 50% { transform: rotate(0.6deg); } }
-        @keyframes pSwayW { 0%,100% { transform: translateY(0); } 50% { transform: translateY(0.4px); } }
-        @keyframes pDrop { 0% { transform: translateY(-3px); opacity:0; } 15% { opacity:1; } 85% { opacity:1; } 100% { transform: translateY(10px); opacity:0; } }
-        .p-h { animation: pSwayH 3.2s ease-in-out infinite; transform-origin: 50% 85%; }
-        .p-m { animation: pSwayM 4.2s ease-in-out infinite; transform-origin: 50% 85%; }
-        .p-w { animation: pSwayW 5s ease-in-out infinite; }
-        .p-d1 { animation: pDrop 2.6s ease-in 0s infinite; }
-        .p-d2 { animation: pDrop 2.6s ease-in 1.3s infinite; }
-      `}</style>
-      <div className={stage === 'healthy' ? 'p-h' : stage === 'mild' ? 'p-m' : 'p-w'} style={{ position:'absolute', inset:0 }}>
-        <svg viewBox="0 0 48 48" width="48" height="48" shapeRendering="crispEdges">
-          {stage !== 'wilted' && flowers.map(([x,y],i) => (<rect key={`f-${i}`} x={x*4} y={y*4} width="4" height="4" fill={c.flower}/>))}
-          {stage !== 'wilted' && flowers.filter(([,y]) => y >= 2).slice(0, 6).map(([x,y],i) => (<rect key={`fd-${i}`} x={x*4+2} y={y*4+2} width="2" height="2" fill={c.flowerDark}/>))}
-          {leaves.map(([x,y],i) => (<rect key={`l-${i}`} x={x*4} y={y*4} width="4" height="4" fill={c.leaf}/>))}
-          {leaves.filter(([x,y]) => (x+y) % 3 === 0).map(([x,y],i) => (<rect key={`ld-${i}`} x={x*4+1} y={y*4+1} width="2" height="2" fill={c.leafDark}/>))}
-          <rect x="12" y="36" width="24" height="2" fill={c.potDark}/>
-          <rect x="14" y="38" width="20" height="8" fill={c.pot}/>
-          <rect x="14" y="38" width="2" height="6" fill={c.potLight}/>
-          <rect x="32" y="38" width="2" height="8" fill={c.potDark}/>
-          <rect x="14" y="46" width="20" height="2" fill={c.potDark}/>
-        </svg>
-      </div>
-      {stage === 'healthy' && (
-        <>
-          <div className="p-d1" style={{ position:'absolute', top:2, left:12, width:2, height:3, background:c.drop, borderRadius:'50% 50% 50% 50% / 60% 60% 40% 40%' }}/>
-          <div className="p-d2" style={{ position:'absolute', top:2, left:32, width:2, height:3, background:c.drop, borderRadius:'50% 50% 50% 50% / 60% 60% 40% 40%' }}/>
-        </>
-      )}
-    </div>
-  )
-}
-
 // 수강권 무드 인디케이터 — ratio(remain/total)에 반응. style: orb | cup | plant
 function MoodIndicator({ ratio, style, size = 52 }) {
   const uid = useId()
   const r0 = Number(ratio)
   const r = Math.max(0, Math.min(1, isFinite(r0) ? r0 : 0))
-  if (style === 'plant') return <PixelPlant ratio={r} />
-
   const col = r <= 0 ? '#B4AEA1' : r < 0.3 ? '#C1564D' : r < 0.6 ? '#E08A1E' : '#4C8B29'
+
+  if (style === 'plant') {
+    const d = 1 - r
+    return (
+      <svg width={size} height={size} viewBox="0 0 60 60">
+        <g className="mood-sway" style={{ transformBox:'fill-box', transformOrigin:'50% 92%' }}>
+          <rect x="21" y="42" width="18" height="3" rx="1" fill="#A5623A"/>
+          <path d="M22 45 L38 45 L36 54 L24 54 Z" fill="#C57C4A" stroke="#A5623A" strokeWidth="1.1" strokeLinejoin="round"/>
+          <path d={`M30 45 C30 40 ${30 - d*7} 35 ${30 - d*9} ${29 + d*5}`} stroke="#6e7c52" strokeWidth="2" fill="none" strokeLinecap="round"/>
+          <ellipse cx="24" cy={34 + d*4} rx="5" ry="3" fill={col} transform={`rotate(${-32 + d*42} 24 ${34 + d*4})`}/>
+          <ellipse cx="36" cy={34 + d*4} rx="5" ry="3" fill={col} transform={`rotate(${32 - d*42} 36 ${34 + d*4})`}/>
+          <ellipse cx="30" cy={28 + d*3} rx="5" ry="3" fill={col} transform={`rotate(${d*10 - 3} 30 ${28 + d*3})`}/>
+          {r >= 0.6 && <><circle cx="30" cy="24" r="3.2" fill="#E7A9C0"/><circle cx="30" cy="24" r="1.2" fill="#fff"/></>}
+        </g>
+      </svg>
+    )
+  }
 
   if (style === 'orb') {
     const wy = 50 - r * 40
@@ -600,9 +566,11 @@ export default function StudentPage() {
         .slide-up { animation: slideUp 0.25s ease forwards; }
         @keyframes moodBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
         @keyframes moodWave{to{transform:translateX(-30px)}}
+        @keyframes moodSway{0%,100%{transform:rotate(-2.2deg)}50%{transform:rotate(2.2deg)}}
         @keyframes moodSteam{0%{opacity:0;transform:translateY(3px)}35%{opacity:.5}100%{opacity:0;transform:translateY(-7px)}}
         .mood-bob{animation:moodBob 3s ease-in-out infinite}
         .mood-wave{animation:moodWave 2.4s linear infinite}
+        .mood-sway{animation:moodSway 3.6s ease-in-out infinite}
         .mood-st1{animation:moodSteam 2.6s ease-in-out infinite; transform-box:fill-box; transform-origin:center}
         .mood-st2{animation:moodSteam 2.6s ease-in-out .9s infinite; transform-box:fill-box; transform-origin:center}
       `}</style>
