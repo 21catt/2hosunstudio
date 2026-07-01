@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { NavIcon, NAV_ACTIVE, NAV_MUTED } from './NavIcons'
 
 export default function StudentNav({ active }) {
   const [unread, setUnread] = useState(0)
@@ -23,37 +24,40 @@ export default function StudentNav({ active }) {
   }
 
   const items = [
-    { href:'/student', label:'일정', icon:'📅', key:'schedule' },
-    { href:'/student/records', label:'기록', icon:'📋', key:'records' },
-    { href:'/student/curriculum', label:'커리큘럼', icon:'📚', key:'curriculum' },
-    { href:'/student/notification', label:'알림', icon:'🔔', key:'notification' },
-    { href:'/lounge', label:'라운지', icon:'💬', key:'lounge' },
+    { href:'/student', label:'일정', icon:'calendar', key:'schedule' },
+    { href:'/student/records', label:'기록', icon:'clipboard', key:'records' },
+    { href:'/student/curriculum', label:'커리큘럼', icon:'book', key:'curriculum' },
+    { href:'/student/notification', label:'알림', icon:'bell', key:'notification' },
+    { href:'/lounge', label:'라운지', icon:'chat', key:'lounge' },
   ]
 
   return (
     <nav className="bottom-nav">
-      {items.map(t => (
-        <a key={t.key} href={t.href} className={`nav-item ${active === t.key ? 'active' : ''}`}>
-          <div style={{ position:'relative' }}>
-            <span style={{ fontSize:20 }}>{t.icon}</span>
-            {t.key === 'notification' && unread > 0 && (
-              <span style={{
-                position:'absolute', top:-4, right:-8,
-                background:'#e74c3c', color:'#fff',
-                fontSize:9, fontWeight:800,
-                minWidth:16, height:16, borderRadius:8,
-                display:'flex', alignItems:'center', justifyContent:'center',
-                padding:'0 4px', lineHeight:1,
-                fontFamily:'Nunito,sans-serif',
-                border:'1.5px solid #fff'
-              }}>
-                {unread > 99 ? '99+' : unread}
-              </span>
-            )}
-          </div>
-          <span>{t.label}</span>
-        </a>
-      ))}
+      {items.map(t => {
+        const on = active === t.key
+        return (
+          <a key={t.key} href={t.href} className={`nav-item ${on ? 'active' : ''}`}>
+            <div style={{ position:'relative', display:'flex' }}>
+              <NavIcon name={t.icon} active={on} />
+              {t.key === 'notification' && unread > 0 && (
+                <span style={{
+                  position:'absolute', top:-6, right:-8,
+                  background:'#e24b4a', color:'#fff',
+                  fontSize:9, fontWeight:800,
+                  minWidth:16, height:16, borderRadius:8,
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  padding:'0 4px', lineHeight:1,
+                  fontFamily:'Nunito,sans-serif',
+                  border:'1.5px solid #fff'
+                }}>
+                  {unread > 99 ? '99+' : unread}
+                </span>
+              )}
+            </div>
+            <span style={{ color: on ? NAV_ACTIVE : NAV_MUTED }}>{t.label}</span>
+          </a>
+        )
+      })}
     </nav>
   )
 }

@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { NavIcon, NAV_ACTIVE, NAV_MUTED } from './NavIcons'
 
 export default function AdminNav({ active }) {
   const [unread, setUnread] = useState(0)
@@ -23,40 +24,43 @@ export default function AdminNav({ active }) {
   }
 
   const items = [
-    { href:'/admin', label:'회원', icon:'👥', key:'member' },
-    { href:'/admin/schedule', label:'수업현황', icon:'📅', key:'schedule' },
-    { href:'/admin/attendance', label:'출석', icon:'✅', key:'attendance' },
-    { href:'/admin/payment', label:'입금', icon:'💳', key:'payment' },
-    { href:'/admin/seats', label:'자리사진', icon:'🪑', key:'seats' },
-    { href:'/admin/curriculum', label:'커리큘럼', icon:'📚', key:'curriculum' },
-    { href:'/admin/notification', label:'알림', icon:'🔔', key:'notification' },
-    { href:'/lounge', label:'라운지', icon:'💬', key:'lounge' },
+    { href:'/admin', label:'회원', icon:'users', key:'member' },
+    { href:'/admin/schedule', label:'수업현황', icon:'calendar', key:'schedule' },
+    { href:'/admin/attendance', label:'출석', icon:'check', key:'attendance' },
+    { href:'/admin/payment', label:'입금', icon:'card', key:'payment' },
+    { href:'/admin/seats', label:'자리사진', icon:'photo', key:'seats' },
+    { href:'/admin/curriculum', label:'커리큘럼', icon:'book', key:'curriculum' },
+    { href:'/admin/notification', label:'알림', icon:'bell', key:'notification' },
+    { href:'/lounge', label:'라운지', icon:'chat', key:'lounge' },
   ]
 
   return (
     <nav className="bottom-nav">
-      {items.map(t => (
-        <a key={t.key} href={t.href} className={`nav-item ${active === t.key ? 'active' : ''}`}>
-          <div style={{ position:'relative' }}>
-            <span style={{ fontSize:20 }}>{t.icon}</span>
-            {t.key === 'notification' && unread > 0 && (
-              <span style={{
-                position:'absolute', top:-4, right:-8,
-                background:'#e74c3c', color:'#fff',
-                fontSize:9, fontWeight:800,
-                minWidth:16, height:16, borderRadius:8,
-                display:'flex', alignItems:'center', justifyContent:'center',
-                padding:'0 4px', lineHeight:1,
-                fontFamily:'Nunito,sans-serif',
-                border:'1.5px solid #fff'
-              }}>
-                {unread > 99 ? '99+' : unread}
-              </span>
-            )}
-          </div>
-          <span>{t.label}</span>
-        </a>
-      ))}
+      {items.map(t => {
+        const on = active === t.key
+        return (
+          <a key={t.key} href={t.href} className={`nav-item ${on ? 'active' : ''}`}>
+            <div style={{ position:'relative', display:'flex' }}>
+              <NavIcon name={t.icon} active={on} />
+              {t.key === 'notification' && unread > 0 && (
+                <span style={{
+                  position:'absolute', top:-6, right:-8,
+                  background:'#e24b4a', color:'#fff',
+                  fontSize:9, fontWeight:800,
+                  minWidth:16, height:16, borderRadius:8,
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  padding:'0 4px', lineHeight:1,
+                  fontFamily:'Nunito,sans-serif',
+                  border:'1.5px solid #fff'
+                }}>
+                  {unread > 99 ? '99+' : unread}
+                </span>
+              )}
+            </div>
+            <span style={{ color: on ? NAV_ACTIVE : NAV_MUTED }}>{t.label}</span>
+          </a>
+        )
+      })}
     </nav>
   )
 }
