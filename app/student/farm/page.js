@@ -8,10 +8,10 @@ import LoadingCat from '../../../components/LoadingCat'
 
 // 테마별 픽셀 냥밭 환경 — ground는 이미지 하단 지면 픽셀 색과 동일(이음매 방지)
 const FARM_ENV = {
-  ultra: { img: '/farm/ultra.png', ground: '#7CE8A4', field: '#EEF0FF', line: '#2B2FD4', tick: '#1A1C6B', sprinkle: '#FF5A5A', cross: '#7CE8A4' },
-  line2: { img: '/farm/line2.png', ground: '#D3EF6B', field: '#ECF6EC', line: '#0F8A4A', tick: '#0C3B26', sprinkle: '#FF6A2B', cross: '#D3EF6B' },
-  ink:   { img: '/farm/ink.png',   ground: '#FF6A2B', field: '#F4EFE9', line: '#1B1B1F', tick: '#000000', sprinkle: '#7CE8A4', cross: '#FF6A2B' },
-  lilac: { img: '/farm/lilac.png', ground: '#FF9AC9', field: '#F2EEFF', line: '#7C5CF0', tick: '#3A2B7A', sprinkle: '#FF5A5A', cross: '#FF9AC9' },
+  ultra: { img: '/farm/ultra.png', ground: '#7CE8A4' },
+  line2: { img: '/farm/line2.png', ground: '#D3EF6B' },
+  ink:   { img: '/farm/ink.png',   ground: '#FF6A2B' },
+  lilac: { img: '/farm/lilac.png', ground: '#FF9AC9' },
 }
 
 // 돌아다니며 일하는 픽셀 농부냥 — 랜덤 지점으로 걷고, 도착하면 자기 일을 한다.
@@ -175,7 +175,7 @@ export default function FarmPage() {
   function spawnFx(type, extra = {}) {
     const id = Date.now() + Math.random()
     setFx(f => [...f, { id, type, ...extra }])
-    setTimeout(() => setFx(f => f.filter(e => e.id !== id)), 1700)
+    setTimeout(() => setFx(f => f.filter(e => e.id !== id)), 2000)
   }
 
   useEffect(() => {
@@ -235,8 +235,8 @@ export default function FarmPage() {
         .sun-glow { animation: sunPulse 3s ease-in-out infinite; border-radius:50%; }
         @keyframes rayOut { 0%{transform:rotate(var(--ang)) translateX(8px); opacity:1} 100%{transform:rotate(var(--ang)) translateX(52px); opacity:0} }
         .ray { position:absolute; width:9px; height:9px; animation: rayOut 0.7s ease-out forwards; }
-        @keyframes dropFall { 0%{opacity:1; transform:translateY(0)} 80%{opacity:1} 100%{opacity:0; transform:translateY(225px)} }
-        .drop { position:absolute; width:4px; height:11px; animation: dropFall 1.15s linear forwards; }
+        @keyframes dropFall { 0%{opacity:1; transform:translateY(0)} 80%{opacity:1} 100%{opacity:0; transform:translateY(330px)} }
+        .drop { position:absolute; width:4px; height:11px; animation: dropFall 1.3s linear forwards; }
         @keyframes noteUp { 0%{opacity:0; transform:translateY(5px)} 25%{opacity:1} 100%{opacity:0; transform:translateY(-28px)} }
         .note { position:absolute; font-size:15px; font-weight:800; animation: noteUp 1.3s ease-out forwards; }
         @keyframes catWalk { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
@@ -264,47 +264,30 @@ export default function FarmPage() {
       <div style={{ background:'#fff', paddingTop:8, paddingBottom:80 }}>
 
         {/* 농장 메인 씬 — 테마별 픽셀 환경 */}
-        <div style={{ position:'relative', overflow:'hidden', background:FARM_ENV[farmTheme].ground, minHeight:470, display:'flex', flexDirection:'column' }}>
+        <div style={{ position:'relative', overflow:'hidden', background:FARM_ENV[farmTheme].ground }}>
 
-          {/* 하늘·산·들판 (16:9 픽셀 아트) + 하늘 인터랙션 핫스팟 */}
-          <div style={{ position:'relative', width:'100%', aspectRatio:'16 / 9', backgroundImage:`url(${FARM_ENV[farmTheme].img})`, backgroundSize:'100% 100%', imageRendering:'pixelated' }}>
+          {/* 하늘·산·들판·밭 (9:16 세로 픽셀 아트, 바닥 끝까지) + 하늘 인터랙션 핫스팟 */}
+          <div style={{ position:'relative', width:'100%', aspectRatio:'1080 / 1920', backgroundImage:`url(${FARM_ENV[farmTheme].img})`, backgroundSize:'100% 100%', imageRendering:'pixelated' }}>
             {/* 태양: 클릭 → 햇살 버스트 */}
-            <div onClick={()=>spawnFx('burst')} style={{ position:'absolute', left:'76%', top:'3%', width:'15%', height:'26%', cursor:'pointer' }} title="햇살">
-              <div className="sun-glow" style={{ position:'absolute', inset:'12%' }}/>
+            <div onClick={()=>spawnFx('burst')} style={{ position:'absolute', left:'68%', top:'3.5%', width:'22%', height:'12%', cursor:'pointer' }} title="햇살">
+              <div className="sun-glow" style={{ position:'absolute', inset:'18%' }}/>
             </div>
             {/* 구름: 클릭 → 픽셀 비 */}
-            <div onClick={()=>spawnFx('rain', { x: 44 })} style={{ position:'absolute', left:'38%', top:'7%', width:'20%', height:'12%', cursor:'pointer' }} title="비 내리기"/>
-            <div onClick={()=>spawnFx('rain', { x: 68 })} style={{ position:'absolute', left:'63%', top:'3%', width:'14%', height:'10%', cursor:'pointer' }} title="비 내리기"/>
-            {/* 새: 클릭 → 짹짹 */}
-            <div onClick={()=>spawnFx('note', { x: 52, y: 10 })} style={{ position:'absolute', left:'50%', top:'8%', width:'12%', height:'12%', cursor:'pointer' }} title="짹짹"/>
+            <div onClick={()=>spawnFx('rain', { x: 17 })} style={{ position:'absolute', left:'6%', top:'5%', width:'22%', height:'5%', cursor:'pointer' }} title="비 내리기"/>
+            <div onClick={()=>spawnFx('rain', { x: 55 })} style={{ position:'absolute', left:'44%', top:'13%', width:'22%', height:'5%', cursor:'pointer' }} title="비 내리기"/>
 
-            {/* 상시 날아다니는 픽셀 새 */}
-            <svg className="pix-bird" width="26" height="14" viewBox="0 0 26 14" style={{ position:'absolute', top:'15%', left:0, pointerEvents:'none' }} aria-hidden="true">
+            {/* 날아다니는 픽셀 새: 클릭 → 짹짹 */}
+            <svg className="pix-bird" width="26" height="14" viewBox="0 0 26 14"
+              onClick={(e)=>{ const sc = e.currentTarget.parentElement.getBoundingClientRect(); spawnFx('note', { x: ((e.clientX-sc.left)/sc.width)*100 - 2, y: ((e.clientY-sc.top)/sc.height)*100 - 3 }) }}
+              style={{ position:'absolute', top:'9%', left:0, cursor:'pointer' }} aria-hidden="true">
               <path d="M1 10 L7 3 L13 10 M13 10 L19 3 L25 10" stroke="var(--g5)" strokeWidth="2.4" fill="none"/>
-            </svg>
-          </div>
-
-          {/* 밭이랑 연장 — 배너의 밭이 씬 바닥 끝까지 이어져 보이게 */}
-          <div style={{ flex:1, minHeight:0, clipPath:'polygon(4.5% 0, 95.5% 0, 100% 100%, 0 100%)' }}>
-            <svg width="100%" height="100%" preserveAspectRatio="none" aria-hidden="true" style={{ display:'block' }}>
-              <defs>
-                <pattern id="rowExt" width="96" height="30" patternUnits="userSpaceOnUse">
-                  <rect width="96" height="30" fill={FARM_ENV[farmTheme].field}/>
-                  <rect y="24" width="96" height="4" fill={FARM_ENV[farmTheme].line}/>
-                  <rect x="12" y="21" width="4" height="9" fill={FARM_ENV[farmTheme].tick}/>
-                  <rect x="60" y="21" width="4" height="9" fill={FARM_ENV[farmTheme].tick}/>
-                  <rect x="38" y="9" width="4" height="4" fill={FARM_ENV[farmTheme].sprinkle}/>
-                  <rect x="80" y="12" width="4" height="4" fill={FARM_ENV[farmTheme].cross}/>
-                </pattern>
-              </defs>
-              <rect width="100%" height="100%" fill="url(#rowExt)"/>
             </svg>
           </div>
 
           {/* 하늘 인터랙션 이펙트 레이어 */}
           <div style={{ position:'absolute', inset:0, pointerEvents:'none', zIndex:15 }}>
             {fx.filter(e=>e.type==='burst').map(e => (
-              <div key={e.id} style={{ position:'absolute', left:'83%', top:'9%' }}>
+              <div key={e.id} style={{ position:'absolute', left:'78%', top:'8.5%' }}>
                 {[0,45,90,135,180,225,270,315].map(a => (
                   <span key={a} className="ray" style={{ '--ang':`${a}deg`, background: a%90===0 ? '#fff' : FARM_ENV[farmTheme].ground, outline:'1.5px solid var(--g5)' }}/>
                 ))}
