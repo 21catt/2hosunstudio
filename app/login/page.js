@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
+import { NavIcon } from '../../components/NavIcons'
+import { HEADER_BG, OK } from '../../lib/adminTheme'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -73,51 +75,47 @@ export default function LoginPage() {
   // 역할 선택 화면
   if (step === 0) return (
     <>
-      <div className="header">
+      <div className="header" style={{ background: HEADER_BG }}>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <span style={{ fontSize:20 }}>🐱</span>
           <span className="header-title">2호선 스튜디오</span>
         </div>
       </div>
-      <div className="page-body" style={{ paddingTop:40 }}>
-        <div style={{ textAlign:'center', marginBottom:32 }}>
-          <div style={{ fontSize:48, marginBottom:10 }}>🐱</div>
-          <div style={{ fontSize:18, fontWeight:800, color:'var(--td)', marginBottom:6 }}>어떤 역할로 로그인할까요?</div>
-          <div style={{ fontSize:12, color:'var(--tmu)' }}>계정 유형을 선택해 주세요</div>
+      <div className="page-body" style={{ paddingTop:36 }}>
+        <div style={{ textAlign:'center', marginBottom:26 }}>
+          <div style={{ fontSize:44, marginBottom:10 }}>🐱</div>
+          <div style={{ fontSize:18, fontWeight:800, color:'var(--td)', marginBottom:6 }}>어떤 계정으로 로그인할까요?</div>
+          <div style={{ fontSize:12, color:'var(--tmu)' }}>역할을 선택하면 로그인 화면으로 이동해요</div>
         </div>
 
         {[
-          { id:'student', emoji:'🎨', name:'수강생', desc:'수업 예약, 냥밭, 출석 현황 확인' },
-          { id:'admin', emoji:'✏️', name:'강사', desc:'수강생 관리, 수업 현황 관리' },
-          { id:'artist', emoji:'🖼️', name:'전시 참여 작가', desc:'회의 일정 참여, 냥밭 활동' },
+          { id:'student', icon:'users', name:'수강생', desc:'수업 예약 · 출석 · 냥밭' },
+          { id:'artist', icon:'palette', name:'전시 참여작가', desc:'회의 일정 참여 · 냥밭 활동' },
         ].map(r => (
-          <div key={r.id} onClick={() => setSelectedRole(r.id)}
-            style={{ border:`1.5px solid ${selectedRole===r.id?'var(--g4)':'var(--g1)'}`,
-              background:selectedRole===r.id?'#e8f5e0':'var(--surf)',
-              borderRadius:16, padding:'16px 14px', marginBottom:10,
-              display:'flex', alignItems:'center', gap:12, cursor:'pointer' }}>
-            <div style={{ width:48, height:48, borderRadius:14, background:'var(--g1)',
-              display:'flex', alignItems:'center', justifyContent:'center', fontSize:22 }}>{r.emoji}</div>
+          <div key={r.id} onClick={() => { setSelectedRole(r.id); setStep(1) }}
+            style={{ border:'0.5px solid rgba(0,0,0,0.08)', background:'#fff', borderRadius:16, padding:'16px 16px', marginBottom:10,
+              display:'flex', alignItems:'center', gap:14, cursor:'pointer', boxShadow:'0 1px 3px rgba(0,0,0,0.04)' }}>
+            <div style={{ width:48, height:48, borderRadius:14, background: OK.soft, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+              <NavIcon name={r.icon} color={OK.tx} size={24} />
+            </div>
             <div style={{ flex:1 }}>
-              <div style={{ fontSize:14, fontWeight:800, color:'var(--td)', marginBottom:3 }}>{r.name}</div>
-              <div style={{ fontSize:11, color:'var(--tmu)', lineHeight:1.5 }}>{r.desc}</div>
+              <div style={{ fontSize:15, fontWeight:800, color:'var(--td)', marginBottom:3 }}>{r.name}</div>
+              <div style={{ fontSize:11, color:'var(--tmu)' }}>{r.desc}</div>
             </div>
-            <div style={{ width:20, height:20, borderRadius:'50%',
-              border:`2px solid ${selectedRole===r.id?'var(--g4)':'var(--g2)'}`,
-              background:selectedRole===r.id?'var(--g4)':'transparent',
-              display:'flex', alignItems:'center', justifyContent:'center' }}>
-              {selectedRole===r.id && <svg width="10" height="8" viewBox="0 0 10 8"><polyline points="1,4 3.5,7 9,1" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round"/></svg>}
-            </div>
+            <span style={{ fontSize:18, color:'var(--tmu)' }}>›</span>
           </div>
         ))}
 
-        <div style={{ height:16 }}/>
-        <button className="btn-primary" disabled={!selectedRole} onClick={() => setStep(1)}>
-          다음
-        </button>
-        <button className="btn-secondary" onClick={() => router.push('/signup')}>
+        <button className="btn-secondary" style={{ marginTop:6 }} onClick={() => router.push('/signup')}>
           계정이 없어요 → 가입하기
         </button>
+
+        <div style={{ textAlign:'center', marginTop:22 }}>
+          <span onClick={() => { setSelectedRole('admin'); setStep(1) }}
+            style={{ fontSize:11, color:'var(--tmu)', fontWeight:700, cursor:'pointer', textDecoration:'underline', textUnderlineOffset:3 }}>
+            강사(관리자) 로그인
+          </span>
+        </div>
       </div>
     </>
   )
@@ -125,7 +123,7 @@ export default function LoginPage() {
   // 비밀번호 찾기
   if (step === 2) return (
     <>
-      <div className="header">
+      <div className="header" style={{ background: HEADER_BG }}>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <button onClick={() => { setStep(1); setError(''); setResetSent(false) }}
             style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:'50%', width:32, height:32, cursor:'pointer', color:'#fff', fontSize:18 }}>‹</button>
@@ -174,7 +172,7 @@ export default function LoginPage() {
 
   return (
     <>
-      <div className="header">
+      <div className="header" style={{ background: HEADER_BG }}>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <button onClick={() => { setStep(0); setError('') }}
             style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:'50%', width:32, height:32, cursor:'pointer', color:'#fff', fontSize:18 }}>‹</button>
