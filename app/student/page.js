@@ -810,7 +810,7 @@ export default function StudentPage() {
 
       <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 0' }}>
 
-        {(() => {
+        {user && (() => {
           if (upcomingBookings.length > 0) {
             const b = upcomingBookings[0]
             const d = new Date(b.class_date + 'T00:00:00')
@@ -928,12 +928,30 @@ export default function StudentPage() {
 
 
         {!user ? (
-          <div onClick={()=>router.push('/signup')} style={{ background:'var(--g1)', borderRadius:14, padding:'12px 14px', marginBottom:12, display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid var(--g2)', cursor:'pointer' }}>
-            <div>
-              <div style={{ fontSize:13, fontWeight:800, color:'var(--td)', marginBottom:2 }}>로그인하고 수업 예약하기</div>
-              <div style={{ fontSize:10, color:'var(--tm)' }}>날짜와 수업을 고른 뒤 가입하면 예약할 수 있어요</div>
+          <div style={{ marginBottom:14 }}>
+            <div style={{ fontSize:11, fontWeight:800, color:'var(--tmu)', marginBottom:10 }}>🐾 처음 오셨나요?</div>
+            <div onClick={()=>router.push('/student/curriculum')}
+              style={{ display:'flex', alignItems:'center', gap:12, background:'#fff', border:'0.5px solid rgba(0,0,0,0.08)', borderRadius:14, padding:'13px 14px', marginBottom:8, cursor:'pointer', boxShadow:'0 1px 3px rgba(0,0,0,0.04)' }}>
+              <div style={{ width:42, height:42, borderRadius:12, background:ACCENT_BG, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                <NavIcon name="book" color={ACCENT_TEXT} size={22} />
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:13, fontWeight:800, color:'var(--td)', marginBottom:2 }}>커리큘럼 둘러보기</div>
+                <div style={{ fontSize:11, color:'var(--tmu)' }}>어떤 수업을 배우는지 회차별로 보기</div>
+              </div>
+              <span style={{ fontSize:18, color:'var(--tmu)' }}>›</span>
             </div>
-            <div style={{ fontSize:18, color:'var(--g4)' }}>›</div>
+            <div onClick={()=>router.push('/signup')}
+              style={{ display:'flex', alignItems:'center', gap:12, background:ACCENT, borderRadius:14, padding:'13px 14px', cursor:'pointer' }}>
+              <div style={{ width:42, height:42, borderRadius:12, background:'rgba(255,255,255,0.18)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                <NavIcon name="calendar" color="#fff" size={22} />
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:13, fontWeight:800, color:'#fff', marginBottom:2 }}>가입하고 수업 예약하기</div>
+                <div style={{ fontSize:11, color:'rgba(255,255,255,0.85)' }}>날짜·수업 고르고 바로 시작</div>
+              </div>
+              <span style={{ fontSize:18, color:'rgba(255,255,255,0.9)' }}>›</span>
+            </div>
           </div>
         ) : (
         <div style={{ background:'var(--g1)', borderRadius:14, padding:'10px 14px', marginBottom:12, display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid var(--g2)' }}>
@@ -955,17 +973,6 @@ export default function StudentPage() {
             <MoodIndicator ratio={ticket ? (ticket.remain / ticket.total) : 0} style={moodStyle} size={52} />
           </div>
         </div>
-        )}
-
-        {!user && (
-          <div onClick={()=>router.push('/student/curriculum')}
-            style={{ background:'#FBFAF5', borderRadius:14, padding:'14px 16px', marginBottom:12, display:'flex', alignItems:'center', justifyContent:'space-between', border:'1px solid rgba(0,0,0,0.07)', cursor:'pointer' }}>
-            <div>
-              <div style={{ fontSize:13, fontWeight:800, color:'#3a463c', marginBottom:2 }}>🎨 어떤 수업을 배우나요?</div>
-              <div style={{ fontSize:11, color:'var(--tmu)' }}>회차별 커리큘럼을 먼저 둘러보세요</div>
-            </div>
-            <div style={{ fontSize:18, color:'var(--g4)' }}>›</div>
-          </div>
         )}
 
         {meetingTickets.length > 0 && (
