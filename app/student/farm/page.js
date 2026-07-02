@@ -203,9 +203,10 @@ export default function FarmPage() {
   const attended = history.filter(h => h.attended === true).length
   const absent = history.filter(h => h.class_date < todayStr && !h.attended).length
   const activeCat = FARM_CATS.find(c => c.key === farmCat) || FARM_CATS[0]
-  // 수확할 때마다 4단계(출석 4회)씩 소모 — 남은 포인트만큼 현재 작물이 자란다
-  const cropProgress = Math.max(0, Math.min(CROP_STAGES, attended - harvest * CROP_STAGES))
-  const cropReady = cropProgress >= CROP_STAGES
+  // 남은 포인트(출석 - 수확×4)가 앞칸부터 4점씩 순서대로 작물을 채운다.
+  // 수확하면 4점 소모 → 뒷칸 작물이 한 칸씩 앞으로 당겨진 것처럼 보인다.
+  const cropPoints = Math.max(0, attended - harvest * CROP_STAGES)
+  const cropReady = cropPoints >= CROP_STAGES
 
   if (loading) return <LoadingCat />
 
@@ -334,18 +335,29 @@ export default function FarmPage() {
             return <FarmerCat key={cat.key} img={cat.img} bottom={6} size={64} act={cat.act} z={8} onFx={(a,x,b,sz)=>spawnFx(a,{ x, b: b + sz*0.55 })} />
           })()}
 
-          {/* 작물 — 출석 1회당 1단계씩 자라고, 완숙(4단계)이면 클릭해 수확 */}
-          <div onClick={harvestCrop}
-            className={harvestAnim === 'grow' ? 'crop-grow' : harvestAnim === 'zip' ? 'crop-zip' : ''}
-            style={{ position:'absolute', left:'50%', bottom:110, width:84, marginLeft:-42, zIndex: harvestAnim ? 30 : 5, cursor: cropReady ? 'pointer' : 'default' }}>
-            <img src={cropImg(activeCat.crop, Math.max(1, cropProgress))} alt="작물" width={84}
-              style={{ display:'block', width:'100%', imageRendering:'pixelated', opacity: cropProgress === 0 ? 0.35 : 1, filter: cropProgress === 0 ? 'grayscale(0.7)' : 'none' }} />
-            {!harvestAnim && (
-              <div style={{ position:'absolute', top:-24, left:'50%', transform:'translateX(-50%)', whiteSpace:'nowrap', fontSize:10, fontWeight:800, background: cropReady ? 'var(--ac2)' : 'rgba(255,255,255,0.92)', color:'var(--g5)', border:'1.5px solid var(--g5)', borderRadius:12, padding:'2px 8px' }}>
-                {cropReady ? `${activeCat.cropName} 수확!` : cropProgress === 0 ? '출석하면 자라요' : `${cropProgress}/${CROP_STAGES} 성장`}
+          {/* 작물 4칸 열 종대 — 앞칸이 크고 뒤로 갈수록 작아짐(원근). 맨 앞 완숙 작물만 수확 가능 */}
+          {[
+            { bottom: 60, size: 96, z: 6 },
+            { bottom: 178, size: 74, z: 5 },
+            { bottom: 272, size: 58, z: 4 },
+            { bottom: 348, size: 46, z: 3 },
+          ].map((plot, i) => {
+            const stage = Math.max(0, Math.min(CROP_STAGES, cropPoints - i * CROP_STAGES))
+            const isFront = i === 0
+            return (
+              <div key={i} onClick={isFront ? harvestCrop : undefined}
+                className={isFront && harvestAnim === 'grow' ? 'crop-grow' : isFront && harvestAnim === 'zip' ? 'crop-zip' : ''}
+                style={{ position:'absolute', left:'50%', bottom:plot.bottom, width:plot.size, marginLeft:-plot.size / 2, zIndex: isFront && harvestAnim ? 30 : plot.z, cursor: isFront && cropReady ? 'pointer' : 'default' }}>
+                <img src={cropImg(activeCat.crop, Math.max(1, stage))} alt="" width={plot.size}
+                  style={{ display:'block', width:'100%', imageRendering:'pixelated', opacity: stage === 0 ? 0.3 : 1, filter: stage === 0 ? 'grayscale(0.7)' : 'none' }} />
+                {isFront && !harvestAnim && (
+                  <div style={{ position:'absolute', top:-24, left:'50%', transform:'translateX(-50%)', whiteSpace:'nowrap', fontSize:10, fontWeight:800, background: cropReady ? 'var(--ac2)' : 'rgba(255,255,255,0.92)', color:'var(--g5)', border:'1.5px solid var(--g5)', borderRadius:12, padding:'2px 8px' }}>
+                    {cropReady ? `${activeCat.cropName} 수확!` : stage === 0 ? '출석하면 자라요' : `${stage}/${CROP_STAGES} 성장`}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            )
+          })}
 
         </div>
 
