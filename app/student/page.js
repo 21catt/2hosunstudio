@@ -33,6 +33,25 @@ function getCatImage(d) {
   return CAT_IMAGES[(d * 7 + 3) % CAT_IMAGES.length]
 }
 
+// 특정 수업이 다음으로 열리는 날짜 (커리큘럼 → 예약 딥링크용)
+function findNextOpenDate(course) {
+  const now = new Date()
+  for (let i = 0; i < 70; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i)
+    const dow = d.getDay()
+    if (dow === 1) continue
+    if (!course.class_schedules?.some(s => s.day_of_week === dow)) continue
+    if (course.class_exceptions?.some(e => e.day_of_week === dow)) continue
+    const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+    if (!course.is_unlimited) {
+      if (course.start_date && ds < course.start_date) continue
+      if (course.end_date && ds > course.end_date) continue
+    }
+    return d
+  }
+  return null
+}
+
 // 수강권 무드 인디케이터 — ratio(remain/total)에 반응. style: orb | cup | plant
 function MoodIndicator({ ratio, style, size = 52 }) {
   const uid = useId()
@@ -108,6 +127,9 @@ export default function StudentPage() {
   const [bookings, setBookings] = useState([])
   const [allBookings, setAllBookings] = useState([])
   const [classes, setClasses] = useState([])
+  const [curriculumNames, setCurriculumNames] = useState(new Set())
+  const [pendingCourse, setPendingCourse] = useState(null)
+  const deepLinkApplied = useRef(false)
   const [selectedDay, setSelectedDay] = useState(new Date().getDate())
   const [animDay, setAnimDay] = useState(null)
   const [selCat, setSelCat] = useState(null)
@@ -140,6 +162,23 @@ export default function StudentPage() {
     })
   }, [])
 
+  // 커리큘럼 '이 수업 예약하기' 딥링크 (?course=) → 해당 수업 다음 날짜로 이동 + 선택
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search).get('course')
+    if (p) setPendingCourse(p)
+  }, [])
+
+  useEffect(() => {
+    if (!pendingCourse || deepLinkApplied.current || classes.length === 0) return
+    deepLinkApplied.current = true
+    const course = classes.find(c => c.name === pendingCourse)
+    if (!course) return
+    const d = findNextOpenDate(course)
+    if (!d) return
+    setYear(d.getFullYear()); setMonth(d.getMonth()); setSelectedDay(d.getDate())
+    setSelCat(course.category); setSelCourse(course); setSelSchedule(null)
+  }, [pendingCourse, classes])
+
   async function loadData(userId) {
     if (userId) {
       const { data: t } = await supabase.from('tickets').select('*').eq('user_id', userId).single()
@@ -158,6 +197,8 @@ export default function StudentPage() {
     // 공개 데이터: 로그인 여부와 무관하게 수업/스케줄/예외 로드 (관리자 예외·운영기간 반영)
     const { data: c } = await supabase.from('class_courses').select('*, class_schedules(*), class_exceptions(*)').eq('is_active', true)
     setClasses(c || [])
+    const { data: cur } = await supabase.from('course_curriculum').select('course_name')
+    setCurriculumNames(new Set((cur || []).map(r => r.course_name).filter(Boolean)))
     setLoading(false)
   }
 
@@ -1012,6 +1053,13 @@ export default function StudentPage() {
                       </div>
                       {isOpen && (
                         <div style={{ borderTop:`1px solid ${ACCENT}28`, padding:'6px 12px 12px' }}>
+                          {curriculumNames.has(c.name) && (
+                            <div onClick={(e) => { e.stopPropagation(); router.push(`/student/curriculum?course=${encodeURIComponent(c.name)}`) }}
+                              style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 10px', margin:'2px 0 8px', borderRadius:10, background:'#fff', border:'1px solid rgba(0,0,0,0.08)', cursor:'pointer' }}>
+                              <span style={{ fontSize:11, fontWeight:700, color:ACCENT_TEXT }}>📚 이 수업 커리큘럼 보기</span>
+                              <span style={{ fontSize:14, color:ACCENT }}>›</span>
+                            </div>
+                          )}
                           {daySchedules.length === 0 ? (
                             <div style={{ fontSize:11, color:'var(--tmu)', padding:'8px 0', textAlign:'center' }}>이 날 수업 시간이 없어요</div>
                           ) : daySchedules.map(s => {

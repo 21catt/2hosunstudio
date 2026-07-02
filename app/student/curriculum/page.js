@@ -335,13 +335,18 @@ function CurriculumInner() {
   const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`
 
   useEffect(() => {
+    const qCourse = searchParams.get('course')
     supabase.auth.getUser().then(({ data }) => {
-      if (data.user) {
-        setUser(data.user)
+      setUser(data.user || null)
+      // ?course 로 들어오면(캘린더에서 '커리큘럼 보기') 둘러보기로 열고 해당 수업 펼침
+      if (qCourse) {
+        setTab('browse')
+        loadBrowse(new Set())
+        setLoading(false)
+      } else if (data.user) {
         loadInitial(data.user.id)
       } else {
         // 비회원: 둘러보기(공개 커리큘럼)만 열람
-        setUser(null)
         setTab('browse')
         loadBrowse(new Set())
         setLoading(false)
@@ -493,6 +498,12 @@ function CurriculumInner() {
     }
 
     setBrowseGroups(groups)
+    // ?course 로 들어온 경우 해당 수업 자동 펼침
+    const qName = searchParams.get('course')
+    if (qName) {
+      const g = groups.find(gr => gr.courses.some(c => c.name === qName))
+      if (g) setExpandedCourse(`${g.category}__${qName}`)
+    }
     setBrowseLoaded(true)
     setBrowseLoading(false)
   }
@@ -698,18 +709,23 @@ function CurriculumInner() {
 
                         {isOpen && (
                           <div style={{ borderTop:`1px solid ${ACCENT}28`, padding:'12px 14px 14px' }}>
-                            {course.isEnrolled && (
-                              <div style={{ marginBottom:12 }}>
+                            <div style={{ display:'flex', gap:6, marginBottom:12, flexWrap:'wrap' }}>
+                              <button
+                                onClick={() => router.push(`/student?course=${encodeURIComponent(course.name)}`)}
+                                style={{ fontSize:11, padding:'6px 14px', borderRadius:20, background:ACCENT, color:'#fff', border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>
+                                이 수업 예약하기 →
+                              </button>
+                              {course.isEnrolled && (
                                 <button
                                   onClick={() => {
                                     setTab('my')
                                     if (courseNames.includes(course.name)) handleSelectName(course.name)
                                   }}
-                                  style={{ fontSize:11, padding:'5px 12px', borderRadius:20, background:ACCENT, color:'#fff', border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:600 }}>
-                                  내 경로 보기 →
+                                  style={{ fontSize:11, padding:'6px 12px', borderRadius:20, background:ACCENT_BG, color:ACCENT_TEXT, border:`1px solid ${ACCENT}44`, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:600 }}>
+                                  내 경로 보기
                                 </button>
-                              </div>
-                            )}
+                              )}
+                            </div>
                             <div style={{ position:'relative', paddingLeft:28 }}>
                               <div style={{ position:'absolute', left:7, top:10, bottom:10, width:2, background:`${ACCENT}18` }}/>
                               {course.steps.map((step, idx) => (
