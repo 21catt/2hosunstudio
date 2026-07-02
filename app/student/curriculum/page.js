@@ -3,6 +3,7 @@ import { Suspense, useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
+import LoadingCat from '../../../components/LoadingCat'
 
 const ACCENT = 'var(--ac)'
 const ACCENT_BG = 'var(--acBg)'
@@ -515,11 +516,7 @@ function CurriculumInner() {
     }
   }
 
-  if (loading) return (
-    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh' }}>
-      <div style={{ fontSize:32 }}>🐱</div>
-    </div>
-  )
+  if (loading) return <LoadingCat />
 
   return (
     <>

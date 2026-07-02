@@ -2,6 +2,7 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
+import LoadingCat from '../components/LoadingCat'
 
 export default function Home() {
   const router = useRouter()
@@ -20,11 +21,6 @@ export default function Home() {
   }, [])
 
   return (
-    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh' }}>
-      <div style={{ textAlign:'center' }}>
-        <div style={{ fontSize:40, marginBottom:12 }}>🐱</div>
-        <div style={{ fontSize:14, color:'var(--tmu)', fontWeight:700 }}>2호선 스튜디오</div>
-      </div>
-    </div>
+    <LoadingCat label="2호선 스튜디오" />
   )
 }

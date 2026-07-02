@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import StudentNav from '../../components/StudentNav'
+import LoadingCat from '../../components/LoadingCat'
 
 export default function LoungePage() {
   const router = useRouter()
@@ -166,11 +167,7 @@ function removeExistingImage(idx) {
 
   const filtered = tab === 0 ? posts : posts.filter(p => p.tag === TAG_IDS[tab])
 
-  if (loading) return (
-    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh' }}>
-      <div style={{ fontSize:32 }}>🐱</div>
-    </div>
-  )
+  if (loading) return <LoadingCat />
 
   if (showWrite) return (
     <>

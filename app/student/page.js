@@ -6,6 +6,7 @@ import StudentNav from '../../components/StudentNav'
 import { NavIcon } from '../../components/NavIcons'
 import { LogoMark, HeroDeco, DotPatch } from '../../components/Deco'
 import { applyTheme, isValidTheme } from '../../lib/theme'
+import LoadingCat from '../../components/LoadingCat'
 
 const CELL_W = 56
 const CELL_GAP = 8
@@ -123,11 +124,7 @@ export default function StudentHomePage() {
     router.push(`/student/calendar?date=${fmtDate(d)}`)
   }
 
-  if (loading) return (
-    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh' }}>
-      <div style={{ fontSize:32 }}>🐱</div>
-    </div>
-  )
+  if (loading) return <LoadingCat />
 
   const heroSub = user
     ? (nextBooking

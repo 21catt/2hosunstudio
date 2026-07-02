@@ -9,6 +9,7 @@ import { sendPushToAdmins } from '../../../lib/pushNotify'
 import { sendKakaoToAdmins } from '../../../lib/kakaoNotify'
 import { applyTheme, isValidTheme } from '../../../lib/theme'
 import MoodIndicator from '../../../components/MoodIndicator'
+import LoadingCat from '../../../components/LoadingCat'
 
 const CAT_ICON = { drawing:'pencil', painting:'palette', sculpture:'box', free:'photo', meeting:'users' }
 const CAT_NAME = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', free:'자율창작', meeting:'모임' }
@@ -578,11 +579,7 @@ export default function CalendarPage() {
   })()
   const showQuickBook = habitSlots.length > 0
 
-  if (loading) return (
-    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh' }}>
-      <div style={{ fontSize:32 }}>🐱</div>
-    </div>
-  )
+  if (loading) return <LoadingCat />
 
   return (
     <>

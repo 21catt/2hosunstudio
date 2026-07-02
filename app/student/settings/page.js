@@ -5,6 +5,7 @@ import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
 import MoodIndicator from '../../../components/MoodIndicator'
 import { THEMES, applyTheme, getSavedTheme, isValidTheme } from '../../../lib/theme'
+import LoadingCat from '../../../components/LoadingCat'
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -42,11 +43,7 @@ export default function SettingsPage() {
     if (user?.id) await supabase.from('user_prefs').upsert({ user_id: user.id, mood_style: style })
   }
 
-  if (loading) return (
-    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh' }}>
-      <div style={{ fontSize:32 }}>🐱</div>
-    </div>
-  )
+  if (loading) return <LoadingCat />
 
   return (
     <>

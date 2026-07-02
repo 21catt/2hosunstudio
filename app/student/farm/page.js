@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
+import LoadingCat from '../../../components/LoadingCat'
 
 function getStage(pt) {
   if (pt <= 0) return 0
@@ -136,11 +137,7 @@ export default function FarmPage() {
   const absent = history.filter(h => h.class_date < todayStr && !h.attended).length
   const readyCount = carrots.filter(p => getStage(p) === 4).length
 
-  if (loading) return (
-    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh' }}>
-      <div style={{ fontSize:32 }}>🐱</div>
-    </div>
-  )
+  if (loading) return <LoadingCat />
 
   return (
     <>

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
+import LoadingCat from '../../../components/LoadingCat'
 
 export default function StudentNotificationPage() {
   const router = useRouter()
@@ -85,11 +86,7 @@ export default function StudentNotificationPage() {
   const attended = doneClasses.filter(d => d.status === 'attended').length
   const absent = doneClasses.filter(d => d.status === 'absent').length
 
-  if (loading) return (
-    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh' }}>
-      <div style={{ fontSize:32 }}>🐱</div>
-    </div>
-  )
+  if (loading) return <LoadingCat />
 
   return (
     <>
