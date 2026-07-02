@@ -4,10 +4,12 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import AdminNav from '../../../components/AdminNav'
+import { NavIcon } from '../../../components/NavIcons'
+import { HEADER_BG, PRIMARY, T, OK, WARN, BAD } from '../../../lib/adminTheme'
 
 const DAYS = ['일','월','화','수','목','금','토']
 const CATS = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', free:'자율창작', meeting:'모임' }
-const EMOJI = { drawing:'✏️', painting:'🎨', sculpture:'🗿', free:'🖼️', meeting:'⭐' }
+const CAT_ICON = { drawing:'pencil', painting:'palette', sculpture:'box', free:'photo', meeting:'users' }
 const CAT_COLORS = { drawing:'#e8f5e0', painting:'#EDE7F6', sculpture:'#FFF3E0', free:'#E3F2FD', meeting:'#FFF8E1' }
 const CAT_TEXT = { drawing:'var(--g5)', painting:'#4A148C', sculpture:'#E65100', free:'#0D47A1', meeting:'#F57F17' }
 const DEFAULT_SLOTS = [
@@ -189,22 +191,32 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
   }
 
   return (
-    <div style={{ background:'var(--surf)', borderRadius:16, border:'1.5px solid var(--g2)', padding:'16px 14px', marginBottom:14 }}>
+    <div style={{ background:'var(--surf)', borderRadius:16, border:'0.5px solid rgba(0,0,0,0.1)', padding:'16px 14px', marginBottom:14 }}>
       <div style={{ fontSize:14, fontWeight:800, color:'var(--td)', marginBottom:14 }}>{initial?'수업 수정':'새 수업 개설'}</div>
       <div className="field"><label>수업 이름</label>
         <input placeholder="예: 기초 드로잉" value={name} onChange={e=>setName(e.target.value)}/>
       </div>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-       <div className="field"><label>카테고리</label>
-  <select value={cat} onChange={e=>setCat(e.target.value)}>
-    {Object.entries(CATS).map(([k,v])=><option key={k} value={k}>{v}</option>)}
-  </select>
-</div>
-{cat === 'meeting' && (
-  <div className="field"><label>참여비 (원)</label>
-    <input type="number" value={price} onChange={e=>setPrice(Number(e.target.value))} placeholder="예: 30000"/>
-  </div>
-)}
+      <div className="field"><label>카테고리</label>
+        <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+          {Object.entries(CATS).map(([k,v]) => {
+            const on = cat === k
+            return (
+              <div key={k} onClick={()=>setCat(k)}
+                style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 12px', borderRadius:20, cursor:'pointer',
+                  background: on ? OK.soft : T.fieldBg, border:`1px solid ${on ? OK.main : 'rgba(0,0,0,0.08)'}` }}>
+                <NavIcon name={CAT_ICON[k]||'palette'} color={on ? OK.tx : '#4a5a4e'} size={16} />
+                <span style={{ fontSize:11, fontWeight: on?800:600, color: on ? OK.tx : 'var(--td)' }}>{v}</span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns: cat === 'meeting' ? '1fr 1fr' : '1fr', gap:10 }}>
+        {cat === 'meeting' && (
+          <div className="field"><label>참여비 (원)</label>
+            <input type="number" value={price} onChange={e=>setPrice(Number(e.target.value))} placeholder="예: 30000"/>
+          </div>
+        )}
         <div className="field"><label>정원</label>
           <input type="number" value={maxCount} min={1} max={10} onChange={e=>setMaxCount(Number(e.target.value))}/>
         </div>
@@ -216,14 +228,13 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
           {DAYS.map((d,i) => i!==1 && (
             <div key={i} onClick={()=>toggleDay(i)}
               style={{ width:36, height:36, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center',
-                fontSize:12, fontWeight:700, cursor:'pointer',
-                background:selectedDays.includes(i)?'var(--g4)':'var(--g1)',
-                color:selectedDays.includes(i)?'#fff':'var(--tm)',
-                border:`1.5px solid ${selectedDays.includes(i)?'var(--g4)':'var(--g2)'}` }}>{d}</div>
+                fontSize:12, fontWeight:700, cursor:'pointer', border:'none',
+                background:selectedDays.includes(i)?PRIMARY:T.fieldBg,
+                color:selectedDays.includes(i)?'#fff':'#5c6b5f' }}>{d}</div>
           ))}
           <div onClick={selectAllDays}
-            style={{ padding:'0 10px', height:36, borderRadius:10, display:'flex', alignItems:'center',
-              fontSize:11, fontWeight:700, cursor:'pointer', background:'var(--g1)', color:'var(--tm)', border:'1.5px solid var(--g2)' }}>
+            style={{ padding:'0 12px', height:36, borderRadius:10, display:'flex', alignItems:'center',
+              fontSize:11, fontWeight:700, cursor:'pointer', background:T.fieldBg, color:'#5c6b5f', border:'none' }}>
             전체
           </div>
         </div>
@@ -234,15 +245,14 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
         {selectedDays.length === 0 ? (
           <div style={{ fontSize:11, color:'var(--tmu)', padding:'6px 0' }}>요일을 먼저 선택해 주세요</div>
         ) : [...selectedDays].sort((a,b)=>a-b).map(day => (
-          <div key={day} style={{ marginBottom:8, padding:'8px 10px', background:'var(--bg)', borderRadius:10, border:'1px solid var(--g1)' }}>
-            <div style={{ fontSize:11, fontWeight:800, color:'var(--td)', marginBottom:6 }}>{DAYS[day]}요일</div>
-            <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
+          <div key={day} style={{ marginBottom:8, padding:'9px 11px', background:'#fff', borderRadius:11, border:'0.5px solid rgba(0,0,0,0.07)' }}>
+            <div style={{ fontSize:11, fontWeight:800, color:'var(--td)', marginBottom:7 }}>{DAYS[day]}요일</div>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:5 }}>
               {(daySlots[day] || []).map((slot, i) => (
                 <div key={i} onClick={() => toggleDaySlot(day, i)}
-                  style={{ padding:'5px 9px', borderRadius:8, fontSize:11, fontWeight:700, cursor:'pointer',
-                    background: slot.selected ? 'var(--g4)' : 'var(--g1)',
-                    color: slot.selected ? '#fff' : 'var(--tm)',
-                    border: `1.5px solid ${slot.selected ? 'var(--g4)' : 'var(--g2)'}` }}>
+                  style={{ padding:'6px 10px', borderRadius:9, fontSize:11, fontWeight:700, cursor:'pointer', border:'none',
+                    background: slot.selected ? PRIMARY : T.fieldBg,
+                    color: slot.selected ? '#fff' : '#5c6b5f' }}>
                   {slot.start}~{slot.end}
                 </div>
               ))}
@@ -254,9 +264,9 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
       <div style={{ marginBottom:14 }}>
         <div style={{ fontSize:11, fontWeight:700, color:'var(--tm)', marginBottom:8 }}>예외 설정</div>
         {exceptions.map((e,i) => (
-          <div key={i} style={{ display:'flex', alignItems:'center', gap:6, marginBottom:6, background:'#FFF3E0', borderRadius:8, padding:'6px 10px' }}>
-            <span style={{ fontSize:11, color:'#E65100', fontWeight:600, flex:1 }}>{DAYS[e.day_of_week]}요일 {e.start_time}~{e.end_time} 제외</span>
-            <button onClick={()=>removeException(i)} style={{ background:'none', border:'none', cursor:'pointer', color:'#E65100', fontSize:14, fontWeight:700 }}>✕</button>
+          <div key={i} style={{ display:'flex', alignItems:'center', gap:6, marginBottom:6, background:WARN.soft, borderRadius:9, padding:'7px 11px' }}>
+            <span style={{ fontSize:11, color:WARN.tx, fontWeight:700, flex:1 }}>{DAYS[e.day_of_week]}요일 {e.start_time}~{e.end_time} 제외</span>
+            <button onClick={()=>removeException(i)} style={{ background:'none', border:'none', cursor:'pointer', color:WARN.tx, fontSize:14, fontWeight:700 }}>✕</button>
           </div>
         ))}
         <div style={{ display:'flex', gap:6, alignItems:'center', flexWrap:'wrap' }}>
@@ -270,7 +280,7 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
           <input placeholder="20:00" value={newExcEnd} onChange={e=>setNewExcEnd(e.target.value)}
             style={{ width:64, background:'var(--bg)', border:'1.5px solid var(--g1)', borderRadius:8, padding:'5px 8px', fontSize:11, fontFamily:'Nunito,sans-serif', color:'var(--td)', outline:'none' }}/>
           <button onClick={addException}
-            style={{ background:'var(--g4)', color:'#fff', border:'none', borderRadius:8, padding:'5px 12px', fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>+ 추가</button>
+            style={{ background:PRIMARY, color:'#fff', border:'none', borderRadius:9, padding:'6px 13px', fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>+ 추가</button>
         </div>
       </div>
 
@@ -279,8 +289,8 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
         <div style={{ display:'flex', gap:10, marginBottom:8 }}>
           {[true,false].map(v=>(
             <div key={String(v)} onClick={()=>setIsUnlimited(v)} style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer' }}>
-              <div style={{ width:18, height:18, borderRadius:'50%', border:`2px solid ${isUnlimited===v?'var(--g4)':'var(--g2)'}`,
-                background:isUnlimited===v?'var(--g4)':'transparent', display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <div style={{ width:18, height:18, borderRadius:'50%', border:`2px solid ${isUnlimited===v?PRIMARY:'rgba(0,0,0,0.2)'}`,
+                background:isUnlimited===v?PRIMARY:'transparent', display:'flex', alignItems:'center', justifyContent:'center' }}>
                 {isUnlimited===v&&<div style={{ width:6, height:6, borderRadius:'50%', background:'#fff' }}/>}
               </div>
               <span style={{ fontSize:12, fontWeight:700, color:'var(--td)' }}>{v?'무기한 운영':'기간 설정'}</span>
@@ -433,19 +443,19 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
 
   return (
     <>
-      <div className="header">
+      <div className="header" style={{ background: HEADER_BG }}>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <span style={{ fontSize:18 }}>📅</span>
           <span className="header-title">수업 현황</span>
         </div>
-        <div style={{ display:'flex', gap:6 }}>
+        <div style={{ display:'flex', gap:5 }}>
           <button onClick={() => setView(view==='calendar'?'list':'calendar')}
-            style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:20, padding:'4px 10px', color:'#fff', fontSize:10, fontWeight:700, cursor:'pointer' }}>
+            style={{ background:'rgba(255,255,255,0.16)', border:'none', borderRadius:10, padding:'5px 10px', color:'#fff', fontSize:10, fontWeight:700, cursor:'pointer' }}>
             {view==='calendar'?'목록':'캘린더'}
           </button>
           {!showForm && !editCourse && (
             <button onClick={() => setShowForm(true)}
-              style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:20, padding:'4px 10px', color:'#fff', fontSize:10, fontWeight:700, cursor:'pointer' }}>
+              style={{ background:'rgba(255,255,255,0.16)', border:'none', borderRadius:10, padding:'5px 10px', color:'#fff', fontSize:10, fontWeight:700, cursor:'pointer' }}>
               + 개설
             </button>
           )}
@@ -453,7 +463,7 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
   await supabase.auth.signOut()
   router.push('/login')
 }}
-  style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:20, padding:'4px 10px', color:'#fff', fontSize:10, fontWeight:700, cursor:'pointer' }}>
+  style={{ background:'rgba(255,255,255,0.16)', border:'none', borderRadius:10, padding:'5px 10px', color:'#fff', fontSize:10, fontWeight:700, cursor:'pointer' }}>
   로그아웃
 </button>
         </div>
@@ -485,7 +495,7 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
     </span>
     {(year !== todayY || month !== todayM) && (
       <button onClick={() => { setYear(todayY); setMonth(todayM); setSelDay(todayD) }}
-        style={{ background:'var(--g1)', color:'var(--g5)', border:'none', borderRadius:12, padding:'3px 10px', fontSize:10, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+        style={{ background: T.navBg, color: OK.tx, border:'none', borderRadius:10, padding:'3px 10px', fontSize:10, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
         오늘
       </button>
     )}
@@ -515,14 +525,14 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
                   <div key={d} onClick={() => !isMon && setSelDay(d)}
                     style={{ height:52, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-start',
                       paddingTop:4, cursor:isMon?'default':'pointer', borderRadius:10, opacity:isMon?0.3:1, position:'relative',
-                      background:isSel?'#e8f5e0':'transparent', border:isSel?'1.5px solid var(--g3)':'1.5px solid transparent' }}>
+                      background:isSel?OK.soft:'transparent', border:isSel?`1.5px solid ${OK.main}`:'1.5px solid transparent' }}>
                     {isT && todayWeather && (
   <div style={{ position:'absolute', top:-2, left:'50%', transform:'translateX(-50%)', fontSize:13, zIndex:1 }}>
     {todayWeather.icon}
   </div>
 )}
                     {isT ? (
-                      <div style={{ width:24, height:24, borderRadius:'50%', background:'var(--g4)', color:'#fff',
+                      <div style={{ width:24, height:24, borderRadius:'50%', background: HEADER_BG, color:'#fff',
                         display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:800 }}>{d}</div>
                     ) : (
                       <div style={{ fontSize:11, fontWeight:700, color:dow===0?'#b05050':dow===6?'#5070a0':'var(--td)' }}>{d}</div>
@@ -531,7 +541,7 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
   const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
   const cnt = bookings.filter(b => b.class_date === dateStr).length
   return cnt > 0 ? (
-    <div style={{ fontSize:9, fontWeight:700, color:'var(--g4)', marginTop:2 }}>
+    <div style={{ fontSize:9, fontWeight:800, color: OK.main, marginTop:2 }}>
       {cnt}
     </div>
   ) : null
@@ -552,10 +562,10 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
               if (freeBookings.length === 0) return null
               const isExp = expanded === '__free__'
               return (
-                <div style={{ background:'#FBF8F2', borderRadius:14, border:`1.5px solid ${isExp?'#C9B894':'#E8DCC4'}`, marginBottom:8, overflow:'hidden' }}>
+                <div style={{ background:'#FBFAF5', borderRadius:14, border:`0.5px solid ${isExp?'#C9B894':'rgba(0,0,0,0.07)'}`, marginBottom:8, overflow:'hidden' }}>
                   <div onClick={() => setExpanded(isExp?null:'__free__')}
-                    style={{ padding:'12px 14px', display:'flex', alignItems:'center', gap:10, cursor:'pointer' }}>
-                    <div style={{ width:36, height:36, borderRadius:10, background:'#F4EDE0', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, flexShrink:0 }}>🎨</div>
+                    style={{ padding:'12px 14px', display:'flex', alignItems:'center', gap:11, cursor:'pointer' }}>
+                    <div style={{ width:36, height:36, borderRadius:10, background:'#F4EDE0', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}><NavIcon name="photo" color="#8B7355" size={19} /></div>
                     <div style={{ flex:1 }}>
                       <div style={{ fontSize:12, fontWeight:800, color:'#5C5247', marginBottom:2 }}>자율창작</div>
                       <div style={{ fontSize:10, color:'#8B7355' }}>자유 이용</div>
@@ -590,13 +600,13 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
               const isExp = expanded === c.id
               const isMeeting = c.category === 'meeting'
               return (
-                <div key={c.id} style={{ background:'var(--bg)', borderRadius:14, border:`1.5px solid ${isExp?'var(--g3)':'var(--g1)'}`,
+                <div key={c.id} style={{ background: isExp?'#FBFCF9':'#fff', borderRadius:14, border:`0.5px solid ${isExp?'rgba(76,139,41,0.4)':'rgba(0,0,0,0.07)'}`,
                   marginBottom:8, overflow:'hidden' }}>
                   <div onClick={() => setExpanded(isExp?null:c.id)}
-                    style={{ padding:'12px 14px', display:'flex', alignItems:'center', gap:10, cursor:'pointer' }}>
+                    style={{ padding:'12px 14px', display:'flex', alignItems:'center', gap:11, cursor:'pointer' }}>
                     <div style={{ width:36, height:36, borderRadius:10, background:CAT_COLORS[c.category]||'var(--g1)',
-                      display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, flexShrink:0 }}>
-                      {EMOJI[c.category]||'🎨'}
+                      display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                      <NavIcon name={CAT_ICON[c.category]||'palette'} color={CAT_TEXT[c.category]||'#5c6b5f'} size={19} />
                     </div>
                     <div style={{ flex:1 }}>
                       <div style={{ fontSize:12, fontWeight:800, color:'var(--td)', marginBottom:2 }}>{c.name}</div>
@@ -610,7 +620,7 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
                       </div>
                     </div>
                     <div style={{ textAlign:'right' }}>
-                      <div style={{ fontSize:12, fontWeight:800, color:dayBookings.length>=c.max_count?'#c0392b':'var(--g4)' }}>
+                      <div style={{ fontSize:12, fontWeight:800, color:dayBookings.length>=c.max_count?BAD.tx:OK.tx }}>
                         {dayBookings.length}/{c.max_count}명
                       </div>
                       <div style={{ fontSize:10, color:'var(--tmu)' }}>{isExp?'▲':'▼'}</div>
@@ -627,7 +637,7 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
                               <span style={{ fontSize:11, fontWeight:800, color:'var(--td)' }}>
                                 {s.start_time}~{s.end_time}
                               </span>
-                              <span style={{ fontSize:10, fontWeight:700, color:slotBookings.length>=c.max_count?'#c0392b':'var(--g4)' }}>
+                              <span style={{ fontSize:10, fontWeight:700, color:slotBookings.length>=c.max_count?BAD.tx:OK.tx }}>
                                 {slotBookings.length}/{c.max_count}명
                               </span>
                             </div>
@@ -644,12 +654,12 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
                                 <div style={{ flex:1 }}>
                                   <div style={{ fontSize:11, fontWeight:700, color:'var(--td)' }}>{b.users?.name||'수강생'}</div>
                                   {b.status === 'pending' && (
-                                    <div style={{ fontSize:9, color:'#E65100', fontWeight:700 }}>입금 대기중</div>
+                                    <div style={{ fontSize:9, color:WARN.tx, fontWeight:700 }}>입금 대기중</div>
                                   )}
                                 </div>
                                 <button onClick={() => deleteBooking(b.id, b.users?.name || '수강생', c.name)}
-                                  style={{ fontSize:9, padding:'3px 10px', borderRadius:8, border:'1px solid #f5c0c0',
-                                    background:'#ffebee', color:'#c0392b', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>
+                                  style={{ fontSize:9, padding:'4px 10px', borderRadius:8, border:'none',
+                                    background:BAD.soft, color:BAD.tx, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>
                                   예약삭제
                                 </button>
                               </div>
@@ -659,23 +669,23 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
                       })}
                      <div style={{ display:'flex', gap:6, marginTop:8 }}>
   <button onClick={() => setEditCourse(c)}
-    style={{ flex:1, padding:'7px', background:'var(--g1)', color:'var(--g5)', border:'none',
+    style={{ flex:1, padding:'8px', background:T.fieldBg, color:'#5c6b5f', border:'none',
       borderRadius:10, fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
     {isMeeting?'회의 수정':'수업 수정'}
   </button>
   <button onClick={() => router.push(`/admin/curriculum?course=${encodeURIComponent(c.name)}`)}
-    style={{ flex:1, padding:'7px', background:'#EAF3DE', color:'#27500A', border:'none',
+    style={{ flex:1, padding:'8px', background:OK.soft, color:OK.tx, border:'none',
       borderRadius:10, fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
     커리큘럼
   </button>
   <button onClick={() => toggleCourse(c.id, c.is_active)}
-    style={{ flex:1, padding:'7px', background:c.is_active?'#fff3e0':'var(--g1)',
-      color:c.is_active?'#E65100':'var(--g5)', border:'none',
+    style={{ flex:1, padding:'8px', background:c.is_active?WARN.soft:T.navBg,
+      color:c.is_active?WARN.tx:'#5c6b5f', border:'none',
       borderRadius:10, fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
     {c.is_active?'중단':'재개'}
   </button>
   <button onClick={() => deleteCourse(c.id, c.name, isMeeting)}
-    style={{ flex:1, padding:'7px', background:'#ffebee', color:'#c0392b', border:'none',
+    style={{ flex:1, padding:'8px', background:BAD.soft, color:BAD.tx, border:'none',
       borderRadius:10, fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
     삭제
   </button>
@@ -701,8 +711,8 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
                     <div style={{ fontSize:12, fontWeight:800, color:'var(--td)' }}>운영중 수업 ({activeCourses.length})</div>
                     {inactiveCourses.length > 0 && (
                       <button onClick={() => setShowInactive(p => !p)}
-                        style={{ fontSize:10, fontWeight:700, padding:'3px 10px', borderRadius:10, border:'1px solid var(--g2)',
-                          background:showInactive?'#ffebee':'var(--g1)', color:showInactive?'#c0392b':'var(--tm)', cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                        style={{ fontSize:10, fontWeight:700, padding:'4px 10px', borderRadius:10, border:'none',
+                          background:showInactive?BAD.soft:T.navBg, color:showInactive?BAD.tx:'#5c6b5f', cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
                         {showInactive ? '중단 숨기기' : `중단된 수업 ${inactiveCourses.length}개`}
                       </button>
                     )}
@@ -710,11 +720,11 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
                   {listCourses.length === 0 ? (
                     <div style={{ textAlign:'center', padding:40, color:'var(--tmu)', fontSize:12 }}>등록된 수업이 없어요 🐾</div>
                   ) : listCourses.map(c => (
-              <div key={c.id} style={{ background:'var(--bg)', borderRadius:14, padding:'12px 14px', marginBottom:8, border:'1.5px solid var(--g1)' }}>
-                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+              <div key={c.id} style={{ background:'#fff', borderRadius:14, padding:'12px 14px', marginBottom:8, border:'0.5px solid rgba(0,0,0,0.07)' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:11 }}>
                   <div style={{ width:40, height:40, borderRadius:12, background:CAT_COLORS[c.category]||'var(--g1)',
-                    display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, flexShrink:0 }}>
-                    {EMOJI[c.category]||'🎨'}
+                    display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                    <NavIcon name={CAT_ICON[c.category]||'palette'} color={CAT_TEXT[c.category]||'#5c6b5f'} size={21} />
                   </div>
                   <div style={{ flex:1 }}>
                     <div style={{ fontSize:12, fontWeight:800, color:'var(--td)', marginBottom:2 }}>{c.name}</div>
@@ -727,19 +737,19 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
                   </div>
                   <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6 }}>
                     <span style={{ fontSize:9, fontWeight:700, padding:'3px 8px', borderRadius:8,
-                      background:c.is_active?'var(--g1)':'#ffebee', color:c.is_active?'var(--g5)':'#c0392b' }}>
+                      background:c.is_active?OK.soft:BAD.soft, color:c.is_active?OK.tx:BAD.tx }}>
                       {c.is_active?'운영중':'중단'}
                     </span>
                     <div style={{ display:'flex', gap:4 }}>
                       <button onClick={() => { setEditCourse(c); setShowForm(false) }}
-                        style={{ fontSize:9, padding:'3px 8px', borderRadius:8, border:'1px solid var(--g2)',
-                          background:'var(--surf)', color:'var(--tm)', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>수정</button>
+                        style={{ fontSize:9, padding:'4px 9px', borderRadius:8, border:'none',
+                          background:T.fieldBg, color:'#5c6b5f', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>수정</button>
                       <button onClick={() => router.push(`/admin/curriculum?course=${encodeURIComponent(c.name)}`)}
-                        style={{ fontSize:9, padding:'3px 8px', borderRadius:8, border:'1px solid #b8d9a0',
-                          background:'#EAF3DE', color:'#27500A', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>커리큘럼</button>
+                        style={{ fontSize:9, padding:'4px 9px', borderRadius:8, border:'none',
+                          background:OK.soft, color:OK.tx, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>커리큘럼</button>
                       <button onClick={() => toggleCourse(c.id, c.is_active)}
-                        style={{ fontSize:9, padding:'3px 8px', borderRadius:8, border:'1px solid var(--g2)',
-                          background:'var(--surf)', color:c.is_active?'#c0392b':'var(--g4)', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>
+                        style={{ fontSize:9, padding:'4px 9px', borderRadius:8, border:'none',
+                          background:c.is_active?WARN.soft:T.navBg, color:c.is_active?WARN.tx:'#5c6b5f', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>
                         {c.is_active?'중단':'재개'}
                       </button>
                     </div>
@@ -748,7 +758,7 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
                 {c.class_schedules?.length>0 && (
                   <div style={{ marginTop:8, paddingTop:8, borderTop:'1px solid var(--g1)', display:'flex', gap:4, flexWrap:'wrap' }}>
                     {[...c.class_schedules].sort((a,b)=>a.start_time.localeCompare(b.start_time)||(a.day_of_week-b.day_of_week)).map((s,i) => (
-                      <span key={i} style={{ fontSize:9, padding:'2px 7px', borderRadius:6, background:'var(--g1)', color:'var(--g5)', fontWeight:700 }}>
+                      <span key={i} style={{ fontSize:9, padding:'3px 8px', borderRadius:6, background:OK.soft, color:OK.tx, fontWeight:700 }}>
                         {DAYS[s.day_of_week]} {s.start_time}~{s.end_time}
                       </span>
                     ))}
