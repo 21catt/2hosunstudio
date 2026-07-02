@@ -6,6 +6,7 @@ import StudentNav from '../../components/StudentNav'
 import { NavIcon } from '../../components/NavIcons'
 import { LogoMark, HeroDeco, DotPatch } from '../../components/Deco'
 import { applyTheme, isValidTheme } from '../../lib/theme'
+import { bookClass, requestBookingApproval, hasValidTicket } from '../../lib/booking'
 import LoadingCat from '../../components/LoadingCat'
 
 const CELL_W = 56
@@ -24,6 +25,11 @@ export default function StudentHomePage() {
   const [pendingBooking, setPendingBooking] = useState(null)
   const [unread, setUnread] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [classes, setClasses] = useState([])
+  const [allBookings, setAllBookings] = useState([])
+  const [myBookings, setMyBookings] = useState([])
+  const [selDate, setSelDate] = useState(null)
+  const [bookingBusy, setBookingBusy] = useState(null)
   const stripRef = useRef(null)
   const dragMoved = useRef(false)
 
@@ -106,6 +112,7 @@ export default function StudentHomePage() {
       const { data: t } = await supabase.from('tickets').select('*').eq('user_id', userId).single()
       setTicket(t)
       const { data: b } = await supabase.from('bookings').select('*').eq('user_id', userId).neq('status', 'cancelled')
+      setMyBookings(b || [])
       const upcoming = (b || [])
         .filter(x => x.class_date >= todayStr)
         .sort((x, y) => (x.class_date + (x.class_time || '')).localeCompare(y.class_date + (y.class_time || '')))
@@ -116,12 +123,72 @@ export default function StudentHomePage() {
       const { data: pref } = await supabase.from('user_prefs').select('*').eq('user_id', userId).single()
       if (isValidTheme(pref?.theme)) applyTheme(pref.theme)
     }
+    // 공개 데이터: 수업(운영 요일·기간) + 정원 계산용 전체 예약
+    const { data: c } = await supabase.from('class_courses').select('*, class_schedules(*), class_exceptions(*)').eq('is_active', true)
+    setClasses(c || [])
+    const { data: ab } = await supabase.from('bookings').select('course_id, schedule_id, class_date').eq('status', 'booked')
+    setAllBookings(ab || [])
     setLoading(false)
   }
 
+  // 날짜 탭 → 그날 수업 패널 토글 (드래그로 지나간 경우는 무시)
   function goDate(d) {
     if (dragMoved.current) return
-    router.push(`/student/calendar?date=${fmtDate(d)}`)
+    const ds = fmtDate(d)
+    setSelDate(prev => prev === ds ? null : ds)
+  }
+
+  const bookedDates = new Set(myBookings.map(b => b.class_date))
+
+  // 캘린더 페이지의 courseOpenOnDay와 동일 규칙 (예외 요일·운영 기간 반영)
+  function coursesOn(ds) {
+    const dow = new Date(ds + 'T00:00:00').getDay()
+    return classes.filter(c => {
+      if (!c.class_schedules?.some(s => s.day_of_week === dow)) return false
+      if (c.class_exceptions?.some(e => e.day_of_week === dow)) return false
+      if (!c.is_unlimited) {
+        if (c.start_date && ds < c.start_date) return false
+        if (c.end_date && ds > c.end_date) return false
+      }
+      return true
+    })
+  }
+
+  function schedulesFor(c, ds) {
+    const dow = new Date(ds + 'T00:00:00').getDay()
+    const seen = new Set()
+    return (c.class_schedules || []).filter(s => s.day_of_week === dow).filter(s => {
+      const key = `${s.start_time}-${s.end_time}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    }).sort((a, b) => a.start_time.localeCompare(b.start_time))
+  }
+
+  function seatCount(c, s, ds) {
+    return allBookings.filter(b => b.course_id === c.id && b.schedule_id === s.id && b.class_date === ds).length
+  }
+
+  function myBookingFor(c, s, ds) {
+    return myBookings.find(b => b.course_id === c.id && b.schedule_id === s.id && b.class_date === ds)
+  }
+
+  async function quickBook(c, s, ds) {
+    if (!user) { router.push('/signup'); return }
+    if (c.category === 'meeting') { router.push(`/student/calendar?date=${ds}`); return }
+    const key = `${c.id}-${s.id}-${ds}`
+    setBookingBusy(key)
+    try {
+      if (hasValidTicket(ticket, todayStr)) {
+        await bookClass({ user, ticket, course: c, schedule: s, dateStr: ds })
+      } else {
+        await requestBookingApproval({ user, course: c, schedule: s, dateStr: ds })
+        alert('예약 요청이 접수됐어요! 강사님이 확인 후 연락드릴게요 🐾')
+      }
+      await loadData(user.id)
+    } finally {
+      setBookingBusy(null)
+    }
   }
 
   if (loading) return <LoadingCat />
@@ -183,19 +250,84 @@ export default function StudentHomePage() {
           {stripDates.map(d => {
             const ds = fmtDate(d)
             const isToday = ds === todayStr
+            const isSel = selDate === ds
             const isMon = d.getDay() === 1
+            const hasBooking = bookedDates.has(ds)
             const label = d.getDate() === 1 ? `${d.getMonth() + 1}월` : ['일','월','화','수','목','금','토'][d.getDay()]
             return (
               <div key={ds} onClick={() => goDate(d)}
-                style={{ width:CELL_W, flexShrink:0, textAlign:'center', padding:'9px 0 8px', borderRadius:12, userSelect:'none', cursor:'pointer', opacity:isMon?0.4:1,
-                  background: isToday ? 'var(--ac2)' : 'var(--surf)',
-                  border: isToday ? '2px solid var(--ac)' : '1.5px solid var(--g2)' }}>
-                <div style={{ fontSize:10, fontWeight:700, color: isToday ? 'var(--td)' : 'var(--tmu)' }}>{label}</div>
+                style={{ width:CELL_W, flexShrink:0, textAlign:'center', padding:'9px 0 8px', borderRadius:12, userSelect:'none', cursor:'pointer', position:'relative', opacity:isMon?0.4:1,
+                  background: isSel ? 'var(--ac2)' : isToday ? 'var(--acBg)' : 'var(--surf)',
+                  border: (isSel || isToday) ? '2px solid var(--ac)' : '1.5px solid var(--g2)',
+                  transition: 'background 0.2s ease, border-color 0.2s ease' }}>
+                {hasBooking && (
+                  <span className="dot-pulse" style={{ position:'absolute', top:4, right:5, width:7, height:7, borderRadius:'50%', background:'var(--ac)', border:'1.5px solid #fff' }} />
+                )}
+                <div style={{ fontSize:10, fontWeight:700, color: (isSel || isToday) ? 'var(--td)' : 'var(--tmu)' }}>{label}</div>
                 <div style={{ fontSize:15, fontWeight:800, color:'var(--td)', marginTop:1 }}>{d.getDate()}</div>
               </div>
             )
           })}
         </div>
+
+        {selDate && (() => {
+          const d = new Date(selDate + 'T00:00:00')
+          const dowName = ['일','월','화','수','목','금','토'][d.getDay()]
+          const list = coursesOn(selDate)
+          const past = selDate < todayStr
+          return (
+            <div key={selDate} style={{ marginBottom:14 }}>
+              <div className="pop-in" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', margin:'0 2px 8px' }}>
+                <span style={{ fontSize:12, fontWeight:800, color:'var(--td)' }}>{d.getMonth() + 1}월 {d.getDate()}일 ({dowName}) 수업</span>
+                <span onClick={()=>router.push(`/student/calendar?date=${selDate}`)}
+                  style={{ fontSize:11, color:'var(--tmu)', cursor:'pointer', textDecoration:'underline', textUnderlineOffset:2 }}>캘린더에서 보기 →</span>
+              </div>
+              {list.length === 0 ? (
+                <div className="pop-in" style={{ textAlign:'center', padding:'16px 0', color:'var(--tmu)', fontSize:12, border:'1.5px dashed var(--g2)', borderRadius:12, animationDelay:'60ms' }}>
+                  이날은 수업이 없어요 🐾
+                </div>
+              ) : list.map((c, i) => (
+                <div key={c.id} className="p-card pop-in" style={{ padding:'11px 13px', marginBottom:8, animationDelay:`${(i + 1) * 70}ms` }}>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: c.category === 'free' ? 0 : 8 }}>
+                    <div>
+                      <div style={{ fontSize:13, fontWeight:800, color:'var(--td)' }}>{c.name}</div>
+                      <div style={{ fontSize:10, color:'var(--tmu)', marginTop:1 }}>강사 {c.teacher}</div>
+                    </div>
+                    {c.category === 'free' && !past && (
+                      <button className="p-chip p-chip--sm" onClick={()=>router.push(`/student/free?date=${selDate}`)}>자리 고르기</button>
+                    )}
+                  </div>
+                  {c.category !== 'free' && (
+                    <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                      {schedulesFor(c, selDate).map(s => {
+                        const label = `${s.start_time}~${s.end_time}`
+                        const mine = myBookingFor(c, s, selDate)
+                        const cnt = seatCount(c, s, selDate)
+                        const full = cnt >= (c.max_count || 999)
+                        const busy = bookingBusy === `${c.id}-${s.id}-${selDate}`
+                        if (mine) return (
+                          <span key={s.id} className="p-badge" style={{ padding:'6px 12px', fontSize:11 }}>✓ {label} 예약됨</span>
+                        )
+                        if (past) return (
+                          <span key={s.id} style={{ fontSize:11, color:'var(--tl)', border:'1.5px solid var(--g1)', borderRadius:20, padding:'6px 12px' }}>{label}</span>
+                        )
+                        if (full) return (
+                          <span key={s.id} style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', background:'var(--card)', borderRadius:20, padding:'6px 12px' }}>{label} 마감</span>
+                        )
+                        return (
+                          <button key={s.id} disabled={busy} onClick={()=>quickBook(c, s, selDate)}
+                            style={{ fontSize:11, fontWeight:700, color:'#fff', background:'var(--ac)', border:'none', borderRadius:20, padding:'6px 12px', cursor:'pointer', fontFamily:'Nunito,sans-serif', opacity:busy?0.5:1 }}>
+                            {busy ? '예약 중…' : `${label} 예약`}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )
+        })()}
 
         <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:14 }}>
           {[
