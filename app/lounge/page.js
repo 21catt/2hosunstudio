@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
+import StudentNav from '../../components/StudentNav'
 
 export default function LoungePage() {
   const router = useRouter()
@@ -406,6 +407,7 @@ function removeExistingImage(idx) {
        
       </div>
 
+     {(role === 'admin' || role === 'artist') ? (
      <nav className="bottom-nav">
   {[
     { href: role==='admin'?'/admin':role==='artist'?'/artist':'/student', label:'홈', icon:'🏠' },
@@ -419,6 +421,9 @@ function removeExistingImage(idx) {
     </a>
   ))}
 </nav>
+     ) : (
+     <StudentNav active="lounge" />
+     )}
     </>
   )
 }

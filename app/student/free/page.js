@@ -251,7 +251,7 @@ function FreeInner() {
               <span style={{ fontSize:10, fontWeight:700, background:'#FFF3CD', color:'#856404', padding:'3px 8px', borderRadius:20, border:'1px solid #FFD700' }}>입금 대기</span>
             </div>
 
-            <div style={{ background:'#FBF8F2', borderRadius:12, padding:'12px 14px', marginBottom:12 }}>
+            <div style={{ background:'var(--surf)', borderRadius:12, padding:'12px 14px', marginBottom:12 }}>
               <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:4 }}>{depositModal.dateStr} {depositModal.time} · {depositModal.seat}자리</div>
               <div style={{ fontSize:20, fontWeight:800, color:'var(--td)' }}>{depositModal.amount.toLocaleString()}원</div>
             </div>
@@ -276,7 +276,7 @@ function FreeInner() {
                   navigator.clipboard?.writeText(DEPOSIT.account).catch(() => {})
                   alert(`계좌번호가 복사됐어요!\n${DEPOSIT.account}`)
                 }}
-                style={{ flex:1, padding:'11px', background:'#EAF3DE', color:'#27500A', border:'1px solid #3B6D1133', borderRadius:12, fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                style={{ flex:1, padding:'11px', background:'var(--acBg)', color:'var(--acTx)', border:'1px solid rgb(var(--ac-rgb) / 0.2)', borderRadius:12, fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
                 계좌 복사
               </button>
               <button
@@ -289,17 +289,17 @@ function FreeInner() {
         </div>
       )}
 
-      <div className="header">
+      <div className="p-header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <button onClick={()=>router.push('/student')}
-            style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:8, padding:'4px 10px', color:'#fff', fontSize:14, cursor:'pointer' }}>
+            style={{ background:'var(--surf)', border:'1.5px solid var(--g2)', borderRadius:8, padding:'4px 10px', color:'var(--td)', fontSize:14, cursor:'pointer' }}>
             ←
           </button>
-          <span className="header-title">자율창작</span>
+          <span className="p-title">자율창작</span>
         </div>
       </div>
 
-      <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 100px' }}>
+      <div style={{ background:'#fff', padding:'8px 14px 100px' }}>
 
         <div style={{ marginBottom:14 }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
@@ -345,11 +345,11 @@ function FreeInner() {
           </div>
         </div>
 
-        <div style={{ background:'#FBF8F2', borderRadius:14, padding:'14px 16px', marginBottom:14, border:'1.5px solid #E8DCC4' }}>
-          <div style={{ fontSize:13, fontWeight:800, color:'#5C5247', marginBottom:6 }}>
+        <div style={{ background:'var(--surf)', borderRadius:14, padding:'14px 16px', marginBottom:14, border:'1.5px solid var(--g2)' }}>
+          <div style={{ fontSize:13, fontWeight:800, color:'var(--td)', marginBottom:6 }}>
             오늘 1시간, 자유롭게 🐾
           </div>
-          <div style={{ fontSize:11, color:'#8B7355', lineHeight:1.6 }}>
+          <div style={{ fontSize:11, color:'var(--tm)', lineHeight:1.6 }}>
             원하는 자리에서 자유롭게 그려요.<br/>
             평일 낮 6,000원 · 저녁 8,000원 · 주말 10,000원 (1시간)
           </div>
@@ -419,8 +419,8 @@ function FreeInner() {
 
         <div style={{ marginBottom:14 }}>
             <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>자리 선택</div>
-            <div style={{ background:'#FBF8F2', borderRadius:14, padding:'14px 12px', border:'1.5px solid var(--g1)' }}>
-              <div style={{ textAlign:'center', fontSize:9, color:'#8B7355', marginBottom:8, letterSpacing:2, fontWeight:600 }}>─── 창가 ───</div>
+            <div style={{ background:'var(--surf)', borderRadius:14, padding:'14px 12px', border:'1.5px solid var(--g1)' }}>
+              <div style={{ textAlign:'center', fontSize:9, color:'var(--tm)', marginBottom:8, letterSpacing:2, fontWeight:600 }}>─── 창가 ───</div>
 
               {(() => {
                 const seats = [
@@ -451,8 +451,8 @@ function FreeInner() {
                       const isSel = selSeat === s.id
                       const bg = isSel ? '#7FA85A' : isOcc ? '#E8C9B8' : '#F0EAE0'
                       const stroke = isSel ? '#5C8540' : isOcc ? '#C99880' : '#C9B894'
-                      const textColor = isSel ? '#FFFFFF' : isOcc ? '#7A4530' : '#5C5247'
-                      const labelColor = isSel ? '#5C8540' : isOcc ? '#A07560' : '#8B7355'
+                      const textColor = isSel ? '#FFFFFF' : isOcc ? '#7A4530' : 'var(--td)'
+                      const labelColor = isSel ? '#5C8540' : isOcc ? '#A07560' : 'var(--tm)'
                       return (
                         <g key={s.id} style={{ cursor: isOcc ? 'not-allowed' : 'pointer', opacity: isOcc ? 0.7 : 1 }}
                           onClick={() => !isOcc && setSelSeat(s.id)}>
@@ -544,11 +544,11 @@ function FreeInner() {
           )
         )}
 
-        <div style={{ background:'#FBF8F2', borderRadius:14, padding:'14px 16px', marginTop:14, border:'1.5px solid #E8DCC4' }}>
-          <div style={{ fontSize:13, fontWeight:800, color:'#5C5247', marginBottom:10 }}>
+        <div style={{ background:'var(--surf)', borderRadius:14, padding:'14px 16px', marginTop:14, border:'1.5px solid var(--g2)' }}>
+          <div style={{ fontSize:13, fontWeight:800, color:'var(--td)', marginBottom:10 }}>
             이용 전 꼭 읽어주세요 🐾
           </div>
-          <div style={{ fontSize:11, color:'#8B7355', lineHeight:1.9 }}>
+          <div style={{ fontSize:11, color:'var(--tm)', lineHeight:1.9 }}>
             <div>· 사용한 자리는 깨끗이 정리하고 떠나주세요.</div>
             <div>· 미디엄 · 세척통 · 유리 파레트는 자유롭게 사용할 수 있어요.</div>
             <div>· 물감 · 붓 등 개인 도구는 직접 준비해 주세요.</div>
@@ -562,11 +562,11 @@ function FreeInner() {
           </div>
         </div>
 
-        <div style={{ background:'#FBF8F2', borderRadius:14, padding:'14px 16px', marginTop:10, border:'1.5px solid #E8DCC4' }}>
-          <div style={{ fontSize:13, fontWeight:800, color:'#5C5247', marginBottom:10 }}>
+        <div style={{ background:'var(--surf)', borderRadius:14, padding:'14px 16px', marginTop:10, border:'1.5px solid var(--g2)' }}>
+          <div style={{ fontSize:13, fontWeight:800, color:'var(--td)', marginBottom:10 }}>
             작품 보관 안내 🖼️
           </div>
-          <div style={{ fontSize:11, color:'#8B7355', lineHeight:1.9 }}>
+          <div style={{ fontSize:11, color:'var(--tm)', lineHeight:1.9 }}>
             <div>· 덜 마른 작품은 건조대에 두고 가실 수 있어요.</div>
             <div>· 보관은 최대 2주이며, 기간 안에 찾아가 주세요.</div>
             <div>· 맡기실 땐 라벨에 이름 · 날짜 · 연락처를 적어주세요.</div>
@@ -575,7 +575,7 @@ function FreeInner() {
         </div>
       </div>
 
-      <StudentNav active="schedule" />
+      <StudentNav active="calendar" />
     </>
   )
 }

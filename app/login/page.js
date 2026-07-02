@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import { NavIcon } from '../../components/NavIcons'
-import { HEADER_BG, OK } from '../../lib/adminTheme'
+import { LogoMark } from '../../components/Deco'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -75,10 +75,10 @@ export default function LoginPage() {
   // 역할 선택 화면
   if (step === 0) return (
     <>
-      <div className="header" style={{ background: HEADER_BG }}>
-        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <span style={{ fontSize:20 }}>🐱</span>
-          <span className="header-title">2호선 스튜디오</span>
+      <div className="p-header">
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          <LogoMark />
+          <span className="p-title">2호선 스튜디오</span>
         </div>
       </div>
       <div className="page-body" style={{ paddingTop:36 }}>
@@ -93,10 +93,10 @@ export default function LoginPage() {
           { id:'artist', icon:'palette', name:'전시 참여작가', desc:'회의 일정 참여 · 냥밭 활동' },
         ].map(r => (
           <div key={r.id} onClick={() => { setSelectedRole(r.id); setStep(1) }}
-            style={{ border:'0.5px solid rgba(0,0,0,0.08)', background:'#fff', borderRadius:16, padding:'16px 16px', marginBottom:10,
-              display:'flex', alignItems:'center', gap:14, cursor:'pointer', boxShadow:'0 1px 3px rgba(0,0,0,0.04)' }}>
-            <div style={{ width:48, height:48, borderRadius:14, background: OK.soft, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-              <NavIcon name={r.icon} color={OK.tx} size={24} />
+            style={{ border:'1.5px solid var(--g2)', background:'#fff', borderRadius:16, padding:'16px 16px', marginBottom:10,
+              display:'flex', alignItems:'center', gap:14, cursor:'pointer' }}>
+            <div style={{ width:48, height:48, borderRadius:14, background:'var(--acBg)', border:'1.5px solid var(--ac)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+              <NavIcon name={r.icon} color="var(--ac)" size={24} />
             </div>
             <div style={{ flex:1 }}>
               <div style={{ fontSize:15, fontWeight:800, color:'var(--td)', marginBottom:3 }}>{r.name}</div>
@@ -123,11 +123,11 @@ export default function LoginPage() {
   // 비밀번호 찾기
   if (step === 2) return (
     <>
-      <div className="header" style={{ background: HEADER_BG }}>
+      <div className="p-header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <button onClick={() => { setStep(1); setError(''); setResetSent(false) }}
-            style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:'50%', width:32, height:32, cursor:'pointer', color:'#fff', fontSize:18 }}>‹</button>
-          <span className="header-title">비밀번호 찾기</span>
+            style={{ background:'var(--surf)', border:'1.5px solid var(--g2)', borderRadius:'50%', width:32, height:32, cursor:'pointer', color:'var(--td)', fontSize:18 }}>‹</button>
+          <span className="p-title">비밀번호 찾기</span>
         </div>
       </div>
       <div className="page-body" style={{ paddingTop:40 }}>
@@ -172,11 +172,11 @@ export default function LoginPage() {
 
   return (
     <>
-      <div className="header" style={{ background: HEADER_BG }}>
+      <div className="p-header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <button onClick={() => { setStep(0); setError('') }}
-            style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:'50%', width:32, height:32, cursor:'pointer', color:'#fff', fontSize:18 }}>‹</button>
-          <span className="header-title">{roleTitle}</span>
+            style={{ background:'var(--surf)', border:'1.5px solid var(--g2)', borderRadius:'50%', width:32, height:32, cursor:'pointer', color:'var(--td)', fontSize:18 }}>‹</button>
+          <span className="p-title">{roleTitle}</span>
         </div>
       </div>
       <div className="page-body" style={{ paddingTop:40 }}>

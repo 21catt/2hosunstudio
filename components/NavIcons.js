@@ -1,8 +1,8 @@
 // 하단 내비게이션 공용 라인 아이콘 (인라인 SVG · 폰트 의존성 없음)
 // active 여부에 따라 색만 바뀜.
 
-export const NAV_ACTIVE = '#4C8B29'
-export const NAV_MUTED  = '#9AA39A'
+export const NAV_ACTIVE = 'var(--ac)'
+export const NAV_MUTED  = 'var(--tmu)'
 
 const PATHS = {
   users: (
@@ -84,6 +84,27 @@ const PATHS = {
       <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
       <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
       <line x1="12" y1="22.08" x2="12" y2="12"/>
+    </>
+  ),
+  home: (
+    <>
+      <path d="M3 11.5 L12 4 L21 11.5"/>
+      <path d="M5.5 10v9.5a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V10"/>
+      <path d="M9.5 20.5v-6h5v6"/>
+    </>
+  ),
+  plant: (
+    <>
+      <path d="M7 20h10"/>
+      <path d="M12 20v-6"/>
+      <path d="M12 14c0-3-2.5-5-6-5 0 3 2.5 5 6 5z"/>
+      <path d="M12 11c0-3.5 2.5-6 6-6 0 3.5-2.5 6-6 6z"/>
+    </>
+  ),
+  user: (
+    <>
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+      <circle cx="12" cy="7" r="4"/>
     </>
   ),
 }

@@ -4,11 +4,11 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
 
-const ACCENT = '#3B6D11'
-const ACCENT_BG = '#EAF3DE'
-const ACCENT_TEXT = '#27500A'
-const CARD = '#F1EFE8'
-const BORDER = 'rgba(0,0,0,0.14)'
+const ACCENT = 'var(--ac)'
+const ACCENT_BG = 'var(--acBg)'
+const ACCENT_TEXT = 'var(--acTx)'
+const CARD = 'var(--card)'
+const BORDER = 'var(--line)'
 const DOW = ['일','월','화','수','목','금','토']
 
 function RecordsInner() {
@@ -162,17 +162,17 @@ function RecordsInner() {
 
   return (
     <>
-      <div className="header">
+      <div className="p-header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <span style={{ fontSize:20 }}>📋</span>
-          <span className="header-title">수업 기록</span>
+          <span className="p-title">수업 기록</span>
         </div>
       </div>
 
-      <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 0', minHeight:'80vh' }}>
+      <div style={{ background:'#fff', padding:'8px 14px 0', minHeight:'80vh' }}>
 
         {creating ? (
-          <div style={{ background:ACCENT_BG, borderRadius:14, padding:'14px', marginBottom:14, border:`1.5px solid ${ACCENT}55` }}>
+          <div style={{ background:ACCENT_BG, borderRadius:14, padding:'14px', marginBottom:14, border:`1.5px solid rgb(var(--ac-rgb) / 0.33)` }}>
             <div style={{ fontSize:13, fontWeight:700, color:ACCENT_TEXT, marginBottom:12 }}>새 기록</div>
 
             <div style={{ marginBottom:10 }}>
@@ -223,7 +223,7 @@ function RecordsInner() {
           </div>
         ) : (
           <button onClick={() => setCreating(true)}
-            style={{ width:'100%', padding:'12px', background:ACCENT_BG, color:ACCENT_TEXT, border:`1.5px solid ${ACCENT}55`, borderRadius:14, fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif', marginBottom:14 }}>
+            style={{ width:'100%', padding:'12px', background:ACCENT_BG, color:ACCENT_TEXT, border:`1.5px solid rgb(var(--ac-rgb) / 0.33)`, borderRadius:14, fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif', marginBottom:14 }}>
             + 새 기록 추가
           </button>
         )}
@@ -256,7 +256,7 @@ function RecordsInner() {
               </div>
 
               {isOpen && (
-                <div style={{ borderTop:`1px solid ${ACCENT}28`, padding:'10px 14px 14px' }}>
+                <div style={{ borderTop:`1px solid rgb(var(--ac-rgb) / 0.16)`, padding:'10px 14px 14px' }}>
                   {r.note && (
                     <div style={{ fontSize:12, color:'var(--td)', lineHeight:1.7, marginBottom:10, whiteSpace:'pre-wrap' }}>
                       {r.note}
@@ -277,7 +277,7 @@ function RecordsInner() {
                   )}
 
                   {hasFeedback && (
-                    <div style={{ background:'#fff', borderRadius:10, padding:'10px 12px', border:`1.5px solid ${ACCENT}40`, marginBottom:10 }}>
+                    <div style={{ background:'#fff', borderRadius:10, padding:'10px 12px', border:`1.5px solid rgb(var(--ac-rgb) / 0.25)`, marginBottom:10 }}>
                       <div style={{ fontSize:10, fontWeight:700, color:ACCENT, marginBottom:6 }}>강사 피드백</div>
                       {r.class_record_feedback.map(fb => (
                         <div key={fb.id} style={{ fontSize:12, color:'var(--td)', lineHeight:1.7, whiteSpace:'pre-wrap', marginBottom:4 }}>

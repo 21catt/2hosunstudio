@@ -93,14 +93,14 @@ export default function StudentNotificationPage() {
 
   return (
     <>
-      <div className="header">
+      <div className="p-header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <span style={{ fontSize:20 }}>🐱</span>
-          <span className="header-title">알림</span>
+          <span className="p-title">알림</span>
         </div>
       </div>
 
-      <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'16px 14px 80px' }}>
+      <div style={{ background:'#fff', padding:'8px 14px 80px' }}>
         {/* 탭 */}
         <div style={{ display:'flex', borderBottom:'2px solid var(--g1)', marginBottom:14 }}>
           {['내 예약 현황','수업 종료 현황'].map((t,i) => (

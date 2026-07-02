@@ -4,11 +4,11 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
 
-const ACCENT = '#3B6D11'
-const ACCENT_BG = '#EAF3DE'
-const ACCENT_TEXT = '#27500A'
-const CARD = '#F1EFE8'
-const BORDER = 'rgba(0,0,0,0.14)'
+const ACCENT = 'var(--ac)'
+const ACCENT_BG = 'var(--acBg)'
+const ACCENT_TEXT = 'var(--acTx)'
+const CARD = 'var(--card)'
+const BORDER = 'var(--line)'
 
 const CAT_LABEL = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', free:'자율창작', meeting:'모임' }
 const CAT_ORDER = ['drawing', 'painting', 'sculpture', 'free', 'meeting']
@@ -275,7 +275,7 @@ function RecordSheet({ params, userId, onClose, onSaved }) {
             </div>
 
             {!isEdit && feedback.length > 0 && (
-              <div style={{ marginBottom:16, background:ACCENT_BG, borderRadius:12, padding:'12px 14px', border:`1.5px solid ${ACCENT}33` }}>
+              <div style={{ marginBottom:16, background:ACCENT_BG, borderRadius:12, padding:'12px 14px', border:`1.5px solid rgb(var(--ac-rgb) / 0.2)` }}>
                 <div style={{ fontSize:10, fontWeight:700, color:ACCENT, marginBottom:8 }}>강사 피드백</div>
                 {feedback.map(fb => (
                   <div key={fb.id} style={{ fontSize:13, color:'var(--td)', lineHeight:1.7, whiteSpace:'pre-wrap' }}>
@@ -523,14 +523,14 @@ function CurriculumInner() {
 
   return (
     <>
-      <div className="header">
+      <div className="p-header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <span style={{ fontSize:20 }}>📚</span>
-          <span className="header-title">학습 경로</span>
+          <span className="p-title">학습 경로</span>
         </div>
       </div>
 
-      <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 0', minHeight:'80vh' }}>
+      <div style={{ background:'#fff', padding:'8px 14px 0', minHeight:'80vh' }}>
 
         {/* Segment toggle */}
         <div style={{ display:'flex', gap:4, marginBottom:18, background:'var(--g1)', borderRadius:12, padding:3 }}>
@@ -579,7 +579,7 @@ function CurriculumInner() {
 
                 {selectedName && (
                   <>
-                    <div style={{ background:ACCENT_BG, borderRadius:14, padding:'14px', marginBottom:18, border:`1.5px solid ${ACCENT}33` }}>
+                    <div style={{ background:ACCENT_BG, borderRadius:14, padding:'14px', marginBottom:18, border:`1.5px solid rgb(var(--ac-rgb) / 0.2)` }}>
                       <div style={{ fontSize:13, fontWeight:700, color:ACCENT_TEXT, marginBottom:2 }}>{selectedName}</div>
                       <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:8 }}>
                         {n} / {steps.length}회차 완료
@@ -594,7 +594,7 @@ function CurriculumInner() {
                       <div style={{ textAlign:'center', padding:30, color:'var(--tmu)', fontSize:13 }}>회차를 준비 중이에요 🐾</div>
                     ) : (
                       <div style={{ position:'relative', paddingLeft:34 }}>
-                        <div style={{ position:'absolute', left:10, top:14, bottom:14, width:2, background:`${ACCENT}1A` }}/>
+                        <div style={{ position:'absolute', left:10, top:14, bottom:14, width:2, background:`rgb(var(--ac-rgb) / 0.1)` }}/>
 
                         {steps.map((step, idx) => {
                           const i = idx + 1
@@ -645,7 +645,7 @@ function CurriculumInner() {
                                   <div style={{ marginTop:7 }}>
                                     {rec ? (
                                       <button onClick={() => openRecordSheet(step, i, status, 'view')}
-                                        style={{ fontSize:11, padding:'4px 10px', borderRadius:20, background:ACCENT_BG, color:ACCENT_TEXT, border:`1px solid ${ACCENT}44`, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                                        style={{ fontSize:11, padding:'4px 10px', borderRadius:20, background:ACCENT_BG, color:ACCENT_TEXT, border:`1px solid rgb(var(--ac-rgb) / 0.27)`, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
                                         내 기록 보기
                                       </button>
                                     ) : (
@@ -708,7 +708,7 @@ function CurriculumInner() {
                         </div>
 
                         {isOpen && (
-                          <div style={{ borderTop:`1px solid ${ACCENT}28`, padding:'12px 14px 14px' }}>
+                          <div style={{ borderTop:`1px solid rgb(var(--ac-rgb) / 0.16)`, padding:'12px 14px 14px' }}>
                             <div style={{ display:'flex', gap:6, marginBottom:12, flexWrap:'wrap' }}>
                               <button
                                 onClick={() => router.push(`/student?course=${encodeURIComponent(course.name)}`)}
@@ -721,13 +721,13 @@ function CurriculumInner() {
                                     setTab('my')
                                     if (courseNames.includes(course.name)) handleSelectName(course.name)
                                   }}
-                                  style={{ fontSize:11, padding:'6px 12px', borderRadius:20, background:ACCENT_BG, color:ACCENT_TEXT, border:`1px solid ${ACCENT}44`, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:600 }}>
+                                  style={{ fontSize:11, padding:'6px 12px', borderRadius:20, background:ACCENT_BG, color:ACCENT_TEXT, border:`1px solid rgb(var(--ac-rgb) / 0.27)`, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:600 }}>
                                   내 경로 보기
                                 </button>
                               )}
                             </div>
                             <div style={{ position:'relative', paddingLeft:28 }}>
-                              <div style={{ position:'absolute', left:7, top:10, bottom:10, width:2, background:`${ACCENT}18` }}/>
+                              <div style={{ position:'absolute', left:7, top:10, bottom:10, width:2, background:`rgb(var(--ac-rgb) / 0.09)` }}/>
                               {course.steps.map((step, idx) => (
                                 <div key={step.id} style={{ marginBottom:9, position:'relative', display:'flex', alignItems:'flex-start' }}>
                                   <div style={{ position:'absolute', left:-28, width:16, height:16, borderRadius:8, background:'var(--g1)', border:`1.5px solid ${BORDER}`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, color:'var(--tmu)', fontWeight:700, flexShrink:0, zIndex:1 }}>

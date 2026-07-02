@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
+import StudentNav from '../../../components/StudentNav'
 
 function getStage(pt) {
   if (pt <= 0) return 0
@@ -153,17 +154,17 @@ export default function FarmPage() {
         .cat-idle { animation: catBounce 2.5s ease-in-out infinite; }
       `}</style>
 
-      <div className="header">
+      <div className="p-header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <span style={{ fontSize:20 }}>🌱</span>
-          <span className="header-title">냥밭</span>
+          <span className="p-title">냥밭</span>
         </div>
-        <span style={{ color:'#fff', fontSize:11, fontWeight:700, background:'rgba(255,255,255,0.2)', padding:'4px 10px', borderRadius:20 }}>
+        <span style={{ color:'var(--acTx)', fontSize:11, fontWeight:700, background:'var(--acBg)', border:'1.5px solid rgb(var(--ac-rgb) / 0.3)', padding:'4px 10px', borderRadius:20 }}>
           {readyCount > 0 ? `🥕 ${readyCount}개 수확 가능!` : `총 ${attended}pt`}
         </span>
       </div>
 
-      <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, paddingBottom:80 }}>
+      <div style={{ background:'#fff', paddingTop:8, paddingBottom:80 }}>
 
         {/* 농장 메인 씬 */}
         <div style={{ position:'relative', overflow:'hidden', background:'linear-gradient(180deg,#87CEEB 0%,#b8eaa0 55%,#5a9e40 55%,#4a8a30 100%)', minHeight:380 }}>
@@ -334,19 +335,7 @@ export default function FarmPage() {
         </div>
       </div>
 
-      <nav className="bottom-nav">
-        {[
-          { href:'/student', label:'일정', icon:'📅' },
-          { href:'/student/notification', label:'알림', icon:'🔔' },
-          { href:'/student/farm', label:'냥밭', icon:'🌱', active:true },
-          { href:'/lounge', label:'라운지', icon:'💬' },
-        ].map(t => (
-          <a key={t.label} href={t.href} className={`nav-item ${t.active?'active':''}`}>
-            <span style={{ fontSize:20 }}>{t.icon}</span>
-            <span>{t.label}</span>
-          </a>
-        ))}
-      </nav>
+      <StudentNav active="farm" />
     </>
   )
 }
