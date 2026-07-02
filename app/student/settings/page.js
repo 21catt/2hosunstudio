@@ -5,6 +5,7 @@ import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
 import MoodIndicator from '../../../components/MoodIndicator'
 import { THEMES, applyTheme, getSavedTheme, isValidTheme } from '../../../lib/theme'
+import { FARM_CATS, getSavedFarmCat, saveFarmCatLocal, isValidFarmCat } from '../../../lib/farmCats'
 import LoadingCat from '../../../components/LoadingCat'
 
 export default function SettingsPage() {
@@ -13,10 +14,12 @@ export default function SettingsPage() {
   const [name, setName] = useState('')
   const [themeKey, setThemeKey] = useState('ultra')
   const [moodStyle, setMoodStyle] = useState('cup')
+  const [farmCat, setFarmCat] = useState('watering')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     setThemeKey(getSavedTheme())
+    setFarmCat(getSavedFarmCat())
     supabase.auth.getUser().then(async ({ data }) => {
       const u = data.user || null
       setUser(u)
@@ -26,6 +29,7 @@ export default function SettingsPage() {
         const { data: pref } = await supabase.from('user_prefs').select('*').eq('user_id', u.id).single()
         setMoodStyle(pref?.mood_style || 'cup')
         if (isValidTheme(pref?.theme)) { setThemeKey(pref.theme); applyTheme(pref.theme) }
+        if (isValidFarmCat(pref?.farm_cat)) { setFarmCat(pref.farm_cat); saveFarmCatLocal(pref.farm_cat) }
       }
       setLoading(false)
     })
@@ -41,6 +45,13 @@ export default function SettingsPage() {
   async function changeMood(style) {
     setMoodStyle(style)
     if (user?.id) await supabase.from('user_prefs').upsert({ user_id: user.id, mood_style: style })
+  }
+
+  async function changeFarmCat(key) {
+    setFarmCat(key)
+    saveFarmCatLocal(key)
+    // user_prefs.farm_cat 컬럼이 없으면 upsert만 실패하고 기기(localStorage) 저장은 유지됨
+    if (user?.id) await supabase.from('user_prefs').upsert({ user_id: user.id, farm_cat: key })
   }
 
   if (loading) return <LoadingCat />
@@ -97,6 +108,22 @@ export default function SettingsPage() {
                 style={{ flex:1, cursor:'pointer', background: on ? 'var(--acBg)' : '#fff', border: on ? '2px solid var(--ac)' : '1.5px solid var(--g2)', borderRadius:14, padding:'12px 4px 9px', display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
                 <MoodIndicator ratio={0.7} style={k} size={48} />
                 <span style={{ fontSize:10, fontWeight: on?800:700, color: on?'var(--acTx)':'var(--tmu)' }}>{label}</span>
+              </div>
+            )
+          })}
+        </div>
+
+        <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:2 }}>농부냥</div>
+        <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:10 }}>냥밭을 돌봐줄 고양이 한 마리를 골라요 🥕</div>
+        <div style={{ display:'flex', gap:8, marginBottom:20 }}>
+          {FARM_CATS.map(c => {
+            const on = farmCat === c.key
+            return (
+              <div key={c.key} onClick={() => changeFarmCat(c.key)}
+                style={{ flex:1, cursor:'pointer', background: on ? 'var(--acBg)' : '#fff', border: on ? '2px solid var(--ac)' : '1.5px solid var(--g2)', borderRadius:14, padding:'12px 4px 9px', display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
+                <img src={c.img} alt={c.name} width={44} style={{ imageRendering:'pixelated', display:'block' }} />
+                <span style={{ fontSize:10, fontWeight: on?800:700, color: on?'var(--acTx)':'var(--td)' }}>{c.name}</span>
+                <span style={{ fontSize:9, color:'var(--tmu)' }}>{c.desc}</span>
               </div>
             )
           })}

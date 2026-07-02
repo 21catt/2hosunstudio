@@ -3,14 +3,15 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
+import { FARM_CATS, getSavedFarmCat, isValidFarmCat } from '../../../lib/farmCats'
 import LoadingCat from '../../../components/LoadingCat'
 
 // 테마별 픽셀 냥밭 환경 — ground는 이미지 하단 지면 픽셀 색과 동일(이음매 방지)
 const FARM_ENV = {
-  ultra: { img: '/farm/ultra.png', ground: '#7CE8A4' },
-  line2: { img: '/farm/line2.png', ground: '#D3EF6B' },
-  ink:   { img: '/farm/ink.png',   ground: '#FF6A2B' },
-  lilac: { img: '/farm/lilac.png', ground: '#FF9AC9' },
+  ultra: { img: '/farm/ultra.png', ground: '#7CE8A4', field: '#EEF0FF', line: '#2B2FD4', tick: '#1A1C6B', sprinkle: '#FF5A5A', cross: '#7CE8A4' },
+  line2: { img: '/farm/line2.png', ground: '#D3EF6B', field: '#ECF6EC', line: '#0F8A4A', tick: '#0C3B26', sprinkle: '#FF6A2B', cross: '#D3EF6B' },
+  ink:   { img: '/farm/ink.png',   ground: '#FF6A2B', field: '#F4EFE9', line: '#1B1B1F', tick: '#000000', sprinkle: '#7CE8A4', cross: '#FF6A2B' },
+  lilac: { img: '/farm/lilac.png', ground: '#FF9AC9', field: '#F2EEFF', line: '#7C5CF0', tick: '#3A2B7A', sprinkle: '#FF5A5A', cross: '#FF9AC9' },
 }
 
 // 돌아다니며 일하는 픽셀 농부냥 — 랜덤 지점으로 걷고, 도착하면 자기 일을 한다.
@@ -161,11 +162,13 @@ export default function FarmPage() {
   const [coins, setCoins] = useState([])
   const [catMood, setCatMood] = useState('idle')
   const [farmTheme, setFarmTheme] = useState('ultra')
+  const [farmCat, setFarmCat] = useState('watering')
   const [fx, setFx] = useState([])
 
   useEffect(() => {
     const t = document.documentElement.getAttribute('data-theme')
     if (FARM_ENV[t]) setFarmTheme(t)
+    setFarmCat(getSavedFarmCat())
   }, [])
 
   // 하늘 인터랙션 이펙트 (햇살 버스트·픽셀 비·음표) — 끝나면 자동 제거
@@ -197,6 +200,8 @@ export default function FarmPage() {
       return Math.min(share + extra, 12)
     })
     setCarrots(newCarrots)
+    const { data: pref } = await supabase.from('user_prefs').select('*').eq('user_id', userId).single()
+    if (isValidFarmCat(pref?.farm_cat)) setFarmCat(pref.farm_cat)
     setLoading(false)
   }
 
@@ -259,7 +264,7 @@ export default function FarmPage() {
       <div style={{ background:'#fff', paddingTop:8, paddingBottom:80 }}>
 
         {/* 농장 메인 씬 — 테마별 픽셀 환경 */}
-        <div style={{ position:'relative', overflow:'hidden', background:FARM_ENV[farmTheme].ground, minHeight:380 }}>
+        <div style={{ position:'relative', overflow:'hidden', background:FARM_ENV[farmTheme].ground, minHeight:470, display:'flex', flexDirection:'column' }}>
 
           {/* 하늘·산·들판 (16:9 픽셀 아트) + 하늘 인터랙션 핫스팟 */}
           <div style={{ position:'relative', width:'100%', aspectRatio:'16 / 9', backgroundImage:`url(${FARM_ENV[farmTheme].img})`, backgroundSize:'100% 100%', imageRendering:'pixelated' }}>
@@ -276,6 +281,23 @@ export default function FarmPage() {
             {/* 상시 날아다니는 픽셀 새 */}
             <svg className="pix-bird" width="26" height="14" viewBox="0 0 26 14" style={{ position:'absolute', top:'15%', left:0, pointerEvents:'none' }} aria-hidden="true">
               <path d="M1 10 L7 3 L13 10 M13 10 L19 3 L25 10" stroke="var(--g5)" strokeWidth="2.4" fill="none"/>
+            </svg>
+          </div>
+
+          {/* 밭이랑 연장 — 배너의 밭이 씬 바닥 끝까지 이어져 보이게 */}
+          <div style={{ flex:1, minHeight:0, clipPath:'polygon(4.5% 0, 95.5% 0, 100% 100%, 0 100%)' }}>
+            <svg width="100%" height="100%" preserveAspectRatio="none" aria-hidden="true" style={{ display:'block' }}>
+              <defs>
+                <pattern id="rowExt" width="96" height="30" patternUnits="userSpaceOnUse">
+                  <rect width="96" height="30" fill={FARM_ENV[farmTheme].field}/>
+                  <rect y="24" width="96" height="4" fill={FARM_ENV[farmTheme].line}/>
+                  <rect x="12" y="21" width="4" height="9" fill={FARM_ENV[farmTheme].tick}/>
+                  <rect x="60" y="21" width="4" height="9" fill={FARM_ENV[farmTheme].tick}/>
+                  <rect x="38" y="9" width="4" height="4" fill={FARM_ENV[farmTheme].sprinkle}/>
+                  <rect x="80" y="12" width="4" height="4" fill={FARM_ENV[farmTheme].cross}/>
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#rowExt)"/>
             </svg>
           </div>
 
@@ -324,10 +346,11 @@ export default function FarmPage() {
             ))}
           </div>
 
-          {/* 농부냥 3마리 — 앞줄 물주기 · 밭 사이 씨뿌리기 · 울타리 앞 밭갈기 */}
-          <FarmerCat img="/farm/cat-watering.png" bottom={4} size={48} act="water" z={8} onFx={(a,x,b,sz)=>spawnFx(a,{ x, b: b + sz*0.55 })} />
-          <FarmerCat img="/farm/cat-overalls.png" bottom={106} size={40} act="seed" z={7} onFx={(a,x,b,sz)=>spawnFx(a,{ x, b: b + sz*0.5 })} />
-          <FarmerCat img="/farm/cat-apron.png" bottom={168} size={30} act="dig" z={0} onFx={(a,x,b,sz)=>spawnFx(a,{ x, b: b + sz*0.4 })} />
+          {/* 설정에서 고른 농부냥 1마리만 등장 */}
+          {(() => {
+            const cat = FARM_CATS.find(c => c.key === farmCat) || FARM_CATS[0]
+            return <FarmerCat key={cat.key} img={cat.img} bottom={6} size={64} act={cat.act} z={8} onFx={(a,x,b,sz)=>spawnFx(a,{ x, b: b + sz*0.55 })} />
+          })()}
 
           {/* 코인 애니메이션 */}
           {coins.map(coin => (
