@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
-import { FARM_CATS, getSavedFarmCat, isValidFarmCat } from '../../../lib/farmCats'
+import { FARM_CATS, getSavedFarmCat, isValidFarmCat, CROP_STAGES, cropImg, getSavedHarvest, saveHarvestLocal } from '../../../lib/farmCats'
 import LoadingCat from '../../../components/LoadingCat'
 
 // 테마별 픽셀 냥밭 환경 — ground는 이미지 하단 지면 픽셀 색과 동일(이음매 방지)
@@ -104,13 +104,6 @@ function FarmerCat({ img, bottom, size, act, z = 6, onFx }) {
   )
 }
 
-function getStage(pt) {
-  if (pt <= 0) return 0
-  if (pt <= 3) return 1
-  if (pt <= 7) return 2
-  if (pt <= 11) return 3
-  return 4
-}
 
 
 export default function FarmPage() {
@@ -118,7 +111,8 @@ export default function FarmPage() {
   const today = new Date()
   const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`
   const [user, setUser] = useState(null)
-  const [carrots, setCarrots] = useState(Array(8).fill(0))
+  const [harvest, setHarvest] = useState(0)
+  const [harvestAnim, setHarvestAnim] = useState(null)
   const [history, setHistory] = useState([])
   const [loading, setLoading] = useState(true)
   // 하늘 구성: 구름 4개(모양 5종 중)·새 2마리 — 방향/속도/높이 랜덤, 마운트 시 1회 결정
@@ -149,6 +143,7 @@ export default function FarmPage() {
     const t = document.documentElement.getAttribute('data-theme')
     if (FARM_ENV[t]) setFarmTheme(t)
     setFarmCat(getSavedFarmCat())
+    setHarvest(getSavedHarvest())
   }, [])
 
   // 하늘 인터랙션 이펙트 (햇살 버스트·픽셀 비·음표) — 끝나면 자동 제거
@@ -168,6 +163,21 @@ export default function FarmPage() {
     }
   }
 
+  // 완숙 작물 수확: 흔들리며 커졌다가(화면 1/3 크기) 수확 카운트로 빠르게 쏙 들어간다
+  function harvestCrop() {
+    if (!cropReady || harvestAnim) return
+    setHarvestAnim('grow')
+    setTimeout(() => setHarvestAnim('zip'), 950)
+    setTimeout(() => {
+      setHarvestAnim(null)
+      const n = harvest + 1
+      setHarvest(n)
+      saveHarvestLocal(n)
+      spawnFx('plus', { x: 56, y: 1, label: `+1 ${activeCat.cropName}` })
+      if (user?.id) supabase.from('user_prefs').upsert({ user_id: user.id, harvest_count: n })
+    }, 1350)
+  }
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) { router.push('/login'); return }
@@ -183,22 +193,19 @@ export default function FarmPage() {
       .order('class_date', { ascending: false })
     const h = b || []
     setHistory(h)
-    const attended = h.filter(x => x.attended === true).length
-    const newCarrots = Array(8).fill(0).map((_, i) => {
-      const share = Math.floor(attended / 8)
-      const extra = i < (attended % 8) ? 1 : 0
-      return Math.min(share + extra, 12)
-    })
-    setCarrots(newCarrots)
     const { data: pref } = await supabase.from('user_prefs').select('*').eq('user_id', userId).single()
     if (isValidFarmCat(pref?.farm_cat)) setFarmCat(pref.farm_cat)
+    if (Number.isFinite(pref?.harvest_count) && pref.harvest_count >= 0) { setHarvest(pref.harvest_count); saveHarvestLocal(pref.harvest_count) }
     setLoading(false)
   }
 
 
   const attended = history.filter(h => h.attended === true).length
   const absent = history.filter(h => h.class_date < todayStr && !h.attended).length
-  const readyCount = carrots.filter(p => getStage(p) === 4).length
+  const activeCat = FARM_CATS.find(c => c.key === farmCat) || FARM_CATS[0]
+  // 수확할 때마다 4단계(출석 4회)씩 소모 — 남은 포인트만큼 현재 작물이 자란다
+  const cropProgress = Math.max(0, Math.min(CROP_STAGES, attended - harvest * CROP_STAGES))
+  const cropReady = cropProgress >= CROP_STAGES
 
   if (loading) return <LoadingCat />
 
@@ -230,6 +237,12 @@ export default function FarmPage() {
         .puff { position:absolute; width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,0.78); animation: puffUp 0.8s ease-out infinite; }
         @keyframes seedToss { 0%{opacity:1; transform:translate(0,-6px)} 60%{opacity:1; transform:translate(var(--dx),-16px)} 100%{opacity:0; transform:translate(calc(var(--dx)*1.5), 4px)} }
         .seed { position:absolute; width:5px; height:5px; background:#D3EF6B; outline:1.5px solid var(--g5); animation: seedToss 0.9s ease-out infinite; }
+        @keyframes cropGrow { 0%{transform:scale(1) rotate(0deg)} 15%{transform:scale(1.12) rotate(-6deg)} 30%{transform:scale(1.24) rotate(6deg)} 45%{transform:scale(1.36) rotate(-5deg)} 60%{transform:scale(1.46) rotate(5deg)} 75%{transform:scale(1.54) rotate(-3deg)} 100%{transform:scale(1.6) rotate(0deg)} }
+        .crop-grow { animation: cropGrow 0.95s ease-in-out forwards; transform-origin: bottom center; }
+        @keyframes cropZip { 0%{transform:scale(1.6); opacity:1} 100%{transform:translate(130px,-560px) scale(0.04); opacity:0.85} }
+        .crop-zip { animation: cropZip 0.38s cubic-bezier(0.5,0,0.9,0.4) forwards; }
+        @keyframes plusPop { 0%{opacity:0; transform:translateY(6px) scale(0.8)} 20%{opacity:1; transform:translateY(0) scale(1.15)} 100%{opacity:0; transform:translateY(-30px) scale(1)} }
+        .plus-pop { position:absolute; animation: plusPop 1.4s ease-out forwards; }
       `}</style>
 
       <div className="p-header">
@@ -238,7 +251,7 @@ export default function FarmPage() {
           <span className="p-title">냥밭</span>
         </div>
         <span style={{ color:'var(--acTx)', fontSize:11, fontWeight:700, background:'var(--acBg)', border:'1.5px solid rgb(var(--ac-rgb) / 0.3)', padding:'4px 10px', borderRadius:20 }}>
-          {readyCount > 0 ? `🥕 ${readyCount}개 수확 가능!` : `총 ${attended}pt`}
+          {cropReady ? `${activeCat.cropName} 수확 가능!` : `총 ${attended}pt · 수확 ${harvest}개`}
         </span>
       </div>
 
@@ -310,6 +323,9 @@ export default function FarmPage() {
                 ))}
               </div>
             ))}
+            {fx.filter(e=>e.type==='plus').map(e => (
+              <span key={e.id} className="plus-pop" style={{ left:`${e.x}%`, top:`${e.y}%`, fontSize:12, fontWeight:800, background:'var(--ac2)', color:'var(--g5)', border:'1.5px solid var(--g5)', borderRadius:12, padding:'3px 9px', whiteSpace:'nowrap' }}>{e.label}</span>
+            ))}
           </div>
 
           {/* 설정에서 고른 농부냥 1마리만 등장 */}
@@ -317,6 +333,19 @@ export default function FarmPage() {
             const cat = FARM_CATS.find(c => c.key === farmCat) || FARM_CATS[0]
             return <FarmerCat key={cat.key} img={cat.img} bottom={6} size={64} act={cat.act} z={8} onFx={(a,x,b,sz)=>spawnFx(a,{ x, b: b + sz*0.55 })} />
           })()}
+
+          {/* 작물 — 출석 1회당 1단계씩 자라고, 완숙(4단계)이면 클릭해 수확 */}
+          <div onClick={harvestCrop}
+            className={harvestAnim === 'grow' ? 'crop-grow' : harvestAnim === 'zip' ? 'crop-zip' : ''}
+            style={{ position:'absolute', left:'50%', bottom:110, width:84, marginLeft:-42, zIndex: harvestAnim ? 30 : 5, cursor: cropReady ? 'pointer' : 'default' }}>
+            <img src={cropImg(activeCat.crop, Math.max(1, cropProgress))} alt="작물" width={84}
+              style={{ display:'block', width:'100%', imageRendering:'pixelated', opacity: cropProgress === 0 ? 0.35 : 1, filter: cropProgress === 0 ? 'grayscale(0.7)' : 'none' }} />
+            {!harvestAnim && (
+              <div style={{ position:'absolute', top:-24, left:'50%', transform:'translateX(-50%)', whiteSpace:'nowrap', fontSize:10, fontWeight:800, background: cropReady ? 'var(--ac2)' : 'rgba(255,255,255,0.92)', color:'var(--g5)', border:'1.5px solid var(--g5)', borderRadius:12, padding:'2px 8px' }}>
+                {cropReady ? `${activeCat.cropName} 수확!` : cropProgress === 0 ? '출석하면 자라요' : `${cropProgress}/${CROP_STAGES} 성장`}
+              </div>
+            )}
+          </div>
 
         </div>
 
@@ -326,7 +355,7 @@ export default function FarmPage() {
             {[
               { label:'총 출석', val:`${attended}회`, color:'var(--g4)' },
               { label:'결석', val:`${absent}회`, color:'#c0392b' },
-              { label:'수확 가능', val:`${readyCount}개`, color:'#FF6B20' },
+              { label:'수확한 작물', val:`${harvest}개`, color:'#FF6B20' },
             ].map(s => (
               <div key={s.label} style={{ background:'var(--bg)', borderRadius:12, padding:'10px', textAlign:'center', border:'1.5px solid var(--g1)' }}>
                 <div style={{ fontSize:9, color:'var(--tmu)', fontWeight:700, marginBottom:3 }}>{s.label}</div>

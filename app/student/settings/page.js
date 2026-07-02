@@ -5,7 +5,7 @@ import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
 import MoodIndicator from '../../../components/MoodIndicator'
 import { THEMES, applyTheme, getSavedTheme, isValidTheme } from '../../../lib/theme'
-import { FARM_CATS, getSavedFarmCat, saveFarmCatLocal, isValidFarmCat } from '../../../lib/farmCats'
+import { FARM_CATS, getSavedFarmCat, saveFarmCatLocal, isValidFarmCat, getSavedHarvest, saveHarvestLocal } from '../../../lib/farmCats'
 import { PIXEL_CATS, pixelCatImg, getSavedProfileCat, saveProfileCatLocal, isValidPixelCat } from '../../../lib/pixelCats'
 import LoadingCat from '../../../components/LoadingCat'
 
@@ -17,12 +17,14 @@ export default function SettingsPage() {
   const [moodStyle, setMoodStyle] = useState('cup')
   const [farmCat, setFarmCat] = useState('watering')
   const [profileCat, setProfileCat] = useState('09-cat')
+  const [harvest, setHarvest] = useState(0)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     setThemeKey(getSavedTheme())
     setFarmCat(getSavedFarmCat())
     setProfileCat(getSavedProfileCat())
+    setHarvest(getSavedHarvest())
     supabase.auth.getUser().then(async ({ data }) => {
       const u = data.user || null
       setUser(u)
@@ -34,6 +36,7 @@ export default function SettingsPage() {
         if (isValidTheme(pref?.theme)) { setThemeKey(pref.theme); applyTheme(pref.theme) }
         if (isValidFarmCat(pref?.farm_cat)) { setFarmCat(pref.farm_cat); saveFarmCatLocal(pref.farm_cat) }
         if (isValidPixelCat(pref?.profile_cat)) { setProfileCat(pref.profile_cat); saveProfileCatLocal(pref.profile_cat) }
+        if (Number.isFinite(pref?.harvest_count) && pref.harvest_count >= 0) { setHarvest(pref.harvest_count); saveHarvestLocal(pref.harvest_count) }
       }
       setLoading(false)
     })
@@ -85,6 +88,9 @@ export default function SettingsPage() {
             <div style={{ flex:1, minWidth:0 }}>
               <div style={{ fontSize:14, fontWeight:800, color:'var(--td)' }}>{name || '수강생'}</div>
               <div style={{ fontSize:11, color:'var(--tmu)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{user.email}</div>
+              <div style={{ fontSize:10, fontWeight:700, color:'var(--acTx)', marginTop:3 }}>
+                🌾 수확한 작물 {harvest}개 · {(FARM_CATS.find(c => c.key === farmCat) || FARM_CATS[0]).cropName} 재배 중
+              </div>
             </div>
             <button onClick={()=>supabase.auth.signOut().then(()=>router.push('/login'))} className="p-chip p-chip--sm" style={{ borderColor:'var(--g2)', color:'var(--tm)', fontWeight:700, flexShrink:0 }}>로그아웃</button>
           </div>
