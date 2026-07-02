@@ -5,6 +5,14 @@ import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
 import LoadingCat from '../../../components/LoadingCat'
 
+// 테마별 픽셀 냥밭 환경 — ground는 이미지 하단 지면 픽셀 색과 동일(이음매 방지)
+const FARM_ENV = {
+  ultra: { img: '/farm/ultra.png', ground: '#7CE8A4' },
+  line2: { img: '/farm/line2.png', ground: '#D3EF6B' },
+  ink:   { img: '/farm/ink.png',   ground: '#FF6A2B' },
+  lilac: { img: '/farm/lilac.png', ground: '#FF9AC9' },
+}
+
 function getStage(pt) {
   if (pt <= 0) return 0
   if (pt <= 3) return 1
@@ -96,6 +104,20 @@ export default function FarmPage() {
   const [loading, setLoading] = useState(true)
   const [coins, setCoins] = useState([])
   const [catMood, setCatMood] = useState('idle')
+  const [farmTheme, setFarmTheme] = useState('ultra')
+  const [fx, setFx] = useState([])
+
+  useEffect(() => {
+    const t = document.documentElement.getAttribute('data-theme')
+    if (FARM_ENV[t]) setFarmTheme(t)
+  }, [])
+
+  // 하늘 인터랙션 이펙트 (햇살 버스트·픽셀 비·음표) — 끝나면 자동 제거
+  function spawnFx(type, extra = {}) {
+    const id = Date.now() + Math.random()
+    setFx(f => [...f, { id, type, ...extra }])
+    setTimeout(() => setFx(f => f.filter(e => e.id !== id)), 1700)
+  }
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -143,12 +165,19 @@ export default function FarmPage() {
     <>
       <style>{`
         @keyframes coinUp { 0%{transform:translateY(0) scale(1);opacity:1} 100%{transform:translateY(-70px) scale(0.3);opacity:0} }
-        @keyframes treeSway { 0%,100%{transform:rotate(-2deg)} 50%{transform:rotate(2deg)} }
         @keyframes catBounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
-        @keyframes cloudDrift { 0%{transform:translateX(0)} 100%{transform:translateX(20px)} }
         .coin { animation: coinUp 0.9s ease-out forwards; }
-        .tree { animation: treeSway 3s ease-in-out infinite; transform-origin: bottom center; }
         .cat-idle { animation: catBounce 2.5s ease-in-out infinite; }
+        @keyframes birdFly { 0%{transform:translate(-30px,0)} 20%{transform:translate(75px,-8px)} 40%{transform:translate(175px,5px)} 60%{transform:translate(265px,-11px)} 80%{transform:translate(355px,3px)} 100%{transform:translate(440px,-7px)} }
+        .pix-bird { animation: birdFly 15s linear infinite; }
+        @keyframes sunPulse { 0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,0)} 50%{box-shadow:0 0 22px 9px rgba(255,255,255,0.55)} }
+        .sun-glow { animation: sunPulse 3s ease-in-out infinite; border-radius:50%; }
+        @keyframes rayOut { 0%{transform:rotate(var(--ang)) translateX(8px); opacity:1} 100%{transform:rotate(var(--ang)) translateX(52px); opacity:0} }
+        .ray { position:absolute; width:9px; height:9px; animation: rayOut 0.7s ease-out forwards; }
+        @keyframes dropFall { 0%{opacity:1; transform:translateY(0)} 80%{opacity:1} 100%{opacity:0; transform:translateY(225px)} }
+        .drop { position:absolute; width:4px; height:11px; animation: dropFall 1.15s linear forwards; }
+        @keyframes noteUp { 0%{opacity:0; transform:translateY(5px)} 25%{opacity:1} 100%{opacity:0; transform:translateY(-28px)} }
+        .note { position:absolute; font-size:15px; font-weight:800; animation: noteUp 1.3s ease-out forwards; }
       `}</style>
 
       <div className="p-header">
@@ -163,66 +192,49 @@ export default function FarmPage() {
 
       <div style={{ background:'#fff', paddingTop:8, paddingBottom:80 }}>
 
-        {/* 농장 메인 씬 */}
-        <div style={{ position:'relative', overflow:'hidden', background:'linear-gradient(180deg,#87CEEB 0%,#b8eaa0 55%,#5a9e40 55%,#4a8a30 100%)', minHeight:380 }}>
+        {/* 농장 메인 씬 — 테마별 픽셀 환경 */}
+        <div style={{ position:'relative', overflow:'hidden', background:FARM_ENV[farmTheme].ground, minHeight:380 }}>
 
-          {/* 태양 */}
-          <div style={{ position:'absolute', top:14, right:24 }}>
-            <svg width="44" height="44" viewBox="0 0 44 44">
-              <circle cx="22" cy="22" r="14" fill="#FFD54F"/>
-              {[0,45,90,135,180,225,270,315].map((a,i)=>(
-                <line key={i} x1="22" y1="22" x2={22+Math.cos(a*Math.PI/180)*20} y2={22+Math.sin(a*Math.PI/180)*20} stroke="#FFCA28" strokeWidth="2.5" strokeLinecap="round"/>
-              ))}
+          {/* 하늘·산·들판 (16:9 픽셀 아트) + 하늘 인터랙션 핫스팟 */}
+          <div style={{ position:'relative', width:'100%', aspectRatio:'16 / 9', backgroundImage:`url(${FARM_ENV[farmTheme].img})`, backgroundSize:'100% 100%', imageRendering:'pixelated' }}>
+            {/* 태양: 클릭 → 햇살 버스트 */}
+            <div onClick={()=>spawnFx('burst')} style={{ position:'absolute', left:'76%', top:'3%', width:'15%', height:'26%', cursor:'pointer' }} title="햇살">
+              <div className="sun-glow" style={{ position:'absolute', inset:'12%' }}/>
+            </div>
+            {/* 구름: 클릭 → 픽셀 비 */}
+            <div onClick={()=>spawnFx('rain', { x: 44 })} style={{ position:'absolute', left:'38%', top:'7%', width:'20%', height:'12%', cursor:'pointer' }} title="비 내리기"/>
+            <div onClick={()=>spawnFx('rain', { x: 68 })} style={{ position:'absolute', left:'63%', top:'3%', width:'14%', height:'10%', cursor:'pointer' }} title="비 내리기"/>
+            {/* 새: 클릭 → 짹짹 */}
+            <div onClick={()=>spawnFx('note', { x: 52, y: 10 })} style={{ position:'absolute', left:'50%', top:'8%', width:'12%', height:'12%', cursor:'pointer' }} title="짹짹"/>
+
+            {/* 상시 날아다니는 픽셀 새 */}
+            <svg className="pix-bird" width="26" height="14" viewBox="0 0 26 14" style={{ position:'absolute', top:'15%', left:0, pointerEvents:'none' }} aria-hidden="true">
+              <path d="M1 10 L7 3 L13 10 M13 10 L19 3 L25 10" stroke="var(--g5)" strokeWidth="2.4" fill="none"/>
             </svg>
           </div>
 
-          {/* 구름 */}
-          <div style={{ position:'absolute', top:12, left:16, animation:'cloudDrift 8s ease-in-out infinite alternate' }}>
-            <svg width="90" height="32" viewBox="0 0 90 32">
-              <ellipse cx="45" cy="22" rx="40" ry="16" fill="#fff" fillOpacity="0.92"/>
-              <ellipse cx="62" cy="14" rx="26" ry="16" fill="#fff" fillOpacity="0.92"/>
-              <ellipse cx="28" cy="16" rx="22" ry="14" fill="#fff" fillOpacity="0.92"/>
-            </svg>
-          </div>
-
-          {/* 나무 왼쪽 */}
-          <div className="tree" style={{ position:'absolute', left:6, bottom:150 }}>
-            <svg width="50" height="90" viewBox="0 0 50 90">
-              <rect x="21" y="58" width="8" height="32" rx="3" fill="#8B6914"/>
-              <ellipse cx="25" cy="46" rx="20" ry="26" fill="#2E7D32"/>
-              <ellipse cx="25" cy="36" rx="15" ry="19" fill="#388E3C"/>
-              <ellipse cx="25" cy="26" rx="10" ry="13" fill="#4CAF50"/>
-              <ellipse cx="25" cy="18" rx="6" ry="8" fill="#66BB6A"/>
-            </svg>
-          </div>
-
-          {/* 나무 오른쪽 */}
-          <div className="tree" style={{ position:'absolute', right:4, bottom:160, animationDelay:'0.5s' }}>
-            <svg width="44" height="80" viewBox="0 0 44 80">
-              <rect x="18" y="52" width="8" height="28" rx="3" fill="#7a5c10"/>
-              <ellipse cx="22" cy="40" rx="18" ry="23" fill="#1B5E20"/>
-              <ellipse cx="22" cy="30" rx="13" ry="17" fill="#2E7D32"/>
-              <ellipse cx="22" cy="21" rx="9" ry="12" fill="#388E3C"/>
-              <ellipse cx="22" cy="13" rx="6" ry="8" fill="#4CAF50"/>
-            </svg>
-          </div>
-
-          {/* 작은 꽃 장식 */}
-          <div style={{ position:'absolute', left:52, bottom:155 }}>
-            <svg width="24" height="24" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="4" fill="#FFD54F"/>
-              {[0,60,120,180,240,300].map((a,i)=>(
-                <ellipse key={i} cx={12+Math.cos(a*Math.PI/180)*7} cy={12+Math.sin(a*Math.PI/180)*7} rx="4" ry="3" fill="#FFF9C4" transform={`rotate(${a},${12+Math.cos(a*Math.PI/180)*7},${12+Math.sin(a*Math.PI/180)*7})`}/>
-              ))}
-            </svg>
-          </div>
-          <div style={{ position:'absolute', right:50, bottom:165 }}>
-            <svg width="20" height="20" viewBox="0 0 20 20">
-              <circle cx="10" cy="10" r="3.5" fill="#F48FB1"/>
-              {[0,72,144,216,288].map((a,i)=>(
-                <ellipse key={i} cx={10+Math.cos(a*Math.PI/180)*6} cy={10+Math.sin(a*Math.PI/180)*6} rx="3.5" ry="2.5" fill="#FCE4EC" transform={`rotate(${a},${10+Math.cos(a*Math.PI/180)*6},${10+Math.sin(a*Math.PI/180)*6})`}/>
-              ))}
-            </svg>
+          {/* 하늘 인터랙션 이펙트 레이어 */}
+          <div style={{ position:'absolute', inset:0, pointerEvents:'none', zIndex:15 }}>
+            {fx.filter(e=>e.type==='burst').map(e => (
+              <div key={e.id} style={{ position:'absolute', left:'83%', top:'9%' }}>
+                {[0,45,90,135,180,225,270,315].map(a => (
+                  <span key={a} className="ray" style={{ '--ang':`${a}deg`, background: a%90===0 ? '#fff' : FARM_ENV[farmTheme].ground, outline:'1.5px solid var(--g5)' }}/>
+                ))}
+              </div>
+            ))}
+            {fx.filter(e=>e.type==='rain').map(e => (
+              <div key={e.id}>
+                {Array.from({length:12}).map((_,i)=>(
+                  <span key={i} className="drop" style={{ left:`${e.x - 9 + (i%6)*3.6}%`, top:'15%', background:'var(--g3)', animationDelay:`${(i%4)*0.12 + Math.floor(i/6)*0.28}s` }}/>
+                ))}
+              </div>
+            ))}
+            {fx.filter(e=>e.type==='note').map(e => (
+              <div key={e.id} style={{ position:'absolute', left:`${e.x}%`, top:`${e.y}%` }}>
+                <span className="note" style={{ color:'var(--g5)' }}>♪</span>
+                <span className="note" style={{ color:'var(--g4)', marginLeft:12, animationDelay:'0.22s' }}>♫</span>
+              </div>
+            ))}
           </div>
 
           {/* 고양이 농부 */}
