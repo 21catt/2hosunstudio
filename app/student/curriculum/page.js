@@ -336,9 +336,16 @@ function CurriculumInner() {
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) { router.push('/login'); return }
-      setUser(data.user)
-      loadInitial(data.user.id)
+      if (data.user) {
+        setUser(data.user)
+        loadInitial(data.user.id)
+      } else {
+        // 비회원: 둘러보기(공개 커리큘럼)만 열람
+        setUser(null)
+        setTab('browse')
+        loadBrowse(new Set())
+        setLoading(false)
+      }
     })
   }, [])
 
@@ -531,8 +538,14 @@ function CurriculumInner() {
           <>
             {courseNames.length === 0 ? (
               <div style={{ textAlign:'center', padding:40, color:'var(--tmu)', fontSize:13, lineHeight:1.8 }}>
-                커리큘럼이 등록된 수업이 없어요 🐾<br/>
-                <span style={{ fontSize:11 }}>강사님이 학습 경로를 등록하면 여기서 볼 수 있어요</span>
+                {user ? (
+                  <>커리큘럼이 등록된 수업이 없어요 🐾<br/>
+                  <span style={{ fontSize:11 }}>강사님이 학습 경로를 등록하면 여기서 볼 수 있어요</span></>
+                ) : (
+                  <>로그인하면 내 학습 경로를 볼 수 있어요 🐾<br/>
+                  <span onClick={()=>router.push('/login')} style={{ fontSize:11, color:ACCENT, fontWeight:700, cursor:'pointer', textDecoration:'underline' }}>로그인 / 가입하기</span>
+                  <br/><span style={{ fontSize:11 }}>‘둘러보기’에서 전체 커리큘럼을 볼 수 있어요</span></>
+                )}
               </div>
             ) : (
               <>
@@ -704,12 +717,15 @@ function CurriculumInner() {
                                   <div style={{ position:'absolute', left:-28, width:16, height:16, borderRadius:8, background:'var(--g1)', border:`1.5px solid ${BORDER}`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, color:'var(--tmu)', fontWeight:700, flexShrink:0, zIndex:1 }}>
                                     {idx + 1}
                                   </div>
-                                  <div>
+                                  <div style={{ flex:1, minWidth:0 }}>
                                     <div style={{ fontSize:12, fontWeight:600, color:'var(--td)' }}>{step.title}</div>
                                     {step.keyword && (
                                       <div style={{ fontSize:10, color:'var(--tmu)', marginTop:2 }}>
                                         {step.keyword.split(',').map(k=>k.trim()).filter(Boolean).map(k=>`#${k}`).join(' ')}
                                       </div>
+                                    )}
+                                    {step.image_url && (
+                                      <img src={step.image_url} alt="" style={{ marginTop:6, width:'100%', maxWidth:240, borderRadius:8, display:'block' }}/>
                                     )}
                                   </div>
                                 </div>

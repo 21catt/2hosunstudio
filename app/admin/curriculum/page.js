@@ -26,7 +26,7 @@ const CARD        = '#F1EFE8'
 const BORDER      = 'rgba(0,0,0,0.14)'
 
 // ─── Sortable row ────────────────────────────────────────────────────────────
-function SortableStepItem({ step, index, editing, setEditing, handleUpdate, handleDelete, saving }) {
+function SortableStepItem({ step, index, editing, setEditing, handleUpdate, handleDelete, saving, onUploadImage, uploading }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: step.id })
 
   const wrapStyle = {
@@ -62,6 +62,18 @@ function SortableStepItem({ step, index, editing, setEditing, handleUpdate, hand
               onChange={e => setEditing(prev => ({ ...prev, [step.id]: { ...prev[step.id], keyword: e.target.value } }))}
               placeholder="키워드 (쉼표로 구분, 선택)"
               style={{ width:'100%', padding:'7px 10px', borderRadius:8, border:`1.5px solid ${BORDER}`, fontSize:12, fontFamily:'Nunito,sans-serif', marginBottom:8, boxSizing:'border-box' }}/>
+            {editing[step.id].image_url && (
+              <div style={{ position:'relative', marginBottom:6 }}>
+                <img src={editing[step.id].image_url} alt="" style={{ width:'100%', maxHeight:150, objectFit:'cover', borderRadius:8, display:'block' }}/>
+                <button onClick={() => setEditing(prev => ({ ...prev, [step.id]: { ...prev[step.id], image_url: '' } }))}
+                  style={{ position:'absolute', top:5, right:5, width:22, height:22, borderRadius:11, background:'rgba(0,0,0,0.55)', color:'#fff', border:'none', fontSize:14, cursor:'pointer', lineHeight:1 }}>×</button>
+              </div>
+            )}
+            <label style={{ display:'block', textAlign:'center', padding:'7px', borderRadius:8, border:`1.5px dashed ${BORDER}`, background:'#fff', fontSize:11, fontWeight:700, color:'var(--tmu)', cursor: uploading?'default':'pointer', marginBottom:8 }}>
+              {uploading ? '업로드 중...' : (editing[step.id].image_url ? '사진 변경' : '📷 사진 추가')}
+              <input type="file" accept="image/*" disabled={uploading} style={{ display:'none' }}
+                onChange={async e => { const f = e.target.files?.[0]; e.target.value=''; if (!f) return; const url = await onUploadImage(f); if (url) setEditing(prev => ({ ...prev, [step.id]: { ...prev[step.id], image_url: url } })) }}/>
+            </label>
             <div style={{ display:'flex', gap:6 }}>
               <button
                 onClick={() => setEditing(prev => { const n = { ...prev }; delete n[step.id]; return n })}
@@ -85,6 +97,10 @@ function SortableStepItem({ step, index, editing, setEditing, handleUpdate, hand
               ≡
             </div>
 
+            {step.image_url && (
+              <img src={step.image_url} alt="" style={{ width:40, height:40, borderRadius:8, objectFit:'cover', flexShrink:0 }}/>
+            )}
+
             <div style={{ flex:1, minWidth:0 }}>
               <div style={{ fontSize:12, fontWeight:600, color:'var(--td)' }}>
                 <span style={{ fontSize:10, color:'var(--tmu)', marginRight:4 }}>{index+1}회차</span>
@@ -99,7 +115,7 @@ function SortableStepItem({ step, index, editing, setEditing, handleUpdate, hand
 
             <div style={{ display:'flex', gap:4, flexShrink:0 }}>
               <button
-                onClick={() => setEditing(prev => ({ ...prev, [step.id]: { title: step.title, keyword: step.keyword || '' } }))}
+                onClick={() => setEditing(prev => ({ ...prev, [step.id]: { title: step.title, keyword: step.keyword || '', image_url: step.image_url || '' } }))}
                 style={{ fontSize:10, padding:'3px 8px', borderRadius:20, background:'transparent', color:'var(--tmu)', border:`1px solid ${BORDER}`, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
                 수정
               </button>
@@ -127,8 +143,26 @@ function AdminCurriculumInner() {
   const [saving, setSaving] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [newKeyword, setNewKeyword] = useState('')
+  const [newImageUrl, setNewImageUrl] = useState('')
   const [addingNew, setAddingNew] = useState(false)
   const [editing, setEditing] = useState({})
+  const [uploading, setUploading] = useState(false)
+
+  // 커리큘럼 회차 사진 업로드 (공개 버킷 재사용, 학생/비회원도 조회 가능)
+  async function uploadImage(file) {
+    setUploading(true)
+    try {
+      const raw = file.name.split('.').pop().toLowerCase()
+      const ext = /^[a-z0-9]{1,5}$/.test(raw) ? raw : 'jpg'
+      const path = `curriculum/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+      const { error } = await supabase.storage.from('seat-photos').upload(path, file)
+      if (error) { alert('업로드 실패: ' + error.message); return null }
+      const { data } = supabase.storage.from('seat-photos').getPublicUrl(path)
+      return data.publicUrl
+    } finally {
+      setUploading(false)
+    }
+  }
 
   // delay 150ms + tolerance 5px → scroll vs drag 구분
   const sensors = useSensors(
@@ -182,9 +216,11 @@ function AdminCurriculumInner() {
       step_order: maxOrder + 1,
       title: newTitle.trim(),
       keyword: newKeyword.trim() || null,
+      image_url: newImageUrl || null,
     })
     setNewTitle('')
     setNewKeyword('')
+    setNewImageUrl('')
     setAddingNew(false)
     setSaving(false)
     await loadSteps(selectedName)
@@ -197,6 +233,7 @@ function AdminCurriculumInner() {
     await supabase.from('course_curriculum').update({
       title: e.title.trim(),
       keyword: e.keyword?.trim() || null,
+      image_url: e.image_url || null,
       updated_at: new Date().toISOString(),
     }).eq('id', step.id)
     setEditing(prev => { const n = { ...prev }; delete n[step.id]; return n })
@@ -290,6 +327,8 @@ function AdminCurriculumInner() {
                     handleUpdate={handleUpdate}
                     handleDelete={handleDelete}
                     saving={saving}
+                    onUploadImage={uploadImage}
+                    uploading={uploading}
                   />
                 ))}
               </SortableContext>
@@ -305,8 +344,20 @@ function AdminCurriculumInner() {
                 <input value={newKeyword} onChange={e => setNewKeyword(e.target.value)}
                   placeholder="키워드 (쉼표로 구분, 선택)"
                   style={{ width:'100%', padding:'8px 10px', borderRadius:10, border:`1.5px solid ${BORDER}`, fontSize:12, fontFamily:'Nunito,sans-serif', marginBottom:10, boxSizing:'border-box', background:'#fff' }}/>
+                {newImageUrl && (
+                  <div style={{ position:'relative', marginBottom:8 }}>
+                    <img src={newImageUrl} alt="" style={{ width:'100%', maxHeight:160, objectFit:'cover', borderRadius:10, display:'block' }}/>
+                    <button onClick={() => setNewImageUrl('')}
+                      style={{ position:'absolute', top:6, right:6, width:24, height:24, borderRadius:12, background:'rgba(0,0,0,0.55)', color:'#fff', border:'none', fontSize:15, cursor:'pointer', lineHeight:1 }}>×</button>
+                  </div>
+                )}
+                <label style={{ display:'block', textAlign:'center', padding:'9px', borderRadius:10, border:`1.5px dashed ${BORDER}`, background:'#fff', fontSize:12, fontWeight:700, color:'var(--tmu)', cursor: uploading?'default':'pointer', marginBottom:10 }}>
+                  {uploading ? '업로드 중...' : (newImageUrl ? '사진 변경' : '📷 사진 추가 (선택)')}
+                  <input type="file" accept="image/*" disabled={uploading} style={{ display:'none' }}
+                    onChange={async e => { const f = e.target.files?.[0]; e.target.value=''; if (!f) return; const url = await uploadImage(f); if (url) setNewImageUrl(url) }}/>
+                </label>
                 <div style={{ display:'flex', gap:8 }}>
-                  <button onClick={() => { setAddingNew(false); setNewTitle(''); setNewKeyword('') }}
+                  <button onClick={() => { setAddingNew(false); setNewTitle(''); setNewKeyword(''); setNewImageUrl('') }}
                     style={{ flex:1, padding:'9px', background:'var(--g1)', color:'var(--g5)', border:'none', borderRadius:10, fontSize:12, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
                     취소
                   </button>
