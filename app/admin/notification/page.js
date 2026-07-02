@@ -126,6 +126,7 @@ await supabase.from('notifications')
 
   function iconFor(type) {
   if (type === 'booking_created') return { emoji:'✅', bg:'var(--g1)', color:'var(--g5)' }
+  if (type === 'booking_request') return { emoji:'📩', bg:'#FFF3E0', color:'#E65100' }
   if (type === 'booking_cancelled') return { emoji:'✖', bg:'#ffebee', color:'#c0392b' }
   if (type === 'meeting_pending') return { emoji:'💰', bg:'#FFF3E0', color:'#E65100' }
   if (type === 'meeting_confirmed_admin') return { emoji:'✓', bg:'var(--g1)', color:'var(--g5)' }
@@ -190,7 +191,7 @@ await supabase.from('notifications')
                       {timeAgo(n.created_at)}
                     </span>
                   </div>
-                  <div style={{ fontSize:11, color:'var(--tm)', lineHeight:1.5, wordBreak:'keep-all' }}>
+                  <div style={{ fontSize:11, color:'var(--tm)', lineHeight:1.5, wordBreak:'keep-all', whiteSpace:'pre-line' }}>
                     {n.body}
                   </div>
                 </div>

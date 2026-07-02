@@ -134,27 +134,30 @@ export default function StudentPage() {
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) { router.push('/login'); return }
-      setUser(data.user)
-      loadData(data.user.id)
+      // 비회원도 캘린더 열람 허용 — 예약 시 회원가입으로 유도
+      setUser(data.user || null)
+      loadData(data.user?.id || null)
     })
   }, [])
 
   async function loadData(userId) {
-    const { data: t } = await supabase.from('tickets').select('*').eq('user_id', userId).single()
-    setTicket(t)
-    const { data: b } = await supabase.from('bookings').select('*').eq('user_id', userId).neq('status', 'cancelled')
-    setBookings(b || [])
-    const { data: ab } = await supabase.from('bookings').select('course_id, schedule_id, class_date').eq('status', 'booked')
-    setAllBookings(ab || [])
-    const { data: profile } = await supabase.from('users').select('name').eq('id', userId).single()
-    setProfileName(profile?.name || '')
-    const { data: pref } = await supabase.from('user_prefs').select('mood_style').eq('user_id', userId).single()
-    setMoodStyle(pref?.mood_style || 'cup')
-    const { data: c } = await supabase.from('class_courses').select('*, class_schedules(*)').eq('is_active', true)
+    if (userId) {
+      const { data: t } = await supabase.from('tickets').select('*').eq('user_id', userId).single()
+      setTicket(t)
+      const { data: b } = await supabase.from('bookings').select('*').eq('user_id', userId).neq('status', 'cancelled')
+      setBookings(b || [])
+      const { data: ab } = await supabase.from('bookings').select('course_id, schedule_id, class_date').eq('status', 'booked')
+      setAllBookings(ab || [])
+      const { data: profile } = await supabase.from('users').select('name').eq('id', userId).single()
+      setProfileName(profile?.name || '')
+      const { data: pref } = await supabase.from('user_prefs').select('mood_style').eq('user_id', userId).single()
+      setMoodStyle(pref?.mood_style || 'cup')
+      const { data: mt } = await supabase.from('meeting_tickets').select('*').eq('user_id', userId).eq('status', 'confirmed').gt('remain', 0).gte('expires_at', new Date().toISOString().split('T')[0])
+      setMeetingTickets(mt || [])
+    }
+    // 공개 데이터: 로그인 여부와 무관하게 수업/스케줄/예외 로드 (관리자 예외·운영기간 반영)
+    const { data: c } = await supabase.from('class_courses').select('*, class_schedules(*), class_exceptions(*)').eq('is_active', true)
     setClasses(c || [])
-    const { data: mt } = await supabase.from('meeting_tickets').select('*').eq('user_id', userId).eq('status', 'confirmed').gt('remain', 0).gte('expires_at', new Date().toISOString().split('T')[0])
-    setMeetingTickets(mt || [])
     setLoading(false)
   }
 
@@ -175,9 +178,21 @@ export default function StudentPage() {
     return new Set(bookingsInView().map(b => new Date(b.class_date).getDate()))
   }
 
-  function dayClasses(day) {
+  // 관리자 수업현황과 동일하게 예외 요일·운영 기간을 반영 (동기화)
+  function courseOpenOnDay(c, day) {
     const dow = new Date(year, month, day).getDay()
-    return classes.filter(c => c.class_schedules?.some(s => s.day_of_week === dow))
+    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
+    if (!c.class_schedules?.some(s => s.day_of_week === dow)) return false
+    if (c.class_exceptions?.some(e => e.day_of_week === dow)) return false
+    if (!c.is_unlimited) {
+      if (c.start_date && dateStr < c.start_date) return false
+      if (c.end_date && dateStr > c.end_date) return false
+    }
+    return true
+  }
+
+  function dayClasses(day) {
+    return classes.filter(c => courseOpenOnDay(c, day))
   }
 
   function getSchedulesForDay(course, day) {
@@ -289,7 +304,33 @@ export default function StudentPage() {
     loadData(user.id)
   }
 
+  // 유효한(기간 내·잔여 있는) 수강권 여부
+  function hasValidTicket() {
+    return !!(ticket && ticket.remain > 0 && ticket.expires_at >= todayStr)
+  }
+
+  // 수강권 없음/만료/소진 상태의 예약 → 예약은 만들지 않고 관리자에게 요청 알림(연락처 포함)
+  async function sendBookingRequest(course, schedule, dateStr) {
+    const { data: profile } = await supabase.from('users').select('name, phone').eq('id', user.id).single()
+    const nm = profile?.name || profileName || '학생'
+    const phone = profile?.phone || '미등록'
+    const when = `${dateStr} ${schedule.start_time}~${schedule.end_time}`
+    if (course.teacher_id) {
+      await supabase.from('notifications').insert({
+        user_id: course.teacher_id,
+        type: 'booking_request',
+        title: '📩 수업 예약 요청 (수강권 확인 필요)',
+        body: `${nm}님이 ${course.name} 예약을 요청했어요.\n일시: ${when}\n연락처: ${phone}\n수강권이 없거나 소진된 상태예요. 확인 후 안내해 주세요.`
+      })
+    }
+    sendPushToAdmins('📩 예약 요청', `${nm}님 ${course.name} ${when} · 연락처 ${phone}`)
+    sendKakaoToAdmins('📩 예약 요청', `${nm}님 ${course.name} ${when} / 연락처 ${phone}`)
+    setSelCat(null); setSelCourse(null); setSelSchedule(null)
+    alert('예약 요청이 접수됐어요! 강사님이 확인 후 연락드릴게요 🐾')
+  }
+
   async function handleBook() {
+    if (!user) { router.push('/signup'); return }
     if (!selCourse || !selSchedule) return
 
     if (selCourse.category === 'meeting') {
@@ -304,9 +345,12 @@ export default function StudentPage() {
       return
     }
 
-    if (!ticket || ticket.remain <= 0) { alert('잔여 수강권이 없어요 🐾'); return }
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
-    await execBook(selCourse, selSchedule, dateStr)
+    if (hasValidTicket()) {
+      await execBook(selCourse, selSchedule, dateStr)
+    } else {
+      await sendBookingRequest(selCourse, selSchedule, dateStr)
+    }
   }
 
   async function handleMeetingBook() {
@@ -489,8 +533,9 @@ export default function StudentPage() {
   }
 
   async function handleQuickBook(course, schedule, dateStr) {
-    if (!ticket || ticket.remain <= 0) { alert('잔여 수강권이 없어요 🐾'); return }
-    await execBook(course, schedule, dateStr)
+    if (!user) { router.push('/signup'); return }
+    if (hasValidTicket()) await execBook(course, schedule, dateStr)
+    else await sendBookingRequest(course, schedule, dateStr)
   }
 
   const daysInMonth = new Date(year, month+1, 0).getDate()
@@ -715,7 +760,11 @@ export default function StudentPage() {
           <span style={{ fontSize:20 }}>🐱</span>
           <span className="header-title">2호선 스튜디오</span>
         </div>
-        <button onClick={()=>supabase.auth.signOut().then(()=>router.push('/login'))} style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:20, padding:'4px 10px', color:'#fff', fontSize:10, fontWeight:700, cursor:'pointer' }}>로그아웃</button>
+        {user ? (
+          <button onClick={()=>supabase.auth.signOut().then(()=>router.push('/login'))} style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:20, padding:'4px 10px', color:'#fff', fontSize:10, fontWeight:700, cursor:'pointer' }}>로그아웃</button>
+        ) : (
+          <button onClick={()=>router.push('/login')} style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:20, padding:'4px 10px', color:'#fff', fontSize:10, fontWeight:700, cursor:'pointer' }}>로그인 / 가입</button>
+        )}
       </div>
 
       <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 0' }}>
@@ -837,6 +886,15 @@ export default function StudentPage() {
         </div>
 
 
+        {!user ? (
+          <div onClick={()=>router.push('/signup')} style={{ background:'var(--g1)', borderRadius:14, padding:'12px 14px', marginBottom:12, display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid var(--g2)', cursor:'pointer' }}>
+            <div>
+              <div style={{ fontSize:13, fontWeight:800, color:'var(--td)', marginBottom:2 }}>로그인하고 수업 예약하기</div>
+              <div style={{ fontSize:10, color:'var(--tm)' }}>날짜와 수업을 고른 뒤 가입하면 예약할 수 있어요</div>
+            </div>
+            <div style={{ fontSize:18, color:'var(--g4)' }}>›</div>
+          </div>
+        ) : (
         <div style={{ background:'var(--g1)', borderRadius:14, padding:'10px 14px', marginBottom:12, display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid var(--g2)' }}>
           <div style={{ flex:1 }}>
             <div style={{ fontSize:10, color:'var(--tm)', fontWeight:700 }}>내 수강권</div>
@@ -856,6 +914,7 @@ export default function StudentPage() {
             <MoodIndicator ratio={ticket ? (ticket.remain / ticket.total) : 0} style={moodStyle} size={52} />
           </div>
         </div>
+        )}
 
         {meetingTickets.length > 0 && (
           <div style={{ background:'#FFF8E1', borderRadius:14, padding:'10px 14px', marginBottom:12, display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid #FFE082' }}>
@@ -986,14 +1045,14 @@ export default function StudentPage() {
             {selSchedule && !isBooked(selCourse?.id, selSchedule?.id, selectedDay) && (
               <div className="slide-up" style={{ marginBottom:14 }}>
                 {isBookable(selectedDay) ? (
-                  selCourse?.category === 'meeting' || (ticket && ticket.remain > 0) ? (
-                    <button onClick={handleBook}
-                      style={{ width:'100%', padding:'15px 20px', background:ACCENT, color:'#fff', border:'none', borderRadius:14, fontSize:14, fontWeight:600, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
-                      {selCourse?.name} {selSchedule?.start_time}~{selSchedule?.end_time} 예약하기
-                    </button>
-                  ) : (
-                    <div style={{ padding:'14px', background:'#ffebee', borderRadius:14, textAlign:'center', color:'#c0392b', fontSize:12, fontWeight:500 }}>잔여 수강권이 없어요 🐾</div>
-                  )
+                  <button onClick={handleBook}
+                    style={{ width:'100%', padding:'15px 20px', background:ACCENT, color:'#fff', border:'none', borderRadius:14, fontSize:14, fontWeight:600, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                    {!user
+                      ? '가입하고 예약하기'
+                      : (selCourse?.category === 'meeting' || hasValidTicket())
+                        ? `${selCourse?.name} ${selSchedule?.start_time}~${selSchedule?.end_time} 예약하기`
+                        : '예약 요청하기 (수강권 확인 필요)'}
+                  </button>
                 ) : (
                   <div style={{ padding:'14px', background:CARD, borderRadius:14, textAlign:'center', color:'var(--tmu)', fontSize:12, fontWeight:500 }}>{monthDiff() < 0 ? '지난 날짜는 예약할 수 없어요' : '예약은 다음 달까지만 가능해요'}</div>
                 )}

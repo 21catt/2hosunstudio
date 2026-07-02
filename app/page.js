@@ -13,7 +13,8 @@ export default function Home() {
         if (role === 'admin') router.push('/admin')
         else router.push('/student')
       } else {
-        router.push('/login')
+        // 비회원도 캘린더 열람 가능 (예약 시 회원가입 유도)
+        router.push('/student')
       }
     })
   }, [])
