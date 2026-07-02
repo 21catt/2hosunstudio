@@ -6,6 +6,7 @@ import StudentNav from '../../../components/StudentNav'
 import MoodIndicator from '../../../components/MoodIndicator'
 import { THEMES, applyTheme, getSavedTheme, isValidTheme } from '../../../lib/theme'
 import { FARM_CATS, getSavedFarmCat, saveFarmCatLocal, isValidFarmCat } from '../../../lib/farmCats'
+import { PIXEL_CATS, pixelCatImg, getSavedProfileCat, saveProfileCatLocal, isValidPixelCat } from '../../../lib/pixelCats'
 import LoadingCat from '../../../components/LoadingCat'
 
 export default function SettingsPage() {
@@ -15,11 +16,13 @@ export default function SettingsPage() {
   const [themeKey, setThemeKey] = useState('ultra')
   const [moodStyle, setMoodStyle] = useState('cup')
   const [farmCat, setFarmCat] = useState('watering')
+  const [profileCat, setProfileCat] = useState('09-cat')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     setThemeKey(getSavedTheme())
     setFarmCat(getSavedFarmCat())
+    setProfileCat(getSavedProfileCat())
     supabase.auth.getUser().then(async ({ data }) => {
       const u = data.user || null
       setUser(u)
@@ -30,6 +33,7 @@ export default function SettingsPage() {
         setMoodStyle(pref?.mood_style || 'cup')
         if (isValidTheme(pref?.theme)) { setThemeKey(pref.theme); applyTheme(pref.theme) }
         if (isValidFarmCat(pref?.farm_cat)) { setFarmCat(pref.farm_cat); saveFarmCatLocal(pref.farm_cat) }
+        if (isValidPixelCat(pref?.profile_cat)) { setProfileCat(pref.profile_cat); saveProfileCatLocal(pref.profile_cat) }
       }
       setLoading(false)
     })
@@ -54,6 +58,12 @@ export default function SettingsPage() {
     if (user?.id) await supabase.from('user_prefs').upsert({ user_id: user.id, farm_cat: key })
   }
 
+  async function changeProfileCat(key) {
+    setProfileCat(key)
+    saveProfileCatLocal(key)
+    if (user?.id) await supabase.from('user_prefs').upsert({ user_id: user.id, profile_cat: key })
+  }
+
   if (loading) return <LoadingCat />
 
   return (
@@ -69,7 +79,9 @@ export default function SettingsPage() {
 
         {user ? (
           <div className="p-card" style={{ padding:'14px 16px', display:'flex', alignItems:'center', gap:12, marginBottom:16 }}>
-            <div style={{ width:44, height:44, borderRadius:'50%', background:'var(--acBg)', border:'1.5px solid var(--ac)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, flexShrink:0 }}>🐱</div>
+            <div style={{ width:44, height:44, borderRadius:'50%', background:'var(--acBg)', border:'1.5px solid var(--ac)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, overflow:'hidden' }}>
+              <img src={pixelCatImg(profileCat)} alt="프로필" width={34} height={34} style={{ imageRendering:'pixelated', display:'block' }} />
+            </div>
             <div style={{ flex:1, minWidth:0 }}>
               <div style={{ fontSize:14, fontWeight:800, color:'var(--td)' }}>{name || '수강생'}</div>
               <div style={{ fontSize:11, color:'var(--tmu)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{user.email}</div>
@@ -82,6 +94,20 @@ export default function SettingsPage() {
             <button onClick={()=>router.push('/login')} className="p-chip p-chip--sm" style={{ flexShrink:0 }}>로그인 / 가입</button>
           </div>
         )}
+
+        <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:2 }}>프로필 사진</div>
+        <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:10 }}>마음에 드는 얼굴을 골라요 🐱</div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:8, marginBottom:20 }}>
+          {PIXEL_CATS.map(k => {
+            const on = profileCat === k
+            return (
+              <div key={k} onClick={() => changeProfileCat(k)}
+                style={{ cursor:'pointer', aspectRatio:'1', borderRadius:12, background: on ? 'var(--acBg)' : '#fff', border: on ? '2px solid var(--ac)' : '1.5px solid var(--g2)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <img src={pixelCatImg(k)} alt={k} width={40} height={40} style={{ imageRendering:'pixelated', display:'block' }} />
+              </div>
+            )
+          })}
+        </div>
 
         <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>테마 컬러</div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:20 }}>
