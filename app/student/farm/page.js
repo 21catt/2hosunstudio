@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
@@ -11,6 +11,62 @@ const FARM_ENV = {
   line2: { img: '/farm/line2.png', ground: '#D3EF6B' },
   ink:   { img: '/farm/ink.png',   ground: '#FF6A2B' },
   lilac: { img: '/farm/lilac.png', ground: '#FF9AC9' },
+}
+
+// 돌아다니며 일하는 픽셀 농부냥 — 랜덤 지점으로 걷고, 도착하면 자기 일을 한다.
+// act: 'water'(물주기) | 'dig'(밭갈기) | 'seed'(씨뿌리기). 탭하면 그 자리에서 바로 일한다.
+function FarmerCat({ img, bottom, size, act, z = 6, onFx }) {
+  const [x, setX] = useState(20)
+  const [dir, setDir] = useState(1)
+  const [working, setWorking] = useState(false)
+  const [dur, setDur] = useState(2)
+  const xRef = useRef(20)
+  const busyRef = useRef(false)
+
+  useEffect(() => {
+    let alive = true, timer
+    function walk() {
+      if (!alive) return
+      const target = 4 + Math.random() * 78
+      const sec = Math.max(1.2, Math.abs(target - xRef.current) / 14)
+      setDir(target >= xRef.current ? 1 : -1)
+      setDur(sec)
+      setX(target)
+      xRef.current = target
+      timer = setTimeout(work, sec * 1000)
+    }
+    function work() {
+      if (!alive) return
+      busyRef.current = true
+      setWorking(true)
+      onFx(act, xRef.current, bottom, size)
+      timer = setTimeout(() => {
+        if (!alive) return
+        busyRef.current = false
+        setWorking(false)
+        timer = setTimeout(walk, 500 + Math.random() * 1500)
+      }, 1500)
+    }
+    timer = setTimeout(walk, Math.random() * 1200)
+    return () => { alive = false; clearTimeout(timer) }
+  }, [])
+
+  return (
+    <div
+      onClick={() => {
+        if (busyRef.current) return
+        busyRef.current = true
+        setWorking(true)
+        onFx(act, xRef.current, bottom, size)
+        setTimeout(() => { busyRef.current = false; setWorking(false) }, 1200)
+      }}
+      style={{ position:'absolute', left:`${x}%`, bottom, width:size, zIndex:z, cursor:'pointer', transition:`left ${dur}s linear` }}>
+      <span style={{ display:'block', transform:`scaleX(${dir})` }}>
+        <img src={img} alt="농부냥" width={size} className={working ? 'cat-work' : 'cat-walk'}
+          style={{ display:'block', width:'100%', imageRendering:'pixelated' }} />
+      </span>
+    </div>
+  )
 }
 
 function getStage(pt) {
@@ -178,6 +234,16 @@ export default function FarmPage() {
         .drop { position:absolute; width:4px; height:11px; animation: dropFall 1.15s linear forwards; }
         @keyframes noteUp { 0%{opacity:0; transform:translateY(5px)} 25%{opacity:1} 100%{opacity:0; transform:translateY(-28px)} }
         .note { position:absolute; font-size:15px; font-weight:800; animation: noteUp 1.3s ease-out forwards; }
+        @keyframes catWalk { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
+        .cat-walk { animation: catWalk 0.45s ease-in-out infinite; }
+        @keyframes catWork { 0%,100%{transform:rotate(0deg) translateY(0)} 30%{transform:rotate(-7deg) translateY(2px)} 70%{transform:rotate(6deg) translateY(1px)} }
+        .cat-work { animation: catWork 0.4s ease-in-out infinite; transform-origin: bottom center; }
+        @keyframes wdropFall { 0%{opacity:1; transform:translateY(-14px)} 100%{opacity:0; transform:translateY(10px)} }
+        .wdrop { position:absolute; width:4px; height:7px; border-radius:2px; animation: wdropFall 0.7s linear infinite; }
+        @keyframes puffUp { 0%{opacity:0.9; transform:translateY(0) scale(0.6)} 100%{opacity:0; transform:translateY(-14px) scale(1.5)} }
+        .puff { position:absolute; width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,0.78); animation: puffUp 0.8s ease-out infinite; }
+        @keyframes seedToss { 0%{opacity:1; transform:translate(0,-6px)} 60%{opacity:1; transform:translate(var(--dx),-16px)} 100%{opacity:0; transform:translate(calc(var(--dx)*1.5), 4px)} }
+        .seed { position:absolute; width:5px; height:5px; background:#D3EF6B; outline:1.5px solid var(--g5); animation: seedToss 0.9s ease-out infinite; }
       `}</style>
 
       <div className="p-header">
@@ -235,36 +301,33 @@ export default function FarmPage() {
                 <span className="note" style={{ color:'var(--g4)', marginLeft:12, animationDelay:'0.22s' }}>♫</span>
               </div>
             ))}
+            {fx.filter(e=>e.type==='water').map(e => (
+              <div key={e.id} style={{ position:'absolute', left:`calc(${e.x}% + 12px)`, bottom:e.b }}>
+                {Array.from({length:6}).map((_,i)=>(
+                  <span key={i} className="wdrop" style={{ left:i*5, background:'var(--g3)', animationDelay:`${i*0.09}s` }}/>
+                ))}
+              </div>
+            ))}
+            {fx.filter(e=>e.type==='dig').map(e => (
+              <div key={e.id} style={{ position:'absolute', left:`calc(${e.x}% + 8px)`, bottom:e.b }}>
+                {Array.from({length:5}).map((_,i)=>(
+                  <span key={i} className="puff" style={{ left:i*7-8, animationDelay:`${i*0.1}s` }}/>
+                ))}
+              </div>
+            ))}
+            {fx.filter(e=>e.type==='seed').map(e => (
+              <div key={e.id} style={{ position:'absolute', left:`calc(${e.x}% + 12px)`, bottom:e.b }}>
+                {Array.from({length:7}).map((_,i)=>(
+                  <span key={i} className="seed" style={{ '--dx':`${(i-3)*7}px`, animationDelay:`${i*0.06}s` }}/>
+                ))}
+              </div>
+            ))}
           </div>
 
-          {/* 고양이 농부 */}
-          <div className="cat-idle" style={{ position:'absolute', right:18, bottom:148, zIndex:5 }}>
-            <svg width="52" height="64" viewBox="0 0 52 64" fill="none">
-              {/* 귀 */}
-              <path d="M14 22 Q12 12 17 9 Q20 18 21 22" fill="#c8e6c0" stroke="#3d8b50" strokeWidth="1.8"/>
-              <path d="M38 22 Q40 12 35 9 Q32 18 31 22" fill="#c8e6c0" stroke="#3d8b50" strokeWidth="1.8"/>
-              {/* 얼굴 */}
-              <path d="M8 30 Q8 18 26 18 Q44 18 44 30 Q44 42 26 44 Q8 42 8 30Z" fill="#c8e6c0" stroke="#3d8b50" strokeWidth="2"/>
-              {/* 꼬리 */}
-              <path d="M40 42 Q50 46 48 54" stroke="#3d8b50" strokeWidth="2.2" fill="none" strokeLinecap="round"/>
-              {/* 눈 */}
-              <circle cx="20" cy="28" r="2.5" fill="#3d8b50"/>
-              <circle cx="32" cy="28" r="2.5" fill="#3d8b50"/>
-              {/* 표정 */}
-              {catMood==='happy'
-                ? <path d="M21 36 Q26 42 31 36" stroke="#3d8b50" strokeWidth="2" fill="none" strokeLinecap="round"/>
-                : <path d="M22 36 Q26 39 30 36" stroke="#3d8b50" strokeWidth="1.8" fill="none" strokeLinecap="round"/>}
-              {/* 수염 */}
-              <line x1="4" y1="27" x2="14" y2="29" stroke="#3d8b50" strokeWidth="1.5" strokeLinecap="round"/>
-              <line x1="4" y1="32" x2="14" y2="31" stroke="#3d8b50" strokeWidth="1.5" strokeLinecap="round"/>
-              <line x1="48" y1="27" x2="38" y2="29" stroke="#3d8b50" strokeWidth="1.5" strokeLinecap="round"/>
-              <line x1="48" y1="32" x2="38" y2="31" stroke="#3d8b50" strokeWidth="1.5" strokeLinecap="round"/>
-              {/* 몸 + 앞치마 */}
-              <ellipse cx="26" cy="52" rx="16" ry="8" fill="#c8e6c0" stroke="#3d8b50" strokeWidth="1.5"/>
-              <rect x="14" y="44" width="24" height="14" rx="6" fill="#FF8A65"/>
-              <text x="26" y="55" textAnchor="middle" fontSize="7" fontWeight="800" fill="#fff" fontFamily="Nunito,sans-serif">농부냥</text>
-            </svg>
-          </div>
+          {/* 농부냥 3마리 — 앞줄 물주기 · 밭 사이 씨뿌리기 · 울타리 앞 밭갈기 */}
+          <FarmerCat img="/farm/cat-watering.png" bottom={4} size={48} act="water" z={8} onFx={(a,x,b,sz)=>spawnFx(a,{ x, b: b + sz*0.55 })} />
+          <FarmerCat img="/farm/cat-overalls.png" bottom={106} size={40} act="seed" z={7} onFx={(a,x,b,sz)=>spawnFx(a,{ x, b: b + sz*0.5 })} />
+          <FarmerCat img="/farm/cat-apron.png" bottom={168} size={30} act="dig" z={0} onFx={(a,x,b,sz)=>spawnFx(a,{ x, b: b + sz*0.4 })} />
 
           {/* 코인 애니메이션 */}
           {coins.map(coin => (
