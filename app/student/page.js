@@ -916,6 +916,17 @@ export default function StudentPage() {
         </div>
         )}
 
+        {!user && (
+          <div onClick={()=>router.push('/student/curriculum')}
+            style={{ background:'#FBFAF5', borderRadius:14, padding:'14px 16px', marginBottom:12, display:'flex', alignItems:'center', justifyContent:'space-between', border:'1px solid rgba(0,0,0,0.07)', cursor:'pointer' }}>
+            <div>
+              <div style={{ fontSize:13, fontWeight:800, color:'#3a463c', marginBottom:2 }}>🎨 어떤 수업을 배우나요?</div>
+              <div style={{ fontSize:11, color:'var(--tmu)' }}>회차별 커리큘럼을 먼저 둘러보세요</div>
+            </div>
+            <div style={{ fontSize:18, color:'var(--g4)' }}>›</div>
+          </div>
+        )}
+
         {meetingTickets.length > 0 && (
           <div style={{ background:'#FFF8E1', borderRadius:14, padding:'10px 14px', marginBottom:12, display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid #FFE082' }}>
             <div style={{ flex:1 }}>
