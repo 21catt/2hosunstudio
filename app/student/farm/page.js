@@ -14,6 +14,40 @@ const FARM_ENV = {
   lilac: { img: '/farm/lilac.png', ground: '#FF9AC9' },
 }
 
+// 픽셀 구름 5종 — [x, y, w, h] 사각형 조합 (56x22 그리드)
+const CLOUD_SHAPES = [
+  [[10,8,26,6],[0,12,44,8],[32,4,14,8]],
+  [[0,10,52,9],[8,4,20,8],[34,6,14,6]],
+  [[6,12,40,8],[16,6,24,7],[0,14,10,6]],
+  [[0,8,30,10],[24,12,28,7],[10,2,16,8]],
+  [[4,10,48,8],[28,3,18,9],[0,6,14,7]],
+]
+
+// 흘러가는 픽셀 구름 — 방향·속도 랜덤(느리게), 누르면 그 자리에 비
+function DriftCloud({ shape, top, dur, dir, scale, delay, onRain }) {
+  return (
+    <svg width={56 * scale} height={22 * scale} viewBox="0 0 56 22" onClick={onRain}
+      className={dir === 1 ? 'drift-r' : 'drift-l'}
+      style={{ position:'absolute', top:`${top}%`, left:0, cursor:'pointer', zIndex:2, animationDuration:`${dur}s`, animationDelay:`${delay}s` }}>
+      {CLOUD_SHAPES[shape].map(([x, y, w, h], i) => (
+        <rect key={i} x={x} y={y} width={w} height={h} fill="var(--g1)" />
+      ))}
+    </svg>
+  )
+}
+
+// 날개짓하는 픽셀 새 — 두 프레임(∧/∨)을 번갈아 깜빡여 퍼덕임, 누르면 짹짹
+function FlapBird({ top, dur, dir, delay, onChirp }) {
+  return (
+    <svg width="26" height="14" viewBox="0 0 26 14" onClick={onChirp}
+      className={dir === 1 ? 'drift-r' : 'drift-l'}
+      style={{ position:'absolute', top:`${top}%`, left:0, cursor:'pointer', zIndex:3, animationDuration:`${dur}s`, animationDelay:`${delay}s` }}>
+      <path className="wing-a" d="M1 10 L7 3 L13 10 M13 10 L19 3 L25 10" stroke="var(--g5)" strokeWidth="2.4" fill="none"/>
+      <path className="wing-b" d="M1 4 L7 10 L13 4 M13 4 L19 10 L25 4" stroke="var(--g5)" strokeWidth="2.4" fill="none"/>
+    </svg>
+  )
+}
+
 // 돌아다니며 일하는 픽셀 농부냥 — 랜덤 지점으로 걷고, 도착하면 자기 일을 한다.
 // act: 'water'(물주기) | 'dig'(밭갈기) | 'seed'(씨뿌리기). 탭하면 그 자리에서 바로 일한다.
 function FarmerCat({ img, bottom, size, act, z = 6, onFx }) {
@@ -78,78 +112,6 @@ function getStage(pt) {
   return 4
 }
 
-function Carrot({ pt, index, onHarvest }) {
-  const stage = getStage(pt)
-  const [pop, setPop] = useState(false)
-  const colors = [
-    { body:'#FF8A50', leaf:'#2E7D32', leaf2:'#4CAF50', leaf3:'#66BB6A', stripe:'#FFC107' },
-    { body:'#FF7043', leaf:'#1B5E20', leaf2:'#388E3C', leaf3:'#4CAF50', stripe:'#FFB300' },
-    { body:'#FFA040', leaf:'#33691E', leaf2:'#558B2F', leaf3:'#7CB342', stripe:'#FFD54F' },
-    { body:'#FF6D35', leaf:'#2E7D32', leaf2:'#43A047', leaf3:'#66BB6A', stripe:'#FFCA28' },
-  ]
-  const c = colors[index % 4]
-
-  function handleClick() {
-    if (stage < 4) return
-    setPop(true)
-    setTimeout(() => setPop(false), 400)
-    onHarvest(index)
-  }
-
-  return (
-    <div onClick={handleClick} style={{
-      display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-end',
-      width:52, height:72, cursor:stage===4?'pointer':'default',
-      transform:pop?'scale(1.25) rotate(5deg)':'scale(1)',
-      transition:'transform 0.3s cubic-bezier(0.34,1.56,0.64,1)',
-      position:'relative'
-    }}>
-      {stage === 0 && (
-        <div style={{ width:14, height:14, borderRadius:'50%', background:'rgba(139,105,20,0.3)', border:'1.5px dashed #8a6a40', marginBottom:6 }}/>
-      )}
-      {stage >= 1 && (
-        <svg width="48" height="68" viewBox="0 0 48 68" fill="none">
-          {/* 잎 */}
-          <path d={`M24 ${42-stage*5} C22 ${36-stage*5} 19 ${30-stage*5} 21 ${23-stage*5} C23 ${28-stage*5} 24 ${34-stage*5} 24 ${42-stage*5}Z`} fill={c.leaf}/>
-          <path d={`M24 ${42-stage*5} C26 ${35-stage*5} 29 ${30-stage*5} 27 ${23-stage*5} C24 ${28-stage*5} 23 ${34-stage*5} 24 ${42-stage*5}Z`} fill={c.leaf2}/>
-          {stage >= 2 && <>
-            <path d={`M24 ${42-stage*5} C19 ${38-stage*5} 15 ${34-stage*5} 17 ${27-stage*5} C20 ${32-stage*5} 23 ${37-stage*5} 24 ${42-stage*5}Z`} fill={c.leaf2}/>
-            <path d={`M24 ${42-stage*5} C29 ${37-stage*5} 33 ${33-stage*5} 31 ${26-stage*5} C28 ${31-stage*5} 25 ${36-stage*5} 24 ${42-stage*5}Z`} fill={c.leaf3}/>
-          </>}
-          {stage >= 3 && <>
-            <path d={`M24 ${42-stage*5} C17 ${37-stage*5} 13 ${32-stage*5} 15 ${25-stage*5} C18 ${30-stage*5} 22 ${36-stage*5} 24 ${42-stage*5}Z`} fill={c.leaf}/>
-            <path d={`M24 ${42-stage*5} C31 ${36-stage*5} 35 ${31-stage*5} 33 ${24-stage*5} C30 ${29-stage*5} 26 ${35-stage*5} 24 ${42-stage*5}Z`} fill={c.leaf3}/>
-          </>}
-          {/* 몸통 */}
-          {stage >= 2 && (
-            <>
-              <path d={`M${18+stage} ${43-stage*5} Q${16+stage} ${44-stage*5} 23 ${58+stage*2} Q24 ${60+stage*2} 25 ${58+stage*2} Q${32-stage} ${44-stage*5} ${30-stage} ${43-stage*5}Z`} fill={c.body}/>
-              <path d={`M${17+stage} ${44-stage*5} Q${15+stage} ${45-stage*5} ${16+stage} ${48-stage*5}`} stroke="#E8784A" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
-              {Array(Math.min(stage,4)).fill(0).map((_,i) => {
-                const sy = 47-stage*5 + i*5
-                const sw = 5+stage-i
-                return <path key={i} d={`M${24-sw} ${sy} Q24 ${sy-1} ${24+sw} ${sy}`} stroke={c.stripe} strokeWidth="1.6" fill="none" strokeLinecap="round"/>
-              })}
-            </>
-          )}
-          {/* 완성 이펙트 */}
-          {stage === 4 && <>
-            <text x="24" y="10" textAnchor="middle" fontSize="12">✨</text>
-            <text x="6" y="26" fontSize="9">⭐</text>
-            <text x="38" y="22" fontSize="9">⭐</text>
-          </>}
-        </svg>
-      )}
-      <div style={{
-        fontSize:8, fontWeight:800, marginTop:2, padding:'2px 5px', borderRadius:6,
-        background:stage===4?'#FFF3E0':'rgba(255,255,255,0.85)',
-        color:stage===4?'#FF6B20':'var(--g5)'
-      }}>
-        {stage===4?'🥕수확!':stage===0?'씨앗':`${pt}pt`}
-      </div>
-    </div>
-  )
-}
 
 export default function FarmPage() {
   const router = useRouter()
@@ -159,8 +121,26 @@ export default function FarmPage() {
   const [carrots, setCarrots] = useState(Array(8).fill(0))
   const [history, setHistory] = useState([])
   const [loading, setLoading] = useState(true)
-  const [coins, setCoins] = useState([])
-  const [catMood, setCatMood] = useState('idle')
+  // 하늘 구성: 구름 4개(모양 5종 중)·새 2마리 — 방향/속도/높이 랜덤, 마운트 시 1회 결정
+  const [sky] = useState(() => {
+    const shapes = [0, 1, 2, 3, 4].sort(() => Math.random() - 0.5)
+    return {
+      clouds: shapes.slice(0, 4).map(shape => ({
+        shape,
+        top: 2 + Math.random() * 16,
+        dur: 55 + Math.random() * 45,
+        dir: Math.random() < 0.5 ? 1 : -1,
+        scale: 0.8 + Math.random() * 0.8,
+        delay: -Math.random() * 60,
+      })),
+      birds: Array.from({ length: 2 }, () => ({
+        top: 4 + Math.random() * 14,
+        dur: 14 + Math.random() * 10,
+        dir: Math.random() < 0.5 ? 1 : -1,
+        delay: -Math.random() * 12,
+      })),
+    }
+  })
   const [farmTheme, setFarmTheme] = useState('ultra')
   const [farmCat, setFarmCat] = useState('watering')
   const [fx, setFx] = useState([])
@@ -176,6 +156,16 @@ export default function FarmPage() {
     const id = Date.now() + Math.random()
     setFx(f => [...f, { id, type, ...extra }])
     setTimeout(() => setFx(f => f.filter(e => e.id !== id)), 2000)
+  }
+
+  // 하늘 요소 클릭 → 클릭한 지점(% 좌표)에 이펙트
+  function skyClick(type) {
+    return (e) => {
+      const sc = e.currentTarget.parentElement.getBoundingClientRect()
+      const x = ((e.clientX - sc.left) / sc.width) * 100
+      const y = ((e.clientY - sc.top) / sc.height) * 100
+      spawnFx(type, type === 'note' ? { x: x - 2, y: y - 3 } : { x, y })
+    }
   }
 
   useEffect(() => {
@@ -205,16 +195,6 @@ export default function FarmPage() {
     setLoading(false)
   }
 
-  function handleHarvest(index) {
-    setCatMood('happy')
-    setTimeout(() => setCatMood('idle'), 2000)
-    const id = Date.now()
-    setCoins(prev => [...prev, { id, x: 30 + index * 20 }])
-    setTimeout(() => setCoins(prev => prev.filter(c => c.id !== id)), 1000)
-    const newCarrots = [...carrots]
-    newCarrots[index] = 0
-    setCarrots(newCarrots)
-  }
 
   const attended = history.filter(h => h.attended === true).length
   const absent = history.filter(h => h.class_date < todayStr && !h.attended).length
@@ -225,12 +205,13 @@ export default function FarmPage() {
   return (
     <>
       <style>{`
-        @keyframes coinUp { 0%{transform:translateY(0) scale(1);opacity:1} 100%{transform:translateY(-70px) scale(0.3);opacity:0} }
-        @keyframes catBounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
-        .coin { animation: coinUp 0.9s ease-out forwards; }
-        .cat-idle { animation: catBounce 2.5s ease-in-out infinite; }
-        @keyframes birdFly { 0%{transform:translate(-30px,0)} 20%{transform:translate(75px,-8px)} 40%{transform:translate(175px,5px)} 60%{transform:translate(265px,-11px)} 80%{transform:translate(355px,3px)} 100%{transform:translate(440px,-7px)} }
-        .pix-bird { animation: birdFly 15s linear infinite; }
+        @keyframes driftR { from{transform:translateX(-110px)} to{transform:translateX(490px)} }
+        @keyframes driftL { from{transform:translateX(490px)} to{transform:translateX(-110px)} }
+        .drift-r { animation-name: driftR; animation-timing-function: linear; animation-iteration-count: infinite; }
+        .drift-l { animation-name: driftL; animation-timing-function: linear; animation-iteration-count: infinite; }
+        @keyframes flapKf { 0%, 100% { opacity: 1 } 50% { opacity: 0 } }
+        .wing-a { animation: flapKf 0.5s steps(1, end) infinite; }
+        .wing-b { animation: flapKf 0.5s steps(1, end) infinite; animation-delay: -0.25s; }
         @keyframes sunPulse { 0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,0)} 50%{box-shadow:0 0 22px 9px rgba(255,255,255,0.55)} }
         .sun-glow { animation: sunPulse 3s ease-in-out infinite; border-radius:50%; }
         @keyframes rayOut { 0%{transform:rotate(var(--ang)) translateX(8px); opacity:1} 100%{transform:rotate(var(--ang)) translateX(52px); opacity:0} }
@@ -276,12 +257,14 @@ export default function FarmPage() {
             <div onClick={()=>spawnFx('rain', { x: 17 })} style={{ position:'absolute', left:'6%', top:'5%', width:'22%', height:'5%', cursor:'pointer' }} title="비 내리기"/>
             <div onClick={()=>spawnFx('rain', { x: 55 })} style={{ position:'absolute', left:'44%', top:'13%', width:'22%', height:'5%', cursor:'pointer' }} title="비 내리기"/>
 
-            {/* 날아다니는 픽셀 새: 클릭 → 짹짹 */}
-            <svg className="pix-bird" width="26" height="14" viewBox="0 0 26 14"
-              onClick={(e)=>{ const sc = e.currentTarget.parentElement.getBoundingClientRect(); spawnFx('note', { x: ((e.clientX-sc.left)/sc.width)*100 - 2, y: ((e.clientY-sc.top)/sc.height)*100 - 3 }) }}
-              style={{ position:'absolute', top:'9%', left:0, cursor:'pointer' }} aria-hidden="true">
-              <path d="M1 10 L7 3 L13 10 M13 10 L19 3 L25 10" stroke="var(--g5)" strokeWidth="2.4" fill="none"/>
-            </svg>
+            {/* 흘러가는 구름들: 클릭 → 그 자리에 비 */}
+            {sky.clouds.map((c, i) => (
+              <DriftCloud key={`c${i}`} {...c} onRain={skyClick('rain')} />
+            ))}
+            {/* 날개짓하는 새들: 클릭 → 짹짹 */}
+            {sky.birds.map((b, i) => (
+              <FlapBird key={`b${i}`} {...b} onChirp={skyClick('note')} />
+            ))}
           </div>
 
           {/* 하늘 인터랙션 이펙트 레이어 */}
@@ -296,7 +279,7 @@ export default function FarmPage() {
             {fx.filter(e=>e.type==='rain').map(e => (
               <div key={e.id}>
                 {Array.from({length:12}).map((_,i)=>(
-                  <span key={i} className="drop" style={{ left:`${e.x - 9 + (i%6)*3.6}%`, top:'15%', background:'var(--g3)', animationDelay:`${(i%4)*0.12 + Math.floor(i/6)*0.28}s` }}/>
+                  <span key={i} className="drop" style={{ left:`${e.x - 9 + (i%6)*3.6}%`, top:`${(e.y ?? 13) + 2}%`, background:'var(--g3)', animationDelay:`${(i%4)*0.12 + Math.floor(i/6)*0.28}s` }}/>
                 ))}
               </div>
             ))}
@@ -335,46 +318,6 @@ export default function FarmPage() {
             return <FarmerCat key={cat.key} img={cat.img} bottom={6} size={64} act={cat.act} z={8} onFx={(a,x,b,sz)=>spawnFx(a,{ x, b: b + sz*0.55 })} />
           })()}
 
-          {/* 코인 애니메이션 */}
-          {coins.map(coin => (
-            <div key={coin.id} className="coin" style={{ position:'absolute', bottom:180, left:`${coin.x}%`, fontSize:20, zIndex:20 }}>🪙</div>
-          ))}
-
-          {/* 밭 블록 1 (위) */}
-          <div style={{ position:'absolute', bottom:155, left:'50%', transform:'translateX(-50%)', width:300 }}>
-            <svg width="300" height="50" viewBox="0 0 300 50" style={{ position:'absolute', top:0, left:0 }}>
-              <path d="M150 4 L292 36 L150 46 L8 36 Z" fill="#A07820"/>
-              <path d="M8 36 L150 46 L150 72 L8 62 Z" fill="#8B6914"/>
-              <path d="M292 36 L150 46 L150 72 L292 62 Z" fill="#6B5010"/>
-              <path d="M150 4 L292 36 L150 46 L8 36 Z" fill="#8B6914" fillOpacity="0.3"/>
-              {[60,110,160,210].map((x,i)=>(
-                <ellipse key={i} cx={x} cy={28+i%2*4} rx="18" ry="6" fill="#7a5a10" fillOpacity="0.35"/>
-              ))}
-            </svg>
-            <div style={{ position:'relative', zIndex:1, display:'flex', justifyContent:'space-around', padding:'0 16px', paddingTop:2 }}>
-              {carrots.slice(0,4).map((pt,i) => (
-                <Carrot key={i} pt={pt} index={i} onHarvest={handleHarvest}/>
-              ))}
-            </div>
-          </div>
-
-          {/* 밭 블록 2 (아래) */}
-          <div style={{ position:'absolute', bottom:52, left:'50%', transform:'translateX(-50%)', width:300 }}>
-            <svg width="300" height="50" viewBox="0 0 300 50" style={{ position:'absolute', top:0, left:0 }}>
-              <path d="M150 4 L292 36 L150 46 L8 36 Z" fill="#A07820"/>
-              <path d="M8 36 L150 46 L150 72 L8 62 Z" fill="#8B6914"/>
-              <path d="M292 36 L150 46 L150 72 L292 62 Z" fill="#6B5010"/>
-              <path d="M150 4 L292 36 L150 46 L8 36 Z" fill="#8B6914" fillOpacity="0.3"/>
-              {[60,110,160,210].map((x,i)=>(
-                <ellipse key={i} cx={x} cy={28+i%2*4} rx="18" ry="6" fill="#7a5a10" fillOpacity="0.35"/>
-              ))}
-            </svg>
-            <div style={{ position:'relative', zIndex:1, display:'flex', justifyContent:'space-around', padding:'0 16px', paddingTop:2 }}>
-              {carrots.slice(4,8).map((pt,i) => (
-                <Carrot key={i+4} pt={pt} index={i+4} onHarvest={handleHarvest}/>
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* 통계 */}
