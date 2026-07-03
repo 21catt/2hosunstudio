@@ -6,7 +6,7 @@ import StudentNav from '../../../components/StudentNav'
 import MoodIndicator from '../../../components/MoodIndicator'
 import { THEMES, applyTheme, getSavedTheme, isValidTheme } from '../../../lib/theme'
 import { FARM_CATS, getSavedFarmCat, saveFarmCatLocal, isValidFarmCat, getSavedHarvest, saveHarvestLocal } from '../../../lib/farmCats'
-import { PIXEL_CATS_BY_UNLOCK, pixelCatImg, catUnlockAt, getSavedProfileCat, saveProfileCatLocal, isValidPixelCat } from '../../../lib/pixelCats'
+import { PIXEL_CATS_BY_UNLOCK, pixelCatImg, catUnlocked, catUnlockLabel, getSavedProfileCat, saveProfileCatLocal, isValidPixelCat } from '../../../lib/pixelCats'
 import LoadingCat from '../../../components/LoadingCat'
 
 export default function SettingsPage() {
@@ -18,6 +18,7 @@ export default function SettingsPage() {
   const [farmCat, setFarmCat] = useState('watering')
   const [profileCat, setProfileCat] = useState('09-cat')
   const [harvest, setHarvest] = useState(0)
+  const [attended, setAttended] = useState(0)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -37,6 +38,8 @@ export default function SettingsPage() {
         if (isValidFarmCat(pref?.farm_cat)) { setFarmCat(pref.farm_cat); saveFarmCatLocal(pref.farm_cat) }
         if (isValidPixelCat(pref?.profile_cat)) { setProfileCat(pref.profile_cat); saveProfileCatLocal(pref.profile_cat) }
         if (Number.isFinite(pref?.harvest_count) && pref.harvest_count >= 0) { setHarvest(pref.harvest_count); saveHarvestLocal(pref.harvest_count) }
+        const { count } = await supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('user_id', u.id).eq('attended', true)
+        setAttended(count || 0)
       }
       setLoading(false)
     })
@@ -62,7 +65,7 @@ export default function SettingsPage() {
   }
 
   async function changeProfileCat(key) {
-    if (catUnlockAt(key) > harvest) return // 아직 해금 전
+    if (!catUnlocked(key, { harvest, attended })) return // 아직 해금 전
     setProfileCat(key)
     saveProfileCatLocal(key)
     if (user?.id) await supabase.from('user_prefs').upsert({ user_id: user.id, profile_cat: key })
@@ -103,12 +106,11 @@ export default function SettingsPage() {
         )}
 
         <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:2 }}>프로필 사진</div>
-        <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:10 }}>냥밭에서 수확을 쌓으면 새 얼굴이 열려요 🥕 (지금 {harvest}개)</div>
+        <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:10 }}>수업을 듣고 수확을 쌓으면 새 얼굴이 열려요 🥕 (출석 {attended}회 · 수확 {harvest}개)</div>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:8, marginBottom:20 }}>
           {PIXEL_CATS_BY_UNLOCK.map(k => {
             const on = profileCat === k
-            const need = catUnlockAt(k)
-            const locked = need > harvest
+            const locked = !catUnlocked(k, { harvest, attended })
             return (
               <div key={k} onClick={() => changeProfileCat(k)}
                 style={{ cursor: locked ? 'default' : 'pointer', aspectRatio:'1', borderRadius:12, position:'relative', overflow:'hidden', background: on ? 'var(--acBg)' : '#fff', border: on ? '2px solid var(--ac)' : '1.5px solid var(--g2)', display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -117,7 +119,7 @@ export default function SettingsPage() {
                 {locked && (
                   <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:1 }}>
                     <span style={{ fontSize:13 }}>🔒</span>
-                    <span style={{ fontSize:8, fontWeight:800, color:'var(--tm)' }}>수확 {need}</span>
+                    <span style={{ fontSize:8, fontWeight:800, color:'var(--tm)' }}>{catUnlockLabel(k)}</span>
                   </div>
                 )}
               </div>
