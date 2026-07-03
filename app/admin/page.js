@@ -178,13 +178,13 @@ export default function AdminPage() {
       <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'14px 14px 80px' }}>
 
         {/* Segmented filter */}
-        <div style={{ display:'flex', background:'#F0EEE8', borderRadius:13, padding:3, marginBottom:4 }}>
+        <div style={{ display:'flex', background:'var(--g1)', borderRadius:13, padding:3, marginBottom:4 }}>
           {[['all','전체',countAll],['expiring','만료·임박',countExpiring],['zero','잔여 0',countZero]].map(([val, label, cnt]) => {
             const on = filter === val
             return (
               <button key={val} onClick={() => setFilter(val)}
                 style={{ flex:1, textAlign:'center', border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif',
-                  background: on ? '#fff' : 'transparent', color: on ? '#27500A' : '#9b9b93',
+                  background: on ? '#fff' : 'transparent', color: on ? 'var(--acTx)' : 'var(--tmu)',
                   borderRadius:10, padding:'7px 0', fontSize:11, fontWeight: on ? 800 : 700,
                   boxShadow: on ? '0 1px 2px rgba(0,0,0,0.05)' : 'none' }}>
                 {label} {cnt}
@@ -200,7 +200,7 @@ export default function AdminPage() {
           const daysLeft = getDaysLeft(ticket)
           const status   = getStatus(ticket)
           const st       = MST[status]
-          const remainColor = !ticket || ticket.remain === 0 ? '#9B453D' : ticket.remain <= 2 ? '#B5650E' : '#2C6114'
+          const remainColor = !ticket || ticket.remain === 0 ? '#9B453D' : ticket.remain <= 2 ? '#B5650E' : 'var(--acTx)'
           const pct      = ticket && ticket.total ? Math.min(1, ticket.remain / ticket.total) : 0
           const R = 17.5, CIRC = 2 * Math.PI * R
 
@@ -258,7 +258,7 @@ export default function AdminPage() {
                     )}
                   </div>
 
-                  <span style={{ fontSize:17, color: isOpen ? '#4C8B29' : '#cfd6ce', display:'inline-block', transform: isOpen ? 'rotate(90deg)' : 'none', transition:'transform 0.18s', flexShrink:0 }}>›</span>
+                  <span style={{ fontSize:17, color: isOpen ? 'var(--ac)' : 'var(--tl)', display:'inline-block', transform: isOpen ? 'rotate(90deg)' : 'none', transition:'transform 0.18s', flexShrink:0 }}>›</span>
                 </div>
 
                 {/* ── Expanded panel ── */}
@@ -289,14 +289,14 @@ export default function AdminPage() {
                               style={{ padding:'7px 14px', background:'transparent', border:'none', color:'#9B453D', fontSize:16, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>−</button>
                             <span style={{ padding:'7px 12px', fontSize:13, fontWeight:800, color:'#1c2a24', borderLeft:'1px solid rgba(0,0,0,0.1)', borderRight:'1px solid rgba(0,0,0,0.1)', display:'flex', alignItems:'center', fontVariantNumeric:'tabular-nums' }}>{ticket.remain}</span>
                             <button onClick={e => { e.stopPropagation(); adjustTicket(ticket.id, ticket.remain, 1) }}
-                              style={{ padding:'7px 14px', background:'transparent', border:'none', color:'#2C6114', fontSize:16, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>+</button>
+                              style={{ padding:'7px 14px', background:'transparent', border:'none', color:'var(--ac)', fontSize:16, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>+</button>
                           </div>
                         )}
                       </div>
 
                       {ticket && (
                         <div style={{ height:6, borderRadius:4, background:'#EFEDE6', overflow:'hidden' }}>
-                          <div style={{ height:'100%', width:`${Math.min(100, Math.round(ticket.remain / ticket.total * 100))}%`, background:'#4C8B29', borderRadius:4, transition:'width 0.3s ease' }}/>
+                          <div style={{ height:'100%', width:`${Math.min(100, Math.round(ticket.remain / ticket.total * 100))}%`, background:'var(--ac)', borderRadius:4, transition:'width 0.3s ease' }}/>
                         </div>
                       )}
 
@@ -306,7 +306,7 @@ export default function AdminPage() {
                           {QUICK_PRESETS.map(([total, days, label]) => (
                             <button key={label}
                               onClick={e => { e.stopPropagation(); grantTicket(m.id, label, total, days) }}
-                              style={{ padding:'7px 12px', background:'#fff', color:'#2C6114', border:'1px solid rgba(78,138,46,0.3)', borderRadius:11, fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                              style={{ padding:'7px 12px', background:'#fff', color:'var(--acTx)', border:'1px solid rgb(var(--ac-rgb) / 0.3)', borderRadius:11, fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
                               {label}
                             </button>
                           ))}
@@ -351,7 +351,7 @@ export default function AdminPage() {
                             <button onClick={e => { e.stopPropagation(); adjustMeetingTicket(mt.id, mt.remain, -1) }}
                               style={{ padding:'4px 11px', background:'#F7ECEA', color:'#9B453D', border:'none', borderRadius:9, fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>−1</button>
                             <button onClick={e => { e.stopPropagation(); adjustMeetingTicket(mt.id, mt.remain, 1) }}
-                              style={{ padding:'4px 11px', background:'#EFF5E6', color:'#2C6114', border:'none', borderRadius:9, fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>+1</button>
+                              style={{ padding:'4px 11px', background:'var(--acBg)', color:'var(--acTx)', border:'none', borderRadius:9, fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>+1</button>
                           </div>
                         ))
                       ) : (
@@ -381,8 +381,8 @@ export default function AdminPage() {
                         <div style={{ fontSize:19, fontWeight:800, color:'#1c2a24', fontVariantNumeric:'tabular-nums' }}>{m.bookings?.length || 0}</div>
                         <div style={{ fontSize:10, color:'#a2aaa1', fontWeight:700, marginTop:2 }}>총 예약</div>
                       </div>
-                      <div style={{ background:'#EEF4E4', borderRadius:13, padding:'11px 12px' }}>
-                        <div style={{ fontSize:19, fontWeight:800, color:'#2A5E12', fontVariantNumeric:'tabular-nums' }}>{m.bookings?.filter(b => b.status === 'attended').length || 0}</div>
+                      <div style={{ background:'var(--acBg)', borderRadius:13, padding:'11px 12px' }}>
+                        <div style={{ fontSize:19, fontWeight:800, color:'var(--acTx)', fontVariantNumeric:'tabular-nums' }}>{m.bookings?.filter(b => b.status === 'attended').length || 0}</div>
                         <div style={{ fontSize:10, color:'#7c9a6a', fontWeight:700, marginTop:2 }}>출석</div>
                       </div>
                       <div style={{ background:'#F6E8E6', borderRadius:13, padding:'11px 12px' }}>

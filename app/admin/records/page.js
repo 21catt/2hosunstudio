@@ -4,11 +4,11 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import AdminNav from '../../../components/AdminNav'
 
-const ACCENT = '#3B6D11'
-const ACCENT_BG = '#EAF3DE'
-const ACCENT_TEXT = '#27500A'
-const CARD = '#F1EFE8'
-const BORDER = 'rgba(0,0,0,0.14)'
+const ACCENT = 'var(--ac)'
+const ACCENT_BG = 'var(--acBg)'
+const ACCENT_TEXT = 'var(--acTx)'
+const CARD = 'var(--card)'
+const BORDER = 'var(--line)'
 const DOW = ['일','월','화','수','목','금','토']
 
 export default function AdminRecordsPage() {
@@ -152,7 +152,7 @@ export default function AdminRecordsPage() {
               </div>
 
               {isOpen && (
-                <div style={{ borderTop:`1px solid ${ACCENT}28`, padding:'10px 14px 14px' }}>
+                <div style={{ borderTop:'1px solid rgb(var(--ac-rgb) / 0.16)', padding:'10px 14px 14px' }}>
 
                   {r.note && (
                     <div style={{ background:'#fff', borderRadius:10, padding:'10px 12px', border:`1px solid ${BORDER}`, marginBottom:10 }}>

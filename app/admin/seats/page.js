@@ -117,7 +117,7 @@ export default function AdminSeatsPage() {
         <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:16 }}>최대 4장까지 등록 가능 · 현재 {currentPhotos.length}장</div>
 
         {currentPhotos.length > 0 && (
-          <div style={{ position:'relative', borderRadius:14, overflow:'hidden', aspectRatio:'4/3', background:'#f0ede8', marginBottom:14 }}
+          <div style={{ position:'relative', borderRadius:14, overflow:'hidden', aspectRatio:'4/3', background:'var(--g1)', marginBottom:14 }}
             onTouchStart={e => { touchX.current = e.touches[0].clientX }}
             onTouchEnd={e => handleSwipe(e, currentPhotos.length)}>
             <img src={currentPhotos[previewIdx]?.image_url} alt="" style={{ width:'100%', height:'100%', objectFit:'contain' }}/>

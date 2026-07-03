@@ -19,11 +19,11 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-const ACCENT      = '#3B6D11'
-const ACCENT_BG   = '#EAF3DE'
-const ACCENT_TEXT = '#27500A'
-const CARD        = '#F1EFE8'
-const BORDER      = 'rgba(0,0,0,0.14)'
+const ACCENT      = 'var(--ac)'
+const ACCENT_BG   = 'var(--acBg)'
+const ACCENT_TEXT = 'var(--acTx)'
+const CARD        = 'var(--card)'
+const BORDER      = 'var(--line)'
 
 // ─── Sortable row ────────────────────────────────────────────────────────────
 function SortableStepItem({ step, index, editing, setEditing, handleUpdate, handleDelete, saving, onUploadImage, uploading }) {
@@ -447,7 +447,7 @@ function AdminCurriculumInner() {
 
             {/* Add form */}
             {addingNew ? (
-              <div style={{ borderRadius:12, padding:'12px', border:`1.5px solid ${ACCENT}55`, background:ACCENT_BG, marginTop:6 }}>
+              <div style={{ borderRadius:12, padding:'12px', border:'1.5px solid rgb(var(--ac-rgb) / 0.33)', background:ACCENT_BG, marginTop:6 }}>
                 <div style={{ fontSize:10, fontWeight:700, color:ACCENT_TEXT, marginBottom:8 }}>{steps.length + 1}회차 추가</div>
                 <input value={newTitle} onChange={e => setNewTitle(e.target.value)}
                   placeholder="회차 제목 (예: 선 긋기 기초)"
@@ -480,7 +480,7 @@ function AdminCurriculumInner() {
               </div>
             ) : (
               <button onClick={() => setAddingNew(true)}
-                style={{ width:'100%', padding:'11px', background:ACCENT_BG, color:ACCENT_TEXT, border:`1.5px solid ${ACCENT}55`, borderRadius:12, fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif', marginTop:6 }}>
+                style={{ width:'100%', padding:'11px', background:ACCENT_BG, color:ACCENT_TEXT, border:'1.5px solid rgb(var(--ac-rgb) / 0.33)', borderRadius:12, fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif', marginTop:6 }}>
                 + 회차 추가
               </button>
             )}
