@@ -5,3 +5,6 @@ alter table class_courses add column if not exists core_content text;
 
 -- 핵심 내용 사진(공개 URL 배열) 저장용 컬럼. 없어도 앱은 동작(사진 없이 표시).
 alter table class_courses add column if not exists core_images text[];
+
+-- 리치 핵심내용(인물화형 랜딩) 구조화 문서(JSON). 없어도 앱은 동작(리치 뷰 미노출, 기존 텍스트/사진 사용).
+alter table class_courses add column if not exists core_doc jsonb;

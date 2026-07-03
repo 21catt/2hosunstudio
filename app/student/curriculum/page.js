@@ -4,6 +4,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
 import LoadingCat from '../../../components/LoadingCat'
+import CoreDocView from '../../../components/CoreDocView'
+import { hasRichDoc } from '../../../lib/coreDoc'
 
 const ACCENT = 'var(--ac)'
 const ACCENT_BG = 'var(--acBg)'
@@ -492,7 +494,7 @@ function CurriculumInner() {
       const info = courseByName[name]
       const cat = info?.category || 'other'
       if (!groupMap[cat]) groupMap[cat] = []
-      groupMap[cat].push({ name, steps: courseSteps, teacher: info?.teacher || null, coreContent: info?.core_content || null, coreImages: Array.isArray(info?.core_images) ? info.core_images : [], isEnrolled: enrolledSet.has(name) })
+      groupMap[cat].push({ name, steps: courseSteps, teacher: info?.teacher || null, coreContent: info?.core_content || null, coreImages: Array.isArray(info?.core_images) ? info.core_images : [], coreDoc: info?.core_doc || null, isEnrolled: enrolledSet.has(name) })
     }
     for (const cat in groupMap) {
       groupMap[cat].sort((a, b) => a.name.localeCompare(b.name))
@@ -719,8 +721,25 @@ function CurriculumInner() {
                           <span style={{ fontSize:16, color: isOpen ? ACCENT : 'var(--tmu)', display:'inline-block', transition:'transform 0.2s', transform: isOpen ? 'rotate(90deg)' : 'none', flexShrink:0 }}>›</span>
                         </div>
 
-                        {/* 펼친 내용 — 핵심 요약 + 꽉찬 폭 이미지 세로 나열 */}
-                        {isOpen && (
+                        {/* 펼친 내용 — 리치 문서가 있으면 인물화형 뷰, 없으면 텍스트+이미지 */}
+                        {isOpen && hasRichDoc(course.coreDoc) && (
+                          <div style={{ borderTop:`1px solid rgb(var(--ac-rgb) / 0.16)`, margin:'0 -14px', overflow:'hidden' }}>
+                            <CoreDocView doc={course.coreDoc}/>
+                            <div style={{ display:'flex', gap:6, padding:'14px 14px 4px', flexWrap:'wrap' }}>
+                              <button
+                                onClick={() => router.push(`/student?course=${encodeURIComponent(course.name)}`)}
+                                style={{ fontSize:11, padding:'7px 15px', borderRadius:20, background:ACCENT, color:'#fff', border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>
+                                이 수업 예약하기 →
+                              </button>
+                              <button
+                                onClick={() => { setExpandedCourse(key); handleTabSwitch('browse') }}
+                                style={{ fontSize:11, padding:'7px 13px', borderRadius:20, background:ACCENT_BG, color:ACCENT_TEXT, border:`1px solid rgb(var(--ac-rgb) / 0.27)`, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:600 }}>
+                                회차 보기
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        {isOpen && !hasRichDoc(course.coreDoc) && (
                           <div style={{ borderTop:`1px solid rgb(var(--ac-rgb) / 0.16)`, padding:'14px 14px 16px' }}>
                             <div style={{ fontSize:10, fontWeight:800, color:ACCENT, letterSpacing:0.5, marginBottom:6 }}>핵심 내용</div>
                             <div style={{ fontSize:13, lineHeight:1.75, whiteSpace:'pre-wrap', color: course.coreContent ? 'var(--td)' : 'var(--tmu)' }}>

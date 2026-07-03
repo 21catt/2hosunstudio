@@ -18,6 +18,7 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import CoreDocEditor from '../../../components/CoreDocEditor'
 
 const ACCENT      = 'var(--ac)'
 const ACCENT_BG   = 'var(--acBg)'
@@ -171,6 +172,9 @@ function AdminCurriculumInner() {
   const [coreSaving, setCoreSaving] = useState(false)
   const [coreUploading, setCoreUploading] = useState(false)
   const coreDirty = coreContent !== coreInitial || JSON.stringify(coreImages) !== JSON.stringify(coreImagesInitial)
+  // 리치 핵심내용(인물화형) 문서 (class_courses.core_doc)
+  const [coreDoc, setCoreDoc] = useState(null)
+  const [coreDocSaving, setCoreDocSaving] = useState(false)
 
   // 커리큘럼 회차 사진 업로드 (공개 버킷 재사용, 학생/비회원도 조회 가능)
   async function uploadImage(file) {
@@ -231,6 +235,21 @@ function AdminCurriculumInner() {
     const imgs = Array.isArray(data?.[0]?.core_images) ? data[0].core_images : []
     setCoreContent(val); setCoreInitial(val)
     setCoreImages(imgs); setCoreImagesInitial(imgs)
+    setCoreDoc(data?.[0]?.core_doc || null)
+  }
+
+  // 리치 핵심내용 저장 — core_doc(jsonb) 컬럼 필요
+  async function saveCoreDoc(doc) {
+    if (!selectedName) return
+    setCoreDocSaving(true)
+    const { error } = await supabase.from('class_courses').update({ core_doc: doc }).eq('name', selectedName)
+    setCoreDocSaving(false)
+    if (error) {
+      alert('리치 핵심내용 저장 실패: ' + error.message + '\n\nclass_courses.core_doc 컬럼이 없으면 migration-course-core-content.sql을 먼저 실행해 주세요.')
+      return
+    }
+    setCoreDoc(doc)
+    alert('리치 핵심내용이 저장됐어요!')
   }
 
   // 핵심 내용 사진 추가 (여러 장 가능, 공개 버킷)
@@ -423,6 +442,14 @@ function AdminCurriculumInner() {
                   {coreSaving ? '저장 중...' : !coreDirty ? '저장됨' : '핵심 내용 저장'}
                 </button>
               </div>
+            </div>
+
+            {/* 리치 핵심내용(인물화형) — 저장하면 학생 핵심내용 탭에 랜딩형 뷰로 노출 */}
+            <div style={{ borderRadius:12, border:`1.5px solid ${BORDER}`, background:CARD, padding:'12px', marginBottom:16 }}>
+              <div style={{ fontSize:10, color:'var(--tmu)', marginBottom:10, lineHeight:1.5 }}>
+                아래를 작성해 저장하면 학생 화면에서 이 수업의 핵심내용이 <b>인물화형 랜딩</b>으로 보여요. (비워 두면 위의 기본 텍스트/사진이 사용돼요)
+              </div>
+              <CoreDocEditor key={selectedName} initialDoc={coreDoc} onUploadImage={uploadImage} onSave={saveCoreDoc} saving={coreDocSaving}/>
             </div>
 
             {/* Sortable list */}
