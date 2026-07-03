@@ -147,10 +147,14 @@ function AdminCurriculumInner() {
   const [addingNew, setAddingNew] = useState(false)
   const [editing, setEditing] = useState({})
   const [uploading, setUploading] = useState(false)
-  // 개설 수업 '핵심 내용' (class_courses.core_content)
+  // 개설 수업 '핵심 내용' (class_courses.core_content / core_images)
   const [coreContent, setCoreContent] = useState('')
   const [coreInitial, setCoreInitial] = useState('')
+  const [coreImages, setCoreImages] = useState([])
+  const [coreImagesInitial, setCoreImagesInitial] = useState([])
   const [coreSaving, setCoreSaving] = useState(false)
+  const [coreUploading, setCoreUploading] = useState(false)
+  const coreDirty = coreContent !== coreInitial || JSON.stringify(coreImages) !== JSON.stringify(coreImagesInitial)
 
   // 커리큘럼 회차 사진 업로드 (공개 버킷 재사용, 학생/비회원도 조회 가능)
   async function uploadImage(file) {
@@ -204,26 +208,43 @@ function AdminCurriculumInner() {
     setSteps(data || [])
   }
 
-  // 핵심 내용 로드 — core_content 컬럼이 아직 없어도 select('*')라 에러 없이 빈 값 처리
+  // 핵심 내용 로드 — core_content/core_images 컬럼이 아직 없어도 select('*')라 에러 없이 빈 값 처리
   async function loadCore(name) {
     const { data } = await supabase.from('class_courses').select('*').eq('name', name).limit(1)
     const val = data?.[0]?.core_content || ''
-    setCoreContent(val)
-    setCoreInitial(val)
+    const imgs = Array.isArray(data?.[0]?.core_images) ? data[0].core_images : []
+    setCoreContent(val); setCoreInitial(val)
+    setCoreImages(imgs); setCoreImagesInitial(imgs)
+  }
+
+  // 핵심 내용 사진 추가 (여러 장 가능, 공개 버킷)
+  async function addCoreImages(files) {
+    setCoreUploading(true)
+    try {
+      const urls = []
+      for (const f of files) {
+        const url = await uploadImage(f)
+        if (url) urls.push(url)
+      }
+      if (urls.length) setCoreImages(prev => [...prev, ...urls])
+    } finally {
+      setCoreUploading(false)
+    }
   }
 
   async function saveCore() {
     if (!selectedName) return
     setCoreSaving(true)
     const { error } = await supabase.from('class_courses')
-      .update({ core_content: coreContent.trim() || null })
+      .update({ core_content: coreContent.trim() || null, core_images: coreImages.length ? coreImages : null })
       .eq('name', selectedName)
     setCoreSaving(false)
     if (error) {
-      alert('핵심 내용 저장 실패: ' + error.message + '\n\nclass_courses.core_content 컬럼이 없으면 migration-course-core-content.sql을 먼저 실행해 주세요.')
+      alert('핵심 내용 저장 실패: ' + error.message + '\n\nclass_courses.core_content / core_images 컬럼이 없으면 migration-course-core-content.sql을 먼저 실행해 주세요.')
       return
     }
     setCoreInitial(coreContent)
+    setCoreImagesInitial(coreImages)
   }
 
   async function selectName(name) {
@@ -352,12 +373,31 @@ function AdminCurriculumInner() {
                 rows={5}
                 placeholder={`이 수업에서 다루는 핵심 내용을 적어주세요.\n예) 관찰 드로잉의 기본기 — 선·비례·명암을 8주간 단계별로 익힙니다.`}
                 style={{ width:'100%', padding:'10px 12px', borderRadius:10, border:`1.5px solid ${BORDER}`, fontSize:13, resize:'vertical', fontFamily:'Nunito,sans-serif', boxSizing:'border-box', background:'#fff', lineHeight:1.6, outline:'none' }}/>
-              <div style={{ display:'flex', justifyContent:'flex-end', marginTop:8 }}>
+
+              {/* 핵심 내용 사진 */}
+              <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', margin:'10px 0 6px' }}>사진</div>
+              <div style={{ display:'flex', gap:7, flexWrap:'wrap' }}>
+                {coreImages.map((url, i) => (
+                  <div key={url + i} style={{ position:'relative', width:76, height:76, borderRadius:10, overflow:'hidden', background:'var(--g1)', flexShrink:0 }}>
+                    <img src={url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}/>
+                    <button onClick={() => setCoreImages(prev => prev.filter((_, idx) => idx !== i))}
+                      style={{ position:'absolute', top:3, right:3, width:20, height:20, borderRadius:10, background:'rgba(0,0,0,0.55)', color:'#fff', border:'none', fontSize:13, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', padding:0, lineHeight:1 }}>×</button>
+                  </div>
+                ))}
+                <label style={{ width:76, height:76, borderRadius:10, border:`1.5px dashed ${BORDER}`, background:'#fff', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor: coreUploading ? 'default' : 'pointer', flexShrink:0, gap:2 }}>
+                  <span style={{ fontSize:22, color:'#ccc', lineHeight:1 }}>{coreUploading ? '…' : '+'}</span>
+                  <span style={{ fontSize:9, color:'var(--tmu)' }}>{coreUploading ? '업로드 중' : '사진 추가'}</span>
+                  <input type="file" accept="image/*" multiple disabled={coreUploading} style={{ display:'none' }}
+                    onChange={e => { const fs = Array.from(e.target.files || []); e.target.value=''; if (fs.length) addCoreImages(fs) }}/>
+                </label>
+              </div>
+
+              <div style={{ display:'flex', justifyContent:'flex-end', marginTop:10 }}>
                 <button
                   onClick={saveCore}
-                  disabled={coreSaving || coreContent === coreInitial}
-                  style={{ padding:'7px 16px', background: (coreSaving || coreContent === coreInitial) ? 'var(--g1)' : ACCENT, color: (coreSaving || coreContent === coreInitial) ? 'var(--tmu)' : '#fff', border:'none', borderRadius:10, fontSize:12, fontWeight:700, cursor: (coreSaving || coreContent === coreInitial) ? 'default' : 'pointer', fontFamily:'Nunito,sans-serif' }}>
-                  {coreSaving ? '저장 중...' : coreContent === coreInitial ? '저장됨' : '핵심 내용 저장'}
+                  disabled={coreSaving || coreUploading || !coreDirty}
+                  style={{ padding:'7px 16px', background: (coreSaving || coreUploading || !coreDirty) ? 'var(--g1)' : ACCENT, color: (coreSaving || coreUploading || !coreDirty) ? 'var(--tmu)' : '#fff', border:'none', borderRadius:10, fontSize:12, fontWeight:700, cursor: (coreSaving || coreUploading || !coreDirty) ? 'default' : 'pointer', fontFamily:'Nunito,sans-serif' }}>
+                  {coreSaving ? '저장 중...' : !coreDirty ? '저장됨' : '핵심 내용 저장'}
                 </button>
               </div>
             </div>

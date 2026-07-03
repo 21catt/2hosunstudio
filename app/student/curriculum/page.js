@@ -491,7 +491,7 @@ function CurriculumInner() {
       const info = courseByName[name]
       const cat = info?.category || 'other'
       if (!groupMap[cat]) groupMap[cat] = []
-      groupMap[cat].push({ name, steps: courseSteps, teacher: info?.teacher || null, coreContent: info?.core_content || null, isEnrolled: enrolledSet.has(name) })
+      groupMap[cat].push({ name, steps: courseSteps, teacher: info?.teacher || null, coreContent: info?.core_content || null, coreImages: Array.isArray(info?.core_images) ? info.core_images : [], isEnrolled: enrolledSet.has(name) })
     }
     for (const cat in groupMap) {
       groupMap[cat].sort((a, b) => a.name.localeCompare(b.name))
@@ -708,6 +708,14 @@ function CurriculumInner() {
                       <div style={{ fontSize:13, lineHeight:1.7, whiteSpace:'pre-wrap', color: course.coreContent ? 'var(--td)' : 'var(--tmu)', background:'#fff', borderRadius:10, padding:'11px 12px', border:`1px solid ${BORDER}` }}>
                         {course.coreContent || '핵심 내용을 준비 중이에요 🐾'}
                       </div>
+                      {course.coreImages.length > 0 && (
+                        <div style={{ display:'flex', gap:7, flexWrap:'wrap', marginTop:8 }}>
+                          {course.coreImages.map((url, i) => (
+                            <img key={url + i} src={url} alt="" loading="lazy"
+                              style={{ width:96, height:96, objectFit:'cover', borderRadius:10, border:`1px solid ${BORDER}`, display:'block' }}/>
+                          ))}
+                        </div>
+                      )}
                       <div style={{ display:'flex', gap:6, marginTop:10, flexWrap:'wrap' }}>
                         <button
                           onClick={() => router.push(`/student?course=${encodeURIComponent(course.name)}`)}
