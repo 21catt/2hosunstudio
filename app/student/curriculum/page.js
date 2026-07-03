@@ -331,6 +331,7 @@ function CurriculumInner() {
   const [browseLoaded, setBrowseLoaded] = useState(false)
   const [browseLoading, setBrowseLoading] = useState(false)
   const [expandedCourse, setExpandedCourse] = useState(null)
+  const [expandedCore, setExpandedCore] = useState(null) // 핵심 내용 탭 아코디언 (한 번에 하나)
 
   const today = new Date()
   const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`
@@ -690,46 +691,66 @@ function CurriculumInner() {
               </div>
             ) : (
               browseGroups.map(group => (
-                <div key={group.category} style={{ marginBottom:24 }}>
-                  <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:8, letterSpacing:0.3 }}>
-                    {group.label}
+                <div key={group.category} style={{ marginBottom:22 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:8 }}>
+                    <span style={{ width:3, height:12, borderRadius:2, background:ACCENT, display:'inline-block' }}/>
+                    <span style={{ fontSize:11, fontWeight:800, color:'var(--td)', letterSpacing:0.4 }}>{group.label}</span>
+                    <span style={{ fontSize:10, color:'var(--tmu)' }}>{group.courses.length}개 수업</span>
                   </div>
-                  {group.courses.map(course => (
-                    <div key={course.name} style={{ borderRadius:14, marginBottom:8, border:`1.5px solid ${BORDER}`, background:CARD, padding:'13px 14px' }}>
-                      <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap', marginBottom:2 }}>
-                        <span style={{ fontSize:13, fontWeight:700, color:'var(--td)' }}>{course.name}</span>
-                        {course.isEnrolled && (
-                          <span style={{ fontSize:10, background:ACCENT, color:'#fff', borderRadius:20, padding:'2px 7px', fontWeight:700, flexShrink:0 }}>수강 중</span>
+                  {group.courses.map(course => {
+                    const key = `${group.category}__${course.name}`
+                    const isOpen = expandedCore === key
+                    return (
+                      <div key={course.name} style={{ borderRadius:14, marginBottom:8, border:`1.5px solid ${isOpen ? ACCENT : BORDER}`, background: isOpen ? '#fff' : CARD, overflow:'hidden', transition:'border-color 0.15s' }}>
+                        {/* 헤더 — 클릭해서 펼치고 접기 */}
+                        <div onClick={() => setExpandedCore(isOpen ? null : key)}
+                          style={{ padding:'13px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', cursor:'pointer', gap:8 }}>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+                              <span style={{ fontSize:13.5, fontWeight:800, color: isOpen ? ACCENT_TEXT : 'var(--td)' }}>{course.name}</span>
+                              {course.isEnrolled && (
+                                <span style={{ fontSize:10, background:ACCENT, color:'#fff', borderRadius:20, padding:'2px 7px', fontWeight:700, flexShrink:0 }}>수강 중</span>
+                              )}
+                            </div>
+                            <div style={{ fontSize:11, color:'var(--tmu)', marginTop:3 }}>
+                              총 {course.steps.length}회차{course.teacher ? ` · 강사 ${course.teacher}` : ''}
+                            </div>
+                          </div>
+                          <span style={{ fontSize:16, color: isOpen ? ACCENT : 'var(--tmu)', display:'inline-block', transition:'transform 0.2s', transform: isOpen ? 'rotate(90deg)' : 'none', flexShrink:0 }}>›</span>
+                        </div>
+
+                        {/* 펼친 내용 — 핵심 요약 + 꽉찬 폭 이미지 세로 나열 */}
+                        {isOpen && (
+                          <div style={{ borderTop:`1px solid rgb(var(--ac-rgb) / 0.16)`, padding:'14px 14px 16px' }}>
+                            <div style={{ fontSize:10, fontWeight:800, color:ACCENT, letterSpacing:0.5, marginBottom:6 }}>핵심 내용</div>
+                            <div style={{ fontSize:13, lineHeight:1.75, whiteSpace:'pre-wrap', color: course.coreContent ? 'var(--td)' : 'var(--tmu)' }}>
+                              {course.coreContent || '핵심 내용을 준비 중이에요 🐾'}
+                            </div>
+                            {course.coreImages.length > 0 && (
+                              <div style={{ marginTop:12 }}>
+                                {course.coreImages.map((url, i) => (
+                                  <img key={url + i} src={url} alt="" loading="lazy"
+                                    style={{ width:'100%', borderRadius:12, border:`1px solid ${BORDER}`, display:'block', marginBottom:8, boxSizing:'border-box' }}/>
+                                ))}
+                              </div>
+                            )}
+                            <div style={{ display:'flex', gap:6, marginTop:12, flexWrap:'wrap' }}>
+                              <button
+                                onClick={() => router.push(`/student?course=${encodeURIComponent(course.name)}`)}
+                                style={{ fontSize:11, padding:'7px 15px', borderRadius:20, background:ACCENT, color:'#fff', border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>
+                                이 수업 예약하기 →
+                              </button>
+                              <button
+                                onClick={() => { setExpandedCourse(key); handleTabSwitch('browse') }}
+                                style={{ fontSize:11, padding:'7px 13px', borderRadius:20, background:ACCENT_BG, color:ACCENT_TEXT, border:`1px solid rgb(var(--ac-rgb) / 0.27)`, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:600 }}>
+                                회차 보기
+                              </button>
+                            </div>
+                          </div>
                         )}
                       </div>
-                      <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:10 }}>
-                        총 {course.steps.length}회차{course.teacher ? ` · ${course.teacher}` : ''}
-                      </div>
-                      <div style={{ fontSize:13, lineHeight:1.7, whiteSpace:'pre-wrap', color: course.coreContent ? 'var(--td)' : 'var(--tmu)', background:'#fff', borderRadius:10, padding:'11px 12px', border:`1px solid ${BORDER}` }}>
-                        {course.coreContent || '핵심 내용을 준비 중이에요 🐾'}
-                      </div>
-                      {course.coreImages.length > 0 && (
-                        <div style={{ display:'flex', gap:7, flexWrap:'wrap', marginTop:8 }}>
-                          {course.coreImages.map((url, i) => (
-                            <img key={url + i} src={url} alt="" loading="lazy"
-                              style={{ width:96, height:96, objectFit:'cover', borderRadius:10, border:`1px solid ${BORDER}`, display:'block' }}/>
-                          ))}
-                        </div>
-                      )}
-                      <div style={{ display:'flex', gap:6, marginTop:10, flexWrap:'wrap' }}>
-                        <button
-                          onClick={() => router.push(`/student?course=${encodeURIComponent(course.name)}`)}
-                          style={{ fontSize:11, padding:'6px 14px', borderRadius:20, background:ACCENT, color:'#fff', border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>
-                          이 수업 예약하기 →
-                        </button>
-                        <button
-                          onClick={() => { setExpandedCourse(`${group.category}__${course.name}`); handleTabSwitch('browse') }}
-                          style={{ fontSize:11, padding:'6px 12px', borderRadius:20, background:ACCENT_BG, color:ACCENT_TEXT, border:`1px solid rgb(var(--ac-rgb) / 0.27)`, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:600 }}>
-                          회차 보기
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               ))
             )}

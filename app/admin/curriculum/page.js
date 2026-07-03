@@ -132,6 +132,22 @@ function SortableStepItem({ step, index, editing, setEditing, handleUpdate, hand
   )
 }
 
+// ─── 핵심 내용 이미지: 꽉찬 폭 세로 나열 + 드래그 순서 변경 ────────────────────
+function SortableCoreImage({ url, onRemove }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: url })
+  return (
+    <div ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition: transition || undefined, zIndex: isDragging ? 20 : 'auto', position:'relative', marginBottom:8 }}>
+      <img src={url} alt="" style={{ width:'100%', borderRadius:12, display:'block', border:`1.5px solid ${isDragging ? ACCENT : BORDER}`, boxShadow: isDragging ? '0 8px 24px rgba(0,0,0,0.18)' : 'none', boxSizing:'border-box' }}/>
+      {/* 드래그 핸들 — 핸들에만 listeners를 달아 스크롤과 충돌 방지 */}
+      <div {...attributes} {...listeners}
+        style={{ position:'absolute', top:8, left:8, width:30, height:30, borderRadius:9, background:'rgba(0,0,0,0.5)', color:'#fff', fontSize:17, display:'flex', alignItems:'center', justifyContent:'center', cursor:'grab', touchAction:'none', userSelect:'none', lineHeight:1 }}>≡</div>
+      <button onClick={onRemove}
+        style={{ position:'absolute', top:8, right:8, width:26, height:26, borderRadius:13, background:'rgba(0,0,0,0.55)', color:'#fff', border:'none', fontSize:15, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', padding:0, lineHeight:1 }}>×</button>
+    </div>
+  )
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 function AdminCurriculumInner() {
   const router = useRouter()
@@ -374,23 +390,30 @@ function AdminCurriculumInner() {
                 placeholder={`이 수업에서 다루는 핵심 내용을 적어주세요.\n예) 관찰 드로잉의 기본기 — 선·비례·명암을 8주간 단계별로 익힙니다.`}
                 style={{ width:'100%', padding:'10px 12px', borderRadius:10, border:`1.5px solid ${BORDER}`, fontSize:13, resize:'vertical', fontFamily:'Nunito,sans-serif', boxSizing:'border-box', background:'#fff', lineHeight:1.6, outline:'none' }}/>
 
-              {/* 핵심 내용 사진 */}
-              <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', margin:'10px 0 6px' }}>사진</div>
-              <div style={{ display:'flex', gap:7, flexWrap:'wrap' }}>
-                {coreImages.map((url, i) => (
-                  <div key={url + i} style={{ position:'relative', width:76, height:76, borderRadius:10, overflow:'hidden', background:'var(--g1)', flexShrink:0 }}>
-                    <img src={url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}/>
-                    <button onClick={() => setCoreImages(prev => prev.filter((_, idx) => idx !== i))}
-                      style={{ position:'absolute', top:3, right:3, width:20, height:20, borderRadius:10, background:'rgba(0,0,0,0.55)', color:'#fff', border:'none', fontSize:13, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', padding:0, lineHeight:1 }}>×</button>
-                  </div>
-                ))}
-                <label style={{ width:76, height:76, borderRadius:10, border:`1.5px dashed ${BORDER}`, background:'#fff', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor: coreUploading ? 'default' : 'pointer', flexShrink:0, gap:2 }}>
-                  <span style={{ fontSize:22, color:'#ccc', lineHeight:1 }}>{coreUploading ? '…' : '+'}</span>
-                  <span style={{ fontSize:9, color:'var(--tmu)' }}>{coreUploading ? '업로드 중' : '사진 추가'}</span>
-                  <input type="file" accept="image/*" multiple disabled={coreUploading} style={{ display:'none' }}
-                    onChange={e => { const fs = Array.from(e.target.files || []); e.target.value=''; if (fs.length) addCoreImages(fs) }}/>
-                </label>
+              {/* 핵심 내용 사진 — 꽉찬 폭 세로 나열, ≡ 핸들 드래그로 순서 변경 */}
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', margin:'10px 0 6px' }}>
+                <span style={{ fontSize:10, fontWeight:700, color:'var(--tmu)' }}>사진</span>
+                {coreImages.length > 1 && <span style={{ fontSize:9, color:'var(--tmu)' }}>≡ 핸들을 끌어 순서를 바꿔요</span>}
               </div>
+              {coreImages.length > 0 && (
+                <DndContext sensors={sensors} collisionDetection={closestCenter}
+                  onDragEnd={({ active, over }) => {
+                    if (!over || active.id === over.id) return
+                    setCoreImages(prev => arrayMove(prev, prev.indexOf(active.id), prev.indexOf(over.id)))
+                  }}>
+                  <SortableContext items={coreImages} strategy={verticalListSortingStrategy}>
+                    {coreImages.map(url => (
+                      <SortableCoreImage key={url} url={url}
+                        onRemove={() => setCoreImages(prev => prev.filter(u => u !== url))}/>
+                    ))}
+                  </SortableContext>
+                </DndContext>
+              )}
+              <label style={{ display:'block', textAlign:'center', padding:'12px', borderRadius:10, border:`1.5px dashed ${BORDER}`, background:'#fff', fontSize:11, fontWeight:700, color:'var(--tmu)', cursor: coreUploading ? 'default' : 'pointer' }}>
+                {coreUploading ? '업로드 중...' : '📷 사진 추가 (여러 장 가능)'}
+                <input type="file" accept="image/*" multiple disabled={coreUploading} style={{ display:'none' }}
+                  onChange={e => { const fs = Array.from(e.target.files || []); e.target.value=''; if (fs.length) addCoreImages(fs) }}/>
+              </label>
 
               <div style={{ display:'flex', justifyContent:'flex-end', marginTop:10 }}>
                 <button
