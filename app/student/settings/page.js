@@ -6,7 +6,7 @@ import StudentNav from '../../../components/StudentNav'
 import MoodIndicator from '../../../components/MoodIndicator'
 import { THEMES, applyTheme, getSavedTheme, isValidTheme } from '../../../lib/theme'
 import { FARM_CATS, getSavedFarmCat, saveFarmCatLocal, isValidFarmCat, getSavedHarvest, saveHarvestLocal } from '../../../lib/farmCats'
-import { PIXEL_CATS, pixelCatImg, getSavedProfileCat, saveProfileCatLocal, isValidPixelCat } from '../../../lib/pixelCats'
+import { PIXEL_CATS_BY_UNLOCK, pixelCatImg, catUnlockAt, getSavedProfileCat, saveProfileCatLocal, isValidPixelCat } from '../../../lib/pixelCats'
 import LoadingCat from '../../../components/LoadingCat'
 
 export default function SettingsPage() {
@@ -62,6 +62,7 @@ export default function SettingsPage() {
   }
 
   async function changeProfileCat(key) {
+    if (catUnlockAt(key) > harvest) return // 아직 해금 전
     setProfileCat(key)
     saveProfileCatLocal(key)
     if (user?.id) await supabase.from('user_prefs').upsert({ user_id: user.id, profile_cat: key })
@@ -102,14 +103,23 @@ export default function SettingsPage() {
         )}
 
         <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:2 }}>프로필 사진</div>
-        <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:10 }}>마음에 드는 얼굴을 골라요 🐱</div>
+        <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:10 }}>냥밭에서 수확을 쌓으면 새 얼굴이 열려요 🥕 (지금 {harvest}개)</div>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:8, marginBottom:20 }}>
-          {PIXEL_CATS.map(k => {
+          {PIXEL_CATS_BY_UNLOCK.map(k => {
             const on = profileCat === k
+            const need = catUnlockAt(k)
+            const locked = need > harvest
             return (
               <div key={k} onClick={() => changeProfileCat(k)}
-                style={{ cursor:'pointer', aspectRatio:'1', borderRadius:12, background: on ? 'var(--acBg)' : '#fff', border: on ? '2px solid var(--ac)' : '1.5px solid var(--g2)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                <img src={pixelCatImg(k)} alt={k} width={40} height={40} style={{ imageRendering:'pixelated', display:'block' }} />
+                style={{ cursor: locked ? 'default' : 'pointer', aspectRatio:'1', borderRadius:12, position:'relative', overflow:'hidden', background: on ? 'var(--acBg)' : '#fff', border: on ? '2px solid var(--ac)' : '1.5px solid var(--g2)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <img src={pixelCatImg(k)} alt={k} width={40} height={40}
+                  style={{ imageRendering:'pixelated', display:'block', opacity: locked ? 0.25 : 1, filter: locked ? 'grayscale(1)' : 'none' }} />
+                {locked && (
+                  <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:1 }}>
+                    <span style={{ fontSize:13 }}>🔒</span>
+                    <span style={{ fontSize:8, fontWeight:800, color:'var(--tm)' }}>수확 {need}</span>
+                  </div>
+                )}
               </div>
             )
           })}
