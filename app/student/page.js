@@ -6,7 +6,7 @@ import StudentNav from '../../components/StudentNav'
 import { NavIcon } from '../../components/NavIcons'
 import { LogoMark, HeroDeco, DotPatch } from '../../components/Deco'
 import { applyTheme, isValidTheme } from '../../lib/theme'
-import { bookClass, requestBookingApproval, hasValidTicket } from '../../lib/booking'
+import { bookClass, requestBookingApproval, hasValidTicket, cancelBooking } from '../../lib/booking'
 import LoadingCat from '../../components/LoadingCat'
 
 const CELL_W = 56
@@ -30,6 +30,8 @@ export default function StudentHomePage() {
   const [myBookings, setMyBookings] = useState([])
   const [selDate, setSelDate] = useState(null)
   const [bookingBusy, setBookingBusy] = useState(null)
+  const [cancelModal, setCancelModal] = useState(null) // { booking, label } — 취소 확인 다이얼로그
+  const [cancelBusy, setCancelBusy] = useState(false)
   const stripRef = useRef(null)
   const dragMoved = useRef(false)
 
@@ -191,6 +193,29 @@ export default function StudentHomePage() {
     }
   }
 
+  // 예약된 슬롯 클릭 → 취소 가능 여부 확인 후 확인 다이얼로그 오픈 (캘린더 handleCancel과 동일 규칙)
+  function askCancel(mine, label) {
+    if (mine.attended === true) { alert('출석 완료된 수업은 취소할 수 없어요.'); return }
+    const gs = (mine.class_time || '00:00').split('~')[0]
+    if (new Date() >= new Date(`${mine.class_date}T${gs}:00`)) { alert('지난 수업은 취소할 수 없어요.'); return }
+    const diff = (new Date(mine.class_date) - new Date()) / (1000 * 60 * 60)
+    if (diff < 4) { alert('수업 4시간 전에는 취소할 수 없어요.'); return }
+    setCancelModal({ booking: mine, label })
+  }
+
+  // 다이얼로그 '확인' → 실제 취소 실행
+  async function confirmCancel() {
+    if (!cancelModal || !user) return
+    setCancelBusy(true)
+    try {
+      await cancelBooking({ user, ticket, booking: cancelModal.booking })
+      await loadData(user.id)
+      setCancelModal(null)
+    } finally {
+      setCancelBusy(false)
+    }
+  }
+
   if (loading) return <LoadingCat />
 
   const heroSub = user
@@ -306,7 +331,8 @@ export default function StudentHomePage() {
                         const full = cnt >= (c.max_count || 999)
                         const busy = bookingBusy === `${c.id}-${s.id}-${selDate}`
                         if (mine) return (
-                          <span key={s.id} className="p-badge" style={{ padding:'6px 12px', fontSize:11 }}>✓ {label} 예약됨</span>
+                          <button key={s.id} onClick={()=>askCancel(mine, label)} title="눌러서 예약 취소"
+                            className="p-badge" style={{ padding:'6px 12px', fontSize:11, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>✓ {label} 예약됨</button>
                         )
                         if (past) return (
                           <span key={s.id} style={{ fontSize:11, color:'var(--tl)', border:'1.5px solid var(--g1)', borderRadius:20, padding:'6px 12px' }}>{label}</span>
@@ -371,6 +397,27 @@ export default function StudentHomePage() {
           </div>
         )}
       </div>
+
+      {cancelModal && (
+        <div onClick={()=>{ if (!cancelBusy) setCancelModal(null) }}
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100, padding:24 }}>
+          <div onClick={e=>e.stopPropagation()} className="pop-in"
+            style={{ background:'#fff', borderRadius:18, padding:'22px 20px 18px', width:'100%', maxWidth:320, boxShadow:'0 12px 40px rgba(0,0,0,0.22)' }}>
+            <div style={{ fontSize:15, fontWeight:800, color:'var(--td)', marginBottom:8 }}>예약을 취소할까요?</div>
+            <div style={{ fontSize:12, color:'var(--tm)', lineHeight:1.6, marginBottom:18 }}>
+              {cancelModal.booking.class_name}<br/>
+              {cancelModal.booking.class_date.slice(5).replace('-','/')} · {cancelModal.label}<br/>
+              취소하면 수강권이 다시 복구돼요 🐾
+            </div>
+            <div style={{ display:'flex', gap:8 }}>
+              <button disabled={cancelBusy} onClick={()=>setCancelModal(null)}
+                style={{ flex:1, padding:'11px', background:'var(--g1)', color:'var(--g5)', border:'none', borderRadius:12, fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>돌아가기</button>
+              <button disabled={cancelBusy} onClick={confirmCancel}
+                style={{ flex:1, padding:'11px', background:'var(--ac)', color:'#fff', border:'none', borderRadius:12, fontSize:13, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif', opacity:cancelBusy?0.6:1 }}>{cancelBusy?'취소 중…':'확인'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <StudentNav active="home" />
     </>
