@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
+import { pixelCatImg } from '../../lib/pixelCats'
 
 const CATS = [
   { id:'drawing', emoji:'✏️', name:'드로잉', desc:'선과 형태 관찰' },
@@ -10,10 +11,10 @@ const CATS = [
   { id:'free', emoji:'🖼️', name:'자율창작', desc:'자유로운 작업' },
 ]
 
+// 메인 역할(큰 카드) — 강사는 하단 링크로 별도 처리. cat: 프로필/로딩과 같은 픽셀 고양이 얼굴
 const ROLES = [
-  { id:'student', emoji:'🎨', name:'수강생', desc:'수업 예약, 냥밭, 출석 현황을 확인할 수 있어요' },
-  { id:'admin', emoji:'✏️', name:'강사', desc:'수강생 관리, 수업 등록, 예약 현황을 관리할 수 있어요' },
-  { id:'artist', emoji:'🖼️', name:'전시 참여 작가', desc:'회의 일정 참여, 냥밭에서 당근 포인트를 모을 수 있어요' },
+  { id:'student', cat:'01-happy', name:'수강생', desc:'수업 예약, 냥밭, 출석 현황을 확인할 수 있어요' },
+  { id:'artist', cat:'10-playful', name:'전시 참여 작가', desc:'회의 일정 참여, 냥밭에서 당근 포인트를 모을 수 있어요' },
 ]
 
 export default function SignupPage() {
@@ -66,28 +67,40 @@ export default function SignupPage() {
     <>
       <div className="header"><span className="header-title">2호선 스튜디오</span></div>
       <div className="page-body" style={{ paddingTop:32 }}>
-        <div style={{ textAlign:'center', marginBottom:28 }}>
-          <div style={{ fontSize:36, marginBottom:10 }}>🐱</div>
+        <div style={{ textAlign:'center', marginBottom:24 }}>
+          <img src={pixelCatImg('09-cat')} alt="" width={64} height={64}
+            style={{ imageRendering:'pixelated', display:'block', margin:'0 auto 12px' }} />
           <div style={{ fontSize:16, fontWeight:800, color:'var(--td)', marginBottom:6 }}>어떤 역할로 시작할까요?</div>
         </div>
-        {ROLES.map(r => (
-          <div key={r.id} onClick={()=>setRole(r.id)}
-            style={{ border:`1.5px solid ${role===r.id?'var(--g4)':'var(--g1)'}`, background:role===r.id?'#e8f5e0':'var(--surf)',
-              borderRadius:16, padding:'16px 14px', marginBottom:10, display:'flex', alignItems:'center', gap:12, cursor:'pointer' }}>
-            <div style={{ width:48, height:48, borderRadius:14, background:'var(--g1)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22 }}>{r.emoji}</div>
-            <div style={{ flex:1 }}>
-              <div style={{ fontSize:14, fontWeight:800, color:'var(--td)', marginBottom:3 }}>{r.name}</div>
-              <div style={{ fontSize:11, color:'var(--tmu)', lineHeight:1.5 }}>{r.desc}</div>
+        {ROLES.map(r => {
+          const on = role===r.id
+          return (
+            <div key={r.id} onClick={()=>setRole(r.id)}
+              style={{ border: on?'2px solid var(--ac)':'1.5px solid var(--g2)', background: on?'var(--acBg)':'var(--surf)',
+                borderRadius:16, padding:'15px 14px', marginBottom:10, display:'flex', alignItems:'center', gap:12, cursor:'pointer', transition:'border-color 0.15s, background 0.15s' }}>
+              <div style={{ width:48, height:48, borderRadius:14, background: on?'#fff':'var(--acBg)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, overflow:'hidden' }}>
+                <img src={pixelCatImg(r.cat)} alt="" width={38} height={38} style={{ imageRendering:'pixelated', display:'block' }} />
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:14, fontWeight:800, color:'var(--td)', marginBottom:3 }}>{r.name}</div>
+                <div style={{ fontSize:11, color:'var(--tmu)', lineHeight:1.5 }}>{r.desc}</div>
+              </div>
+              <div style={{ width:20, height:20, borderRadius:'50%', flexShrink:0, border:`2px solid ${on?'var(--ac)':'var(--g2)'}`,
+                background: on?'var(--ac)':'transparent', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                {on && <svg width="10" height="8" viewBox="0 0 10 8"><polyline points="1,4 3.5,7 9,1" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round"/></svg>}
+              </div>
             </div>
-            <div style={{ width:20, height:20, borderRadius:'50%', border:`2px solid ${role===r.id?'var(--g4)':'var(--g2)'}`,
-              background:role===r.id?'var(--g4)':'transparent', display:'flex', alignItems:'center', justifyContent:'center' }}>
-              {role===r.id && <svg width="10" height="8" viewBox="0 0 10 8"><polyline points="1,4 3.5,7 9,1" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round"/></svg>}
-            </div>
-          </div>
-        ))}
+          )
+        })}
         <div style={{ height:16 }}/>
         <button className="btn-primary" disabled={!role} onClick={()=>setStep(1)}>다음</button>
         <button className="btn-secondary" onClick={()=>router.push('/login')}>이미 계정이 있어요 → 로그인</button>
+        <div style={{ textAlign:'center', marginTop:18 }}>
+          <span onClick={()=>{ setRole('admin'); setStep(1) }}
+            style={{ fontSize:12, color:'var(--tmu)', cursor:'pointer', textDecoration:'underline', textUnderlineOffset:3 }}>
+            강사이신가요? 강사로 가입하기 →
+          </span>
+        </div>
       </div>
     </>
   )
