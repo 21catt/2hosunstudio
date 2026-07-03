@@ -5,7 +5,7 @@ import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
 import LoadingCat from '../../../components/LoadingCat'
 import CoreDocView from '../../../components/CoreDocView'
-import { hasRichDoc } from '../../../lib/coreDoc'
+import { hasRichDoc, DEFAULT_CORE_DOC } from '../../../lib/coreDoc'
 
 const ACCENT = 'var(--ac)'
 const ACCENT_BG = 'var(--acBg)'
@@ -702,6 +702,10 @@ function CurriculumInner() {
                   {group.courses.map(course => {
                     const key = `${group.category}__${course.name}`
                     const isOpen = expandedCore === key
+                    // 저장된 리치 문서 우선 → 없고 텍스트/사진도 없으면 기본 샘플 폼(예시) 노출
+                    const savedRich = hasRichDoc(course.coreDoc)
+                    const emptyCore = !savedRich && !course.coreContent && course.coreImages.length === 0
+                    const richDoc = savedRich ? course.coreDoc : (emptyCore ? DEFAULT_CORE_DOC : null)
                     return (
                       <div key={course.name} style={{ borderRadius:14, marginBottom:8, border:`1.5px solid ${isOpen ? ACCENT : BORDER}`, background: isOpen ? '#fff' : CARD, overflow:'hidden', transition:'border-color 0.15s' }}>
                         {/* 헤더 — 클릭해서 펼치고 접기 */}
@@ -721,10 +725,10 @@ function CurriculumInner() {
                           <span style={{ fontSize:16, color: isOpen ? ACCENT : 'var(--tmu)', display:'inline-block', transition:'transform 0.2s', transform: isOpen ? 'rotate(90deg)' : 'none', flexShrink:0 }}>›</span>
                         </div>
 
-                        {/* 펼친 내용 — 리치 문서가 있으면 인물화형 뷰, 없으면 텍스트+이미지 */}
-                        {isOpen && hasRichDoc(course.coreDoc) && (
+                        {/* 펼친 내용 — 리치 문서(있으면 실제, 없으면 예시 샘플), 아니면 텍스트+이미지 */}
+                        {isOpen && richDoc && (
                           <div style={{ borderTop:`1px solid rgb(var(--ac-rgb) / 0.16)`, margin:'0 -14px', overflow:'hidden' }}>
-                            <CoreDocView doc={course.coreDoc}/>
+                            <CoreDocView doc={richDoc} sample={!savedRich}/>
                             <div style={{ display:'flex', gap:6, padding:'14px 14px 4px', flexWrap:'wrap' }}>
                               <button
                                 onClick={() => router.push(`/student?course=${encodeURIComponent(course.name)}`)}
@@ -739,7 +743,7 @@ function CurriculumInner() {
                             </div>
                           </div>
                         )}
-                        {isOpen && !hasRichDoc(course.coreDoc) && (
+                        {isOpen && !richDoc && (
                           <div style={{ borderTop:`1px solid rgb(var(--ac-rgb) / 0.16)`, padding:'14px 14px 16px' }}>
                             <div style={{ fontSize:10, fontWeight:800, color:ACCENT, letterSpacing:0.5, marginBottom:6 }}>핵심 내용</div>
                             <div style={{ fontSize:13, lineHeight:1.75, whiteSpace:'pre-wrap', color: course.coreContent ? 'var(--td)' : 'var(--tmu)' }}>

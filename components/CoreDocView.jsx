@@ -91,7 +91,7 @@ function ApproachCard({ a, onZoom, zoomed }) {
   )
 }
 
-export default function CoreDocView({ doc }) {
+export default function CoreDocView({ doc, sample = false }) {
   const d = normalizeDoc(doc)
   const [zoom, setZoom] = useState(null) // { type:'module'|'approach', item }
 
@@ -101,6 +101,12 @@ export default function CoreDocView({ doc }) {
         @keyframes cdFloaty { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
         @keyframes cdBlink { 0%,92%,100%{opacity:1} 96%{opacity:.35} }
         @keyframes cdPop { from{transform:scale(.9); opacity:0} to{transform:scale(1); opacity:1} }`}</style>
+
+      {sample && (
+        <div style={{ background:C.dark, color:C.yellow, fontFamily:MONO, fontSize:11, fontWeight:700, letterSpacing:1, textAlign:'center', padding:'7px 12px' }}>
+          예시 미리보기 — 관리자가 작성하면 실제 핵심내용으로 바뀌어요
+        </div>
+      )}
 
       {/* HERO */}
       <section style={{ background:C.yellow, position:'relative', overflow:'hidden', padding:'40px 22px 44px' }}>
