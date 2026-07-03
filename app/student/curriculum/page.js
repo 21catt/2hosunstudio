@@ -337,18 +337,24 @@ function CurriculumInner() {
 
   useEffect(() => {
     const qCourse = searchParams.get('course')
+    const qTab = searchParams.get('tab')
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user || null)
-      // ?course 로 들어오면(캘린더에서 '커리큘럼 보기') 둘러보기로 열고 해당 수업 펼침
-      if (qCourse) {
+      // 홈에서 '커리큘럼 보러가기' → ?tab=core 로 들어오면 핵심 내용 탭
+      if (qTab === 'core') {
+        setTab('core')
+        loadBrowse(new Set())
+        setLoading(false)
+      } else if (qCourse) {
+        // ?course 로 들어오면(캘린더에서 '커리큘럼 보기') 둘러보기로 열고 해당 수업 펼침
         setTab('browse')
         loadBrowse(new Set())
         setLoading(false)
       } else if (data.user) {
         loadInitial(data.user.id)
       } else {
-        // 비회원: 둘러보기(공개 커리큘럼)만 열람
-        setTab('browse')
+        // 비회원: 핵심 내용(공개 커리큘럼 요약)부터 보여줌
+        setTab('core')
         loadBrowse(new Set())
         setLoading(false)
       }
@@ -461,7 +467,8 @@ function CurriculumInner() {
 
     const [{ data: currRows }, { data: courseRows }] = await Promise.all([
       supabase.from('course_curriculum').select('*').order('course_name').order('step_order'),
-      supabase.from('class_courses').select('name, teacher, category').eq('is_active', true),
+      // select('*') — core_content 컬럼이 아직 없어도 에러 없이 동작
+      supabase.from('class_courses').select('*').eq('is_active', true),
     ])
 
     const stepsByName = {}
@@ -484,7 +491,7 @@ function CurriculumInner() {
       const info = courseByName[name]
       const cat = info?.category || 'other'
       if (!groupMap[cat]) groupMap[cat] = []
-      groupMap[cat].push({ name, steps: courseSteps, teacher: info?.teacher || null, isEnrolled: enrolledSet.has(name) })
+      groupMap[cat].push({ name, steps: courseSteps, teacher: info?.teacher || null, coreContent: info?.core_content || null, isEnrolled: enrolledSet.has(name) })
     }
     for (const cat in groupMap) {
       groupMap[cat].sort((a, b) => a.name.localeCompare(b.name))
@@ -511,7 +518,7 @@ function CurriculumInner() {
 
   function handleTabSwitch(newTab) {
     setTab(newTab)
-    if (newTab === 'browse' && !browseLoaded && !browseLoading) {
+    if ((newTab === 'browse' || newTab === 'core') && !browseLoaded && !browseLoading) {
       loadBrowse(new Set(courseNames))
     }
   }
@@ -532,11 +539,15 @@ function CurriculumInner() {
         {/* Segment toggle */}
         <div style={{ display:'flex', gap:4, marginBottom:18, background:'var(--g1)', borderRadius:12, padding:3 }}>
           <button onClick={() => setTab('my')}
-            style={{ flex:1, padding:'8px', borderRadius:10, background: tab==='my' ? '#fff' : 'transparent', border:'none', fontSize:13, fontWeight:700, cursor:'pointer', color: tab==='my' ? 'var(--td)' : 'var(--tmu)', fontFamily:'Nunito,sans-serif', boxShadow: tab==='my' ? '0 1px 4px rgba(0,0,0,0.1)' : 'none' }}>
+            style={{ flex:1, padding:'8px 4px', borderRadius:10, background: tab==='my' ? '#fff' : 'transparent', border:'none', fontSize:13, fontWeight:700, cursor:'pointer', color: tab==='my' ? 'var(--td)' : 'var(--tmu)', fontFamily:'Nunito,sans-serif', boxShadow: tab==='my' ? '0 1px 4px rgba(0,0,0,0.1)' : 'none' }}>
             내 경로
           </button>
+          <button onClick={() => handleTabSwitch('core')}
+            style={{ flex:1, padding:'8px 4px', borderRadius:10, background: tab==='core' ? '#fff' : 'transparent', border:'none', fontSize:13, fontWeight:700, cursor:'pointer', color: tab==='core' ? 'var(--td)' : 'var(--tmu)', fontFamily:'Nunito,sans-serif', boxShadow: tab==='core' ? '0 1px 4px rgba(0,0,0,0.1)' : 'none' }}>
+            핵심 내용
+          </button>
           <button onClick={() => handleTabSwitch('browse')}
-            style={{ flex:1, padding:'8px', borderRadius:10, background: tab==='browse' ? '#fff' : 'transparent', border:'none', fontSize:13, fontWeight:700, cursor:'pointer', color: tab==='browse' ? 'var(--td)' : 'var(--tmu)', fontFamily:'Nunito,sans-serif', boxShadow: tab==='browse' ? '0 1px 4px rgba(0,0,0,0.1)' : 'none' }}>
+            style={{ flex:1, padding:'8px 4px', borderRadius:10, background: tab==='browse' ? '#fff' : 'transparent', border:'none', fontSize:13, fontWeight:700, cursor:'pointer', color: tab==='browse' ? 'var(--td)' : 'var(--tmu)', fontFamily:'Nunito,sans-serif', boxShadow: tab==='browse' ? '0 1px 4px rgba(0,0,0,0.1)' : 'none' }}>
             둘러보기
           </button>
         </div>
@@ -662,6 +673,57 @@ function CurriculumInner() {
                   </>
                 )}
               </>
+            )}
+          </>
+        )}
+
+        {/* 핵심 내용 — 개설 수업별 핵심 요약 */}
+        {tab === 'core' && (
+          <>
+            {browseLoading ? (
+              <div style={{ display:'flex', justifyContent:'center', padding:48 }}>
+                <span style={{ fontSize:30 }}>🐱</span>
+              </div>
+            ) : browseGroups.length === 0 ? (
+              <div style={{ textAlign:'center', padding:40, color:'var(--tmu)', fontSize:13, lineHeight:1.8 }}>
+                등록된 수업이 없어요 🐾
+              </div>
+            ) : (
+              browseGroups.map(group => (
+                <div key={group.category} style={{ marginBottom:24 }}>
+                  <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:8, letterSpacing:0.3 }}>
+                    {group.label}
+                  </div>
+                  {group.courses.map(course => (
+                    <div key={course.name} style={{ borderRadius:14, marginBottom:8, border:`1.5px solid ${BORDER}`, background:CARD, padding:'13px 14px' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap', marginBottom:2 }}>
+                        <span style={{ fontSize:13, fontWeight:700, color:'var(--td)' }}>{course.name}</span>
+                        {course.isEnrolled && (
+                          <span style={{ fontSize:10, background:ACCENT, color:'#fff', borderRadius:20, padding:'2px 7px', fontWeight:700, flexShrink:0 }}>수강 중</span>
+                        )}
+                      </div>
+                      <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:10 }}>
+                        총 {course.steps.length}회차{course.teacher ? ` · ${course.teacher}` : ''}
+                      </div>
+                      <div style={{ fontSize:13, lineHeight:1.7, whiteSpace:'pre-wrap', color: course.coreContent ? 'var(--td)' : 'var(--tmu)', background:'#fff', borderRadius:10, padding:'11px 12px', border:`1px solid ${BORDER}` }}>
+                        {course.coreContent || '핵심 내용을 준비 중이에요 🐾'}
+                      </div>
+                      <div style={{ display:'flex', gap:6, marginTop:10, flexWrap:'wrap' }}>
+                        <button
+                          onClick={() => router.push(`/student?course=${encodeURIComponent(course.name)}`)}
+                          style={{ fontSize:11, padding:'6px 14px', borderRadius:20, background:ACCENT, color:'#fff', border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>
+                          이 수업 예약하기 →
+                        </button>
+                        <button
+                          onClick={() => { setExpandedCourse(`${group.category}__${course.name}`); handleTabSwitch('browse') }}
+                          style={{ fontSize:11, padding:'6px 12px', borderRadius:20, background:ACCENT_BG, color:ACCENT_TEXT, border:`1px solid rgb(var(--ac-rgb) / 0.27)`, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:600 }}>
+                          회차 보기
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))
             )}
           </>
         )}

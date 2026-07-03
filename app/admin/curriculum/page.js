@@ -147,6 +147,10 @@ function AdminCurriculumInner() {
   const [addingNew, setAddingNew] = useState(false)
   const [editing, setEditing] = useState({})
   const [uploading, setUploading] = useState(false)
+  // 개설 수업 '핵심 내용' (class_courses.core_content)
+  const [coreContent, setCoreContent] = useState('')
+  const [coreInitial, setCoreInitial] = useState('')
+  const [coreSaving, setCoreSaving] = useState(false)
 
   // 커리큘럼 회차 사진 업로드 (공개 버킷 재사용, 학생/비회원도 조회 가능)
   async function uploadImage(file) {
@@ -186,7 +190,7 @@ function AdminCurriculumInner() {
     const defaultName = uniqueNames.includes(qName) ? qName : (uniqueNames[0] || null)
     if (defaultName) {
       setSelectedName(defaultName)
-      await loadSteps(defaultName)
+      await Promise.all([loadSteps(defaultName), loadCore(defaultName)])
     }
     setLoading(false)
   }
@@ -200,11 +204,33 @@ function AdminCurriculumInner() {
     setSteps(data || [])
   }
 
+  // 핵심 내용 로드 — core_content 컬럼이 아직 없어도 select('*')라 에러 없이 빈 값 처리
+  async function loadCore(name) {
+    const { data } = await supabase.from('class_courses').select('*').eq('name', name).limit(1)
+    const val = data?.[0]?.core_content || ''
+    setCoreContent(val)
+    setCoreInitial(val)
+  }
+
+  async function saveCore() {
+    if (!selectedName) return
+    setCoreSaving(true)
+    const { error } = await supabase.from('class_courses')
+      .update({ core_content: coreContent.trim() || null })
+      .eq('name', selectedName)
+    setCoreSaving(false)
+    if (error) {
+      alert('핵심 내용 저장 실패: ' + error.message + '\n\nclass_courses.core_content 컬럼이 없으면 migration-course-core-content.sql을 먼저 실행해 주세요.')
+      return
+    }
+    setCoreInitial(coreContent)
+  }
+
   async function selectName(name) {
     setSelectedName(name)
     setAddingNew(false)
     setEditing({})
-    await loadSteps(name)
+    await Promise.all([loadSteps(name), loadCore(name)])
   }
 
   async function handleAdd() {
@@ -312,6 +338,28 @@ function AdminCurriculumInner() {
           <>
             <div style={{ fontSize:12, fontWeight:700, color:ACCENT_TEXT, marginBottom:10 }}>
               {selectedName} — {steps.length}회차
+            </div>
+
+            {/* 핵심 내용 — 개설 수업 요약(학생 커리큘럼 '핵심 내용' 탭에 노출) */}
+            <div style={{ borderRadius:12, border:`1.5px solid ${BORDER}`, background:CARD, padding:'12px', marginBottom:16 }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                <div style={{ fontSize:12, fontWeight:700, color:ACCENT_TEXT }}>핵심 내용</div>
+                <span style={{ fontSize:10, color:'var(--tmu)' }}>학생에게 이 수업의 핵심을 안내해요</span>
+              </div>
+              <textarea
+                value={coreContent}
+                onChange={e => setCoreContent(e.target.value)}
+                rows={5}
+                placeholder={`이 수업에서 다루는 핵심 내용을 적어주세요.\n예) 관찰 드로잉의 기본기 — 선·비례·명암을 8주간 단계별로 익힙니다.`}
+                style={{ width:'100%', padding:'10px 12px', borderRadius:10, border:`1.5px solid ${BORDER}`, fontSize:13, resize:'vertical', fontFamily:'Nunito,sans-serif', boxSizing:'border-box', background:'#fff', lineHeight:1.6, outline:'none' }}/>
+              <div style={{ display:'flex', justifyContent:'flex-end', marginTop:8 }}>
+                <button
+                  onClick={saveCore}
+                  disabled={coreSaving || coreContent === coreInitial}
+                  style={{ padding:'7px 16px', background: (coreSaving || coreContent === coreInitial) ? 'var(--g1)' : ACCENT, color: (coreSaving || coreContent === coreInitial) ? 'var(--tmu)' : '#fff', border:'none', borderRadius:10, fontSize:12, fontWeight:700, cursor: (coreSaving || coreContent === coreInitial) ? 'default' : 'pointer', fontFamily:'Nunito,sans-serif' }}>
+                  {coreSaving ? '저장 중...' : coreContent === coreInitial ? '저장됨' : '핵심 내용 저장'}
+                </button>
+              </div>
             </div>
 
             {/* Sortable list */}

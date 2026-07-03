@@ -258,12 +258,12 @@ export default function StudentHomePage() {
             <div style={{ display:'flex', gap:8 }}>
               {user ? (
                 <>
-                  <button className="p-chip" onClick={()=>router.push('/student/curriculum')}>자세히 알아보기</button>
+                  <button className="p-chip" onClick={()=>router.push('/student/curriculum?tab=core')}>자세히 알아보기</button>
                   <button className="p-chip p-chip--fill" onClick={()=>router.push('/student/calendar')}>예약하기</button>
                 </>
               ) : (
                 <>
-                  <button className="p-chip" onClick={()=>router.push('/student/curriculum')}>커리큘럼 보기</button>
+                  <button className="p-chip" onClick={()=>router.push('/student/curriculum?tab=core')}>커리큘럼 보기</button>
                   <button className="p-chip p-chip--fill" onClick={()=>router.push('/signup')}>가입하고 예약</button>
                 </>
               )}
@@ -357,7 +357,7 @@ export default function StudentHomePage() {
 
         <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:14 }}>
           {[
-            { label:'커리큘럼', icon:'book', href:'/student/curriculum' },
+            { label:'커리큘럼', icon:'book', href:'/student/curriculum?tab=core' },
             { label:'기록', icon:'clipboard', href:'/student/records' },
             { label:'텃밭', icon:'plant', href:'/student/farm' },
             { label:'알림', icon:'bell', href:'/student/notification' },
