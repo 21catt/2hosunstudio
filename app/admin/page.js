@@ -81,6 +81,15 @@ export default function AdminPage() {
     loadMembers()
   }
 
+  // 횟수 입력 없이 일수(만료일)만 갱신 — 기존 수강권의 잔여·총 횟수는 유지
+  async function updateTicketExpiry(ticket, days) {
+    const expires = new Date()
+    expires.setDate(expires.getDate() + days)
+    await supabase.from('tickets').update({ expires_at: expires.toISOString().split('T')[0] }).eq('id', ticket.id)
+    alert(`만료일이 오늘부터 ${days}일 뒤로 변경됐어요!`)
+    loadMembers()
+  }
+
   async function adjustTicket(ticketId, currentRemain, delta) {
     const next = currentRemain + delta
     if (next < 0) { alert('잔여 횟수가 0보다 작아질 수 없어요'); return }
@@ -317,7 +326,7 @@ export default function AdminPage() {
                             onChange={e => setCustomInputs(prev => ({ ...prev, [m.id]: { ...prev[m.id], total: e.target.value } }))}
                             onClick={e => e.stopPropagation()}
                             style={{ flex:1, minWidth:0, padding:'8px 11px', background:'#F5F4EF', border:'none', borderRadius:11, fontSize:12, fontFamily:'Nunito,sans-serif', color:'#1c2a24', outline:'none' }}/>
-                          <input type="number" placeholder="일수"
+                          <input type="number" placeholder="일수(만료일)"
                             value={customInputs[m.id]?.days || ''}
                             onChange={e => setCustomInputs(prev => ({ ...prev, [m.id]: { ...prev[m.id], days: e.target.value } }))}
                             onClick={e => e.stopPropagation()}
@@ -326,14 +335,26 @@ export default function AdminPage() {
                             e.stopPropagation()
                             const t = parseInt(customInputs[m.id]?.total)
                             const d = parseInt(customInputs[m.id]?.days)
-                            if (!t || !d) { alert('횟수와 일수를 입력해 주세요'); return }
-                            grantTicket(m.id, `${t}회권`, t, d)
+                            if (!t && !d) { alert('횟수 또는 일수를 입력해 주세요'); return }
+                            if (!t) {
+                              // 일수만 입력 → 기존 수강권 만료일만 갱신(횟수 유지)
+                              if (!ticket) { alert('수강권이 없어요. 횟수도 함께 입력해 새로 부여해 주세요'); return }
+                              updateTicketExpiry(ticket, d)
+                            } else {
+                              // 횟수 입력 → 새 수강권 부여(일수 미입력 시 기본 30일)
+                              grantTicket(m.id, `${t}회권`, t, d || 30)
+                            }
                             setCustomInputs(prev => ({ ...prev, [m.id]: { total: '', days: '' } }))
                           }}
                             style={{ padding:'8px 18px', background: PRIMARY, color:'#fff', border:'none', borderRadius:11, fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
-                            부여
+                            {ticket && !customInputs[m.id]?.total && customInputs[m.id]?.days ? '만료일 변경' : '부여'}
                           </button>
                         </div>
+                        {ticket && (
+                          <div style={{ fontSize:9, color:'#a2aaa1', marginTop:6, lineHeight:1.4 }}>
+                            일수만 입력하면 잔여 횟수는 그대로 두고 만료일만 바뀌어요
+                          </div>
+                        )}
                       </div>
                     </div>
 
