@@ -4,6 +4,17 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import StudentNav from '../../components/StudentNav'
 import LoadingCat from '../../components/LoadingCat'
+import { pixelCatImg, DEFAULT_PROFILE_CAT } from '../../lib/pixelCats'
+
+// 작성자 프로필 고양이 아바타 (설정에서 고른 픽셀 고양이 얼굴)
+function CatAvatar({ catKey, size = 36 }) {
+  const s = Math.round(size * 0.78)
+  return (
+    <div style={{ width:size, height:size, borderRadius:'50%', background:'var(--acBg)', border:'1.5px solid var(--g2)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, overflow:'hidden' }}>
+      <img src={pixelCatImg(catKey || DEFAULT_PROFILE_CAT)} alt="" width={s} height={s} style={{ imageRendering:'pixelated', display:'block' }} />
+    </div>
+  )
+}
 
 export default function LoungePage() {
   const router = useRouter()
@@ -22,6 +33,9 @@ export default function LoungePage() {
   const [imagePreviews, setImagePreviews] = useState([])
   const [uploading, setUploading] = useState(false)
   const [carouselIdx, setCarouselIdx] = useState({})
+  const [profileMap, setProfileMap] = useState({})   // {userId: profile_cat}
+  const [likeCount, setLikeCount] = useState({})      // {postId: n}
+  const [myLikes, setMyLikes] = useState(() => new Set())
   const fileRef = useRef()
   const touchX = useRef(null)
   function handleSwipe(e, postId, len) {
@@ -50,17 +64,51 @@ const [existingImages, setExistingImages] = useState([])
       if (!data.user) { router.push('/login'); return }
       setUser(data.user)
       setRole(data.user.user_metadata?.role || 'student')
-      loadPosts()
+      loadPosts(data.user.id)
     })
   }, [])
 
-  async function loadPosts() {
+  async function loadPosts(uid = user?.id) {
     const { data } = await supabase
       .from('posts')
       .select('*, comments(*)')
       .order('created_at', { ascending: false })
-    setPosts(data || [])
+    const list = data || []
+    setPosts(list)
+
+    // 글·댓글 작성자들의 프로필 고양이 조회 → 아바타 표시
+    const ids = new Set()
+    list.forEach(p => { if (p.author_id) ids.add(p.author_id); (p.comments || []).forEach(c => c.user_id && ids.add(c.user_id)) })
+    if (ids.size > 0) {
+      const { data: prefs } = await supabase.from('user_prefs').select('user_id, profile_cat').in('user_id', [...ids])
+      const pm = {}
+      ;(prefs || []).forEach(pr => { if (pr.profile_cat) pm[pr.user_id] = pr.profile_cat })
+      setProfileMap(pm)
+    }
+
+    // 공감(하트): 전체 likes → 게시글별 카운트 + 내 공감 집합
+    const { data: likes } = await supabase.from('likes').select('post_id, user_id')
+    const cnt = {}
+    const mine = new Set()
+    ;(likes || []).forEach(l => { cnt[l.post_id] = (cnt[l.post_id] || 0) + 1; if (l.user_id === uid) mine.add(l.post_id) })
+    setLikeCount(cnt)
+    setMyLikes(mine)
+
     setLoading(false)
+  }
+
+  // 하트 공감 토글 — likes 테이블(1인 1공감)이 단일 소스, 낙관적 갱신.
+  // (posts.likes_count는 남의 글에 UPDATE 불가할 수 있어 건드리지 않음)
+  async function toggleLike(postId) {
+    if (!user) return
+    const liked = myLikes.has(postId)
+    const nextCount = Math.max(0, (likeCount[postId] || 0) + (liked ? -1 : 1))
+    setMyLikes(prev => { const n = new Set(prev); liked ? n.delete(postId) : n.add(postId); return n })
+    setLikeCount(prev => ({ ...prev, [postId]: nextCount }))
+    const { error } = liked
+      ? await supabase.from('likes').delete().eq('post_id', postId).eq('user_id', user.id)
+      : await supabase.from('likes').insert({ post_id: postId, user_id: user.id })
+    if (error) loadPosts() // 실패 시 서버 상태로 되돌림
   }
 
   function handleImageSelect(e) {
@@ -255,36 +303,60 @@ function removeExistingImage(idx) {
       </div>
 
       <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'16px 14px 80px' }}>
-        {/* 탭 */}
-        <div style={{ display:'flex', borderBottom:'2px solid var(--g1)', marginBottom:14, overflowX:'auto' }}>
-          {TAGS.map((t,i) => (
-            <div key={t} onClick={() => setTab(i)}
-              style={{ flexShrink:0, textAlign:'center', padding:'9px 14px', fontSize:12, fontWeight:700,
-                color:tab===i?'var(--g4)':'var(--tmu)', cursor:'pointer',
-                borderBottom:tab===i?'2.5px solid var(--g4)':'2.5px solid transparent', marginBottom:-2 }}>
-              {t}
-            </div>
-          ))}
+        <style>{`
+          @keyframes heartPop { 0%{transform:scale(1)} 35%{transform:scale(1.45)} 60%{transform:scale(0.9)} 100%{transform:scale(1)} }
+          .heart-pop { animation: heartPop 0.4s ease; display:inline-block; }
+        `}</style>
+        {/* 탭 — 알약 칩 */}
+        <div className="no-scrollbar" style={{ display:'flex', gap:7, marginBottom:16, overflowX:'auto', paddingBottom:2 }}>
+          {TAGS.map((t,i) => {
+            const on = tab === i
+            return (
+              <button key={t} onClick={() => setTab(i)}
+                style={{ flexShrink:0, padding:'7px 15px', borderRadius:20, fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif',
+                  border:`1.5px solid ${on ? 'var(--ac)' : 'var(--g2)'}`, background: on ? 'var(--ac)' : 'var(--surf)', color: on ? '#fff' : 'var(--tmu)', transition:'all 0.15s' }}>
+                {t}
+              </button>
+            )
+          })}
         </div>
 
         {/* 게시글 목록 */}
         {filtered.length === 0 ? (
-          <div style={{ textAlign:'center', padding:40, color:'var(--tmu)', fontSize:12 }}>게시글이 없어요 🐾</div>
+          <div style={{ textAlign:'center', padding:'48px 0', color:'var(--tmu)', fontSize:13, lineHeight:1.8 }}>
+            <div style={{ fontSize:34, marginBottom:6 }}>🐱</div>
+            아직 글이 없어요<br/>
+            <span style={{ fontSize:11 }}>첫 소식을 남겨보세요 🐾</span>
+          </div>
         ) : filtered.map(p => {
           const isExp = expanded === p.id
           const tagStyle = TAG_COLORS[p.tag] || TAG_COLORS.etc
           const images = getImages(p)
           const idx = carouselIdx[p.id] || 0
-          
+          const liked = myLikes.has(p.id)
+          const likeN = likeCount[p.id] ?? (p.likes_count || 0)
+
           return (
             <div key={p.id} onClick={() => setExpanded(isExp?null:p.id)}
-              style={{ background:'var(--surf)', borderRadius:16, border:`1.5px solid ${isExp?'var(--g3)':'var(--g1)'}`,
-                marginBottom:10, overflow:'hidden', cursor:'pointer' }}>
+              style={{ background:'var(--surf)', borderRadius:18, border:`1.5px solid ${isExp?'var(--ac)':'var(--g1)'}`,
+                marginBottom:12, overflow:'hidden', cursor:'pointer', boxShadow: isExp ? '0 4px 16px rgba(0,0,0,0.07)' : 'none', transition:'border-color 0.15s, box-shadow 0.15s' }}>
+
+              {/* 작성자 헤더 — 프로필 고양이 아바타 */}
+              <div style={{ display:'flex', alignItems:'center', gap:9, padding:'12px 14px 10px' }}>
+                <CatAvatar catKey={profileMap[p.author_id]} size={38} />
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:12.5, fontWeight:800, color:'var(--td)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.author_name}</div>
+                  <div style={{ fontSize:10, color:'var(--tl)' }}>{p.created_at?.split('T')[0]}</div>
+                </div>
+                <span style={{ fontSize:9, fontWeight:800, padding:'4px 9px', borderRadius:8, background:tagStyle.bg, color:tagStyle.color, flexShrink:0 }}>
+                  {TAGS[TAG_IDS.indexOf(p.tag)]}
+                </span>
+              </div>
 
               {/* 이미지: 접힌 상태는 첫 장만, 펼친 상태는 캐러셀 */}
               {images.length > 0 && !isExp && (
                 <div style={{ position:'relative' }}>
-                  <img src={images[0]} alt="" style={{ width:'100%', height:180, objectFit:'cover', display:'block' }}/>
+                  <img src={images[0]} alt="" style={{ width:'100%', height:190, objectFit:'cover', display:'block' }}/>
                   {images.length > 1 && (
                     <div style={{ position:'absolute', top:8, right:8, background:'rgba(0,0,0,0.55)', color:'#fff', fontSize:10, fontWeight:700, padding:'3px 8px', borderRadius:12 }}>
                       📷 {images.length}
@@ -292,7 +364,7 @@ function removeExistingImage(idx) {
                   )}
                 </div>
               )}
-              
+
               {images.length > 0 && isExp && (
                 <div style={{ position:'relative', background:'#000' }} onClick={e => e.stopPropagation()}
                   onTouchStart={e => { touchX.current = e.touches[0].clientX }}
@@ -315,76 +387,71 @@ function removeExistingImage(idx) {
                 </div>
               )}
 
-              <div style={{ padding:'12px 14px' }}>
-                <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:6 }}>
-                  <span style={{ fontSize:9, fontWeight:800, padding:'3px 8px', borderRadius:8,
-                    background:tagStyle.bg, color:tagStyle.color }}>
-                    {TAGS[TAG_IDS.indexOf(p.tag)]}
-                  </span>
-                </div>
-                <div style={{ fontSize:13, fontWeight:800, color:'var(--td)', marginBottom:4, lineHeight:1.4 }}>{p.title}</div>
-                {!isExp && (
-                  <div style={{ fontSize:11, color:'var(--tmu)', lineHeight:1.5,
+              {/* 본문 */}
+              <div style={{ padding:'11px 14px 13px' }}>
+                <div style={{ fontSize:14, fontWeight:800, color:'var(--td)', marginBottom:4, lineHeight:1.4 }}>{p.title}</div>
+                {!isExp ? (
+                  <div style={{ fontSize:11.5, color:'var(--tmu)', lineHeight:1.55,
                     display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }}>
                     {p.content}
                   </div>
+                ) : (
+                  <div style={{ fontSize:12.5, color:'var(--td)', lineHeight:1.8, whiteSpace:'pre-wrap', marginTop:2 }}>{p.content}</div>
                 )}
-                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:8 }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                    <span style={{ fontSize:10, fontWeight:700, color:'var(--tm)' }}>{p.author_name}</span>
-                    <span style={{ fontSize:10, color:'var(--tl)' }}>{p.created_at?.split('T')[0]}</span>
-                  </div>
-                  <div style={{ display:'flex', gap:10 }}>
-                    <span style={{ fontSize:10, color:'var(--tmu)' }}>💬 {p.comments?.length||0}</span>
-                    <span style={{ fontSize:10, color:'var(--tmu)' }}>❤️ {p.likes_count||0}</span>
-                  </div>
+
+                {/* 액션 — 하트 공감 + 댓글 */}
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:11 }}>
+                  <button onClick={(e) => { e.stopPropagation(); toggleLike(p.id) }} title="공감"
+                    style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 13px', borderRadius:20, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:800, fontSize:12,
+                      border:`1.5px solid ${liked ? '#ff5a7a' : 'var(--g2)'}`, background: liked ? '#ffeef2' : 'var(--surf)', color: liked ? '#ff2d55' : 'var(--tmu)', transition:'all 0.15s' }}>
+                    <span key={liked ? 'on' : 'off'} className={liked ? 'heart-pop' : ''} style={{ fontSize:13, lineHeight:1 }}>{liked ? '❤️' : '🤍'}</span>
+                    {likeN}
+                  </button>
+                  <button onClick={(e) => { e.stopPropagation(); setExpanded(isExp?null:p.id) }}
+                    style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 13px', borderRadius:20, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700, fontSize:12,
+                      border:'1.5px solid var(--g2)', background: isExp ? 'var(--acBg)' : 'var(--surf)', color:'var(--tmu)' }}>
+                    💬 {p.comments?.length||0}
+                  </button>
                 </div>
               </div>
 
-              {/* 펼쳐진 상태 */}
+              {/* 펼쳐진 상태 — 수정/삭제 + 댓글 */}
               {isExp && (
-  <div style={{ borderTop:'1px solid var(--g1)', padding:'12px 14px' }} onClick={e => e.stopPropagation()}>
-    {(role === 'admin' || p.author_id === user?.id) && (
-      <div style={{ display:'flex', gap:6, marginBottom:10, justifyContent:'flex-end' }}>
-        <button onClick={() => startEdit(p)}
-          style={{ background:'var(--g1)', color:'var(--g5)', border:'none', borderRadius:8, padding:'5px 12px', fontSize:10, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
-          수정
-        </button>
-        <button onClick={() => deletePost(p.id)}
-          style={{ background:'#ffebee', color:'#c0392b', border:'none', borderRadius:8, padding:'5px 12px', fontSize:10, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
-          삭제
-        </button>
-      </div>
-    )}
-    <div style={{ fontSize:12, color:'var(--td)', lineHeight:1.8, marginBottom:12, whiteSpace:'pre-wrap' }}>{p.content}</div>
-                  {/* 댓글 */}
-                  <div style={{ borderTop:'1px solid var(--g1)', paddingTop:10 }}>
-                    <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>댓글 {p.comments?.length||0}개</div>
-                    {p.comments?.map(c => (
-                      <div key={c.id} style={{ display:'flex', gap:8, marginBottom:8 }}>
-                        <div style={{ width:26, height:26, borderRadius:'50%', background:'var(--g2)',
-                          display:'flex', alignItems:'center', justifyContent:'center',
-                          fontSize:10, fontWeight:800, color:'var(--g5)', flexShrink:0 }}>
-                          {c.author_name?.[0]}
-                        </div>
-                        <div style={{ background:'var(--bg)', borderRadius:10, padding:'7px 10px', flex:1 }}>
-                          <div style={{ fontSize:9, fontWeight:700, color:'var(--tm)' }}>{c.author_name}</div>
-                          <div style={{ fontSize:11, color:'var(--td)', lineHeight:1.5, marginTop:1 }}>{c.content}</div>
-                        </div>
-                      </div>
-                    ))}
-                    <div style={{ display:'flex', gap:6, marginTop:8 }}>
-                      <input value={comment} onChange={e => setComment(e.target.value)}
-                        placeholder="댓글을 남겨보세요..."
-                        onKeyDown={e => e.key==='Enter' && addComment(p.id)}
-                        style={{ flex:1, background:'var(--bg)', border:'1.5px solid var(--g1)', borderRadius:20,
-                          padding:'7px 12px', fontSize:11, fontFamily:'Nunito,sans-serif', outline:'none', color:'var(--td)' }}/>
-                      <button onClick={() => addComment(p.id)}
-                        style={{ background:'var(--g4)', color:'#fff', border:'none', borderRadius:20,
-                          padding:'7px 14px', fontSize:10, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
-                        등록
+                <div style={{ borderTop:'1px solid var(--g1)', padding:'12px 14px' }} onClick={e => e.stopPropagation()}>
+                  {(role === 'admin' || p.author_id === user?.id) && (
+                    <div style={{ display:'flex', gap:6, marginBottom:10, justifyContent:'flex-end' }}>
+                      <button onClick={() => startEdit(p)}
+                        style={{ background:'var(--g1)', color:'var(--g5)', border:'none', borderRadius:8, padding:'5px 12px', fontSize:10, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                        수정
+                      </button>
+                      <button onClick={() => deletePost(p.id)}
+                        style={{ background:'#ffebee', color:'#c0392b', border:'none', borderRadius:8, padding:'5px 12px', fontSize:10, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                        삭제
                       </button>
                     </div>
+                  )}
+                  {/* 댓글 */}
+                  <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:10 }}>댓글 {p.comments?.length||0}개</div>
+                  {p.comments?.map(c => (
+                    <div key={c.id} style={{ display:'flex', gap:8, marginBottom:9 }}>
+                      <CatAvatar catKey={profileMap[c.user_id]} size={30} />
+                      <div style={{ background:'var(--bg)', borderRadius:12, padding:'7px 11px', flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:9.5, fontWeight:800, color:'var(--tm)' }}>{c.author_name}</div>
+                        <div style={{ fontSize:11.5, color:'var(--td)', lineHeight:1.5, marginTop:1, whiteSpace:'pre-wrap' }}>{c.content}</div>
+                      </div>
+                    </div>
+                  ))}
+                  <div style={{ display:'flex', gap:6, marginTop:10 }}>
+                    <input value={comment} onChange={e => setComment(e.target.value)}
+                      placeholder="댓글을 남겨보세요..."
+                      onKeyDown={e => e.key==='Enter' && addComment(p.id)}
+                      style={{ flex:1, background:'var(--bg)', border:'1.5px solid var(--g1)', borderRadius:20,
+                        padding:'8px 13px', fontSize:11.5, fontFamily:'Nunito,sans-serif', outline:'none', color:'var(--td)' }}/>
+                    <button onClick={() => addComment(p.id)}
+                      style={{ background:'var(--ac)', color:'#fff', border:'none', borderRadius:20,
+                        padding:'8px 15px', fontSize:11, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                      등록
+                    </button>
                   </div>
                 </div>
               )}
@@ -396,9 +463,9 @@ function removeExistingImage(idx) {
         
           <button onClick={() => setShowWrite(true)}
             style={{ position:'fixed', bottom:76, right:'calc(50% - 185px)',
-              display:'flex', alignItems:'center', gap:6, background:'var(--g4)', color:'#fff',
-              border:'none', borderRadius:24, padding:'10px 16px', fontSize:12, fontWeight:700,
-              cursor:'pointer', fontFamily:'Nunito,sans-serif', boxShadow:'0 2px 8px rgba(61,139,80,0.3)' }}>
+              display:'flex', alignItems:'center', gap:6, background:'var(--ac)', color:'#fff',
+              border:'none', borderRadius:24, padding:'11px 17px', fontSize:12, fontWeight:800,
+              cursor:'pointer', fontFamily:'Nunito,sans-serif', boxShadow:'0 4px 14px rgb(var(--ac-rgb) / 0.35)' }}>
             ✏️ 글쓰기
           </button>
        
