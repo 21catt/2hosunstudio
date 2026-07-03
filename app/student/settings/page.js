@@ -5,7 +5,7 @@ import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
 import MoodIndicator from '../../../components/MoodIndicator'
 import { THEMES, applyTheme, getSavedTheme, isValidTheme } from '../../../lib/theme'
-import { FARM_CATS, getSavedFarmCat, saveFarmCatLocal, isValidFarmCat, getSavedHarvest, saveHarvestLocal } from '../../../lib/farmCats'
+import { FARM_CATS, getSavedFarmCat, saveFarmCatLocal, isValidFarmCat, getSavedHarvest, saveHarvestLocal, farmCatUnlocked, farmCatUnlockLabel } from '../../../lib/farmCats'
 import { PIXEL_CATS_BY_UNLOCK, pixelCatImg, catUnlocked, catUnlockLabel, getSavedProfileCat, saveProfileCatLocal, isValidPixelCat } from '../../../lib/pixelCats'
 import LoadingCat from '../../../components/LoadingCat'
 
@@ -55,6 +55,7 @@ export default function SettingsPage() {
   }
 
   async function changeFarmCat(key) {
+    if (!farmCatUnlocked(key, { harvest })) return // 아직 해금 전
     setFarmCat(key)
     saveFarmCatLocal(key)
     // user_prefs.farm_cat 컬럼이 없으면 upsert만 실패하고 기기(localStorage) 저장은 유지됨
@@ -155,16 +156,23 @@ export default function SettingsPage() {
         </div>
 
         <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:2 }}>농부냥</div>
-        <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:10 }}>냥밭을 돌봐줄 고양이 한 마리를 골라요 🥕</div>
-        <div style={{ display:'flex', gap:8, marginBottom:20 }}>
+        <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:10 }}>냥밭을 돌봐줄 고양이 한 마리를 골라요 🥕 (작물 12개 수확하면 농부 냥냥이가 열려요)</div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, marginBottom:20 }}>
           {FARM_CATS.map(c => {
             const on = farmCat === c.key
+            const locked = !farmCatUnlocked(c.key, { harvest })
             return (
               <div key={c.key} onClick={() => changeFarmCat(c.key)}
-                style={{ flex:1, cursor:'pointer', background: on ? 'var(--acBg)' : '#fff', border: on ? '2px solid var(--ac)' : '1.5px solid var(--g2)', borderRadius:14, padding:'12px 4px 9px', display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
-                <img src={c.img} alt={c.name} width={44} style={{ imageRendering:'pixelated', display:'block' }} />
-                <span style={{ fontSize:10, fontWeight: on?800:700, color: on?'var(--acTx)':'var(--td)' }}>{c.name}</span>
-                <span style={{ fontSize:9, color:'var(--tmu)' }}>{c.desc}</span>
+                style={{ cursor: locked ? 'default' : 'pointer', position:'relative', overflow:'hidden', background: on ? 'var(--acBg)' : '#fff', border: on ? '2px solid var(--ac)' : '1.5px solid var(--g2)', borderRadius:14, padding:'12px 4px 9px', display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
+                <img src={c.img} alt={c.name} width={44} style={{ imageRendering:'pixelated', display:'block', opacity: locked ? 0.25 : 1, filter: locked ? 'grayscale(1)' : 'none' }} />
+                <span style={{ fontSize:10, fontWeight: on?800:700, color: on?'var(--acTx)':'var(--td)', opacity: locked ? 0.4 : 1 }}>{c.name}</span>
+                <span style={{ fontSize:9, color:'var(--tmu)', opacity: locked ? 0.4 : 1 }}>{c.desc}</span>
+                {locked && (
+                  <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:2, background:'rgba(255,255,255,0.35)' }}>
+                    <span style={{ fontSize:15 }}>🔒</span>
+                    <span style={{ fontSize:9, fontWeight:800, color:'var(--tm)' }}>{farmCatUnlockLabel(c.key)}</span>
+                  </div>
+                )}
               </div>
             )
           })}
