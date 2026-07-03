@@ -123,17 +123,37 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
         // 1. 수업 정보 업데이트
         await supabase.from('class_courses').update(courseData).eq('id', courseId)
 
-        // 2. 스케줄 diff 계산
-        const oldSchedules = initial?.class_schedules || []
+        // 2. 스케줄 diff 계산 — initial의 임베드가 아니라 테이블에서 직접 읽는다.
+        // (과거 중복 행 폭증으로 임베드가 1000행에서 잘려, 새 시간이 diff에 안 잡히고
+        //  저장할 때마다 재삽입되는 사고가 있었음. 직접 조회 + 슬롯 키 dedupe로 자가 치유.)
+        const { data: oldRows } = await supabase.from('class_schedules').select('*').eq('course_id', courseId)
+        const oldSchedules = oldRows || []
         const newSet = []
         selectedDays.forEach(day => {
           ;(daySlots[day] || []).filter(s=>s.selected).forEach(slot => {
             newSet.push({ day_of_week:day, start_time:slot.start, end_time:slot.end })
           })
         })
-        const match = (a,b) => a.day_of_week===b.day_of_week && a.start_time===b.start_time && a.end_time===b.end_time
-        const removed = oldSchedules.filter(old => !newSet.some(n => match(n, old)))
-        const toAdd   = newSet.filter(n => !oldSchedules.some(old => match(old, n)))
+        const slotKey = s => `${s.day_of_week}|${s.start_time}|${s.end_time}`
+        const newKeys = new Set(newSet.map(slotKey))
+        const keptIdByKey = new Map() // 유지되는 슬롯 → 대표 행 id (슬롯당 1행)
+        const dupExtras = []          // 유지 슬롯의 잉여 중복 행 (예약만 대표로 옮기고 삭제)
+        const removed = []            // 선택 해제된 슬롯 행 (예약 환불 후 삭제)
+        for (const old of oldSchedules) {
+          const k = slotKey(old)
+          if (!newKeys.has(k)) { removed.push(old); continue }
+          if (keptIdByKey.has(k)) dupExtras.push({ id: old.id, keepId: keptIdByKey.get(k) })
+          else keptIdByKey.set(k, old.id)
+        }
+        const toAdd = newSet.filter(n => !keptIdByKey.has(slotKey(n)))
+
+        // 2-1. 잉여 중복 행 정리: 예약을 대표 행으로 재지정 후 행만 삭제 (환불 아님)
+        if (dupExtras.length > 0) {
+          for (const d of dupExtras) {
+            await supabase.from('bookings').update({ schedule_id: d.keepId }).eq('schedule_id', d.id)
+          }
+          await supabase.from('class_schedules').delete().in('id', dupExtras.map(d => d.id))
+        }
 
         // 3. 삭제된 스케줄 처리 (배치 쿼리)
         const removedIds = removed.map(s => s.id).filter(Boolean)
