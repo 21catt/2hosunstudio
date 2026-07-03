@@ -18,7 +18,6 @@ export default function SettingsPage() {
   const [farmCat, setFarmCat] = useState('watering')
   const [profileCat, setProfileCat] = useState('09-cat')
   const [harvest, setHarvest] = useState(0)
-  const [attended, setAttended] = useState(0)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -38,8 +37,6 @@ export default function SettingsPage() {
         if (isValidFarmCat(pref?.farm_cat)) { setFarmCat(pref.farm_cat); saveFarmCatLocal(pref.farm_cat) }
         if (isValidPixelCat(pref?.profile_cat)) { setProfileCat(pref.profile_cat); saveProfileCatLocal(pref.profile_cat) }
         if (Number.isFinite(pref?.harvest_count) && pref.harvest_count >= 0) { setHarvest(pref.harvest_count); saveHarvestLocal(pref.harvest_count) }
-        const { count } = await supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('user_id', u.id).eq('attended', true)
-        setAttended(count || 0)
       }
       setLoading(false)
     })
@@ -65,7 +62,7 @@ export default function SettingsPage() {
   }
 
   async function changeProfileCat(key) {
-    if (!catUnlocked(key, { harvest, attended })) return // 아직 해금 전
+    if (!catUnlocked(key, { harvest })) return // 아직 해금 전
     setProfileCat(key)
     saveProfileCatLocal(key)
     if (user?.id) await supabase.from('user_prefs').upsert({ user_id: user.id, profile_cat: key })
@@ -106,11 +103,11 @@ export default function SettingsPage() {
         )}
 
         <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:2 }}>프로필 사진</div>
-        <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:10 }}>수업을 듣고 수확을 쌓으면 새 얼굴이 열려요 🥕 (출석 {attended}회 · 수확 {harvest}개)</div>
+        <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:10 }}>냥밭에서 작물을 수확하면 새 얼굴이 열려요 🥕 (지금 {harvest}개)</div>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:8, marginBottom:20 }}>
           {PIXEL_CATS_BY_UNLOCK.map(k => {
             const on = profileCat === k
-            const locked = !catUnlocked(k, { harvest, attended })
+            const locked = !catUnlocked(k, { harvest })
             return (
               <div key={k} onClick={() => changeProfileCat(k)}
                 style={{ cursor: locked ? 'default' : 'pointer', aspectRatio:'1', borderRadius:12, position:'relative', overflow:'hidden', background: on ? 'var(--acBg)' : '#fff', border: on ? '2px solid var(--ac)' : '1.5px solid var(--g2)', display:'flex', alignItems:'center', justifyContent:'center' }}>
