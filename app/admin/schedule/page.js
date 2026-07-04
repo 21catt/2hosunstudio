@@ -12,6 +12,22 @@ const CATS = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', fr
 const CAT_ICON = { drawing:'pencil', painting:'palette', sculpture:'box', free:'photo', meeting:'users' }
 const CAT_COLORS = { drawing:'#e8f5e0', painting:'#EDE7F6', sculpture:'#FFF3E0', free:'#E3F2FD', meeting:'#FFF8E1' }
 const CAT_TEXT = { drawing:'var(--g5)', painting:'#4A148C', sculpture:'#E65100', free:'#0D47A1', meeting:'#F57F17' }
+// 자유 입력 시간 정규화 — "1030"·"10:30"·"9:5" 등을 "10:30"/"09:05"로. 실패 시 null.
+function parseTime(v) {
+  const s = String(v || '').trim().replace(/[.;]/g, ':')
+  let h, m
+  const withColon = s.match(/^(\d{1,2}):(\d{1,2})$/)
+  const digitsOnly = s.match(/^(\d{1,4})$/)
+  if (withColon) { h = +withColon[1]; m = +withColon[2] }
+  else if (digitsOnly) {
+    const d = digitsOnly[1]
+    if (d.length <= 2) { h = +d; m = 0 }            // "14" → 14:00
+    else { h = +d.slice(0, d.length - 2); m = +d.slice(-2) } // "1430" → 14:30
+  } else return null
+  if (h > 23 || m > 59) return null
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
 const DEFAULT_SLOTS = [
   { start:'10:00', end:'12:00' },
   { start:'12:00', end:'14:00' },
@@ -100,26 +116,30 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
   function toggleDaySlot(day, i) {
     setDaySlots(prev => ({...prev, [day]: prev[day].map((s,idx) => idx===i ? {...s,selected:!s.selected} : s)}))
   }
-  // 기본 2시간 블록 외에 원하는 시간(분 단위)을 직접 추가 — 이미 있는 시간이면 선택만 켠다
+  // 기본 2시간 블록 외에 원하는 시간(분 단위)을 직접 추가 — 이미 있는 시간이면 선택만 켠다.
+  // "1030" 같은 숫자만 입력해도 10:30으로 알아서 변환.
   function addCustomSlot(day) {
     const c = customSlot[day]
-    if (!c?.start || !c?.end) { alert('시작·종료 시간을 입력해 주세요'); return }
-    if (c.start >= c.end) { alert('종료 시간이 시작 시간보다 늦어야 해요'); return }
+    const start = parseTime(c?.start)
+    const end = parseTime(c?.end)
+    if (!start || !end) { alert('시간을 확인해 주세요. 예: 10:30 또는 1030'); return }
+    if (start >= end) { alert('종료 시간이 시작 시간보다 늦어야 해요'); return }
     setDaySlots(prev => {
       const list = prev[day] || []
-      const exists = list.some(s => s.start === c.start && s.end === c.end)
+      const exists = list.some(s => s.start === start && s.end === end)
       return {
         ...prev,
         [day]: exists
-          ? list.map(s => s.start === c.start && s.end === c.end ? { ...s, selected: true } : s)
-          : [...list, { start: c.start, end: c.end, selected: true }],
+          ? list.map(s => s.start === start && s.end === end ? { ...s, selected: true } : s)
+          : [...list, { start, end, selected: true }],
       }
     })
     setCustomSlot(prev => ({ ...prev, [day]: { start:'', end:'' } }))
   }
   function addException() {
-    if (!newExcStart||!newExcEnd) return
-    setExceptions(prev => [...prev, { day_of_week:newExcDay, start_time:newExcStart, end_time:newExcEnd }])
+    const start = parseTime(newExcStart), end = parseTime(newExcEnd)
+    if (!start || !end) { alert('시간을 확인해 주세요. 예: 18:00 또는 1800'); return }
+    setExceptions(prev => [...prev, { day_of_week:newExcDay, start_time:start, end_time:end }])
     setNewExcStart(''); setNewExcEnd('')
   }
   function removeException(i) { setExceptions(prev => prev.filter((_,idx) => idx!==i)) }
@@ -295,17 +315,19 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
                 </div>
               ))}
             </div>
-            {/* 직접 시간 추가 — 시·분 단위 자유 입력 */}
+            {/* 직접 시간 추가 — 숫자 자유 입력(1030 → 10:30 자동 변환) */}
             <div style={{ display:'flex', gap:6, alignItems:'center', marginTop:8 }}>
-              <input type="time" value={customSlot[day]?.start || ''}
+              <input inputMode="numeric" placeholder="10:30" value={customSlot[day]?.start || ''}
                 onChange={e => setCustomSlot(prev => ({ ...prev, [day]: { ...prev[day], start: e.target.value } }))}
-                style={{ flex:1, minWidth:0, background:'var(--bg)', border:'1.5px solid var(--g1)', borderRadius:8, padding:'5px 8px', fontSize:11, fontFamily:'Nunito,sans-serif', color:'var(--td)', outline:'none', boxSizing:'border-box' }}/>
+                onKeyDown={e => { if (e.key === 'Enter') addCustomSlot(day) }}
+                style={{ flex:1, minWidth:0, background:'var(--bg)', border:'1.5px solid var(--g1)', borderRadius:8, padding:'7px 9px', fontSize:12, fontFamily:'Nunito,sans-serif', color:'var(--td)', outline:'none', boxSizing:'border-box', textAlign:'center' }}/>
               <span style={{ fontSize:11, color:'var(--tmu)', flexShrink:0 }}>~</span>
-              <input type="time" value={customSlot[day]?.end || ''}
+              <input inputMode="numeric" placeholder="11:45" value={customSlot[day]?.end || ''}
                 onChange={e => setCustomSlot(prev => ({ ...prev, [day]: { ...prev[day], end: e.target.value } }))}
-                style={{ flex:1, minWidth:0, background:'var(--bg)', border:'1.5px solid var(--g1)', borderRadius:8, padding:'5px 8px', fontSize:11, fontFamily:'Nunito,sans-serif', color:'var(--td)', outline:'none', boxSizing:'border-box' }}/>
+                onKeyDown={e => { if (e.key === 'Enter') addCustomSlot(day) }}
+                style={{ flex:1, minWidth:0, background:'var(--bg)', border:'1.5px solid var(--g1)', borderRadius:8, padding:'7px 9px', fontSize:12, fontFamily:'Nunito,sans-serif', color:'var(--td)', outline:'none', boxSizing:'border-box', textAlign:'center' }}/>
               <button onClick={() => addCustomSlot(day)}
-                style={{ background:PRIMARY, color:'#fff', border:'none', borderRadius:9, padding:'6px 12px', fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif', flexShrink:0 }}>+ 추가</button>
+                style={{ background:PRIMARY, color:'#fff', border:'none', borderRadius:9, padding:'7px 12px', fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif', flexShrink:0 }}>+ 추가</button>
             </div>
           </div>
         ))}

@@ -72,7 +72,7 @@ export default function AdminMembersPage() {
     const { error } = await supabase.from('user_prefs').upsert({ user_id: userId, unlock_all: next })
     if (error) {
       setMemberUnlockAll(prev => ({ ...prev, [userId]: !next }))
-      alert('저장에 실패했어요. DB에 unlock_all 컬럼이 있는지 확인해 주세요. (migration-lounge-pin-unlock.sql)')
+      alert(`저장에 실패했어요: ${error.message}\n\n권한 문제라면 migration-user-prefs-admin-policy.sql을 실행해 주세요.`)
     }
   }
 

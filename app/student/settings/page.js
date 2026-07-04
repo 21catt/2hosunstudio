@@ -8,6 +8,7 @@ import MoodIndicator from '../../../components/MoodIndicator'
 import { THEMES, applyTheme, getSavedTheme, isValidTheme, themeUnlocked, themeUnlockLabel } from '../../../lib/theme'
 import { FARM_CATS, getSavedFarmCat, saveFarmCatLocal, isValidFarmCat, getSavedHarvest, saveHarvestLocal, farmCatUnlocked, farmCatUnlockLabel } from '../../../lib/farmCats'
 import { PIXEL_CATS_BY_UNLOCK, pixelCatImg, catUnlocked, catUnlockLabel, getSavedProfileCat, saveProfileCatLocal, isValidPixelCat } from '../../../lib/pixelCats'
+import { registerPush } from '../../../lib/pushNotify'
 import LoadingCat from '../../../components/LoadingCat'
 
 export default function SettingsPage() {
@@ -20,9 +21,12 @@ export default function SettingsPage() {
   const [profileCat, setProfileCat] = useState('09-cat')
   const [harvest, setHarvest] = useState(0)
   const [unlockAll, setUnlockAll] = useState(false) // 관리자가 해금해준 회원은 수확 조건 무시
+  const [pushOn, setPushOn] = useState(false)       // 이 기기 푸시 알림 허용 여부
+  const [pushBusy, setPushBusy] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if ('Notification' in window) setPushOn(Notification.permission === 'granted')
     setThemeKey(getSavedTheme())
     setFarmCat(getSavedFarmCat())
     setProfileCat(getSavedProfileCat())
@@ -66,6 +70,25 @@ export default function SettingsPage() {
     if (user?.id) await supabase.from('user_prefs').upsert({ user_id: user.id, farm_cat: key })
   }
 
+  // 출석·예약 소식 휴대폰 푸시 켜기 — 이 기기의 구독을 서버에 등록
+  async function enablePush() {
+    if (!user?.id || pushBusy) return
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+      alert('이 브라우저는 알림을 지원하지 않아요.\n아이폰은 사파리 공유 → "홈 화면에 추가"한 앱에서 켤 수 있어요.')
+      return
+    }
+    setPushBusy(true)
+    try {
+      const ok = await registerPush(user.id)
+      if (ok) { setPushOn(true); alert('알림이 켜졌어요! 출석·예약 소식을 보내드릴게요 🐾') }
+      else alert('알림 허용을 눌러주세요.')
+    } catch {
+      alert('알림 설정에 실패했어요. 잠시 후 다시 시도해 주세요.')
+    } finally {
+      setPushBusy(false)
+    }
+  }
+
   async function changeProfileCat(key) {
     if (!catUnlocked(key, { harvest, unlockAll })) return // 아직 해금 전
     setProfileCat(key)
@@ -105,6 +128,26 @@ export default function SettingsPage() {
             <div style={{ fontSize:13, fontWeight:700, color:'var(--td)' }}>로그인하면 설정이 계정에 저장돼요</div>
             <button onClick={()=>router.push('/login')} className="p-chip p-chip--sm" style={{ flexShrink:0 }}>로그인 / 가입</button>
           </div>
+        )}
+
+        {user && (
+          <>
+            <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:2 }}>알림</div>
+            <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:10 }}>출석 확인·예약 소식을 휴대폰 알림으로 받아요 🔔</div>
+            <div className="p-card" style={{ padding:'12px 14px', display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
+              <NavIcon name="bell" color="var(--ac)" size={20} />
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:12.5, fontWeight:800, color:'var(--td)' }}>{pushOn ? '푸시 알림 켜짐' : '푸시 알림 꺼짐'}</div>
+                <div style={{ fontSize:10, color:'var(--tmu)', marginTop:1 }}>
+                  {pushOn ? '이 기기로 알림을 보내드려요' : '켜면 출석 확인 알림이 바로 와요'}
+                </div>
+              </div>
+              <button onClick={enablePush} disabled={pushOn || pushBusy} className="p-chip p-chip--sm"
+                style={pushOn ? { borderColor:'var(--g2)', color:'var(--tmu)', flexShrink:0 } : { flexShrink:0 }}>
+                {pushOn ? '✓ 설정됨' : pushBusy ? '설정 중…' : '알림 켜기'}
+              </button>
+            </div>
+          </>
         )}
 
         <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:2 }}>프로필 사진</div>
