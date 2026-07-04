@@ -1,7 +1,10 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { DEFAULT_CORE_DOC, normalizeDoc, CORE_PALETTES } from '../lib/coreDoc'
 import CoreDocView from './CoreDocView'
+import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 // 관리자용 리치 핵심내용 편집기 — class_courses.core_doc(jsonb)를 구조적으로 작성.
 // 리스트(모듈/접근/화가/불릿/메타)는 추가·삭제, 이미지는 업로드/삭제.
@@ -63,13 +66,81 @@ function Section({ title, children }) {
 const miniBtn = { fontSize:10, padding:'4px 9px', borderRadius:8, border:`1px solid ${BR}`, background:'transparent', cursor:'pointer', fontFamily:'Nunito,sans-serif', color:'var(--tmu)' }
 const addBtn = { ...miniBtn, borderColor:'rgb(var(--ac-rgb) / 0.4)', color:ACT, fontWeight:700 }
 
+// 드래그로 순서 바꾸는 모듈 카드 — ≡ 핸들에만 listeners를 달아 입력/스크롤과 충돌 방지
+function SortableModuleCard({ m, i, edit, onUploadImage }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: m._id })
+  const wrap = {
+    transform: CSS.Transform.toString(transform),
+    transition: transition || undefined,
+    zIndex: isDragging ? 20 : 'auto', position:'relative',
+    border:`1px solid ${isDragging ? AC : BR}`, borderRadius:10, padding:'10px', marginBottom:10, background:'var(--bg)',
+    boxShadow: isDragging ? '0 8px 24px rgba(0,0,0,0.13)' : 'none',
+  }
+  return (
+    <div ref={setNodeRef} style={wrap}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+          <span {...attributes} {...listeners}
+            style={{ cursor:'grab', touchAction:'none', userSelect:'none', color:'var(--tmu)', fontSize:17, lineHeight:1, padding:'2px 4px' }}>≡</span>
+          <span style={{ fontSize:11, fontWeight:800, color:ACT }}>모듈 {i+1}</span>
+        </div>
+        <button onClick={() => edit(x => { x.modules.splice(i,1); return x })} style={miniBtn}>삭제</button>
+      </div>
+      <div style={{ display:'flex', gap:8 }}>
+        <div style={{ width:64 }}><Field label="번호" value={m.num} onChange={v => edit(x => { x.modules[i].num = v; return x })}/></div>
+        <div style={{ flex:1 }}><Field label="카테고리" value={m.cat} onChange={v => edit(x => { x.modules[i].cat = v; return x })}/></div>
+      </div>
+      <Field label="제목" value={m.title} onChange={v => edit(x => { x.modules[i].title = v; return x })}/>
+      <Field label="영문 라벨" value={m.en} onChange={v => edit(x => { x.modules[i].en = v; return x })}/>
+      <Area label="설명" value={m.desc} onChange={v => edit(x => { x.modules[i].desc = v; return x })} rows={2}/>
+      <Area label="불릿 (줄바꿈으로 구분)" value={m.bullets.join('\n')} onChange={v => edit(x => { x.modules[i].bullets = v.split('\n'); return x })} rows={3}/>
+
+      {/* 화가 (선택) */}
+      <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', margin:'6px 0 4px' }}>화가 카드 (선택)</div>
+      {m.painters.map((p, j) => (
+        <div key={j} style={{ border:`1px solid ${BR}`, borderRadius:8, padding:'8px', marginBottom:6, background:'#fff' }}>
+          <div style={{ display:'flex', justifyContent:'flex-end' }}>
+            <button onClick={() => edit(x => { x.modules[i].painters.splice(j,1); return x })} style={miniBtn}>화가 삭제</button>
+          </div>
+          <div style={{ display:'flex', gap:8 }}>
+            <div style={{ flex:1 }}><Field label="이름" value={p.ko} onChange={v => edit(x => { x.modules[i].painters[j].ko = v; return x })}/></div>
+            <div style={{ flex:1 }}><Field label="영문" value={p.en} onChange={v => edit(x => { x.modules[i].painters[j].en = v; return x })}/></div>
+          </div>
+          <Area label="포인트 (줄바꿈으로 구분)" value={p.points.join('\n')} onChange={v => edit(x => { x.modules[i].painters[j].points = v.split('\n'); return x })} rows={3}/>
+        </div>
+      ))}
+      <button onClick={() => edit(x => { x.modules[i].painters.push({ ko:'', en:'', points:[] }); return x })} style={{ ...addBtn, marginBottom:8 }}>+ 화가 추가</button>
+
+      <ImgField label="모듈 이미지(선택)" value={m.image} onChange={v => edit(x => { x.modules[i].image = v; return x })} onUploadImage={onUploadImage}/>
+    </div>
+  )
+}
+
 export default function CoreDocEditor({ initialDoc, onUploadImage, onSave, saving }) {
-  const [d, setD] = useState(() => normalizeDoc(initialDoc))
+  const idc = useRef(0)
+  const nextMid = () => `m${idc.current++}`
+  const withMids = doc => { const nd = normalizeDoc(doc); nd.modules = nd.modules.map(m => ({ ...m, _id: nextMid() })); return nd }
+  const [d, setD] = useState(() => withMids(initialDoc))
   const [dirty, setDirty] = useState(false)
   const [preview, setPreview] = useState(false)
+  // delay 150ms + tolerance 5px → 입력/스크롤 vs 드래그 구분
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+    useSensor(TouchSensor,   { activationConstraint: { delay: 150, tolerance: 5 } }),
+  )
+  function handleModuleDragEnd({ active, over }) {
+    if (!over || active.id === over.id) return
+    edit(x => {
+      const oldIdx = x.modules.findIndex(m => m._id === active.id)
+      const newIdx = x.modules.findIndex(m => m._id === over.id)
+      if (oldIdx < 0 || newIdx < 0) return x
+      x.modules = arrayMove(x.modules, oldIdx, newIdx)
+      return x
+    })
+  }
   const edit = fn => { setD(prev => { const next = fn(structuredClone(prev)); return next }); setDirty(true) }
 
-  const loadSample = () => { setD(normalizeDoc(DEFAULT_CORE_DOC)); setDirty(true) }
+  const loadSample = () => { setD(withMids(DEFAULT_CORE_DOC)); setDirty(true) }
 
   return (
     <div>
@@ -161,41 +232,17 @@ export default function CoreDocEditor({ initialDoc, onUploadImage, onSave, savin
       </Section>
 
       <Section title="모듈">
-        {d.modules.map((m, i) => (
-          <div key={i} style={{ border:`1px solid ${BR}`, borderRadius:10, padding:'10px', marginBottom:10, background:'var(--bg)' }}>
-            <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
-              <span style={{ fontSize:11, fontWeight:800, color:ACT }}>모듈 {i+1}</span>
-              <button onClick={() => edit(x => { x.modules.splice(i,1); return x })} style={miniBtn}>삭제</button>
-            </div>
-            <div style={{ display:'flex', gap:8 }}>
-              <div style={{ width:64 }}><Field label="번호" value={m.num} onChange={v => edit(x => { x.modules[i].num = v; return x })}/></div>
-              <div style={{ flex:1 }}><Field label="카테고리" value={m.cat} onChange={v => edit(x => { x.modules[i].cat = v; return x })}/></div>
-            </div>
-            <Field label="제목" value={m.title} onChange={v => edit(x => { x.modules[i].title = v; return x })}/>
-            <Field label="영문 라벨" value={m.en} onChange={v => edit(x => { x.modules[i].en = v; return x })}/>
-            <Area label="설명" value={m.desc} onChange={v => edit(x => { x.modules[i].desc = v; return x })} rows={2}/>
-            <Area label="불릿 (줄바꿈으로 구분)" value={m.bullets.join('\n')} onChange={v => edit(x => { x.modules[i].bullets = v.split('\n'); return x })} rows={3}/>
-
-            {/* 화가 (선택) */}
-            <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', margin:'6px 0 4px' }}>화가 카드 (선택)</div>
-            {m.painters.map((p, j) => (
-              <div key={j} style={{ border:`1px solid ${BR}`, borderRadius:8, padding:'8px', marginBottom:6, background:'#fff' }}>
-                <div style={{ display:'flex', justifyContent:'flex-end' }}>
-                  <button onClick={() => edit(x => { x.modules[i].painters.splice(j,1); return x })} style={miniBtn}>화가 삭제</button>
-                </div>
-                <div style={{ display:'flex', gap:8 }}>
-                  <div style={{ flex:1 }}><Field label="이름" value={p.ko} onChange={v => edit(x => { x.modules[i].painters[j].ko = v; return x })}/></div>
-                  <div style={{ flex:1 }}><Field label="영문" value={p.en} onChange={v => edit(x => { x.modules[i].painters[j].en = v; return x })}/></div>
-                </div>
-                <Area label="포인트 (줄바꿈으로 구분)" value={p.points.join('\n')} onChange={v => edit(x => { x.modules[i].painters[j].points = v.split('\n'); return x })} rows={3}/>
-              </div>
+        {d.modules.length > 1 && (
+          <div style={{ fontSize:10, color:'var(--tmu)', marginBottom:8 }}>≡ 핸들을 끌어 순서를 바꿔요</div>
+        )}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleModuleDragEnd}>
+          <SortableContext items={d.modules.map(m => m._id)} strategy={verticalListSortingStrategy}>
+            {d.modules.map((m, i) => (
+              <SortableModuleCard key={m._id} m={m} i={i} edit={edit} onUploadImage={onUploadImage}/>
             ))}
-            <button onClick={() => edit(x => { x.modules[i].painters.push({ ko:'', en:'', points:[] }); return x })} style={{ ...addBtn, marginBottom:8 }}>+ 화가 추가</button>
-
-            <ImgField label="모듈 이미지(선택)" value={m.image} onChange={v => edit(x => { x.modules[i].image = v; return x })} onUploadImage={onUploadImage}/>
-          </div>
-        ))}
-        <button onClick={() => edit(x => { x.modules.push({ num:'', cat:'', title:'', en:'', desc:'', painters:[], bullets:[], image:'' }); return x })} style={addBtn}>+ 모듈 추가</button>
+          </SortableContext>
+        </DndContext>
+        <button onClick={() => edit(x => { x.modules.push({ num:'', cat:'', title:'', en:'', desc:'', painters:[], bullets:[], image:'', _id: nextMid() }); return x })} style={addBtn}>+ 모듈 추가</button>
       </Section>
 
       <Section title="CTA(하단)">
