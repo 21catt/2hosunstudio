@@ -5,6 +5,7 @@ import { supabase } from '../../../lib/supabase'
 import { useTodayWeather } from '../../../components/WeatherBar'
 import StudentNav from '../../../components/StudentNav'
 import { NavIcon } from '../../../components/NavIcons'
+import { sortCoursesByCategory } from '../../../lib/courseSort'
 import { sendPushToAdmins } from '../../../lib/pushNotify'
 import { sendKakaoToAdmins } from '../../../lib/kakaoNotify'
 import { applyTheme, isValidTheme } from '../../../lib/theme'
@@ -176,7 +177,8 @@ export default function CalendarPage() {
   }
 
   function dayClasses(day) {
-    return classes.filter(c => courseOpenOnDay(c, day))
+    // 카테고리 순(드로잉→페인팅→조소→자율창작→모임) 정렬
+    return sortCoursesByCategory(classes.filter(c => courseOpenOnDay(c, day)))
   }
 
   function getSchedulesForDay(course, day) {

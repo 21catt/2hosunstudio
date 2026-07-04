@@ -10,6 +10,7 @@ import { bookClass, requestBookingApproval, hasValidTicket, cancelBooking } from
 import { sendPushToAdmins } from '../../lib/pushNotify'
 import { sendKakaoToAdmins } from '../../lib/kakaoNotify'
 import { pixelCatImg } from '../../lib/pixelCats'
+import { sortCoursesByCategory } from '../../lib/courseSort'
 import LoadingCat from '../../components/LoadingCat'
 
 const CELL_W = 56
@@ -160,10 +161,10 @@ export default function StudentHomePage() {
 
   const bookedDates = new Set(myBookings.map(b => b.class_date))
 
-  // 캘린더 페이지의 courseOpenOnDay와 동일 규칙 (예외 요일·운영 기간 반영)
+  // 캘린더 페이지의 courseOpenOnDay와 동일 규칙 (예외 요일·운영 기간 반영), 카테고리 순 정렬
   function coursesOn(ds) {
     const dow = new Date(ds + 'T00:00:00').getDay()
-    return classes.filter(c => {
+    return sortCoursesByCategory(classes.filter(c => {
       if (!c.class_schedules?.some(s => s.day_of_week === dow)) return false
       if (c.class_exceptions?.some(e => e.day_of_week === dow)) return false
       if (!c.is_unlimited) {
@@ -171,7 +172,7 @@ export default function StudentHomePage() {
         if (c.end_date && ds > c.end_date) return false
       }
       return true
-    })
+    }))
   }
 
   function schedulesFor(c, ds) {

@@ -6,6 +6,7 @@ import { supabase } from '../../../lib/supabase'
 import AdminNav from '../../../components/AdminNav'
 import { NavIcon } from '../../../components/NavIcons'
 import { HEADER_BG, PRIMARY, T, OK, WARN, BAD } from '../../../lib/adminTheme'
+import { sortCoursesByCategory } from '../../../lib/courseSort'
 
 const DAYS = ['일','월','화','수','목','금','토']
 const CATS = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', free:'자율창작', meeting:'모임' }
@@ -481,7 +482,8 @@ function changeMonth(delta) {
   setSelDay(1)
   setExpanded(null)
 }
-const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.includes(c.category))
+// 카테고리 순(드로잉→페인팅→조소→자율창작→모임) — 달력 하단 목록·목록 뷰 모두 이 순서
+const myCourses = sortCoursesByCategory(courses.filter(c => c.category === 'meeting' || adminCats.includes(c.category)))
 
   // 특정 날짜에 열리는 수업
   function getCoursesForDay(day) {

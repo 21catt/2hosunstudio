@@ -66,10 +66,10 @@ export default function LoungePage() {
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) { router.push('/login'); return }
-      setUser(data.user)
-      setRole(data.user.user_metadata?.role || 'student')
-      loadPosts(data.user.id)
+      // 비로그인도 열람 가능 — 글쓰기·공감·댓글은 로그인 유도
+      setUser(data.user || null)
+      setRole(data.user?.user_metadata?.role || 'student')
+      loadPosts(data.user?.id || null)
     })
   }, [])
 
@@ -107,7 +107,7 @@ export default function LoungePage() {
 
   // 하트 공감 토글 — likes 테이블(1인 1공감)이 단일 소스, 낙관적 갱신
   async function toggleLike(postId) {
-    if (!user) return
+    if (!user) { router.push('/login'); return }
     const liked = myLikes.has(postId)
     const nextCount = Math.max(0, (likeCount[postId] || 0) + (liked ? -1 : 1))
     setMyLikes(prev => { const n = new Set(prev); liked ? n.delete(postId) : n.add(postId); return n })
@@ -201,7 +201,8 @@ export default function LoungePage() {
   // 라이트박스에서 사진 보면서 댓글 남기기
   async function sendViewerComment() {
     const text = viewerText.trim()
-    if (!text || !user || !viewer?.postId || viewerSending) return
+    if (!text || !viewer?.postId || viewerSending) return
+    if (!user) { router.push('/login'); return }
     setViewerSending(true)
     try {
       const { data: c, error } = await supabase.from('comments').insert({
@@ -321,7 +322,7 @@ export default function LoungePage() {
           <div style={{ textAlign:'center', padding:'48px 0', color:'var(--tmu)', fontSize:13, lineHeight:1.8 }}>
             <div style={{ fontSize:34, marginBottom:6 }}>🐱</div>
             아직 글이 없어요<br/>
-            <span style={{ fontSize:11 }}>아래 입력창에 바로 써서 첫 소식을 남겨보세요 🐾</span>
+            <span style={{ fontSize:11 }}>{user ? '아래 입력창에 바로 써서 첫 소식을 남겨보세요 🐾' : '스튜디오 소식과 수강생 이야기가 올라오는 공간이에요 🐾'}</span>
           </div>
         ) : groups.map(g => {
           const d = g.date ? new Date(g.date + 'T00:00:00') : null
@@ -469,7 +470,16 @@ export default function LoungePage() {
         })}
       </div>
 
-      {/* 카톡식 입력바 — 현재 카테고리로 바로 전송 */}
+      {/* 카톡식 입력바 — 현재 카테고리로 바로 전송 (비로그인은 로그인 안내) */}
+      {!user ? (
+        <div style={{ position:'fixed', bottom:66, left:'50%', transform:'translateX(-50%)', width:'100%', maxWidth:390, background:'#fff', borderTop:'2px solid rgb(var(--ac-rgb) / 0.15)', zIndex:90, boxSizing:'border-box', padding:'10px 14px', display:'flex', alignItems:'center', gap:10 }}>
+          <span style={{ flex:1, fontSize:12, fontWeight:700, color:'var(--tm)', minWidth:0 }}>로그인하면 글·공감·댓글을 남길 수 있어요 🐾</span>
+          <button onClick={()=>router.push('/login')}
+            style={{ flexShrink:0, padding:'9px 16px', background:'var(--ac)', color:'#fff', border:'none', borderRadius:18, fontSize:12, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif', boxShadow:'2px 2px 0 rgb(var(--ac-rgb) / 0.3)' }}>
+            로그인 / 가입
+          </button>
+        </div>
+      ) : (
       <div style={{ position:'fixed', bottom:66, left:'50%', transform:'translateX(-50%)', width:'100%', maxWidth:390, background:'#fff', borderTop:'2px solid rgb(var(--ac-rgb) / 0.15)', zIndex:90, boxSizing:'border-box' }}>
         {composePreviews.length > 0 && (
           <div className="no-scrollbar" style={{ display:'flex', gap:7, padding:'10px 12px 0', overflowX:'auto' }}>
@@ -500,6 +510,7 @@ export default function LoungePage() {
           </button>
         </div>
       </div>
+      )}
 
       {/* 이미지 크게 보기 — 라이트박스 */}
       {viewer && (
@@ -547,7 +558,7 @@ export default function LoungePage() {
             <div style={{ display:'flex', gap:7, alignItems:'center' }}>
               <input className="viewer-input" value={viewerText} onChange={e => setViewerText(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) sendViewerComment() }}
-                placeholder="사진 보면서 댓글 남기기…"
+                placeholder={user ? '사진 보면서 댓글 남기기…' : '로그인하고 댓글 남기기…'}
                 style={{ flex:1, minWidth:0, height:38, borderRadius:20, border:'2px solid rgba(255,255,255,0.4)', background:'rgba(255,255,255,0.14)', color:'#fff', padding:'0 14px', fontSize:12, fontWeight:600, outline:'none', fontFamily:'Nunito,sans-serif', boxSizing:'border-box' }}/>
               <button onClick={sendViewerComment} disabled={viewerSending || !viewerText.trim()}
                 style={{ width:38, height:38, flexShrink:0, borderRadius:'50%', border:'none', color:'#fff', fontSize:13, cursor:'pointer', padding:0, display:'flex', alignItems:'center', justifyContent:'center', background: viewerText.trim() ? 'var(--ac)' : 'rgba(255,255,255,0.22)' }}>
