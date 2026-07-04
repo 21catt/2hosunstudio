@@ -70,6 +70,7 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
     return result
   })
   const [exceptions, setExceptions] = useState(initial?.class_exceptions || [])
+  const [customSlot, setCustomSlot] = useState({}) // {day: {start, end}} — 직접 입력 중인 시간
   const [newExcDay, setNewExcDay] = useState(2)
   const [newExcStart, setNewExcStart] = useState('')
   const [newExcEnd, setNewExcEnd] = useState('')
@@ -98,6 +99,23 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
   }
   function toggleDaySlot(day, i) {
     setDaySlots(prev => ({...prev, [day]: prev[day].map((s,idx) => idx===i ? {...s,selected:!s.selected} : s)}))
+  }
+  // 기본 2시간 블록 외에 원하는 시간(분 단위)을 직접 추가 — 이미 있는 시간이면 선택만 켠다
+  function addCustomSlot(day) {
+    const c = customSlot[day]
+    if (!c?.start || !c?.end) { alert('시작·종료 시간을 입력해 주세요'); return }
+    if (c.start >= c.end) { alert('종료 시간이 시작 시간보다 늦어야 해요'); return }
+    setDaySlots(prev => {
+      const list = prev[day] || []
+      const exists = list.some(s => s.start === c.start && s.end === c.end)
+      return {
+        ...prev,
+        [day]: exists
+          ? list.map(s => s.start === c.start && s.end === c.end ? { ...s, selected: true } : s)
+          : [...list, { start: c.start, end: c.end, selected: true }],
+      }
+    })
+    setCustomSlot(prev => ({ ...prev, [day]: { start:'', end:'' } }))
   }
   function addException() {
     if (!newExcStart||!newExcEnd) return
@@ -277,8 +295,25 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
                 </div>
               ))}
             </div>
+            {/* 직접 시간 추가 — 시·분 단위 자유 입력 */}
+            <div style={{ display:'flex', gap:6, alignItems:'center', marginTop:8 }}>
+              <input type="time" value={customSlot[day]?.start || ''}
+                onChange={e => setCustomSlot(prev => ({ ...prev, [day]: { ...prev[day], start: e.target.value } }))}
+                style={{ flex:1, minWidth:0, background:'var(--bg)', border:'1.5px solid var(--g1)', borderRadius:8, padding:'5px 8px', fontSize:11, fontFamily:'Nunito,sans-serif', color:'var(--td)', outline:'none', boxSizing:'border-box' }}/>
+              <span style={{ fontSize:11, color:'var(--tmu)', flexShrink:0 }}>~</span>
+              <input type="time" value={customSlot[day]?.end || ''}
+                onChange={e => setCustomSlot(prev => ({ ...prev, [day]: { ...prev[day], end: e.target.value } }))}
+                style={{ flex:1, minWidth:0, background:'var(--bg)', border:'1.5px solid var(--g1)', borderRadius:8, padding:'5px 8px', fontSize:11, fontFamily:'Nunito,sans-serif', color:'var(--td)', outline:'none', boxSizing:'border-box' }}/>
+              <button onClick={() => addCustomSlot(day)}
+                style={{ background:PRIMARY, color:'#fff', border:'none', borderRadius:9, padding:'6px 12px', fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif', flexShrink:0 }}>+ 추가</button>
+            </div>
           </div>
         ))}
+        {selectedDays.length > 0 && (
+          <div style={{ fontSize:9.5, color:'var(--tmu)', marginTop:2, lineHeight:1.5 }}>
+            기본 블록 외에 원하는 시간을 시·분 단위로 직접 추가할 수 있어요 (예: 10:30~11:45)
+          </div>
+        )}
       </div>
 
       <div style={{ marginBottom:14 }}>
