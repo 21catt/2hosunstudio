@@ -5,6 +5,7 @@ import { supabase } from '../../../lib/supabase'
 import AdminNav from '../../../components/AdminNav'
 import { NavIcon } from '../../../components/NavIcons'
 import { HEADER_BG, PRIMARY, T, OK } from '../../../lib/adminTheme'
+import { sendPushToUser } from '../../../lib/pushNotify'
 
 const DOW = ['일','월','화','수','목','금','토']
 
@@ -57,11 +58,21 @@ export default function AdminAttendancePage() {
     if (user) load(selectedDate)
   }, [user, selectedDate])
 
+  // 출석 확정 시 학생에게 인앱 알림 + 웹푸시(구독한 경우)
+  async function notifyAttendance(b) {
+    const d = new Date(selectedDate + 'T00:00:00')
+    const label = `${d.getMonth()+1}/${d.getDate()}(${DOW[d.getDay()]})`
+    const body = `${label} ${b.class_name}${b.class_time ? ` ${b.class_time}` : ''} 출석이 확인됐어요! 냥밭 작물이 쑥 자라요 🌱`
+    await supabase.from('notifications').insert({ user_id: b.user_id, type: 'attendance', title: '✅ 출석 확인', body })
+    sendPushToUser(b.user_id, '✅ 출석 확인', body)
+  }
+
   async function toggleAttended(b) {
     const next = !b.attended
     setToggling(prev => ({ ...prev, [b.id]: true }))
     const update = { attended: next, attended_at: next ? new Date().toISOString() : null }
     await supabase.from('bookings').update(update).eq('id', b.id)
+    if (next) notifyAttendance(b)
     setBookings(prev => prev.map(x => x.id === b.id ? { ...x, ...update } : x))
     setToggling(prev => { const n = { ...prev }; delete n[b.id]; return n })
   }
@@ -73,6 +84,7 @@ export default function AdminAttendancePage() {
     await Promise.all(pending.map(b =>
       supabase.from('bookings').update({ attended: true, attended_at: now }).eq('id', b.id)
     ))
+    pending.forEach(b => notifyAttendance(b))
     setBookings(prev => prev.map(b =>
       pending.some(p => p.id === b.id) ? { ...b, attended: true, attended_at: now } : b
     ))
