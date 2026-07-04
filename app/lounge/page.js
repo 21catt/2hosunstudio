@@ -87,6 +87,7 @@ export default function LoungePage() {
     setPosts(list)
 
     const ids = new Set()
+    if (uid) ids.add(uid) // 내 프로필 고양이도 항상 로드 (내 글 오른쪽 아바타)
     list.forEach(p => { if (p.author_id) ids.add(p.author_id); (p.comments || []).forEach(c => c.user_id && ids.add(c.user_id)) })
     if (ids.size > 0) {
       const { data: prefs } = await supabase.from('user_prefs').select('user_id, profile_cat').in('user_id', [...ids])
@@ -429,12 +430,13 @@ export default function LoungePage() {
                 return (
                   <div key={p.id} style={{ marginBottom:14 }}>
                     {isMine ? (
-                      <div style={{ display:'flex', justifyContent:'flex-end' }}>
-                        <div style={{ maxWidth:'82%', display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6 }}>
+                      <div style={{ display:'flex', justifyContent:'flex-end', gap:8, alignItems:'flex-end' }}>
+                        <div style={{ maxWidth:'78%', display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6 }}>
                           {isEditing ? editBox : (p.title || p.content) && bubble}
                           {thumbs}
                           {meta}
                         </div>
+                        <CatAvatar catKey={profileMap[p.author_id]} size={38} />
                       </div>
                     ) : (
                       <div style={{ display:'flex', gap:8, alignItems:'flex-end' }}>

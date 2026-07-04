@@ -75,16 +75,16 @@ function RecordsInner() {
     const recs = data || []
     setRecords(recs)
 
+    // 프로필 고양이 로드 — 강사(피드백 작성자) + 나 자신(내 기록 말풍선용)
     const tIds = [...new Set(recs.flatMap(r => (r.class_record_feedback || []).map(f => f.teacher_id)).filter(Boolean))]
-    if (tIds.length) {
-      const [{ data: prefs }, { data: usrs }] = await Promise.all([
-        supabase.from('user_prefs').select('user_id, profile_cat').in('user_id', tIds),
-        supabase.from('users').select('id, name').in('id', tIds),
-      ])
-      const cm = {}; (prefs || []).forEach(p => { cm[p.user_id] = p.profile_cat })
-      const nm = {}; (usrs || []).forEach(u => { nm[u.id] = u.name })
-      setCatMap(cm); setNameMap(nm)
-    }
+    const prefIds = [...new Set([userId, ...tIds])]
+    const [{ data: prefs }, { data: usrs }] = await Promise.all([
+      supabase.from('user_prefs').select('user_id, profile_cat').in('user_id', prefIds),
+      tIds.length ? supabase.from('users').select('id, name').in('id', tIds) : Promise.resolve({ data: [] }),
+    ])
+    const cm = {}; (prefs || []).forEach(p => { cm[p.user_id] = p.profile_cat })
+    const nm = {}; (usrs || []).forEach(u => { nm[u.id] = u.name })
+    setCatMap(cm); setNameMap(nm)
     setLoading(false)
     loadAllPhotos(recs)
   }
@@ -262,9 +262,9 @@ function RecordsInner() {
                 const isNew = r.id === lastAddedId
                 return (
                   <div key={r.id} style={{ marginBottom:16 }}>
-                    {/* 내 기록 — 오른쪽 말풍선 */}
-                    <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:6 }}>
-                      <div style={{ maxWidth:'80%', display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6 }}>
+                    {/* 내 기록 — 오른쪽 말풍선 + 내 프로필 고양이 */}
+                    <div style={{ display:'flex', justifyContent:'flex-end', gap:8, alignItems:'flex-end', marginBottom:6 }}>
+                      <div style={{ maxWidth:'78%', display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6 }}>
                         {r.class_name && (
                           <span className={isNew ? 'bub-in' : ''} style={{ fontSize:10, fontWeight:800, color:ACCENT_TEXT, background:ACCENT_BG, border:`2px solid rgb(var(--ac-rgb) / 0.35)`, borderRadius:20, padding:'3px 10px' }}>
                             🎨 {r.class_name}
@@ -297,6 +297,7 @@ function RecordsInner() {
                           </div>
                         )}
                       </div>
+                      {catFace(catMap, user.id)}
                     </div>
 
                     {/* 강사 피드백 — 왼쪽 말풍선 + 프로필 고양이 */}
