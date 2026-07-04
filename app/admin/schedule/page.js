@@ -307,14 +307,24 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
           <div key={day} style={{ marginBottom:8, padding:'9px 11px', background:'#fff', borderRadius:11, border:'0.5px solid rgba(0,0,0,0.07)' }}>
             <div style={{ fontSize:11, fontWeight:800, color:'var(--td)', marginBottom:7 }}>{DAYS[day]}요일</div>
             <div style={{ display:'flex', flexWrap:'wrap', gap:5 }}>
-              {(daySlots[day] || []).map((slot, i) => (
-                <div key={i} onClick={() => toggleDaySlot(day, i)}
-                  style={{ padding:'6px 10px', borderRadius:9, fontSize:11, fontWeight:700, cursor:'pointer', border:'none',
-                    background: slot.selected ? PRIMARY : T.fieldBg,
-                    color: slot.selected ? '#fff' : '#5c6b5f' }}>
-                  {slot.start}~{slot.end}
-                </div>
-              ))}
+              {(daySlots[day] || []).map((slot, i) => {
+                // 직접 추가한 시간은 ✕로 목록에서 삭제 가능 (저장된 시간이었다면 저장 시 예약 환불 후 제거됨)
+                const isCustom = !DEFAULT_SLOTS.some(d => d.start === slot.start && d.end === slot.end)
+                return (
+                  <div key={i} onClick={() => toggleDaySlot(day, i)}
+                    style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 10px', borderRadius:9, fontSize:11, fontWeight:700, cursor:'pointer', border:'none',
+                      background: slot.selected ? PRIMARY : T.fieldBg,
+                      color: slot.selected ? '#fff' : '#5c6b5f' }}>
+                    {slot.start}~{slot.end}
+                    {isCustom && (
+                      <span onClick={e => { e.stopPropagation(); setDaySlots(prev => ({ ...prev, [day]: prev[day].filter((_, idx) => idx !== i) })) }}
+                        title="시간 삭제"
+                        style={{ display:'flex', alignItems:'center', justifyContent:'center', width:14, height:14, borderRadius:'50%', fontSize:9, lineHeight:1,
+                          background: slot.selected ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.1)', color: slot.selected ? '#fff' : '#5c6b5f' }}>✕</span>
+                    )}
+                  </div>
+                )
+              })}
             </div>
             {/* 직접 시간 추가 — 숫자 자유 입력(1030 → 10:30 자동 변환) */}
             <div style={{ display:'flex', gap:6, alignItems:'center', marginTop:8 }}>

@@ -457,7 +457,9 @@ export default function StudentHomePage() {
         {notices.length > 0 && (
           <div style={{ marginTop:2 }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', margin:'0 2px 8px' }}>
-              <span style={{ fontSize:12, fontWeight:800, color:'var(--td)' }}>📌 스튜디오 공지</span>
+              <span style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, fontWeight:800, color:'var(--td)' }}>
+                <NavIcon name="pin" color="var(--ac)" size={15} /> 스튜디오 공지
+              </span>
               <span onClick={()=>router.push('/lounge')}
                 style={{ fontSize:11, color:'var(--tmu)', cursor:'pointer', textDecoration:'underline', textUnderlineOffset:2 }}>라운지에서 보기 →</span>
             </div>

@@ -107,6 +107,12 @@ const PATHS = {
       <circle cx="12" cy="7" r="4"/>
     </>
   ),
+  pin: (
+    <>
+      <path d="M12 17v5"/>
+      <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1z"/>
+    </>
+  ),
 }
 
 export function NavIcon({ name, active, color, size = 22 }) {
