@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import AdminNav from '../../components/AdminNav'
+import { NavIcon } from '../../components/NavIcons'
 import { registerPush } from '../../lib/pushNotify'
 import { HEADER_BG, PRIMARY, MST } from '../../lib/adminTheme'
 
@@ -35,6 +36,7 @@ export default function AdminPage() {
   const [customInputs, setCustomInputs] = useState({})
   const [meetingInputs, setMeetingInputs] = useState({})
   const [memberMeetingTickets, setMemberMeetingTickets] = useState({})
+  const [memberUnlockAll, setMemberUnlockAll] = useState({}) // {userId: bool} — 냥 꾸미기 전체 해금
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -66,7 +68,22 @@ export default function AdminPage() {
       ticketMap[t.user_id].push(t)
     })
     setMemberMeetingTickets(ticketMap)
+    // 냥 꾸미기 해금 상태 — unlock_all 컬럼이 아직 없으면 전부 꺼진 것으로 표시
+    const { data: prefs } = await supabase.from('user_prefs').select('user_id, unlock_all')
+    const unlockMap = {}
+    prefs?.forEach(p => { unlockMap[p.user_id] = p.unlock_all === true })
+    setMemberUnlockAll(unlockMap)
     setLoading(false)
+  }
+
+  // 냥 꾸미기 전체 해금 토글 — 켜면 수확 횟수를 채우지 않아도 프로필냥·농부냥을 모두 쓸 수 있다
+  async function toggleUnlockAll(userId, next) {
+    setMemberUnlockAll(prev => ({ ...prev, [userId]: next }))
+    const { error } = await supabase.from('user_prefs').upsert({ user_id: userId, unlock_all: next })
+    if (error) {
+      setMemberUnlockAll(prev => ({ ...prev, [userId]: !next }))
+      alert('저장에 실패했어요. DB에 unlock_all 컬럼이 있는지 확인해 주세요. (migration-lounge-pin-unlock.sql)')
+    }
   }
 
   async function grantTicket(userId, type, total, days) {
@@ -157,7 +174,7 @@ export default function AdminPage() {
       <div className="header" style={{ background: HEADER_BG, flexDirection:'column', gap:12, paddingBottom:16 }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', width:'100%' }}>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-            <span style={{ fontSize:18 }}>👥</span>
+            <NavIcon name="users" color="#fff" size={20} />
             <span className="header-title">회원 관리</span>
           </div>
           <div style={{ display:'flex', gap:5 }}>
@@ -395,6 +412,26 @@ export default function AdminPage() {
                         </button>
                       </div>
                     </div>
+
+                    {/* 냥 꾸미기 전체 해금 — 수확 횟수를 안 채워도 프로필냥·농부냥 전부 사용 가능 */}
+                    {(() => {
+                      const on = memberUnlockAll[m.id] === true
+                      return (
+                        <div style={{ background:'#FBFAF5', border:'0.5px solid rgba(0,0,0,0.07)', borderRadius:15, padding:'13px 14px', marginBottom:10, display:'flex', alignItems:'center', gap:11 }}>
+                          <span style={{ fontSize:19, flexShrink:0 }}>{on ? '🔓' : '🔒'}</span>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ fontSize:12, fontWeight:800, color:'#1c2a24' }}>냥 꾸미기 전체 해금</div>
+                            <div style={{ fontSize:10, color:'#a2aaa1', fontWeight:600, marginTop:2, lineHeight:1.5 }}>
+                              {on ? '수확 횟수 없이 프로필냥·농부냥을 모두 쓸 수 있어요' : '켜면 수확 횟수를 채우지 않아도 모든 냥이가 열려요'}
+                            </div>
+                          </div>
+                          <div onClick={e => { e.stopPropagation(); toggleUnlockAll(m.id, !on) }}
+                            style={{ width:46, height:27, borderRadius:14, background: on ? 'var(--ac)' : '#E4E2D9', position:'relative', cursor:'pointer', transition:'background 0.18s ease', flexShrink:0 }}>
+                            <span style={{ position:'absolute', top:3, left: on ? 22 : 3, width:21, height:21, borderRadius:'50%', background:'#fff', boxShadow:'0 1px 3px rgba(0,0,0,0.25)', transition:'left 0.18s ease' }}/>
+                          </div>
+                        </div>
+                      )
+                    })()}
 
                     {/* 통계 */}
                     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
