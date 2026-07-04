@@ -182,8 +182,12 @@ function FreeInner() {
     const startStr = `${String(startHour).padStart(2,'0')}:00`
     const endStr = `${String(startHour + duration).padStart(2,'0')}:00`
     const amount = calcPrice(selectedDay, startHour, duration)
+    const name = userName || '학생'
 
-    await supabase.from('bookings').insert({
+    // 입금 안내 모달을 먼저 즉시 표시 (저장·알림은 백그라운드) — 클릭 즉시 반응
+    setDepositModal({ amount, dateStr, time: `${startStr}~${endStr}`, seat: selSeat, name })
+
+    supabase.from('bookings').insert({
       user_id: user.id,
       course_id: freeCourse?.id || null,
       schedule_id: null,
@@ -195,33 +199,27 @@ function FreeInner() {
       seat: selSeat,
       confirmed: false,
       amount,
-    })
-
-    const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
-    const name = profile?.name || userName || '학생'
-    const pushMsg = `${name}님 자율창작 ${dateStr} ${startStr}~${endStr} ${selSeat}자리 (입금대기)`
-    if (freeCourse?.teacher_id) {
-      await supabase.from('notifications').insert({
-        user_id: freeCourse.teacher_id,
-        type: 'booking_created',
-        title: '자율창작 예약 (입금대기)',
-        body: pushMsg
-      })
-    }
-    sendPushToAdmins('🎨 자율창작 예약', pushMsg)
-
-    try {
-      await fetch('/api/kakao/notify', {
+    }).then(({ error }) => {
+      if (error) return
+      const pushMsg = `${name}님 자율창작 ${dateStr} ${startStr}~${endStr} ${selSeat}자리 (입금대기)`
+      if (freeCourse?.teacher_id) {
+        supabase.from('notifications').insert({
+          user_id: freeCourse.teacher_id,
+          type: 'booking_created',
+          title: '자율창작 예약 (입금대기)',
+          body: pushMsg
+        })
+      }
+      sendPushToAdmins('🎨 자율창작 예약', pushMsg)
+      fetch('/api/kakao/notify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text: `새 자율창작 예약 🐾 (입금대기)\n${dateStr} ${startStr}~${endStr}\n${selSeat}자리 · ${amount.toLocaleString()}원`,
           link: 'https://2hosunstudio.vercel.app/admin',
         }),
-      })
-    } catch (e) {}
-
-    setDepositModal({ amount, dateStr, time: `${startStr}~${endStr}`, seat: selSeat, name })
+      }).catch(() => {})
+    })
   }
 
   if (loading) return (

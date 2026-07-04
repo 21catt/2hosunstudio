@@ -422,10 +422,28 @@ export default function LoungePage() {
                     </button>
                     <span style={{ fontSize:9, color:'var(--tl)', fontWeight:700 }}>{time}</span>
                     {(isMine || role === 'admin') ? (
-                      <button onClick={() => setCatMenu(p)} title="카테고리 변경"
-                        style={{ display:'flex', alignItems:'center', gap:2, fontSize:8.5, fontWeight:900, padding:'2px 7px', borderRadius:10, background:tagStyle.bg, color:tagStyle.color, border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
-                        {tagLabel || '기타'} <span style={{ fontSize:7, opacity:0.7 }}>▾</span>
-                      </button>
+                      catMenu === p.id ? (
+                        // 열림 — 작은 칩으로 카테고리 선택 (공지는 관리자만 노출)
+                        <span style={{ display:'flex', gap:3, alignItems:'center', flexWrap:'wrap', justifyContent: isMine ? 'flex-end' : 'flex-start' }}>
+                          {['notice','event','class','etc'].filter(tid => tid !== 'notice' || role === 'admin').map(tid => {
+                            const label = TAGS[TAG_IDS.indexOf(tid)]
+                            const on = p.tag === tid
+                            const st = TAG_COLORS[tid] || TAG_COLORS.etc
+                            return (
+                              <button key={tid} disabled={catBusy} onClick={() => changeCategory(p, tid)}
+                                style={{ fontSize:8.5, fontWeight:900, padding:'2px 8px', borderRadius:10, cursor:'pointer', fontFamily:'Nunito,sans-serif',
+                                  background: on ? 'var(--ac)' : st.bg, color: on ? '#fff' : st.color, border: on ? '1.5px solid var(--ac)' : '1.5px solid transparent' }}>
+                                {label}
+                              </button>
+                            )
+                          })}
+                        </span>
+                      ) : (
+                        <button onClick={() => setCatMenu(p.id)} title="카테고리 변경"
+                          style={{ display:'flex', alignItems:'center', gap:2, fontSize:8.5, fontWeight:900, padding:'2px 7px', borderRadius:10, background:tagStyle.bg, color:tagStyle.color, border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                          {tagLabel || '기타'} <span style={{ fontSize:7, opacity:0.7 }}>▾</span>
+                        </button>
+                      )
                     ) : tab === 0 && p.tag && tagLabel && (
                       <span style={{ fontSize:8.5, fontWeight:900, padding:'2px 8px', borderRadius:10, background:tagStyle.bg, color:tagStyle.color }}>{tagLabel}</span>
                     )}
@@ -534,37 +552,6 @@ export default function LoungePage() {
           </button>
         </div>
       </div>
-      )}
-
-      {/* 카테고리 변경 바텀시트 — 글 클릭(카테고리 칩) 시 */}
-      {catMenu && (
-        <div onClick={() => !catBusy && setCatMenu(null)}
-          style={{ position:'fixed', inset:0, background:'rgba(27,28,70,0.45)', zIndex:1100, display:'flex', flexDirection:'column', justifyContent:'flex-end' }}>
-          <div onClick={e => e.stopPropagation()}
-            style={{ background:'#fff', borderRadius:'24px 24px 0 0', maxWidth:390, width:'100%', margin:'0 auto', padding:'18px 16px calc(20px + env(safe-area-inset-bottom))', boxSizing:'border-box' }}>
-            <div style={{ fontSize:14.5, fontWeight:900, color:'var(--td)' }}>카테고리 선택</div>
-            <div style={{ fontSize:11, color:'var(--tmu)', fontWeight:600, margin:'3px 0 14px' }}>이 글을 어느 카테고리로 옮길까요?</div>
-            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-              {['notice','event','class','etc'].map(tid => {
-                const label = TAGS[TAG_IDS.indexOf(tid)]
-                const on = catMenu.tag === tid
-                const disabled = tid === 'notice' && role !== 'admin'
-                const st = TAG_COLORS[tid] || TAG_COLORS.etc
-                return (
-                  <button key={tid} disabled={disabled || catBusy} onClick={() => changeCategory(catMenu, tid)}
-                    style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 14px', borderRadius:14, cursor: disabled ? 'default' : 'pointer', fontFamily:'Nunito,sans-serif',
-                      border: on ? '2.5px solid var(--ac)' : '1.5px solid var(--g2)', background: on ? 'var(--acBg)' : '#fff', opacity: disabled ? 0.45 : 1 }}>
-                    <span style={{ display:'flex', alignItems:'center', gap:9 }}>
-                      <span style={{ fontSize:11, fontWeight:900, padding:'3px 11px', borderRadius:10, background:st.bg, color:st.color }}>{label}</span>
-                      {disabled && <span style={{ fontSize:10, color:'var(--tmu)', fontWeight:700 }}>관리자 전용</span>}
-                    </span>
-                    {on && <span style={{ color:'var(--ac)', fontWeight:900, fontSize:14 }}>✓</span>}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        </div>
       )}
 
       {/* 이미지 크게 보기 — 라이트박스 */}
