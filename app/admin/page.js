@@ -5,48 +5,50 @@ import { supabase } from '../../lib/supabase'
 import AdminNav from '../../components/AdminNav'
 import { NavIcon } from '../../components/NavIcons'
 import { registerPush } from '../../lib/pushNotify'
-import { HEADER_BG, PRIMARY, MST } from '../../lib/adminTheme'
+import { HEADER_BG, PRIMARY, T, OK, WARN, BAD } from '../../lib/adminTheme'
 
-const STATUS_ORDER = { '만료': 0, '만료임박': 1, '수강중': 2 }
+const DOW = ['일', '월', '화', '수', '목', '금', '토']
 
-function getStatus(ticket) {
-  if (!ticket) return '만료'
-  const days = Math.ceil((new Date(ticket.expires_at) - new Date()) / 864e5)
-  if (ticket.remain === 0 || days <= 0) return '만료'
-  if (days <= 7) return '만료임박'
-  return '수강중'
-}
-
-function getDaysLeft(ticket) {
-  if (!ticket) return -999
-  return Math.ceil((new Date(ticket.expires_at) - new Date()) / 864e5)
-}
-
-const QUICK_PRESETS = [[3,28,'4주3회'],[4,30,'4회권'],[7,56,'8주7회'],[8,60,'8회권'],[12,90,'12회권']]
-
-export default function AdminPage() {
+// 관리자 홈 — 수강생 홈처럼 오늘 현황 요약 + 전체 메뉴 바로가기 타일
+export default function AdminHomePage() {
   const router = useRouter()
-  const [user, setUser]   = useState(null)
-  const [members, setMembers] = useState([])
-  const [expanded, setExpanded] = useState(null)
-  const [search, setSearch]   = useState('')
-  const [filter, setFilter]   = useState('all')
+  const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [pushEnabled, setPushEnabled] = useState(false)
-  const [customInputs, setCustomInputs] = useState({})
-  const [meetingInputs, setMeetingInputs] = useState({})
-  const [memberMeetingTickets, setMemberMeetingTickets] = useState({})
-  const [memberUnlockAll, setMemberUnlockAll] = useState({}) // {userId: bool} — 냥 꾸미기 전체 해금
+  const [todayBookings, setTodayBookings] = useState([])
+  const [pendingCnt, setPendingCnt] = useState(0)   // 입금 대기
+  const [refundCnt, setRefundCnt] = useState(0)     // 환불 필요
+  const [unread, setUnread] = useState(0)
+  const [memberCnt, setMemberCnt] = useState(0)
+
+  const now = new Date()
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) { router.push('/login'); return }
       if (data.user.user_metadata?.role !== 'admin') { router.push('/student'); return }
       setUser(data.user)
-      loadMembers()
+      loadData(data.user.id)
     })
     if ('Notification' in window) setPushEnabled(Notification.permission === 'granted')
   }, [])
+
+  async function loadData(adminId) {
+    const [{ data: tb }, { count: pc }, { count: rc }, { count: uc }, { count: mc }] = await Promise.all([
+      supabase.from('bookings').select('id, class_name, class_time, attended, status').eq('class_date', todayStr).neq('status', 'cancelled'),
+      supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'booked').eq('confirmed', false),
+      supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'cancelled').eq('refund_status', 'required'),
+      supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', adminId).eq('is_read', false),
+      supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'student'),
+    ])
+    setTodayBookings(tb || [])
+    setPendingCnt(pc || 0)
+    setRefundCnt(rc || 0)
+    setUnread(uc || 0)
+    setMemberCnt(mc || 0)
+    setLoading(false)
+  }
 
   async function handleEnablePush() {
     const { data } = await supabase.auth.getUser()
@@ -55,409 +57,141 @@ export default function AdminPage() {
     else alert('알림 허용을 눌러주세요.')
   }
 
-  async function loadMembers() {
-    const { data } = await supabase
-      .from('users')
-      .select('*, tickets(*), bookings(*)')
-      .eq('role', 'student')
-    setMembers(data || [])
-    const { data: mt } = await supabase.from('meeting_tickets').select('*')
-    const ticketMap = {}
-    mt?.forEach(t => {
-      if (!ticketMap[t.user_id]) ticketMap[t.user_id] = []
-      ticketMap[t.user_id].push(t)
-    })
-    setMemberMeetingTickets(ticketMap)
-    // 냥 꾸미기 해금 상태 — unlock_all 컬럼이 아직 없으면 전부 꺼진 것으로 표시
-    const { data: prefs } = await supabase.from('user_prefs').select('user_id, unlock_all')
-    const unlockMap = {}
-    prefs?.forEach(p => { unlockMap[p.user_id] = p.unlock_all === true })
-    setMemberUnlockAll(unlockMap)
-    setLoading(false)
+  // 오늘 수업: 시간+수업명으로 그룹
+  const groupMap = new Map()
+  for (const b of todayBookings) {
+    const key = `${b.class_time || ''}||${b.class_name || ''}`
+    if (!groupMap.has(key)) groupMap.set(key, { class_name: b.class_name, class_time: b.class_time, items: [] })
+    groupMap.get(key).items.push(b)
   }
+  const todayGroups = [...groupMap.values()].sort((a, b) => (a.class_time || '').localeCompare(b.class_time || ''))
+  const attendedCnt = todayBookings.filter(b => b.attended).length
+  const paymentBadge = pendingCnt + refundCnt
 
-  // 냥 꾸미기 전체 해금 토글 — 켜면 수확 횟수를 채우지 않아도 프로필냥·농부냥을 모두 쓸 수 있다
-  async function toggleUnlockAll(userId, next) {
-    setMemberUnlockAll(prev => ({ ...prev, [userId]: next }))
-    const { error } = await supabase.from('user_prefs').upsert({ user_id: userId, unlock_all: next })
-    if (error) {
-      setMemberUnlockAll(prev => ({ ...prev, [userId]: !next }))
-      alert('저장에 실패했어요. DB에 unlock_all 컬럼이 있는지 확인해 주세요. (migration-lounge-pin-unlock.sql)')
-    }
-  }
-
-  async function grantTicket(userId, type, total, days) {
-    const expires = new Date()
-    expires.setDate(expires.getDate() + days)
-    await supabase.from('tickets').delete().eq('user_id', userId)
-    await supabase.from('tickets').insert({
-      user_id: userId, type, total, remain: total,
-      expires_at: expires.toISOString().split('T')[0]
-    })
-    alert('수강권이 부여됐어요!')
-    loadMembers()
-  }
-
-  // 횟수 입력 없이 일수(만료일)만 갱신 — 기존 수강권의 잔여·총 횟수는 유지
-  async function updateTicketExpiry(ticket, days) {
-    const expires = new Date()
-    expires.setDate(expires.getDate() + days)
-    await supabase.from('tickets').update({ expires_at: expires.toISOString().split('T')[0] }).eq('id', ticket.id)
-    alert(`만료일이 오늘부터 ${days}일 뒤로 변경됐어요!`)
-    loadMembers()
-  }
-
-  async function adjustTicket(ticketId, currentRemain, delta) {
-    const next = currentRemain + delta
-    if (next < 0) { alert('잔여 횟수가 0보다 작아질 수 없어요'); return }
-    await supabase.from('tickets').update({ remain: next }).eq('id', ticketId)
-    loadMembers()
-  }
-
-  async function grantMeetingTicket(userId, total) {
-    const expires = new Date()
-    expires.setMonth(expires.getMonth() + 1)
-    await supabase.from('meeting_tickets').delete().eq('user_id', userId).eq('status', 'confirmed')
-    await supabase.from('meeting_tickets').insert({
-      user_id: userId, total, remain: total,
-      status: 'confirmed',
-      expires_at: expires.toISOString().split('T')[0]
-    })
-    alert('모임 참여권이 부여됐어요!')
-    loadMembers()
-  }
-
-  async function adjustMeetingTicket(ticketId, currentRemain, delta) {
-    const next = currentRemain + delta
-    if (next < 0) { alert('잔여 횟수가 0보다 작아질 수 없어요'); return }
-    await supabase.from('meeting_tickets').update({ remain: next }).eq('id', ticketId)
-    loadMembers()
-  }
-
-  const searched = members
-    .filter(m => !search || m.name?.includes(search) || m.phone?.includes(search))
-
-  const countAll      = searched.length
-  const countExpiring = searched.filter(m => { const s = getStatus(m.tickets?.[0]); return s === '만료' || s === '만료임박' }).length
-  const countZero     = searched.filter(m => { const t = m.tickets?.[0]; return !t || t.remain === 0 }).length
-
-  const filtered = searched
-    .filter(m => {
-      const t = m.tickets?.[0]
-      if (filter === 'expiring') { const s = getStatus(t); return s === '만료' || s === '만료임박' }
-      if (filter === 'zero')     return !t || t.remain === 0
-      return true
-    })
-    .sort((a, b) => {
-      const sa = getStatus(a.tickets?.[0]), sb = getStatus(b.tickets?.[0])
-      if (STATUS_ORDER[sa] !== STATUS_ORDER[sb]) return STATUS_ORDER[sa] - STATUS_ORDER[sb]
-      return (a.name || '').localeCompare(b.name || '')
-    })
-
-  const statusCounts = filtered.reduce((acc, m) => {
-    const s = getStatus(m.tickets?.[0])
-    acc[s] = (acc[s] || 0) + 1
-    return acc
-  }, {})
+  const MENUS = [
+    { label: '회원', icon: 'users', href: '/admin/members' },
+    { label: '수업현황', icon: 'calendar', href: '/admin/schedule' },
+    { label: '출석', icon: 'check', href: '/admin/attendance' },
+    { label: '입금', icon: 'card', href: '/admin/payment', badge: paymentBadge },
+    { label: '알림', icon: 'bell', href: '/admin/notification', badge: unread },
+    { label: '자리사진', icon: 'photo', href: '/admin/seats' },
+    { label: '커리큘럼', icon: 'book', href: '/admin/curriculum' },
+    { label: '라운지', icon: 'chat', href: '/lounge' },
+  ]
 
   if (loading) return (
-    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh' }}>
-      <div style={{ fontSize:32 }}>🐱</div>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+      <div style={{ fontSize: 32 }}>🐱</div>
     </div>
   )
-
-  let lastStatus = null
 
   return (
     <>
       {/* Header */}
-      <div className="header" style={{ background: HEADER_BG, flexDirection:'column', gap:12, paddingBottom:16 }}>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', width:'100%' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-            <NavIcon name="users" color="#fff" size={20} />
-            <span className="header-title">회원 관리</span>
-          </div>
-          <div style={{ display:'flex', gap:5 }}>
-            <button onClick={handleEnablePush}
-              style={{ background: pushEnabled ? 'rgba(255,255,255,0.32)' : 'rgba(255,255,255,0.15)', border:'none', borderRadius:10, padding:'5px 10px', color:'#fff', fontSize:10, fontWeight:700, cursor:'pointer' }}>
-              {pushEnabled ? '🔔 알림ON' : '🔕 알림설정'}
-            </button>
-            <button onClick={() => window.location.href = '/api/kakao/login'}
-              style={{ background:'rgba(255,232,120,0.26)', border:'none', borderRadius:10, padding:'5px 10px', color:'#fff', fontSize:10, fontWeight:700, cursor:'pointer' }}>
-              💬 카톡연동
-            </button>
-            <button onClick={() => supabase.auth.signOut().then(() => router.push('/login'))}
-              style={{ background:'rgba(255,255,255,0.15)', border:'none', borderRadius:10, padding:'5px 10px', color:'#fff', fontSize:10, fontWeight:700, cursor:'pointer' }}>
-              로그아웃
-            </button>
-          </div>
+      <div className="header" style={{ background: HEADER_BG }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <NavIcon name="home" color="#fff" size={20} />
+          <span className="header-title">관리자 홈</span>
         </div>
-        <div style={{ display:'flex', alignItems:'center', gap:9, background:'rgba(255,255,255,0.16)', borderRadius:14, padding:'9px 14px', width:'100%', boxSizing:'border-box' }}>
-          <span style={{ color:'rgba(255,255,255,0.8)', fontSize:14 }}>🔍</span>
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="이름 또는 휴대폰 번호 검색"
-            style={{ background:'transparent', border:'none', outline:'none', color:'#fff', fontSize:12, fontFamily:'Nunito,sans-serif', fontWeight:600, width:'100%' }}/>
+        <div style={{ display: 'flex', gap: 5 }}>
+          <button onClick={handleEnablePush}
+            style={{ background: pushEnabled ? 'rgba(255,255,255,0.32)' : 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 10, padding: '5px 10px', color: '#fff', fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>
+            {pushEnabled ? '🔔 알림ON' : '🔕 알림설정'}
+          </button>
+          <button onClick={() => window.location.href = '/api/kakao/login'}
+            style={{ background: 'rgba(255,232,120,0.26)', border: 'none', borderRadius: 10, padding: '5px 10px', color: '#fff', fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>
+            💬 카톡연동
+          </button>
+          <button onClick={() => supabase.auth.signOut().then(() => router.push('/login'))}
+            style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 10, padding: '5px 10px', color: '#fff', fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>
+            로그아웃
+          </button>
         </div>
       </div>
 
-      {/* Content */}
-      <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'14px 14px 80px' }}>
+      <div style={{ background: '#fff', borderRadius: '24px 24px 0 0', marginTop: -8, padding: '16px 14px 90px', minHeight: '80vh' }}>
 
-        {/* Segmented filter */}
-        <div style={{ display:'flex', background:'var(--g1)', borderRadius:13, padding:3, marginBottom:4 }}>
-          {[['all','전체',countAll],['expiring','만료·임박',countExpiring],['zero','잔여 0',countZero]].map(([val, label, cnt]) => {
-            const on = filter === val
-            return (
-              <button key={val} onClick={() => setFilter(val)}
-                style={{ flex:1, textAlign:'center', border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif',
-                  background: on ? '#fff' : 'transparent', color: on ? 'var(--acTx)' : 'var(--tmu)',
-                  borderRadius:10, padding:'7px 0', fontSize:11, fontWeight: on ? 800 : 700,
-                  boxShadow: on ? '0 1px 2px rgba(0,0,0,0.05)' : 'none' }}>
-                {label} {cnt}
-              </button>
-            )
-          })}
+        {/* 오늘 요약 */}
+        <div style={{ background: OK.soft, border: '1.5px solid rgb(var(--ac-rgb) / 0.3)', borderRadius: 16, padding: '14px 15px', marginBottom: 14 }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: T.text, letterSpacing: '-0.3px' }}>
+            {now.getMonth() + 1}월 {now.getDate()}일 ({DOW[now.getDay()]}) 오늘
+          </div>
+          <div style={{ fontSize: 11.5, color: T.mut, fontWeight: 600, margin: '4px 0 11px' }}>
+            예약 {todayBookings.length}명 · 출석 {attendedCnt}명 · 회원 {memberCnt}명
+          </div>
+          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+            <button onClick={() => router.push('/admin/attendance')}
+              style={{ padding: '8px 15px', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 12, fontSize: 11.5, fontWeight: 800, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
+              출석 체크하기
+            </button>
+            <button onClick={() => router.push('/admin/schedule')}
+              style={{ padding: '8px 15px', background: '#fff', color: OK.tx, border: '1.5px solid rgb(var(--ac-rgb) / 0.4)', borderRadius: 12, fontSize: 11.5, fontWeight: 800, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
+              수업 현황 보기
+            </button>
+          </div>
         </div>
 
-        {/* Member list — grouped by status */}
-        {filtered.map(m => {
-          const ticket   = m.tickets?.[0]
-          const isOpen   = expanded === m.id
-          const daysLeft = getDaysLeft(ticket)
-          const status   = getStatus(ticket)
-          const st       = MST[status]
-          const remainColor = !ticket || ticket.remain === 0 ? '#9B453D' : ticket.remain <= 2 ? '#B5650E' : 'var(--acTx)'
-          const pct      = ticket && ticket.total ? Math.min(1, ticket.remain / ticket.total) : 0
-          const R = 17.5, CIRC = 2 * Math.PI * R
-
-          const showHead = status !== lastStatus
-          lastStatus = status
-
-          return (
-            <div key={m.id}>
-
-              {/* Section header */}
-              {showHead && (
-                <div style={{ display:'flex', alignItems:'center', gap:7, margin:'12px 3px 7px' }}>
-                  <span style={{ width:6, height:6, borderRadius:'50%', background: st.dot }}/>
-                  <span style={{ fontSize:11, fontWeight:800, color: st.tx, letterSpacing:'0.2px' }}>{status}</span>
-                  <span style={{ fontSize:10, fontWeight:700, color:'#bcc2ba' }}>{statusCounts[status]}</span>
-                  <span style={{ flex:1, height:1, background:'rgba(0,0,0,0.05)' }}/>
-                </div>
+        {/* 메뉴 타일 — 회원·수업현황·출석·입금·알림·자리사진·커리큘럼·라운지 */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 14 }}>
+          {MENUS.map(m => (
+            <div key={m.label} onClick={() => router.push(m.href)}
+              style={{ position: 'relative', border: '1.5px solid var(--ac)', borderRadius: 12, background: 'var(--surf)', textAlign: 'center', cursor: 'pointer', padding: '12px 4px 10px' }}>
+              <NavIcon name={m.icon} color="var(--ac)" size={20} />
+              <div style={{ fontSize: 11, fontWeight: 700, marginTop: 4, color: T.text }}>{m.label}</div>
+              {m.badge > 0 && (
+                <span style={{ position: 'absolute', top: 6, right: 8, background: '#e24b4a', color: '#fff', fontSize: 9, fontWeight: 800, minWidth: 16, height: 16, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px', lineHeight: 1, fontFamily: 'Nunito,sans-serif' }}>
+                  {m.badge > 99 ? '99+' : m.badge}
+                </span>
               )}
+            </div>
+          ))}
+        </div>
 
-              <div style={{ border:`0.5px solid ${isOpen ? 'rgba(76,139,41,0.45)' : 'rgba(0,0,0,0.06)'}`, borderRadius:16, marginBottom:7, background: isOpen ? '#FBFCF9' : '#fff', overflow:'hidden' }}>
-
-                {/* ── Collapsed row ── */}
-                <div onClick={() => setExpanded(isOpen ? null : m.id)}
-                  style={{ padding:'11px 13px', display:'flex', alignItems:'center', gap:11, cursor:'pointer' }}>
-
-                  {/* Ring avatar */}
-                  <div style={{ position:'relative', width:40, height:40, flexShrink:0 }}>
-                    <svg width={40} height={40} viewBox="0 0 40 40">
-                      <circle cx={20} cy={20} r={R} fill="none" stroke="#ECEAE2" strokeWidth={2.5}/>
-                      {pct > 0 && (
-                        <circle cx={20} cy={20} r={R} fill="none" stroke={st.main} strokeWidth={2.5} strokeLinecap="round"
-                          strokeDasharray={CIRC} strokeDashoffset={CIRC * (1 - pct)} transform="rotate(-90 20 20)"/>
-                      )}
-                    </svg>
-                    <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:13.5, fontWeight:800, color: st.tx }}>
-                      {m.name?.[0] || '?'}
-                    </div>
-                  </div>
-
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:13.5, fontWeight:800, color:'#1c2a24', marginBottom:2, letterSpacing:'-0.2px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{m.name}</div>
-                    <div style={{ fontSize:11, color:'#a2aaa1', fontWeight:600 }}>{m.phone}</div>
-                  </div>
-
-                  <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:4, flexShrink:0 }}>
-                    <span style={{ fontSize:13, fontWeight:800, color: remainColor, fontVariantNumeric:'tabular-nums' }}>
-                      {ticket ? `${ticket.remain}/${ticket.total}회` : '—'}
-                    </span>
-                    {status !== '수강중' ? (
-                      <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:8, background: st.soft, color: st.tx }}>
-                        {daysLeft <= 0 ? '만료됨' : `${daysLeft}일`}
-                      </span>
-                    ) : (
-                      <span style={{ fontSize:10, fontWeight:600, color:'#a2aaa1' }}>{daysLeft}일 남음</span>
-                    )}
-                  </div>
-
-                  <span style={{ fontSize:17, color: isOpen ? 'var(--ac)' : 'var(--tl)', display:'inline-block', transform: isOpen ? 'rotate(90deg)' : 'none', transition:'transform 0.18s', flexShrink:0 }}>›</span>
-                </div>
-
-                {/* ── Expanded panel ── */}
-                {isOpen && (
-                  <div style={{ padding:'0 13px 15px' }}>
-
-                    {/* 수강권 */}
-                    <div style={{ background:'#fff', border:'0.5px solid rgba(0,0,0,0.08)', borderRadius:15, padding:14, marginBottom:10 }}>
-                      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:10, marginBottom: ticket ? 11 : 0 }}>
-                        <div style={{ minWidth:0 }}>
-                          <div style={{ fontSize:10, fontWeight:700, color:'#a2aaa1', marginBottom:4 }}>수강권</div>
-                          {ticket ? (
-                            <>
-                              <div style={{ fontSize:17, fontWeight:800, color:'#1c2a24', fontVariantNumeric:'tabular-nums' }}>
-                                {ticket.remain}<span style={{ fontSize:13, color:'#a2aaa1' }}>/{ticket.total}회</span>
-                              </div>
-                              <div style={{ fontSize:10, fontWeight:600, color:'#a2aaa1', marginTop:3 }}>
-                                {daysLeft <= 0 ? '만료됨' : `만료 ${ticket.expires_at} · ${daysLeft}일`}
-                              </div>
-                            </>
-                          ) : (
-                            <div style={{ fontSize:13, fontWeight:800, color:'#a2aaa1' }}>수강권 없음</div>
-                          )}
-                        </div>
-                        {ticket && (
-                          <div style={{ display:'inline-flex', alignItems:'stretch', border:'1px solid rgba(0,0,0,0.12)', borderRadius:11, overflow:'hidden', flexShrink:0 }}>
-                            <button onClick={e => { e.stopPropagation(); adjustTicket(ticket.id, ticket.remain, -1) }}
-                              style={{ padding:'7px 14px', background:'transparent', border:'none', color:'#9B453D', fontSize:16, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>−</button>
-                            <span style={{ padding:'7px 12px', fontSize:13, fontWeight:800, color:'#1c2a24', borderLeft:'1px solid rgba(0,0,0,0.1)', borderRight:'1px solid rgba(0,0,0,0.1)', display:'flex', alignItems:'center', fontVariantNumeric:'tabular-nums' }}>{ticket.remain}</span>
-                            <button onClick={e => { e.stopPropagation(); adjustTicket(ticket.id, ticket.remain, 1) }}
-                              style={{ padding:'7px 14px', background:'transparent', border:'none', color:'var(--ac)', fontSize:16, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>+</button>
-                          </div>
-                        )}
-                      </div>
-
-                      {ticket && (
-                        <div style={{ height:6, borderRadius:4, background:'#EFEDE6', overflow:'hidden' }}>
-                          <div style={{ height:'100%', width:`${Math.min(100, Math.round(ticket.remain / ticket.total * 100))}%`, background:'var(--ac)', borderRadius:4, transition:'width 0.3s ease' }}/>
-                        </div>
-                      )}
-
-                      <div style={{ borderTop:'0.5px solid rgba(0,0,0,0.07)', marginTop: ticket ? 13 : 10, paddingTop:12 }}>
-                        <div style={{ fontSize:9, fontWeight:700, color:'#a2aaa1', marginBottom:8, letterSpacing:'0.3px' }}>빠른 부여</div>
-                        <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:10 }}>
-                          {QUICK_PRESETS.map(([total, days, label]) => (
-                            <button key={label}
-                              onClick={e => { e.stopPropagation(); grantTicket(m.id, label, total, days) }}
-                              style={{ padding:'7px 12px', background:'#fff', color:'var(--acTx)', border:'1px solid rgb(var(--ac-rgb) / 0.3)', borderRadius:11, fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
-                              {label}
-                            </button>
-                          ))}
-                        </div>
-                        <div style={{ display:'flex', gap:7, alignItems:'center' }}>
-                          <input type="number" placeholder="횟수"
-                            value={customInputs[m.id]?.total || ''}
-                            onChange={e => setCustomInputs(prev => ({ ...prev, [m.id]: { ...prev[m.id], total: e.target.value } }))}
-                            onClick={e => e.stopPropagation()}
-                            style={{ flex:1, minWidth:0, padding:'8px 11px', background:'#F5F4EF', border:'none', borderRadius:11, fontSize:12, fontFamily:'Nunito,sans-serif', color:'#1c2a24', outline:'none' }}/>
-                          <input type="number" placeholder="일수(만료일)"
-                            value={customInputs[m.id]?.days || ''}
-                            onChange={e => setCustomInputs(prev => ({ ...prev, [m.id]: { ...prev[m.id], days: e.target.value } }))}
-                            onClick={e => e.stopPropagation()}
-                            style={{ flex:1, minWidth:0, padding:'8px 11px', background:'#F5F4EF', border:'none', borderRadius:11, fontSize:12, fontFamily:'Nunito,sans-serif', color:'#1c2a24', outline:'none' }}/>
-                          <button onClick={e => {
-                            e.stopPropagation()
-                            const t = parseInt(customInputs[m.id]?.total)
-                            const d = parseInt(customInputs[m.id]?.days)
-                            if (!t && !d) { alert('횟수 또는 일수를 입력해 주세요'); return }
-                            if (!t) {
-                              // 일수만 입력 → 기존 수강권 만료일만 갱신(횟수 유지)
-                              if (!ticket) { alert('수강권이 없어요. 횟수도 함께 입력해 새로 부여해 주세요'); return }
-                              updateTicketExpiry(ticket, d)
-                            } else {
-                              // 횟수 입력 → 새 수강권 부여(일수 미입력 시 기본 30일)
-                              grantTicket(m.id, `${t}회권`, t, d || 30)
-                            }
-                            setCustomInputs(prev => ({ ...prev, [m.id]: { total: '', days: '' } }))
-                          }}
-                            style={{ padding:'8px 18px', background: PRIMARY, color:'#fff', border:'none', borderRadius:11, fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
-                            {ticket && !customInputs[m.id]?.total && customInputs[m.id]?.days ? '만료일 변경' : '부여'}
-                          </button>
-                        </div>
-                        {ticket && (
-                          <div style={{ fontSize:9, color:'#a2aaa1', marginTop:6, lineHeight:1.4 }}>
-                            일수만 입력하면 잔여 횟수는 그대로 두고 만료일만 바뀌어요
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* 모임 참여권 */}
-                    <div style={{ background:'#FBFAF5', border:'0.5px solid rgba(0,0,0,0.07)', borderRadius:15, padding:14, marginBottom:10 }}>
-                      <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:10, fontWeight:700, color:'#B5650E', marginBottom:10 }}>
-                        <span style={{ width:6, height:6, borderRadius:'50%', background:'#E8912A' }}/> 모임 참여권
-                      </div>
-                      {memberMeetingTickets[m.id]?.filter(mt => mt.remain > 0).length > 0 ? (
-                        memberMeetingTickets[m.id].filter(mt => mt.remain > 0).map(mt => (
-                          <div key={mt.id} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:9 }}>
-                            <div style={{ flex:1, fontSize:11, fontWeight:700, color:'#1c2a24' }}>
-                              {mt.remain}/{mt.total}회 · {mt.expires_at}까지
-                            </div>
-                            <button onClick={e => { e.stopPropagation(); adjustMeetingTicket(mt.id, mt.remain, -1) }}
-                              style={{ padding:'4px 11px', background:'#F7ECEA', color:'#9B453D', border:'none', borderRadius:9, fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>−1</button>
-                            <button onClick={e => { e.stopPropagation(); adjustMeetingTicket(mt.id, mt.remain, 1) }}
-                              style={{ padding:'4px 11px', background:'var(--acBg)', color:'var(--acTx)', border:'none', borderRadius:9, fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>+1</button>
-                          </div>
-                        ))
-                      ) : (
-                        <div style={{ fontSize:11, color:'#a2aaa1', marginBottom:10 }}>모임권 없음</div>
-                      )}
-                      <div style={{ display:'flex', gap:7, alignItems:'center' }}>
-                        <input type="number" placeholder="횟수 (기본 4)"
-                          value={meetingInputs[m.id] || ''}
-                          onChange={e => setMeetingInputs(prev => ({ ...prev, [m.id]: e.target.value }))}
-                          onClick={e => e.stopPropagation()}
-                          style={{ flex:1, minWidth:0, padding:'8px 11px', background:'#fff', border:'0.5px solid rgba(0,0,0,0.1)', borderRadius:11, fontSize:12, fontFamily:'Nunito,sans-serif', color:'#1c2a24', outline:'none' }}/>
-                        <button onClick={e => {
-                          e.stopPropagation()
-                          const t = parseInt(meetingInputs[m.id]) || 4
-                          grantMeetingTicket(m.id, t)
-                          setMeetingInputs(prev => ({ ...prev, [m.id]: '' }))
-                        }}
-                          style={{ padding:'8px 14px', background:'#D98A2B', color:'#fff', border:'none', borderRadius:11, fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif', whiteSpace:'nowrap' }}>
-                          모임권 부여
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* 냥 꾸미기 전체 해금 — 수확 횟수를 안 채워도 프로필냥·농부냥 전부 사용 가능 */}
-                    {(() => {
-                      const on = memberUnlockAll[m.id] === true
-                      return (
-                        <div style={{ background:'#FBFAF5', border:'0.5px solid rgba(0,0,0,0.07)', borderRadius:15, padding:'13px 14px', marginBottom:10, display:'flex', alignItems:'center', gap:11 }}>
-                          <span style={{ fontSize:19, flexShrink:0 }}>{on ? '🔓' : '🔒'}</span>
-                          <div style={{ flex:1, minWidth:0 }}>
-                            <div style={{ fontSize:12, fontWeight:800, color:'#1c2a24' }}>냥 꾸미기 전체 해금</div>
-                            <div style={{ fontSize:10, color:'#a2aaa1', fontWeight:600, marginTop:2, lineHeight:1.5 }}>
-                              {on ? '수확 횟수 없이 프로필냥·농부냥을 모두 쓸 수 있어요' : '켜면 수확 횟수를 채우지 않아도 모든 냥이가 열려요'}
-                            </div>
-                          </div>
-                          <div onClick={e => { e.stopPropagation(); toggleUnlockAll(m.id, !on) }}
-                            style={{ width:46, height:27, borderRadius:14, background: on ? 'var(--ac)' : '#E4E2D9', position:'relative', cursor:'pointer', transition:'background 0.18s ease', flexShrink:0 }}>
-                            <span style={{ position:'absolute', top:3, left: on ? 22 : 3, width:21, height:21, borderRadius:'50%', background:'#fff', boxShadow:'0 1px 3px rgba(0,0,0,0.25)', transition:'left 0.18s ease' }}/>
-                          </div>
-                        </div>
-                      )
-                    })()}
-
-                    {/* 통계 */}
-                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
-                      <div style={{ background:'#F6F5F1', borderRadius:13, padding:'11px 12px' }}>
-                        <div style={{ fontSize:19, fontWeight:800, color:'#1c2a24', fontVariantNumeric:'tabular-nums' }}>{m.bookings?.length || 0}</div>
-                        <div style={{ fontSize:10, color:'#a2aaa1', fontWeight:700, marginTop:2 }}>총 예약</div>
-                      </div>
-                      <div style={{ background:'var(--acBg)', borderRadius:13, padding:'11px 12px' }}>
-                        <div style={{ fontSize:19, fontWeight:800, color:'var(--acTx)', fontVariantNumeric:'tabular-nums' }}>{m.bookings?.filter(b => b.status === 'attended').length || 0}</div>
-                        <div style={{ fontSize:10, color:'#7c9a6a', fontWeight:700, marginTop:2 }}>출석</div>
-                      </div>
-                      <div style={{ background:'#F6E8E6', borderRadius:13, padding:'11px 12px' }}>
-                        <div style={{ fontSize:19, fontWeight:800, color:'#94382F', fontVariantNumeric:'tabular-nums' }}>{m.bookings?.filter(b => b.status === 'absent').length || 0}</div>
-                        <div style={{ fontSize:10, color:'#b98d86', fontWeight:700, marginTop:2 }}>결석</div>
-                      </div>
-                    </div>
-
-                  </div>
-                )}
+        {/* 입금·환불 처리 대기 */}
+        {paymentBadge > 0 && (
+          <div onClick={() => router.push('/admin/payment')}
+            style={{ display: 'flex', alignItems: 'center', gap: 11, background: WARN.soft, border: `1.5px solid ${WARN.main}`, borderRadius: 14, padding: '12px 14px', marginBottom: 14, cursor: 'pointer' }}>
+            <NavIcon name="card" color={WARN.tx} size={20} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 800, color: WARN.tx }}>
+                {pendingCnt > 0 && `입금 대기 ${pendingCnt}건`}
+                {pendingCnt > 0 && refundCnt > 0 && ' · '}
+                {refundCnt > 0 && `환불 필요 ${refundCnt}건`}
               </div>
+              <div style={{ fontSize: 10.5, color: WARN.tx, opacity: 0.8, fontWeight: 600, marginTop: 1 }}>눌러서 바로 처리하기</div>
+            </div>
+            <span style={{ fontSize: 16, color: WARN.tx }}>›</span>
+          </div>
+        )}
+
+        {/* 오늘 수업 목록 */}
+        <div style={{ fontSize: 12, fontWeight: 800, color: T.text, margin: '0 2px 9px' }}>오늘 수업</div>
+        {todayGroups.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '22px 0', color: T.mut, fontSize: 12, border: '1.5px dashed var(--g2)', borderRadius: 12 }}>
+            오늘은 예약된 수업이 없어요 🐾
+          </div>
+        ) : todayGroups.map(g => {
+          const done = g.items.filter(b => b.attended).length
+          const allDone = done === g.items.length
+          return (
+            <div key={`${g.class_time}||${g.class_name}`} onClick={() => router.push('/admin/attendance')}
+              style={{ display: 'flex', alignItems: 'center', gap: 11, background: '#fff', border: '0.5px solid rgba(0,0,0,0.08)', borderRadius: 14, padding: '11px 13px', marginBottom: 7, cursor: 'pointer' }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: OK.tx, background: OK.soft, borderRadius: 9, padding: '5px 9px', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
+                {(g.class_time || '').split('~')[0] || '-'}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 800, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.class_name}</div>
+                <div style={{ fontSize: 10, color: T.mut, marginTop: 1 }}>{g.class_time}</div>
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 800, flexShrink: 0, color: allDone ? OK.tx : T.mut }}>
+                출석 {done}/{g.items.length}
+              </span>
             </div>
           )
         })}
       </div>
 
-      <AdminNav active="member" />
+      <AdminNav active="home" />
     </>
   )
 }

@@ -23,13 +23,12 @@ export default function AdminNav({ active }) {
     setUnread(count || 0)
   }
 
+  // 홈이 허브 — 입금·자리사진·커리큘럼은 홈 타일에서 진입 (수강생 네비와 같은 6탭)
   const items = [
-    { href:'/admin', label:'회원', icon:'users', key:'member' },
+    { href:'/admin', label:'홈', icon:'home', key:'home' },
+    { href:'/admin/members', label:'회원', icon:'users', key:'member' },
     { href:'/admin/schedule', label:'수업현황', icon:'calendar', key:'schedule' },
     { href:'/admin/attendance', label:'출석', icon:'check', key:'attendance' },
-    { href:'/admin/payment', label:'입금', icon:'card', key:'payment' },
-    { href:'/admin/seats', label:'자리사진', icon:'photo', key:'seats' },
-    { href:'/admin/curriculum', label:'커리큘럼', icon:'book', key:'curriculum' },
     { href:'/admin/notification', label:'알림', icon:'bell', key:'notification' },
     { href:'/lounge', label:'라운지', icon:'chat', key:'lounge' },
   ]
