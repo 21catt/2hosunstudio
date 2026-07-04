@@ -49,6 +49,7 @@ function RecordsInner() {
   const [composePreviews, setComposePreviews] = useState([])
   const [sending, setSending] = useState(false)
   const [lastAddedId, setLastAddedId] = useState(null)
+  const [shareLounge, setShareLounge] = useState(true) // 라운지 '수업' 카테고리로도 공유
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -149,6 +150,33 @@ function RecordsInner() {
       setRecords(prev => [...prev, newRec].sort((a, b) => a.class_date.localeCompare(b.class_date)))
       setSignedUrls(prev => ({ ...prev, ...urlByPath }))
       setLastAddedId(rec.id)
+
+      // 라운지 '수업' 카테고리로도 공유 (전체 탭에도 자연히 노출)
+      // 기록 사진은 비공개 버킷이라, 공유용으로 공개 버킷(lounge-images)에 한 번 더 올린다
+      if (shareLounge) {
+        try {
+          const shareUrls = []
+          for (const file of composeFiles) {
+            const ext0 = file.name.split('.').pop().toLowerCase()
+            const ext = /^[a-z0-9]{1,5}$/.test(ext0) ? ext0 : 'jpg'
+            const lpath = `${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`
+            const { error: lErr } = await supabase.storage.from('lounge-images').upload(lpath, file)
+            if (!lErr) {
+              const { data } = supabase.storage.from('lounge-images').getPublicUrl(lpath)
+              shareUrls.push(data.publicUrl)
+            }
+          }
+          await supabase.from('posts').insert({
+            title: ctx.cls ? `🎨 ${ctx.cls} 수업 기록` : '📋 오늘의 수업 기록',
+            content: text || '',
+            tag: 'class',
+            author_id: user.id,
+            author_name: user.user_metadata?.name || '익명',
+            image_url: shareUrls[0] || null,
+            images: shareUrls,
+          })
+        } catch {} // 공유 실패해도 기록 저장은 유지
+      }
       setComposeText('')
       setComposeFiles([]); setComposePreviews([]) // objectURL은 표시에 쓰므로 revoke하지 않음
       setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior:'smooth' }), 60)
@@ -280,15 +308,23 @@ function RecordsInner() {
       {/* 카톡식 입력바 — 바로 쓰고 ➤, 📷은 즉시 사진 선택 */}
       <div style={{ position:'fixed', bottom:66, left:'50%', transform:'translateX(-50%)', width:'100%', maxWidth:390, background:'#fff', borderTop:`2px solid rgb(var(--ac-rgb) / 0.15)`, zIndex:90, boxSizing:'border-box' }}>
 
-        {/* 다른 날짜·수업 컨텍스트 칩 (커리큘럼에서 넘어온 경우) */}
-        {hasCtx && (
-          <div style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 12px 0' }}>
-            <span style={{ fontSize:10.5, fontWeight:800, color:ACCENT_TEXT, background:ACCENT_BG, border:`2px solid rgb(var(--ac-rgb) / 0.35)`, borderRadius:20, padding:'4px 11px', display:'flex', alignItems:'center', gap:6 }}>
+        {/* 컨텍스트 칩(커리큘럼에서 넘어온 날짜·수업) + 라운지 공유 토글 */}
+        <div className="no-scrollbar" style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 12px 0', overflowX:'auto' }}>
+          <span onClick={() => setShareLounge(v => !v)} className="press"
+            style={{ flexShrink:0, fontSize:10.5, fontWeight:800, cursor:'pointer', borderRadius:20, padding:'4px 11px', display:'flex', alignItems:'center', gap:5,
+              color: shareLounge ? '#fff' : 'var(--tmu)',
+              background: shareLounge ? ACCENT : 'var(--surf)',
+              border: `2px solid ${shareLounge ? ACCENT : 'rgb(var(--ac-rgb) / 0.3)'}`,
+              boxShadow: shareLounge ? '2px 2px 0 rgb(var(--ac-rgb) / 0.25)' : 'none', transition:'all 0.15s' }}>
+            💬 라운지 공유 {shareLounge ? 'ON' : 'OFF'}
+          </span>
+          {hasCtx && (
+            <span style={{ flexShrink:0, fontSize:10.5, fontWeight:800, color:ACCENT_TEXT, background:ACCENT_BG, border:`2px solid rgb(var(--ac-rgb) / 0.35)`, borderRadius:20, padding:'4px 11px', display:'flex', alignItems:'center', gap:6 }}>
               📌 {ctx.date.slice(5).replace('-','/')}{ctx.cls ? ` · ${ctx.cls}` : ''} 기록으로 남겨요
               <span onClick={() => setCtx({ date: todayStr, cls: '' })} style={{ cursor:'pointer', fontWeight:900 }}>✕</span>
             </span>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* 선택한 사진 미리보기 */}
         {composePreviews.length > 0 && (

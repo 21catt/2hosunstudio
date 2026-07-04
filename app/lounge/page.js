@@ -6,11 +6,17 @@ import StudentNav from '../../components/StudentNav'
 import LoadingCat from '../../components/LoadingCat'
 import { pixelCatImg, DEFAULT_PROFILE_CAT } from '../../lib/pixelCats'
 
-// 작성자 프로필 고양이 아바타 (설정에서 고른 픽셀 고양이 얼굴)
+// 카톡형 라운지 — 누구나 하단 입력바에서 바로 쓰고 보내는 단체 채팅 스타일.
+// 내 메시지는 오른쪽 테마색 말풍선, 다른 사람은 왼쪽(프로필 고양이 + 이름).
+// 색은 전부 --ac 계열 변수 → 개인설정 4가지 컬러모드를 따라간다.
+const ACCENT = 'var(--ac)'
+const ACCENT_BG = 'var(--acBg)'
+const ACCENT_TEXT = 'var(--acTx)'
+
 function CatAvatar({ catKey, size = 36 }) {
-  const s = Math.round(size * 0.78)
+  const s = Math.round(size * 0.72)
   return (
-    <div style={{ width:size, height:size, borderRadius:'50%', background:'var(--acBg)', border:'2.5px solid var(--ac)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, overflow:'hidden' }}>
+    <div style={{ width:size, height:size, borderRadius:'50%', background:ACCENT_BG, border:'2.5px solid var(--ac)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, overflow:'hidden' }}>
       <img src={pixelCatImg(catKey || DEFAULT_PROFILE_CAT)} alt="" width={s} height={s} style={{ imageRendering:'pixelated', display:'block' }} />
     </div>
   )
@@ -22,21 +28,19 @@ export default function LoungePage() {
   const [role, setRole] = useState('')
   const [tab, setTab] = useState(0)
   const [posts, setPosts] = useState([])
-  const [expanded, setExpanded] = useState(null)
-  const [comment, setComment] = useState('')
   const [loading, setLoading] = useState(true)
-  const [showWrite, setShowWrite] = useState(false)
-  const [newTitle, setNewTitle] = useState('')
-  const [newBody, setNewBody] = useState('')
-  const [newTag, setNewTag] = useState('notice')
-  const [imageFiles, setImageFiles] = useState([])
-  const [imagePreviews, setImagePreviews] = useState([])
-  const [uploading, setUploading] = useState(false)
   const [profileMap, setProfileMap] = useState({})   // {userId: profile_cat}
   const [likeCount, setLikeCount] = useState({})      // {postId: n}
   const [myLikes, setMyLikes] = useState(() => new Set())
   const [viewer, setViewer] = useState(null)          // { images, idx } — 이미지 크게 보기
-  const fileRef = useRef()
+  const [lastAddedId, setLastAddedId] = useState(null)
+
+  // 카톡식 입력바
+  const [composeText, setComposeText] = useState('')
+  const [composeFiles, setComposeFiles] = useState([])
+  const [composePreviews, setComposePreviews] = useState([])
+  const [sending, setSending] = useState(false)
+
   const touchX = useRef(null)
   function viewerSwipe(e) {
     if (touchX.current == null || !viewer || viewer.images.length < 2) return
@@ -45,12 +49,11 @@ export default function LoungePage() {
     if (Math.abs(delta) < 50) return
     setViewer(v => ({ ...v, idx: delta < 0 ? (v.idx+1)%v.images.length : (v.idx-1+v.images.length)%v.images.length }))
   }
-const [editingId, setEditingId] = useState(null)
-const [existingImages, setExistingImages] = useState([])
+
   const TAGS = ['전체','공지','행사','수업','기타']
   const TAG_IDS = ['all','notice','event','class','etc']
   const TAG_COLORS = {
-    notice:{bg:'var(--g1)',color:'var(--g5)'},
+    notice:{bg:'var(--acBg)',color:'var(--acTx)'},
     event:{bg:'#FFF3E0',color:'#E65100'},
     class:{bg:'#EDE7F6',color:'#4A148C'},
     etc:{bg:'#F3F3F0',color:'#5a5a50'},
@@ -65,15 +68,19 @@ const [existingImages, setExistingImages] = useState([])
     })
   }, [])
 
+  useEffect(() => {
+    if (loading) return
+    setTimeout(() => window.scrollTo({ top: document.body.scrollHeight }), 120)
+  }, [loading, tab])
+
   async function loadPosts(uid = user?.id) {
     const { data } = await supabase
       .from('posts')
       .select('*, comments(*)')
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: true })
     const list = data || []
     setPosts(list)
 
-    // 글·댓글 작성자들의 프로필 고양이 조회 → 아바타 표시
     const ids = new Set()
     list.forEach(p => { if (p.author_id) ids.add(p.author_id); (p.comments || []).forEach(c => c.user_id && ids.add(c.user_id)) })
     if (ids.size > 0) {
@@ -83,7 +90,6 @@ const [existingImages, setExistingImages] = useState([])
       setProfileMap(pm)
     }
 
-    // 공감(하트): 전체 likes → 게시글별 카운트 + 내 공감 집합
     const { data: likes } = await supabase.from('likes').select('post_id, user_id')
     const cnt = {}
     const mine = new Set()
@@ -94,8 +100,7 @@ const [existingImages, setExistingImages] = useState([])
     setLoading(false)
   }
 
-  // 하트 공감 토글 — likes 테이블(1인 1공감)이 단일 소스, 낙관적 갱신.
-  // (posts.likes_count는 남의 글에 UPDATE 불가할 수 있어 건드리지 않음)
+  // 하트 공감 토글 — likes 테이블(1인 1공감)이 단일 소스, 낙관적 갱신
   async function toggleLike(postId) {
     if (!user) return
     const liked = myLikes.has(postId)
@@ -105,105 +110,73 @@ const [existingImages, setExistingImages] = useState([])
     const { error } = liked
       ? await supabase.from('likes').delete().eq('post_id', postId).eq('user_id', user.id)
       : await supabase.from('likes').insert({ post_id: postId, user_id: user.id })
-    if (error) loadPosts() // 실패 시 서버 상태로 되돌림
+    if (error) loadPosts()
   }
 
-  function handleImageSelect(e) {
+  function pickFiles(e) {
     const files = Array.from(e.target.files)
-    if (files.length === 0) return
-    const total = imageFiles.length + files.length
-    if (total > 10) { alert('이미지는 최대 10장까지 올릴 수 있어요'); return }
-    setImageFiles(prev => [...prev, ...files])
-    setImagePreviews(prev => [...prev, ...files.map(f => URL.createObjectURL(f))])
     e.target.value = ''
+    if (!files.length) return
+    if (composeFiles.length + files.length > 10) { alert('사진은 한 번에 10장까지 보낼 수 있어요'); return }
+    setComposeFiles(prev => [...prev, ...files])
+    setComposePreviews(prev => [...prev, ...files.map(f => URL.createObjectURL(f))])
   }
 
-  function removeImage(idx) {
-    setImageFiles(prev => prev.filter((_,i) => i !== idx))
-    setImagePreviews(prev => prev.filter((_,i) => i !== idx))
+  function removePick(i) {
+    URL.revokeObjectURL(composePreviews[i])
+    setComposeFiles(prev => prev.filter((_, idx) => idx !== i))
+    setComposePreviews(prev => prev.filter((_, idx) => idx !== i))
   }
 
-  async function uploadImages() {
-    if (imageFiles.length === 0) return []
-    const urls = []
-    for (const file of imageFiles) {
-      const ext = file.name.split('.').pop()
-      const path = `${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`
-      const { error } = await supabase.storage.from('lounge-images').upload(path, file)
-      if (!error) {
-        const { data } = supabase.storage.from('lounge-images').getPublicUrl(path)
-        urls.push(data.publicUrl)
+  // 전송 — 현재 탭 카테고리로 바로 올린다 (전체→기타, 공지는 관리자만 공지로)
+  async function handleSend() {
+    const text = composeText.trim()
+    if (!user || sending || (!text && composeFiles.length === 0)) return
+    setSending(true)
+    try {
+      let tag = TAG_IDS[tab] === 'all' ? 'etc' : TAG_IDS[tab]
+      if (tag === 'notice' && role !== 'admin') tag = 'etc'
+
+      const urls = []
+      for (const file of composeFiles) {
+        const ext = file.name.split('.').pop()
+        const path = `${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`
+        const { error } = await supabase.storage.from('lounge-images').upload(path, file)
+        if (!error) {
+          const { data } = supabase.storage.from('lounge-images').getPublicUrl(path)
+          urls.push(data.publicUrl)
+        }
       }
+
+      const { data: post } = await supabase.from('posts').insert({
+        title: '',
+        content: text || '',
+        tag,
+        author_id: user.id,
+        author_name: user.user_metadata?.name || '익명',
+        image_url: urls[0] || null,
+        images: urls,
+      }).select().single()
+
+      if (post) {
+        setPosts(prev => [...prev, { ...post, comments: [] }])
+        setLastAddedId(post.id)
+      }
+      setComposeText('')
+      composePreviews.forEach(u => URL.revokeObjectURL(u))
+      setComposeFiles([]); setComposePreviews([])
+      setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior:'smooth' }), 60)
+    } finally {
+      setSending(false)
     }
-    return urls
   }
 
-  async function writePost() {
-  if (!newTitle.trim() || !newBody.trim()) return
-  setUploading(true)
-  const newUrls = await uploadImages()
-  const allUrls = [...existingImages, ...newUrls]
-  
-  if (editingId) {
-    // 수정
-    await supabase.from('posts').update({
-      title: newTitle,
-      content: newBody,
-      tag: newTag,
-      image_url: allUrls[0] || null,
-      images: allUrls,
-    }).eq('id', editingId)
-  } else {
-    // 새 글
-    await supabase.from('posts').insert({
-      title: newTitle,
-      content: newBody,
-      tag: newTag,
-      author_id: user.id,
-      author_name: user.user_metadata?.name || '익명',
-      image_url: allUrls[0] || null,
-      images: allUrls,
-    })
-  }
-  
-  setNewTitle(''); setNewBody(''); setImageFiles([]); setImagePreviews([])
-  setExistingImages([]); setEditingId(null)
-  setShowWrite(false); setUploading(false)
-  loadPosts()
-}
-function startEdit(p) {
-  setEditingId(p.id)
-  setNewTitle(p.title)
-  setNewBody(p.content)
-  setNewTag(p.tag)
-  setExistingImages(getImages(p))
-  setImageFiles([])
-  setImagePreviews([])
-  setShowWrite(true)
-}
-
-async function deletePost(postId) {
-  if (!confirm('정말 삭제할까요?')) return
-  await supabase.from('posts').delete().eq('id', postId)
-  setExpanded(null)
-  loadPosts()
-}
-
-function removeExistingImage(idx) {
-  setExistingImages(prev => prev.filter((_,i) => i !== idx))
-}
-
-  async function addComment(postId) {
-    if (!comment.trim()) return
-    await supabase.from('comments').insert({
-      post_id: postId, user_id: user.id,
-      content: comment, author_name: user.user_metadata?.name || '익명'
-    })
-    setComment('')
-    loadPosts()
+  async function deletePost(postId) {
+    if (!confirm('이 메시지를 삭제할까요?')) return
+    await supabase.from('posts').delete().eq('id', postId)
+    setPosts(prev => prev.filter(p => p.id !== postId))
   }
 
-  // 이미지 배열로 통일 (이전 데이터 호환)
   function getImages(p) {
     if (p.images && p.images.length > 0) return p.images
     if (p.image_url) return [p.image_url]
@@ -212,86 +185,33 @@ function removeExistingImage(idx) {
 
   const filtered = tab === 0 ? posts : posts.filter(p => p.tag === TAG_IDS[tab])
 
+  // 날짜별 그룹 (created_at 기준)
+  const groups = []
+  for (const p of filtered) {
+    const date = (p.created_at || '').split('T')[0]
+    const last = groups[groups.length - 1]
+    if (last && last.date === date) last.items.push(p)
+    else groups.push({ date, items: [p] })
+  }
+
   if (loading) return <LoadingCat />
 
-  if (showWrite) return (
-    <>
-      <div className="header">
-        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <button onClick={() => { setShowWrite(false); setImageFiles([]); setImagePreviews([]); setExistingImages([]); setEditingId(null) }}
-            style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:'50%', width:32, height:32, cursor:'pointer', color:'#fff', fontSize:18 }}>‹</button>
-          <span className="header-title">{editingId ? '글 수정' : '글쓰기'}</span>
-        </div>
-        <button onClick={writePost} disabled={uploading||!newTitle||!newBody}
-          style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:20, padding:'4px 14px', color:'#fff', fontSize:11, fontWeight:700, cursor:'pointer', opacity:uploading?0.6:1 }}>
-          {uploading ? '올리는 중...' : '등록'}
-        </button>
-      </div>
-      <div className="page-body">
-        <div className="field">
-          <label>태그</label>
-          <select value={newTag} onChange={e => setNewTag(e.target.value)}>
-            <option value="notice">공지</option>
-            <option value="event">행사</option>
-            <option value="class">수업</option>
-            <option value="etc">기타</option>
-          </select>
-        </div>
-        <div className="field">
-          <label>제목</label>
-          <input placeholder="제목을 입력해 주세요" value={newTitle} onChange={e => setNewTitle(e.target.value)}/>
-        </div>
-        <div className="field">
-          <label>내용</label>
-          <textarea placeholder="내용을 입력해 주세요" value={newBody} onChange={e => setNewBody(e.target.value)}
-            style={{ width:'100%', minHeight:160, background:'var(--surf)', border:'1.5px solid var(--g1)', borderRadius:12, padding:'11px 14px', fontSize:13, fontFamily:'Nunito,sans-serif', color:'var(--td)', outline:'none', resize:'vertical' }}/>
-        </div>
-
-        {/* 이미지 업로드 (여러 장) */}
-        <div className="field">
-          <label>이미지 첨부 (최대 10장)</label>
-          <input ref={fileRef} type="file" accept="image/*" multiple style={{ display:'none' }} onChange={handleImageSelect}/>
-          {existingImages.length > 0 && (
-  <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:6, marginBottom:8 }}>
-    {existingImages.map((src,i) => (
-      <div key={`ex-${i}`} style={{ position:'relative', aspectRatio:'1/1', borderRadius:10, overflow:'hidden', background:'var(--bg)' }}>
-        <img src={src} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>
-        <button onClick={() => removeExistingImage(i)}
-          style={{ position:'absolute', top:4, right:4, background:'rgba(0,0,0,0.6)', color:'#fff', border:'none', borderRadius:'50%', width:22, height:22, cursor:'pointer', fontSize:11, display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
-        <div style={{ position:'absolute', bottom:4, left:4, background:'rgba(0,0,0,0.6)', color:'#fff', fontSize:8, fontWeight:700, padding:'2px 6px', borderRadius:6 }}>기존</div>
-      </div>
-    ))}
-  </div>
-)}
-          {imagePreviews.length > 0 && (
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:6, marginBottom:8 }}>
-              {imagePreviews.map((src,i) => (
-                <div key={i} style={{ position:'relative', aspectRatio:'1/1', borderRadius:10, overflow:'hidden', background:'var(--bg)' }}>
-                  <img src={src} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>
-                  <button onClick={() => removeImage(i)}
-                    style={{ position:'absolute', top:4, right:4, background:'rgba(0,0,0,0.6)', color:'#fff', border:'none', borderRadius:'50%', width:22, height:22, cursor:'pointer', fontSize:11, display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
-                  {i === 0 && (
-                    <div style={{ position:'absolute', bottom:4, left:4, background:'var(--g4)', color:'#fff', fontSize:8, fontWeight:800, padding:'2px 6px', borderRadius:6 }}>대표</div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-          
-          <div onClick={() => fileRef.current.click()}
-            style={{ border:'1.5px dashed var(--g2)', borderRadius:12, padding:'18px', textAlign:'center', cursor:'pointer', background:'var(--bg)' }}>
-            <div style={{ fontSize:24, marginBottom:4 }}>📷</div>
-            <div style={{ fontSize:11, color:'var(--tmu)', fontWeight:600 }}>
-              {imagePreviews.length > 0 ? '이미지 추가' : '클릭해서 이미지 선택'}
-            </div>
-          </div>
-        </div>
-      </div>
-    </>
-  )
+  const DOW = ['일','월','화','수','목','금','토']
 
   return (
     <>
+      <style>{`
+        @keyframes bubIn { 0%{opacity:0; transform:translateY(22px) scale(0.55)} 55%{opacity:1; transform:translateY(-5px) scale(1.07)} 78%{transform:translateY(2px) scale(0.97)} 100%{opacity:1; transform:translateY(0) scale(1)} }
+        .bub-in { animation: bubIn 0.5s cubic-bezier(0.34,1.56,0.64,1) both; transform-origin: 100% 100%; }
+        @keyframes thumbIn { 0%{opacity:0; transform:scale(0.4) rotate(-6deg)} 70%{opacity:1; transform:scale(1.09) rotate(2deg)} 100%{opacity:1; transform:scale(1) rotate(0)} }
+        .thumb-in { animation: thumbIn 0.45s cubic-bezier(0.34,1.56,0.64,1) both; }
+        @keyframes heartPop { 0%{transform:scale(1)} 35%{transform:scale(1.45)} 60%{transform:scale(0.9)} 100%{transform:scale(1)} }
+        .heart-pop { animation: heartPop 0.4s ease; display:inline-block; }
+        .press { transition: transform 0.12s cubic-bezier(0.34,1.56,0.64,1); }
+        .press:active { transform: scale(0.84); }
+        @media (prefers-reduced-motion: reduce) { .bub-in, .thumb-in, .heart-pop { animation: none } .press:active { transform:none } }
+      `}</style>
+
       <div className="header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <span style={{ fontSize:20 }}>💬</span>
@@ -299,13 +219,9 @@ function removeExistingImage(idx) {
         </div>
       </div>
 
-      <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'16px 14px 80px' }}>
-        <style>{`
-          @keyframes heartPop { 0%{transform:scale(1)} 35%{transform:scale(1.45)} 60%{transform:scale(0.9)} 100%{transform:scale(1)} }
-          .heart-pop { animation: heartPop 0.4s ease; display:inline-block; }
-        `}</style>
-        {/* 탭 — 알약 칩 */}
-        <div className="no-scrollbar" style={{ display:'flex', gap:7, marginBottom:16, overflowX:'auto', paddingBottom:2 }}>
+      <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'16px 12px 176px', minHeight:'80vh' }}>
+        {/* 카테고리 칩 — 보낼 때도 이 카테고리로 올라간다 */}
+        <div className="no-scrollbar" style={{ display:'flex', gap:7, marginBottom:14, overflowX:'auto', paddingBottom:2 }}>
           {TAGS.map((t,i) => {
             const on = tab === i
             return (
@@ -319,189 +235,203 @@ function removeExistingImage(idx) {
           })}
         </div>
 
-        {/* 게시글 목록 */}
         {filtered.length === 0 ? (
           <div style={{ textAlign:'center', padding:'48px 0', color:'var(--tmu)', fontSize:13, lineHeight:1.8 }}>
             <div style={{ fontSize:34, marginBottom:6 }}>🐱</div>
             아직 글이 없어요<br/>
-            <span style={{ fontSize:11 }}>첫 소식을 남겨보세요 🐾</span>
+            <span style={{ fontSize:11 }}>아래 입력창에 바로 써서 첫 소식을 남겨보세요 🐾</span>
           </div>
-        ) : filtered.map(p => {
-          const isExp = expanded === p.id
-          const tagStyle = TAG_COLORS[p.tag] || TAG_COLORS.etc
-          const images = getImages(p)
-          const liked = myLikes.has(p.id)
-          const likeN = likeCount[p.id] ?? (p.likes_count || 0)
-
+        ) : groups.map(g => {
+          const d = g.date ? new Date(g.date + 'T00:00:00') : null
           return (
-            <div key={p.id} onClick={() => setExpanded(isExp?null:p.id)}
-              style={{ background:'var(--surf)', borderRadius:26, border:`3px solid ${isExp?'var(--ac)':'rgb(var(--ac-rgb) / 0.3)'}`,
-                marginBottom:14, overflow:'hidden', cursor:'pointer', boxShadow: isExp ? '4px 4px 0 rgb(var(--ac-rgb) / 0.25)' : '3px 3px 0 rgb(var(--ac-rgb) / 0.12)', transition:'border-color 0.15s, box-shadow 0.15s' }}>
-
-              {/* 작성자 헤더 — 프로필 고양이 아바타 */}
-              <div style={{ display:'flex', alignItems:'center', gap:9, padding:'12px 14px 10px' }}>
-                <CatAvatar catKey={profileMap[p.author_id]} size={38} />
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:12.5, fontWeight:800, color:'var(--td)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.author_name}</div>
-                  <div style={{ fontSize:10, color:'var(--tl)' }}>{p.created_at?.split('T')[0]}</div>
+            <div key={g.date || 'nodate'}>
+              {d && (
+                <div style={{ display:'flex', justifyContent:'center', margin:'10px 0 14px' }}>
+                  <span style={{ fontSize:10.5, fontWeight:800, color:ACCENT_TEXT, background:'rgb(var(--ac-rgb) / 0.1)', padding:'5px 14px', borderRadius:20 }}>
+                    {d.getMonth()+1}월 {d.getDate()}일 ({DOW[d.getDay()]})
+                  </span>
                 </div>
-                <span style={{ fontSize:9, fontWeight:900, padding:'4px 10px', borderRadius:12, background:tagStyle.bg, color:tagStyle.color, flexShrink:0 }}>
-                  {TAGS[TAG_IDS.indexOf(p.tag)]}
-                </span>
-              </div>
+              )}
 
-              {/* 본문 */}
-              <div style={{ padding:'11px 14px 13px' }}>
-                <div style={{ fontSize:14, fontWeight:800, color:'var(--td)', marginBottom:4, lineHeight:1.4 }}>{p.title}</div>
-                {!isExp ? (
-                  <div style={{ fontSize:11.5, color:'var(--tmu)', lineHeight:1.55,
-                    display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }}>
-                    {p.content}
+              {g.items.map(p => {
+                const isMine = p.author_id === user?.id
+                const isNew = p.id === lastAddedId
+                const images = getImages(p)
+                const liked = myLikes.has(p.id)
+                const likeN = likeCount[p.id] ?? (p.likes_count || 0)
+                const tagStyle = TAG_COLORS[p.tag] || TAG_COLORS.etc
+                const tagLabel = TAGS[TAG_IDS.indexOf(p.tag)]
+                const canDelete = isMine || role === 'admin'
+                const time = (p.created_at || '').split('T')[1]?.slice(0,5) || ''
+
+                const bubble = (
+                  <div className={isNew ? 'bub-in' : ''}
+                    style={isMine
+                      ? { background:ACCENT, color:'#fff', fontSize:13.5, fontWeight:600, lineHeight:1.6, padding:'11px 14px', borderRadius:'24px 24px 8px 24px', boxShadow:'3px 3px 0 rgb(var(--ac-rgb) / 0.22)', whiteSpace:'pre-wrap', wordBreak:'break-word' }
+                      : { background:'var(--surf)', color:'var(--td)', border:`3px solid rgb(var(--ac-rgb) / 0.35)`, fontSize:13.5, fontWeight:600, lineHeight:1.6, padding:'10px 13px', borderRadius:'24px 24px 24px 8px', boxShadow:'3px 3px 0 rgb(var(--ac-rgb) / 0.12)', whiteSpace:'pre-wrap', wordBreak:'break-word' }}>
+                    {p.title && <div style={{ fontWeight:900, fontSize:14, marginBottom:3, lineHeight:1.4 }}>{p.title}</div>}
+                    {p.content && <div>{p.content}</div>}
                   </div>
-                ) : (
-                  <div style={{ fontSize:12.5, color:'var(--td)', lineHeight:1.8, whiteSpace:'pre-wrap', marginTop:2 }}>{p.content}</div>
-                )}
+                )
 
-                {/* 이미지 첨부 — 작은 썸네일, 누르면 크게 보기 */}
-                {images.length > 0 && (
-                  <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop:10 }} onClick={e => e.stopPropagation()}>
-                    {(isExp ? images : images.slice(0, 4)).map((src, i) => {
-                      const hiddenMore = !isExp && i === 3 && images.length > 4
+                const thumbs = images.length > 0 && (
+                  <div style={{ display:'flex', gap:6, flexWrap:'wrap', justifyContent: isMine ? 'flex-end' : 'flex-start', maxWidth:'100%' }}>
+                    {images.slice(0, 6).map((src, i) => {
+                      const more = i === 5 && images.length > 6
                       return (
-                        <div key={i} onClick={() => setViewer({ images, idx: i })}
-                          style={{ position:'relative', width:60, height:60, borderRadius:14, overflow:'hidden', cursor:'pointer',
-                            border:'2.5px solid rgb(var(--ac-rgb) / 0.3)', background:'var(--acBg)', flexShrink:0 }}>
+                        <div key={i} className={isNew ? 'thumb-in' : ''} onClick={() => setViewer({ images, idx: i })}
+                          style={{ position:'relative', width:62, height:62, borderRadius:14, overflow:'hidden', cursor:'pointer', border:'2.5px solid rgb(var(--ac-rgb) / 0.3)', background:ACCENT_BG, flexShrink:0, animationDelay:`${i*60}ms` }}>
                           <img src={src} alt="" loading="lazy" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}/>
-                          {hiddenMore && (
+                          {more && (
                             <div style={{ position:'absolute', inset:0, background:'rgba(27,28,70,0.55)', color:'#fff', fontSize:13, fontWeight:900, display:'flex', alignItems:'center', justifyContent:'center' }}>
-                              +{images.length - 4}
+                              +{images.length - 6}
                             </div>
                           )}
                         </div>
                       )
                     })}
-                    <span style={{ alignSelf:'center', fontSize:10, color:'var(--tl)', fontWeight:700 }}>📷 {images.length}장 · 눌러서 보기</span>
                   </div>
-                )}
+                )
 
-                {/* 액션 — 하트 공감 + 댓글 */}
-                <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:11 }}>
-                  <button onClick={(e) => { e.stopPropagation(); toggleLike(p.id) }} title="공감"
-                    style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 15px', borderRadius:22, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:900, fontSize:12.5,
-                      border:`2.5px solid ${liked ? '#FF8FB1' : 'rgb(var(--ac-rgb) / 0.3)'}`, background: liked ? '#FF8FB1' : 'var(--surf)', color: liked ? '#fff' : 'var(--tm)',
-                      boxShadow: liked ? '2px 2px 0 rgba(255,143,177,0.4)' : 'none', transition:'all 0.15s' }}>
-                    <span key={liked ? 'on' : 'off'} className={liked ? 'heart-pop' : ''} style={{ fontSize:13, lineHeight:1 }}>{liked ? '❤️' : '🤍'}</span>
-                    <span style={{ fontVariantNumeric:'tabular-nums' }}>{likeN}</span>
-                  </button>
-                  <button onClick={(e) => { e.stopPropagation(); setExpanded(isExp?null:p.id) }}
-                    style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 15px', borderRadius:22, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:900, fontSize:12.5,
-                      border:`2.5px solid rgb(var(--ac-rgb) / 0.3)`, background: isExp ? 'var(--acBg)' : 'var(--surf)', color:'var(--tm)' }}>
-                    💬 <span style={{ fontVariantNumeric:'tabular-nums' }}>{p.comments?.length||0}</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* 펼쳐진 상태 — 수정/삭제 + 댓글 */}
-              {isExp && (
-                <div style={{ borderTop:'2px dashed rgb(var(--ac-rgb) / 0.25)', padding:'12px 14px' }} onClick={e => e.stopPropagation()}>
-                  {(role === 'admin' || p.author_id === user?.id) && (
-                    <div style={{ display:'flex', gap:6, marginBottom:10, justifyContent:'flex-end' }}>
-                      <button onClick={() => startEdit(p)}
-                        style={{ background:'var(--g1)', color:'var(--g5)', border:'none', borderRadius:8, padding:'5px 12px', fontSize:10, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
-                        수정
-                      </button>
-                      <button onClick={() => deletePost(p.id)}
-                        style={{ background:'#ffebee', color:'#c0392b', border:'none', borderRadius:8, padding:'5px 12px', fontSize:10, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
-                        삭제
-                      </button>
-                    </div>
-                  )}
-                  {/* 댓글 */}
-                  <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:10 }}>댓글 {p.comments?.length||0}개</div>
-                  {p.comments?.map(c => (
-                    <div key={c.id} style={{ display:'flex', gap:8, marginBottom:9 }}>
-                      <CatAvatar catKey={profileMap[c.user_id]} size={30} />
-                      <div style={{ background:'var(--acBg)', border:'2.5px solid rgb(var(--ac-rgb) / 0.35)', borderRadius:'18px 18px 18px 6px', padding:'8px 12px', maxWidth:'82%', minWidth:0 }}>
-                        <div style={{ fontSize:10, fontWeight:900, color:'var(--acTx)' }}>{c.author_name}</div>
-                        <div style={{ fontSize:12, color:'var(--td)', fontWeight:600, lineHeight:1.5, marginTop:1, whiteSpace:'pre-wrap' }}>{c.content}</div>
-                      </div>
-                    </div>
-                  ))}
-                  <div style={{ display:'flex', gap:6, marginTop:10 }}>
-                    <input value={comment} onChange={e => setComment(e.target.value)}
-                      placeholder="댓글을 남겨보세요…"
-                      onKeyDown={e => e.key==='Enter' && addComment(p.id)}
-                      style={{ flex:1, background:'var(--surf)', border:'2.5px solid rgb(var(--ac-rgb) / 0.35)', borderRadius:22,
-                        padding:'9px 14px', fontSize:12, fontWeight:600, fontFamily:'Nunito,sans-serif', outline:'none', color:'var(--td)' }}/>
-                    <button onClick={() => addComment(p.id)}
-                      style={{ width:40, height:40, flexShrink:0, background:'var(--ac)', color:'#fff', border:'none', borderRadius:'50%',
-                        fontSize:14, cursor:'pointer', fontFamily:'Nunito,sans-serif', boxShadow:'2px 2px 0 rgb(var(--ac-rgb) / 0.3)' }}>
-                      ➤
+                const meta = (
+                  <div style={{ display:'flex', alignItems:'center', gap:6, flexDirection: isMine ? 'row-reverse' : 'row' }}>
+                    <button onClick={() => toggleLike(p.id)} title="공감"
+                      style={{ display:'flex', alignItems:'center', gap:4, padding:'3px 10px', borderRadius:16, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:900, fontSize:10.5,
+                        border:`2px solid ${liked ? '#FF8FB1' : 'rgb(var(--ac-rgb) / 0.25)'}`, background: liked ? '#FF8FB1' : 'var(--surf)', color: liked ? '#fff' : 'var(--tmu)', transition:'all 0.15s' }}>
+                      <span key={liked ? 'on' : 'off'} className={liked ? 'heart-pop' : ''} style={{ fontSize:11, lineHeight:1 }}>{liked ? '❤️' : '🤍'}</span>
+                      <span style={{ fontVariantNumeric:'tabular-nums' }}>{likeN}</span>
                     </button>
+                    <span style={{ fontSize:9, color:'var(--tl)', fontWeight:700 }}>{time}</span>
+                    {tab === 0 && p.tag && tagLabel && (
+                      <span style={{ fontSize:8.5, fontWeight:900, padding:'2px 8px', borderRadius:10, background:tagStyle.bg, color:tagStyle.color }}>{tagLabel}</span>
+                    )}
+                    {canDelete && (
+                      <button onClick={() => deletePost(p.id)} title="삭제"
+                        style={{ width:18, height:18, borderRadius:'50%', border:'2px solid var(--line)', background:'#fff', color:'var(--tl)', fontSize:9, lineHeight:1, cursor:'pointer', padding:0 }}>✕</button>
+                    )}
                   </div>
-                </div>
-              )}
+                )
+
+                return (
+                  <div key={p.id} style={{ marginBottom:14 }}>
+                    {isMine ? (
+                      <div style={{ display:'flex', justifyContent:'flex-end' }}>
+                        <div style={{ maxWidth:'82%', display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6 }}>
+                          {(p.title || p.content) && bubble}
+                          {thumbs}
+                          {meta}
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ display:'flex', gap:8, alignItems:'flex-end' }}>
+                        <CatAvatar catKey={profileMap[p.author_id]} size={38} />
+                        <div style={{ maxWidth:'78%', display:'flex', flexDirection:'column', alignItems:'flex-start', gap:5 }}>
+                          <span style={{ fontSize:10.5, fontWeight:800, color:'var(--tmu)', marginLeft:4 }}>{p.author_name}</span>
+                          {(p.title || p.content) && bubble}
+                          {thumbs}
+                          {meta}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 지난 댓글(레거시) — 메시지 아래 작은 말풍선 */}
+                    {p.comments?.length > 0 && (
+                      <div style={{ marginTop:7, marginLeft: isMine ? 0 : 46, display:'flex', flexDirection:'column', gap:6, alignItems: isMine ? 'flex-end' : 'flex-start' }}>
+                        {p.comments.map(c => (
+                          <div key={c.id} style={{ display:'flex', gap:6, alignItems:'flex-end', flexDirection: isMine ? 'row-reverse' : 'row' }}>
+                            <CatAvatar catKey={profileMap[c.user_id]} size={24} />
+                            <div style={{ background:ACCENT_BG, border:'2px solid rgb(var(--ac-rgb) / 0.3)', borderRadius:14, padding:'6px 10px', maxWidth:240 }}>
+                              <span style={{ fontSize:9, fontWeight:900, color:ACCENT_TEXT, marginRight:5 }}>{c.author_name}</span>
+                              <span style={{ fontSize:11, color:'var(--td)', fontWeight:600, lineHeight:1.4 }}>{c.content}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )
         })}
-
-        {/* 글쓰기 버튼 (관리자만) */}
-        
-          <button onClick={() => setShowWrite(true)} title="글쓰기"
-            style={{ position:'fixed', bottom:78, right:'calc(50% - 180px)',
-              width:56, height:56, borderRadius:'50%', background:'var(--ac2)', color:'var(--td)',
-              border:'3px solid var(--ac)', fontSize:22, cursor:'pointer',
-              display:'flex', alignItems:'center', justifyContent:'center',
-              boxShadow:'4px 4px 0 rgb(var(--ac-rgb) / 0.3)', zIndex:90 }}>
-            ✏️
-          </button>
-       
       </div>
 
-     {/* 이미지 크게 보기 — 라이트박스 */}
-     {viewer && (
-       <div onClick={() => setViewer(null)}
-         onTouchStart={e => { touchX.current = e.touches[0].clientX }}
-         onTouchEnd={viewerSwipe}
-         style={{ position:'fixed', inset:0, background:'rgba(10,11,35,0.93)', zIndex:1200, display:'flex', alignItems:'center', justifyContent:'center', padding:'46px 12px 40px' }}>
-         <img src={viewer.images[viewer.idx]} alt="" onClick={e => e.stopPropagation()}
-           style={{ maxWidth:'100%', maxHeight:'100%', objectFit:'contain', borderRadius:18, display:'block' }}/>
-         <button onClick={() => setViewer(null)}
-           style={{ position:'absolute', top:14, right:14, width:38, height:38, borderRadius:'50%', background:'rgba(255,255,255,0.16)', color:'#fff', border:'none', fontSize:17, cursor:'pointer', lineHeight:1 }}>✕</button>
-         {viewer.images.length > 1 && (
-           <>
-             <button onClick={e => { e.stopPropagation(); setViewer(v => ({ ...v, idx:(v.idx-1+v.images.length)%v.images.length })) }}
-               style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', background:'rgba(255,255,255,0.16)', color:'#fff', border:'none', borderRadius:'50%', width:44, height:44, cursor:'pointer', fontSize:24, lineHeight:1 }}>‹</button>
-             <button onClick={e => { e.stopPropagation(); setViewer(v => ({ ...v, idx:(v.idx+1)%v.images.length })) }}
-               style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', background:'rgba(255,255,255,0.16)', color:'#fff', border:'none', borderRadius:'50%', width:44, height:44, cursor:'pointer', fontSize:24, lineHeight:1 }}>›</button>
-             <div style={{ position:'absolute', bottom:16, left:'50%', transform:'translateX(-50%)', display:'flex', gap:7 }} onClick={e => e.stopPropagation()}>
-               {viewer.images.map((_, i) => (
-                 <div key={i} onClick={() => setViewer(v => ({ ...v, idx:i }))}
-                   style={{ width:9, height:9, borderRadius:'50%', background: i===viewer.idx ? '#fff' : 'rgba(255,255,255,0.4)', cursor:'pointer' }}/>
-               ))}
-             </div>
-           </>
-         )}
-       </div>
-     )}
+      {/* 카톡식 입력바 — 현재 카테고리로 바로 전송 */}
+      <div style={{ position:'fixed', bottom:66, left:'50%', transform:'translateX(-50%)', width:'100%', maxWidth:390, background:'#fff', borderTop:'2px solid rgb(var(--ac-rgb) / 0.15)', zIndex:90, boxSizing:'border-box' }}>
+        {composePreviews.length > 0 && (
+          <div className="no-scrollbar" style={{ display:'flex', gap:7, padding:'10px 12px 0', overflowX:'auto' }}>
+            {composePreviews.map((url, i) => (
+              <div key={url} className="thumb-in" style={{ position:'relative', width:56, height:56, flexShrink:0, borderRadius:14, overflow:'hidden', border:'2.5px solid rgb(var(--ac-rgb) / 0.4)' }}>
+                <img src={url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}/>
+                <button onClick={() => removePick(i)}
+                  style={{ position:'absolute', top:2, right:2, width:18, height:18, borderRadius:9, background:'rgba(27,28,70,0.6)', color:'#fff', border:'none', fontSize:10, cursor:'pointer', lineHeight:1, padding:0, display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 12px 10px' }}>
+          <label className="press" title="사진 첨부"
+            style={{ width:42, height:42, flexShrink:0, borderRadius:'50%', background:'#fff', border:`3px solid ${ACCENT}`, fontSize:17, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            📷
+            <input type="file" multiple accept="image/*" onChange={pickFiles} style={{ display:'none' }}/>
+          </label>
+          <input value={composeText} onChange={e => setComposeText(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleSend() }}
+            placeholder={tab === 0 ? '라운지에 글 남기기…' : `${TAGS[tab]}에 글 남기기…`}
+            style={{ flex:1, height:42, background:ACCENT_BG, border:`3px solid ${ACCENT}`, borderRadius:24, padding:'0 16px', fontSize:13, color:'var(--td)', fontWeight:600, fontFamily:'Nunito,sans-serif', outline:'none', boxSizing:'border-box', minWidth:0 }}/>
+          <button className="press" onClick={handleSend} disabled={sending || (!composeText.trim() && composeFiles.length === 0)}
+            style={{ width:42, height:42, flexShrink:0, borderRadius:'50%', border:`3px solid ${ACCENT}`, color:'#fff', fontSize:15, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', padding:0,
+              background: (composeText.trim() || composeFiles.length) ? ACCENT : 'rgb(var(--ac-rgb) / 0.35)',
+              boxShadow:'2px 2px 0 rgb(var(--ac-rgb) / 0.3)' }}>
+            {sending ? '…' : '➤'}
+          </button>
+        </div>
+      </div>
 
-     {(role === 'admin' || role === 'artist') ? (
-     <nav className="bottom-nav">
-  {[
-    { href: role==='admin'?'/admin':role==='artist'?'/artist':'/student', label:'홈', icon:'🏠' },
-    ...(role === 'artist' ? [] : [{ href: role==='admin'?'/admin/notification':'/student/notification', label:'알림', icon:'🔔' }]),
-    { href:'/lounge', label:'라운지', icon:'💬', active:true },
-    ...(role === 'artist' ? [] : [{ href:'/student/farm', label:'냥밭', icon:'🌱' }]),
-  ].map(t => (
-    <a key={t.label} href={t.href} className={`nav-item ${t.active?'active':''}`}>
-      <span style={{ fontSize:20 }}>{t.icon}</span>
-      <span>{t.label}</span>
-    </a>
-  ))}
-</nav>
-     ) : (
-     <StudentNav active="lounge" />
-     )}
+      {/* 이미지 크게 보기 — 라이트박스 */}
+      {viewer && (
+        <div onClick={() => setViewer(null)}
+          onTouchStart={e => { touchX.current = e.touches[0].clientX }}
+          onTouchEnd={viewerSwipe}
+          style={{ position:'fixed', inset:0, background:'rgba(10,11,35,0.93)', zIndex:1200, display:'flex', alignItems:'center', justifyContent:'center', padding:'46px 12px 40px' }}>
+          <img src={viewer.images[viewer.idx]} alt="" onClick={e => e.stopPropagation()}
+            style={{ maxWidth:'100%', maxHeight:'100%', objectFit:'contain', borderRadius:18, display:'block' }}/>
+          <button onClick={() => setViewer(null)}
+            style={{ position:'absolute', top:14, right:14, width:38, height:38, borderRadius:'50%', background:'rgba(255,255,255,0.16)', color:'#fff', border:'none', fontSize:17, cursor:'pointer', lineHeight:1 }}>✕</button>
+          {viewer.images.length > 1 && (
+            <>
+              <button onClick={e => { e.stopPropagation(); setViewer(v => ({ ...v, idx:(v.idx-1+v.images.length)%v.images.length })) }}
+                style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', background:'rgba(255,255,255,0.16)', color:'#fff', border:'none', borderRadius:'50%', width:44, height:44, cursor:'pointer', fontSize:24, lineHeight:1 }}>‹</button>
+              <button onClick={e => { e.stopPropagation(); setViewer(v => ({ ...v, idx:(v.idx+1)%v.images.length })) }}
+                style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', background:'rgba(255,255,255,0.16)', color:'#fff', border:'none', borderRadius:'50%', width:44, height:44, cursor:'pointer', fontSize:24, lineHeight:1 }}>›</button>
+              <div style={{ position:'absolute', bottom:16, left:'50%', transform:'translateX(-50%)', display:'flex', gap:7 }} onClick={e => e.stopPropagation()}>
+                {viewer.images.map((_, i) => (
+                  <div key={i} onClick={() => setViewer(v => ({ ...v, idx:i }))}
+                    style={{ width:9, height:9, borderRadius:'50%', background: i===viewer.idx ? '#fff' : 'rgba(255,255,255,0.4)', cursor:'pointer' }}/>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {(role === 'admin' || role === 'artist') ? (
+        <nav className="bottom-nav">
+          {[
+            { href: role==='admin'?'/admin':role==='artist'?'/artist':'/student', label:'홈', icon:'🏠' },
+            ...(role === 'artist' ? [] : [{ href: role==='admin'?'/admin/notification':'/student/notification', label:'알림', icon:'🔔' }]),
+            { href:'/lounge', label:'라운지', icon:'💬', active:true },
+            ...(role === 'artist' ? [] : [{ href:'/student/farm', label:'냥밭', icon:'🌱' }]),
+          ].map(t => (
+            <a key={t.label} href={t.href} className={`nav-item ${t.active?'active':''}`}>
+              <span style={{ fontSize:20 }}>{t.icon}</span>
+              <span>{t.label}</span>
+            </a>
+          ))}
+        </nav>
+      ) : (
+        <StudentNav active="lounge" />
+      )}
     </>
   )
 }
