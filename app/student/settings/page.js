@@ -5,7 +5,7 @@ import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
 import { NavIcon } from '../../../components/NavIcons'
 import MoodIndicator from '../../../components/MoodIndicator'
-import { THEMES, applyTheme, getSavedTheme, isValidTheme } from '../../../lib/theme'
+import { THEMES, applyTheme, getSavedTheme, isValidTheme, themeUnlocked, themeUnlockLabel } from '../../../lib/theme'
 import { FARM_CATS, getSavedFarmCat, saveFarmCatLocal, isValidFarmCat, getSavedHarvest, saveHarvestLocal, farmCatUnlocked, farmCatUnlockLabel } from '../../../lib/farmCats'
 import { PIXEL_CATS_BY_UNLOCK, pixelCatImg, catUnlocked, catUnlockLabel, getSavedProfileCat, saveProfileCatLocal, isValidPixelCat } from '../../../lib/pixelCats'
 import LoadingCat from '../../../components/LoadingCat'
@@ -46,6 +46,7 @@ export default function SettingsPage() {
   }, [])
 
   async function changeTheme(key) {
+    if (!themeUnlocked(key, { harvest, unlockAll })) return // 아직 해금 전
     setThemeKey(key)
     applyTheme(key)
     // user_prefs.theme 컬럼이 없으면 upsert만 실패하고 기기(localStorage) 저장은 유지됨
@@ -130,16 +131,25 @@ export default function SettingsPage() {
           })}
         </div>
 
-        <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>테마 컬러</div>
+        <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:2 }}>테마 컬러</div>
+        <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:10 }}>
+          {unlockAll ? '🎁 모든 테마가 열려 있어요!' : '작물을 수확할 때마다 새 테마가 열려요 🥕'}
+        </div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:20 }}>
           {THEMES.map(t => {
             const on = themeKey === t.key
+            const locked = !themeUnlocked(t.key, { harvest, unlockAll })
             return (
               <div key={t.key} onClick={() => changeTheme(t.key)}
-                style={{ cursor:'pointer', display:'flex', alignItems:'center', gap:8, padding:'11px 12px', borderRadius:14, background: on ? 'var(--acBg)' : '#fff', border: on ? `2px solid ${t.a1}` : '1.5px solid var(--g2)' }}>
-                <span style={{ width:16, height:16, borderRadius:'50%', background:t.a1, flexShrink:0 }} />
-                <span style={{ width:16, height:16, borderRadius:'50%', background:t.a2, marginLeft:-14, flexShrink:0, border:'2px solid #fff' }} />
-                <span style={{ fontSize:12, fontWeight: on?800:600, color: on?'var(--acTx)':'var(--td)' }}>{t.name}</span>
+                style={{ cursor: locked ? 'default' : 'pointer', display:'flex', alignItems:'center', gap:8, padding:'11px 12px', borderRadius:14, background: on ? 'var(--acBg)' : '#fff', border: on ? `2px solid ${t.a1}` : '1.5px solid var(--g2)' }}>
+                <span style={{ width:16, height:16, borderRadius:'50%', background:t.a1, flexShrink:0, opacity: locked ? 0.3 : 1 }} />
+                <span style={{ width:16, height:16, borderRadius:'50%', background:t.a2, marginLeft:-14, flexShrink:0, border:'2px solid #fff', opacity: locked ? 0.3 : 1 }} />
+                <span style={{ fontSize:12, fontWeight: on?800:600, color: on?'var(--acTx)':'var(--td)', opacity: locked ? 0.4 : 1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.name}</span>
+                {locked && (
+                  <span style={{ marginLeft:'auto', fontSize:9, fontWeight:800, color:'var(--tm)', flexShrink:0 }}>
+                    🔒 {themeUnlockLabel(t.key)}
+                  </span>
+                )}
               </div>
             )
           })}
