@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import { useTodayWeather } from '../../components/WeatherBar'
 import { NavIcon } from '../../components/NavIcons'
+import StudentNav from '../../components/StudentNav'
 const CAT_IMAGES = [
   '/cats/cat01.png',
   '/cats/cat02.png',
@@ -555,17 +556,7 @@ setAllBookings(allMeetingBookings || [])
         <div style={{ height:80 }}/>
       </div>
 
-      <nav className="bottom-nav">
-        {[
-          { href:'/artist', label:'회의', icon:'calendar', active:true },
-          { href:'/lounge', label:'라운지', icon:'chat' },
-        ].map(t=>(
-          <a key={t.label} href={t.href} className={`nav-item ${t.active?'active':''}`}>
-            <NavIcon name={t.icon} active={t.active} />
-            <span>{t.label}</span>
-          </a>
-        ))}
-      </nav>
+      <StudentNav active="home" role="artist" />
     </>
   )
 }

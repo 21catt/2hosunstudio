@@ -57,10 +57,11 @@ export default function LoungePage() {
     setViewer(v => ({ ...v, idx: delta < 0 ? (v.idx+1)%v.images.length : (v.idx-1+v.images.length)%v.images.length }))
   }
 
-  const TAGS = ['전체','공지','행사','수업','기타']
-  const TAG_IDS = ['all','notice','event','class','etc']
+  const TAGS = ['전체','공지','전시회의','행사','수업','기타']
+  const TAG_IDS = ['all','notice','exhibit','event','class','etc']
   const TAG_COLORS = {
     notice:{bg:'var(--acBg)',color:'var(--acTx)'},
+    exhibit:{bg:'#E4F0FB',color:'#1A56A8'},
     event:{bg:'#FFF3E0',color:'#E65100'},
     class:{bg:'#EDE7F6',color:'#4A148C'},
     etc:{bg:'#F3F3F0',color:'#5a5a50'},
@@ -435,7 +436,7 @@ export default function LoungePage() {
                       catMenu === p.id ? (
                         // 열림 — 작은 칩으로 카테고리 선택 (공지는 관리자만 노출)
                         <span style={{ display:'flex', gap:3, alignItems:'center', flexWrap:'wrap', justifyContent: isMine ? 'flex-end' : 'flex-start' }}>
-                          {['notice','event','class','etc'].filter(tid => tid !== 'notice' || role === 'admin').map(tid => {
+                          {['notice','exhibit','event','class','etc'].filter(tid => tid !== 'notice' || role === 'admin').map(tid => {
                             const label = TAGS[TAG_IDS.indexOf(tid)]
                             const on = p.tag === tid
                             const st = TAG_COLORS[tid] || TAG_COLORS.etc
@@ -621,13 +622,12 @@ export default function LoungePage() {
         </div>
       )}
 
-      {(role === 'admin' || role === 'artist') ? (
+      {role === 'admin' ? (
         <nav className="bottom-nav">
           {[
-            { href: role==='admin'?'/admin':role==='artist'?'/artist':'/student', label:'홈', icon:'home' },
-            ...(role === 'artist' ? [] : [{ href: role==='admin'?'/admin/notification':'/student/notification', label:'알림', icon:'bell' }]),
+            { href:'/admin', label:'홈', icon:'home' },
+            { href:'/admin/notification', label:'알림', icon:'bell' },
             { href:'/lounge', label:'라운지', icon:'chat', active:true },
-            ...(role === 'artist' ? [] : [{ href:'/student/farm', label:'냥밭', icon:'plant' }]),
           ].map(t => (
             <a key={t.label} href={t.href} className={`nav-item ${t.active?'active':''}`}>
               <NavIcon name={t.icon} active={t.active} />
@@ -636,7 +636,7 @@ export default function LoungePage() {
           ))}
         </nav>
       ) : (
-        <StudentNav active="lounge" />
+        <StudentNav active="lounge" role={role === 'artist' ? 'artist' : 'student'} />
       )}
     </>
   )

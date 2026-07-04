@@ -21,9 +21,16 @@ export default function SettingsPage() {
   const [profileCat, setProfileCat] = useState('09-cat')
   const [harvest, setHarvest] = useState(0)
   const [unlockAll, setUnlockAll] = useState(false) // 관리자가 해금해준 회원은 수확 조건 무시
+  const [role, setRole] = useState('')
+  const [attendCount, setAttendCount] = useState(0) // 작가: 회의 참석 수(해금 진행도)
   const [pushOn, setPushOn] = useState(false)       // 이 기기 푸시 알림 허용 여부
   const [pushBusy, setPushBusy] = useState(false)
   const [loading, setLoading] = useState(true)
+
+  // 해금 진행도: 작가는 회의 참석 수, 수강생은 작물 수확 수를 쓴다.
+  const isArtist = role === 'artist'
+  const progress = isArtist ? attendCount : harvest
+  const unit = isArtist ? '회의' : '수확'
 
   useEffect(() => {
     if ('Notification' in window) setPushOn(Notification.permission === 'granted')
@@ -35,6 +42,12 @@ export default function SettingsPage() {
       const u = data.user || null
       setUser(u)
       if (u) {
+        const r = u.user_metadata?.role || 'student'
+        setRole(r)
+        if (r === 'artist') { // 작가 해금 진행도 = 참석한 회의 수
+          const { data: bk } = await supabase.from('bookings').select('attended, status').eq('user_id', u.id)
+          setAttendCount((bk || []).filter(b => b.attended === true || b.status === 'attended').length)
+        }
         const { data: profile } = await supabase.from('users').select('name').eq('id', u.id).single()
         setName(profile?.name || '')
         const { data: pref } = await supabase.from('user_prefs').select('*').eq('user_id', u.id).single()
@@ -50,7 +63,7 @@ export default function SettingsPage() {
   }, [])
 
   async function changeTheme(key) {
-    if (!themeUnlocked(key, { harvest, unlockAll })) return // 아직 해금 전
+    if (!themeUnlocked(key, { harvest: progress, unlockAll })) return // 아직 해금 전
     setThemeKey(key)
     applyTheme(key)
     // user_prefs.theme 컬럼이 없으면 upsert만 실패하고 기기(localStorage) 저장은 유지됨
@@ -63,7 +76,7 @@ export default function SettingsPage() {
   }
 
   async function changeFarmCat(key) {
-    if (!farmCatUnlocked(key, { harvest, unlockAll })) return // 아직 해금 전
+    if (!farmCatUnlocked(key, { harvest: progress, unlockAll })) return // 아직 해금 전
     setFarmCat(key)
     saveFarmCatLocal(key)
     // user_prefs.farm_cat 컬럼이 없으면 upsert만 실패하고 기기(localStorage) 저장은 유지됨
@@ -90,7 +103,7 @@ export default function SettingsPage() {
   }
 
   async function changeProfileCat(key) {
-    if (!catUnlocked(key, { harvest, unlockAll })) return // 아직 해금 전
+    if (!catUnlocked(key, { harvest: progress, unlockAll })) return // 아직 해금 전
     setProfileCat(key)
     saveProfileCatLocal(key)
     if (user?.id) await supabase.from('user_prefs').upsert({ user_id: user.id, profile_cat: key })
@@ -115,10 +128,12 @@ export default function SettingsPage() {
               <img src={pixelCatImg(profileCat)} alt="프로필" width={34} height={34} style={{ imageRendering:'pixelated', display:'block' }} />
             </div>
             <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:14, fontWeight:800, color:'var(--td)' }}>{name || '수강생'}</div>
+              <div style={{ fontSize:14, fontWeight:800, color:'var(--td)' }}>{name || (isArtist ? '작가' : '수강생')}</div>
               <div style={{ fontSize:11, color:'var(--tmu)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{user.email}</div>
               <div style={{ fontSize:10, fontWeight:700, color:'var(--acTx)', marginTop:3 }}>
-                🌾 수확한 작물 {harvest}개 · {(FARM_CATS.find(c => c.key === farmCat) || FARM_CATS[0]).cropName} 재배 중
+                {isArtist
+                  ? `🖼️ 회의 참석 ${attendCount}회 · ${(FARM_CATS.find(c => c.key === farmCat) || FARM_CATS[0]).cropName} 재배 중`
+                  : `🌾 수확한 작물 ${harvest}개 · ${(FARM_CATS.find(c => c.key === farmCat) || FARM_CATS[0]).cropName} 재배 중`}
               </div>
             </div>
             <button onClick={()=>supabase.auth.signOut().then(()=>router.push('/login'))} className="p-chip p-chip--sm" style={{ borderColor:'var(--g2)', color:'var(--tm)', fontWeight:700, flexShrink:0 }}>로그아웃</button>
@@ -152,12 +167,14 @@ export default function SettingsPage() {
 
         <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:2 }}>프로필 사진</div>
         <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:10 }}>
-          {unlockAll ? '🎁 모든 냥이가 열려 있어요! 마음껏 골라보세요' : `냥밭에서 작물을 수확하면 새 얼굴이 열려요 🥕 (지금 ${harvest}개)`}
+          {unlockAll ? '🎁 모든 냥이가 열려 있어요! 마음껏 골라보세요'
+            : isArtist ? `회의에 참석할 때마다 새 얼굴이 열려요 🖼️ (지금 ${attendCount}회)`
+            : `냥밭에서 작물을 수확하면 새 얼굴이 열려요 🥕 (지금 ${harvest}개)`}
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:8, marginBottom:20 }}>
           {PIXEL_CATS_BY_UNLOCK.map(k => {
             const on = profileCat === k
-            const locked = !catUnlocked(k, { harvest, unlockAll })
+            const locked = !catUnlocked(k, { harvest: progress, unlockAll })
             return (
               <div key={k} onClick={() => changeProfileCat(k)}
                 style={{ cursor: locked ? 'default' : 'pointer', aspectRatio:'1', borderRadius:12, position:'relative', overflow:'hidden', background: on ? 'var(--acBg)' : '#fff', border: on ? '2px solid var(--ac)' : '1.5px solid var(--g2)', display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -166,7 +183,7 @@ export default function SettingsPage() {
                 {locked && (
                   <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:1 }}>
                     <span style={{ fontSize:13 }}>🔒</span>
-                    <span style={{ fontSize:8, fontWeight:800, color:'var(--tm)' }}>{catUnlockLabel(k)}</span>
+                    <span style={{ fontSize:8, fontWeight:800, color:'var(--tm)' }}>{catUnlockLabel(k, unit)}</span>
                   </div>
                 )}
               </div>
@@ -176,12 +193,12 @@ export default function SettingsPage() {
 
         <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:2 }}>테마 컬러</div>
         <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:10 }}>
-          {unlockAll ? '🎁 모든 테마가 열려 있어요!' : '작물을 수확할 때마다 새 테마가 열려요 🥕'}
+          {unlockAll ? '🎁 모든 테마가 열려 있어요!' : isArtist ? '회의에 참석할 때마다 새 테마가 열려요 🖼️' : '작물을 수확할 때마다 새 테마가 열려요 🥕'}
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:20 }}>
           {THEMES.map(t => {
             const on = themeKey === t.key
-            const locked = !themeUnlocked(t.key, { harvest, unlockAll })
+            const locked = !themeUnlocked(t.key, { harvest: progress, unlockAll })
             return (
               <div key={t.key} onClick={() => changeTheme(t.key)}
                 style={{ cursor: locked ? 'default' : 'pointer', display:'flex', alignItems:'center', gap:8, padding:'11px 12px', borderRadius:14, background: on ? 'var(--acBg)' : '#fff', border: on ? `2px solid ${t.a1}` : '1.5px solid var(--g2)' }}>
@@ -190,7 +207,7 @@ export default function SettingsPage() {
                 <span style={{ fontSize:12, fontWeight: on?800:600, color: on?'var(--acTx)':'var(--td)', opacity: locked ? 0.4 : 1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.name}</span>
                 {locked && (
                   <span style={{ marginLeft:'auto', fontSize:9, fontWeight:800, color:'var(--tm)', flexShrink:0 }}>
-                    🔒 {themeUnlockLabel(t.key)}
+                    🔒 {themeUnlockLabel(t.key, unit)}
                   </span>
                 )}
               </div>
@@ -215,12 +232,14 @@ export default function SettingsPage() {
 
         <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:2 }}>농부냥</div>
         <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:10 }}>
-          {unlockAll ? '냥밭을 돌봐줄 고양이 한 마리를 골라요 🎁 (모든 농부냥이 열려 있어요!)' : '냥밭을 돌봐줄 고양이 한 마리를 골라요 🥕 (작물 12개 수확하면 농부 냥냥이가 열려요)'}
+          {unlockAll ? '냥밭을 돌봐줄 고양이 한 마리를 골라요 🎁 (모든 농부냥이 열려 있어요!)'
+            : isArtist ? '냥밭을 돌봐줄 고양이 한 마리를 골라요 🖼️ (회의 12회 참석하면 농부 냥냥이가 열려요)'
+            : '냥밭을 돌봐줄 고양이 한 마리를 골라요 🥕 (작물 12개 수확하면 농부 냥냥이가 열려요)'}
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, marginBottom:20 }}>
           {FARM_CATS.map(c => {
             const on = farmCat === c.key
-            const locked = !farmCatUnlocked(c.key, { harvest, unlockAll })
+            const locked = !farmCatUnlocked(c.key, { harvest: progress, unlockAll })
             return (
               <div key={c.key} onClick={() => changeFarmCat(c.key)}
                 style={{ cursor: locked ? 'default' : 'pointer', position:'relative', overflow:'hidden', background: on ? 'var(--acBg)' : '#fff', border: on ? '2px solid var(--ac)' : '1.5px solid var(--g2)', borderRadius:14, padding:'12px 4px 9px', display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
@@ -230,7 +249,7 @@ export default function SettingsPage() {
                 {locked && (
                   <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:2, background:'rgba(255,255,255,0.35)' }}>
                     <span style={{ fontSize:15 }}>🔒</span>
-                    <span style={{ fontSize:9, fontWeight:800, color:'var(--tm)' }}>{farmCatUnlockLabel(c.key)}</span>
+                    <span style={{ fontSize:9, fontWeight:800, color:'var(--tm)' }}>{farmCatUnlockLabel(c.key, unit)}</span>
                   </div>
                 )}
               </div>
@@ -239,7 +258,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <StudentNav active="settings" />
+      <StudentNav active="settings" role={role || undefined} />
     </>
   )
 }

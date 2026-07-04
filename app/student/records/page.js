@@ -167,10 +167,13 @@ function RecordsInner() {
               shareUrls.push(data.publicUrl)
             }
           }
+          // 작가 기록은 라운지 '전시회의' 카테고리로, 수강생은 '수업'으로 공유
+          const isArtist = user.user_metadata?.role === 'artist'
           const pbase = {
-            title: ctx.cls ? `🎨 ${ctx.cls} 수업 기록` : '📋 오늘의 수업 기록',
+            title: isArtist ? (ctx.cls ? `🖼️ ${ctx.cls} 전시 기록` : '🖼️ 오늘의 전시 기록')
+                            : (ctx.cls ? `🎨 ${ctx.cls} 수업 기록` : '📋 오늘의 수업 기록'),
             content: text || '',
-            tag: 'class',
+            tag: isArtist ? 'exhibit' : 'class',
             author_id: user.id,
             author_name: user.user_metadata?.name || '익명',
             image_url: shareUrls[0] || null,
@@ -379,7 +382,7 @@ function RecordsInner() {
         </div>
       </div>
 
-      <StudentNav active="records"/>
+      <StudentNav active="records" role={user?.user_metadata?.role || undefined}/>
     </>
   )
 }

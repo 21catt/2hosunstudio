@@ -398,7 +398,7 @@ export default function FarmPage() {
         </div>
       </div>
 
-      <StudentNav active="farm" />
+      <StudentNav active="farm" role={user?.user_metadata?.role || undefined} />
     </>
   )
 }
