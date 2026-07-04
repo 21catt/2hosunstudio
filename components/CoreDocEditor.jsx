@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
-import { DEFAULT_CORE_DOC, normalizeDoc } from '../lib/coreDoc'
+import { DEFAULT_CORE_DOC, normalizeDoc, CORE_PALETTES } from '../lib/coreDoc'
+import CoreDocView from './CoreDocView'
 
 // 관리자용 리치 핵심내용 편집기 — class_courses.core_doc(jsonb)를 구조적으로 작성.
 // 리스트(모듈/접근/화가/불릿/메타)는 추가·삭제, 이미지는 업로드/삭제.
@@ -65,6 +66,7 @@ const addBtn = { ...miniBtn, borderColor:'rgb(var(--ac-rgb) / 0.4)', color:ACT, 
 export default function CoreDocEditor({ initialDoc, onUploadImage, onSave, saving }) {
   const [d, setD] = useState(() => normalizeDoc(initialDoc))
   const [dirty, setDirty] = useState(false)
+  const [preview, setPreview] = useState(false)
   const edit = fn => { setD(prev => { const next = fn(structuredClone(prev)); return next }); setDirty(true) }
 
   const loadSample = () => { setD(normalizeDoc(DEFAULT_CORE_DOC)); setDirty(true) }
@@ -75,6 +77,37 @@ export default function CoreDocEditor({ initialDoc, onUploadImage, onSave, savin
         <div style={{ fontSize:12, fontWeight:800, color:ACT }}>리치 핵심내용 (인물화형)</div>
         <button onClick={loadSample} style={addBtn}>인물화 샘플 불러오기</button>
       </div>
+
+      <Section title="색상 테마">
+        <div style={{ fontSize:10, color:'var(--tmu)', marginBottom:8, lineHeight:1.5 }}>고르면 학생 화면 랜딩 전체 색이 바뀌어요. 미리보기로 확인해 보세요.</div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+          {CORE_PALETTES.map(p => {
+            const on = d.theme === p.key
+            return (
+              <button key={p.key} onClick={() => edit(x => { x.theme = p.key; return x })}
+                style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 11px', borderRadius:10, cursor:'pointer', fontFamily:'Nunito,sans-serif', textAlign:'left',
+                  border: on ? `2px solid ${p.accent}` : `1.5px solid ${BR}`, background: on ? p.bg : '#fff' }}>
+                <span style={{ display:'flex', flexShrink:0, borderRadius:6, overflow:'hidden', border:`1px solid ${BR}` }}>
+                  <span style={{ width:14, height:22, background:p.hero }}/>
+                  <span style={{ width:14, height:22, background:p.accent }}/>
+                  <span style={{ width:14, height:22, background:p.accent2 }}/>
+                </span>
+                <span style={{ flex:1, minWidth:0, fontSize:11.5, fontWeight: on ? 800 : 700, color: on ? p.accent : 'var(--td)' }}>{p.name}</span>
+                {on && <span style={{ fontSize:12, color:p.accent, flexShrink:0 }}>✓</span>}
+              </button>
+            )
+          })}
+        </div>
+        <button onClick={() => setPreview(v => !v)}
+          style={{ ...addBtn, width:'100%', marginTop:10, padding:'9px', textAlign:'center' }}>
+          {preview ? '미리보기 닫기 ▲' : '🎨 미리보기 열기 ▼'}
+        </button>
+        {preview && (
+          <div style={{ marginTop:10, borderRadius:14, overflow:'hidden', border:`2px solid ${BR}`, maxHeight:460, overflowY:'auto' }}>
+            <CoreDocView doc={d} />
+          </div>
+        )}
+      </Section>
 
       <Section title="히어로">
         <Field label="상단 라벨(영문 등)" value={d.hero.eyebrow} onChange={v => edit(x => { x.hero.eyebrow = v; return x })}/>

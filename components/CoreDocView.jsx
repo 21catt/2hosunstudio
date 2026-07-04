@@ -1,19 +1,20 @@
 'use client'
 import { useState } from 'react'
-import { normalizeDoc } from '../lib/coreDoc'
+import { normalizeDoc, getCorePalette } from '../lib/coreDoc'
 
 // 인물화형 리치 핵심내용 렌더러 (모바일 대응)
 // - '무엇을 다루나' 접근 카드: 종(세로) 나열
 // - 모듈/접근 프레임 탭 → 화면에 크게, 다시 탭 → 축소
-const C = {
-  cream: '#FBF7E3', yellow: '#EFE156', blue: '#3538D6', green: '#6FE89A',
-  dark: '#1B1C46', ink: '#2A2B55', sand: '#EAE3C4', mut: '#8A7A4A', body: '#4A4B70',
+// 색은 doc.theme(관리자 선택 팔레트)에서 온다. 아래 C는 기존 키 이름 매핑.
+function paletteToC(theme) {
+  const p = getCorePalette(theme)
+  return { cream: p.bg, yellow: p.hero, blue: p.accent, green: p.accent2, dark: p.dark, ink: p.ink, sand: p.sand, mut: p.mut, body: p.body, soft: p.soft }
 }
 const MONO = "'Space Mono', ui-monospace, monospace"
 const PIX = "'Silkscreen', 'Space Mono', monospace"
 const SANS = "'Pretendard', -apple-system, sans-serif"
 
-function ModuleCard({ m, onZoom, zoomed }) {
+function ModuleCard({ m, onZoom, zoomed, C }) {
   return (
     <div onClick={onZoom}
       style={{ background:'#fff', border:`2px solid ${C.sand}`, borderRadius:20, padding: zoomed ? '26px 24px' : '20px 18px',
@@ -70,7 +71,7 @@ function ModuleCard({ m, onZoom, zoomed }) {
   )
 }
 
-function ApproachCard({ a, onZoom, zoomed }) {
+function ApproachCard({ a, onZoom, zoomed, C }) {
   return (
     <div onClick={onZoom}
       style={{ background:'#fff', border:`2px solid ${C.sand}`, borderRadius:20, padding: zoomed ? '28px 26px' : '22px 20px',
@@ -93,6 +94,7 @@ function ApproachCard({ a, onZoom, zoomed }) {
 
 export default function CoreDocView({ doc, sample = false, onCta }) {
   const d = normalizeDoc(doc)
+  const C = paletteToC(d.theme)
   const [zoom, setZoom] = useState(null) // { type:'module'|'approach', item }
 
   return (
@@ -134,7 +136,7 @@ export default function CoreDocView({ doc, sample = false, onCta }) {
       <section style={{ background:C.blue, color:C.cream, padding:'42px 22px' }}>
         <span style={{ fontFamily:MONO, fontSize:12, letterSpacing:2, fontWeight:700, color:C.green }}>{d.statement.eyebrow}</span>
         <h2 style={{ fontSize:24, lineHeight:1.42, fontWeight:800, margin:'12px 0 16px', color:'#fff' }}>{d.statement.title}</h2>
-        <p style={{ fontSize:14.5, lineHeight:1.75, color:'#CDCEF2', margin:'0 0 22px' }}>{d.statement.desc}</p>
+        <p style={{ fontSize:14.5, lineHeight:1.75, color:C.soft, margin:'0 0 22px' }}>{d.statement.desc}</p>
         {d.meta.length > 0 && (
           <div style={{ background:C.cream, color:C.dark, borderRadius:20, padding:'6px 20px', boxShadow:`6px 6px 0 ${C.green}` }}>
             {d.meta.map((row, i) => (
@@ -156,7 +158,7 @@ export default function CoreDocView({ doc, sample = false, onCta }) {
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
             {d.approaches.map((a, i) => (
-              <ApproachCard key={i} a={a} onZoom={() => setZoom({ type:'approach', item:a })}/>
+              <ApproachCard key={i} a={a} C={C} onZoom={() => setZoom({ type:'approach', item:a })}/>
             ))}
           </div>
         </section>
@@ -186,7 +188,7 @@ export default function CoreDocView({ doc, sample = false, onCta }) {
               <div key={i} style={{ position:'relative', paddingTop:10 }}>
                 <div style={{ position:'absolute', top:-4, left:14, width:46, height:46, background:C.yellow, border:`3px solid ${C.blue}`, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:PIX, fontWeight:700, fontSize:14, color:C.blue, zIndex:2 }}>{m.num}</div>
                 <div style={{ paddingLeft:0, marginTop:22 }}>
-                  <ModuleCard m={m} onZoom={() => setZoom({ type:'module', item:m })}/>
+                  <ModuleCard m={m} C={C} onZoom={() => setZoom({ type:'module', item:m })}/>
                 </div>
               </div>
             ))}
@@ -199,7 +201,7 @@ export default function CoreDocView({ doc, sample = false, onCta }) {
         <div style={{ position:'absolute', inset:0, backgroundImage:`radial-gradient(circle, rgba(111,232,154,.16) 30%, transparent 32%)`, backgroundSize:'18px 18px' }}/>
         <div style={{ position:'relative' }}>
           <h2 style={{ fontSize:32, fontWeight:800, letterSpacing:-1, margin:'0 0 14px', lineHeight:1.2, whiteSpace:'pre-line' }}>{d.cta.title}</h2>
-          <p style={{ fontSize:14.5, color:'#B7B8E0', margin:'0 0 24px', lineHeight:1.7 }}>{d.cta.desc}</p>
+          <p style={{ fontSize:14.5, color:C.soft, margin:'0 0 24px', lineHeight:1.7 }}>{d.cta.desc}</p>
           <div onClick={onCta}
             style={{ display:'inline-flex', alignItems:'center', gap:10, background:C.green, color:C.dark, fontWeight:800, fontSize:15, padding:'15px 26px', borderRadius:14, border:`2px solid ${C.dark}`, boxShadow:`4px 4px 0 ${C.yellow}`, cursor: onCta ? 'pointer' : 'default' }}>
             <span>{d.cta.buttonText}</span>
@@ -219,8 +221,8 @@ export default function CoreDocView({ doc, sample = false, onCta }) {
           style={{ position:'fixed', inset:0, zIndex:1200, background:'rgba(27,28,70,.72)', display:'flex', alignItems:'center', justifyContent:'center', padding:16, overflowY:'auto', fontFamily:SANS }}>
           <div onClick={e => e.stopPropagation()} style={{ width:'100%', maxWidth:520, animation:'cdPop .18s ease-out' }}>
             {zoom.type === 'module'
-              ? <ModuleCard m={zoom.item} zoomed onZoom={() => setZoom(null)}/>
-              : <ApproachCard a={zoom.item} zoomed onZoom={() => setZoom(null)}/>}
+              ? <ModuleCard m={zoom.item} C={C} zoomed onZoom={() => setZoom(null)}/>
+              : <ApproachCard a={zoom.item} C={C} zoomed onZoom={() => setZoom(null)}/>}
             <div style={{ textAlign:'center', marginTop:12 }}>
               <button onClick={() => setZoom(null)}
                 style={{ background:C.cream, color:C.dark, border:'none', borderRadius:20, padding:'9px 20px', fontSize:13, fontWeight:800, cursor:'pointer', fontFamily:SANS }}>닫기 ✕</button>
