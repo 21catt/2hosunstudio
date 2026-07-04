@@ -465,7 +465,7 @@ const myCourses = courses.filter(c => c.category === 'meeting' || adminCats.incl
     <>
       <div className="header" style={{ background: HEADER_BG }}>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <span style={{ fontSize:18 }}>📅</span>
+          <NavIcon name="calendar" color="#fff" size={20} />
           <span className="header-title">수업 현황</span>
         </div>
         <div style={{ display:'flex', gap:5 }}>

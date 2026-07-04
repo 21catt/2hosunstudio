@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
+import { NavIcon } from '../../../components/NavIcons'
 import { FARM_CATS, getSavedFarmCat, isValidFarmCat, CROP_STAGES, cropImg, getSavedHarvest, saveHarvestLocal } from '../../../lib/farmCats'
 import LoadingCat from '../../../components/LoadingCat'
 
@@ -248,7 +249,7 @@ export default function FarmPage() {
 
       <div className="p-header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <span style={{ fontSize:20 }}>🌱</span>
+          <NavIcon name="plant" color="var(--ac)" size={20} />
           <span className="p-title">냥밭</span>
         </div>
         <span style={{ color:'var(--acTx)', fontSize:11, fontWeight:700, background:'var(--acBg)', border:'1.5px solid rgb(var(--ac-rgb) / 0.3)', padding:'4px 10px', borderRadius:20 }}>

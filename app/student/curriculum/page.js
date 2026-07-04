@@ -3,6 +3,7 @@ import { Suspense, useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
+import { NavIcon } from '../../../components/NavIcons'
 import LoadingCat from '../../../components/LoadingCat'
 import CoreDocView from '../../../components/CoreDocView'
 import { hasRichDoc, DEFAULT_CORE_DOC } from '../../../lib/coreDoc'
@@ -532,7 +533,7 @@ function CurriculumInner() {
     <>
       <div className="p-header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <span style={{ fontSize:20 }}>📚</span>
+          <NavIcon name="book" color="var(--ac)" size={20} />
           <span className="p-title">학습 경로</span>
         </div>
       </div>

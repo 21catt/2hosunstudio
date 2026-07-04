@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
+import { NavIcon } from '../../../components/NavIcons'
 import LoadingCat from '../../../components/LoadingCat'
 
 export default function StudentNotificationPage() {
@@ -96,7 +97,7 @@ export default function StudentNotificationPage() {
     <>
       <div className="p-header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <span style={{ fontSize:20 }}>🐱</span>
+          <NavIcon name="bell" color="var(--ac)" size={20} />
           <span className="p-title">알림</span>
         </div>
       </div>

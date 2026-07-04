@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import AdminNav from '../../../components/AdminNav'
+import { NavIcon } from '../../../components/NavIcons'
 
 const ACCENT = 'var(--ac)'
 const ACCENT_BG = 'var(--acBg)'
@@ -112,7 +113,7 @@ export default function AdminRecordsPage() {
     <>
       <div className="header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <span style={{ fontSize:20 }}>📋</span>
+          <NavIcon name="clipboard" color="#fff" size={20} />
           <span className="header-title">수업 기록 관리</span>
         </div>
       </div>

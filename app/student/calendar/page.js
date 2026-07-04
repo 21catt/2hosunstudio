@@ -715,7 +715,7 @@ export default function CalendarPage() {
 
       <div className="p-header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <span style={{ fontSize:20 }}>📅</span>
+          <NavIcon name="calendar" color="var(--ac)" size={20} />
           <span className="p-title">캘린더</span>
         </div>
         {!user && (

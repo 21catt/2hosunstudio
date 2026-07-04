@@ -3,6 +3,7 @@ import { Suspense, useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
+import { NavIcon } from '../../../components/NavIcons'
 import LoadingCat from '../../../components/LoadingCat'
 import { pixelCatImg, DEFAULT_PROFILE_CAT, isValidPixelCat } from '../../../lib/pixelCats'
 
@@ -230,7 +231,7 @@ function RecordsInner() {
 
       <div className="p-header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <span style={{ fontSize:20 }}>📋</span>
+          <NavIcon name="clipboard" color="var(--ac)" size={20} />
           <span className="p-title">수업 기록</span>
         </div>
         <span style={{ fontSize:11, fontWeight:700, color:'var(--acTx)', background:ACCENT_BG, border:'1.5px solid rgb(var(--ac-rgb) / 0.3)', padding:'4px 10px', borderRadius:20 }}>

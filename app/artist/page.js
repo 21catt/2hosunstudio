@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import { useTodayWeather } from '../../components/WeatherBar'
+import { NavIcon } from '../../components/NavIcons'
 const CAT_IMAGES = [
   '/cats/cat01.png',
   '/cats/cat02.png',
@@ -341,7 +342,7 @@ setAllBookings(allMeetingBookings || [])
 
       <div className="header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <span style={{ fontSize:20 }}>🖼️</span>
+          <NavIcon name="photo" color="#fff" size={20} />
           <span className="header-title">전시 작가</span>
         </div>
         <button onClick={()=>supabase.auth.signOut().then(()=>router.push('/login'))}
@@ -556,11 +557,11 @@ setAllBookings(allMeetingBookings || [])
 
       <nav className="bottom-nav">
         {[
-          { href:'/artist', label:'회의', icon:'📅', active:true },
-          { href:'/lounge', label:'라운지', icon:'💬' },
+          { href:'/artist', label:'회의', icon:'calendar', active:true },
+          { href:'/lounge', label:'라운지', icon:'chat' },
         ].map(t=>(
           <a key={t.label} href={t.href} className={`nav-item ${t.active?'active':''}`}>
-            <span style={{ fontSize:20 }}>{t.icon}</span>
+            <NavIcon name={t.icon} active={t.active} />
             <span>{t.label}</span>
           </a>
         ))}

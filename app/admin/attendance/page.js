@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import AdminNav from '../../../components/AdminNav'
+import { NavIcon } from '../../../components/NavIcons'
 import { HEADER_BG, PRIMARY, T, OK } from '../../../lib/adminTheme'
 
 const DOW = ['일','월','화','수','목','금','토']
@@ -103,7 +104,7 @@ export default function AdminAttendancePage() {
     <>
       <div className="header" style={{ background: HEADER_BG }}>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <span style={{ fontSize:20 }}>✅</span>
+          <NavIcon name="check" color="#fff" size={20} />
           <span className="header-title">출석 체크</span>
         </div>
       </div>
