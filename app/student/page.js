@@ -30,6 +30,7 @@ export default function StudentHomePage() {
   const [loading, setLoading] = useState(true)
   const [classes, setClasses] = useState([])
   const [allBookings, setAllBookings] = useState([])
+  const [notices, setNotices] = useState([]) // 라운지에서 관리자가 공지 지정한 글 (최대 2개)
   const [myBookings, setMyBookings] = useState([])
   const [selDate, setSelDate] = useState(null)
   const [bookingBusy, setBookingBusy] = useState(null)
@@ -140,6 +141,13 @@ export default function StudentHomePage() {
     setClasses(c || [])
     const { data: ab } = await supabase.from('bookings').select('course_id, schedule_id, class_date').eq('status', 'booked')
     setAllBookings(ab || [])
+    // 홈 하단 공지 — 라운지에서 관리자가 공지 지정한 글. 컬럼(pinned_at)이 아직 없으면 조용히 숨김
+    const { data: pin } = await supabase.from('posts')
+      .select('id, title, content, author_name, created_at, pinned_at, images, image_url')
+      .not('pinned_at', 'is', null)
+      .order('pinned_at', { ascending: false })
+      .limit(2)
+    setNotices(pin || [])
     setLoading(false)
   }
 
@@ -441,6 +449,41 @@ export default function StudentHomePage() {
               </div>
             </div>
             <span style={{ fontSize:10, color:'var(--tmu)', flexShrink:0 }}>만료 {ticket.expires_at}</span>
+          </div>
+        )}
+
+        {/* 스튜디오 공지 — 라운지에서 관리자가 공지 지정한 글 (최대 2개) */}
+        {notices.length > 0 && (
+          <div style={{ marginTop:2 }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', margin:'0 2px 8px' }}>
+              <span style={{ fontSize:12, fontWeight:800, color:'var(--td)' }}>📌 스튜디오 공지</span>
+              <span onClick={()=>router.push('/lounge')}
+                style={{ fontSize:11, color:'var(--tmu)', cursor:'pointer', textDecoration:'underline', textUnderlineOffset:2 }}>라운지에서 보기 →</span>
+            </div>
+            {notices.map(n => {
+              const thumb = (n.images && n.images[0]) || n.image_url
+              return (
+                <div key={n.id} onClick={()=>router.push('/lounge')}
+                  style={{ display:'flex', alignItems:'center', gap:11, padding:'11px 13px', marginBottom:8, cursor:'pointer',
+                    background:'var(--acBg)', border:'2px solid rgb(var(--ac-rgb) / 0.35)', borderRadius:16 }}>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:3 }}>
+                      <span style={{ fontSize:9, fontWeight:900, background:'var(--ac)', color:'#fff', borderRadius:10, padding:'2px 8px', flexShrink:0 }}>공지</span>
+                      <span style={{ fontSize:10, color:'var(--tmu)', fontWeight:700 }}>
+                        {n.author_name} · {(n.created_at || '').slice(5, 10).replace('-', '/')}
+                      </span>
+                    </div>
+                    <div style={{ fontSize:12, fontWeight:700, color:'var(--td)', lineHeight:1.5, display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden', wordBreak:'break-word' }}>
+                      {n.title || n.content || '사진 공지'}
+                    </div>
+                  </div>
+                  {thumb && (
+                    <img src={thumb} alt="" loading="lazy"
+                      style={{ width:46, height:46, borderRadius:12, objectFit:'cover', flexShrink:0, border:'2px solid rgb(var(--ac-rgb) / 0.3)', display:'block' }}/>
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
       </div>

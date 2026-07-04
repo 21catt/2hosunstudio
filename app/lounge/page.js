@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import StudentNav from '../../components/StudentNav'
+import { NavIcon } from '../../components/NavIcons'
 import LoadingCat from '../../components/LoadingCat'
 import { pixelCatImg, DEFAULT_PROFILE_CAT } from '../../lib/pixelCats'
 
@@ -177,6 +178,30 @@ export default function LoungePage() {
     setPosts(prev => prev.filter(p => p.id !== postId))
   }
 
+  // 홈 공지 지정/해제 (관리자) — 지정된 글은 홈 하단에 노출, 최대 2개.
+  // 이미 2개면 가장 오래 전에 지정한 공지를 해제하고 새 글을 지정한다.
+  async function togglePin(p) {
+    if (role !== 'admin') return
+    if (p.pinned_at) {
+      if (!confirm('이 글의 홈 공지를 해제할까요?')) return
+      const { error } = await supabase.from('posts').update({ pinned_at: null }).eq('id', p.id)
+      if (error) { alert('공지 해제에 실패했어요 🐾'); return }
+      setPosts(prev => prev.map(x => x.id === p.id ? { ...x, pinned_at: null } : x))
+    } else {
+      const pinned = posts.filter(x => x.pinned_at).sort((a, b) => (a.pinned_at || '').localeCompare(b.pinned_at || ''))
+      const msg = pinned.length >= 2
+        ? '공지는 최대 2개까지예요.\n가장 오래된 공지를 해제하고 이 글을 홈 공지로 지정할까요?'
+        : '이 글을 홈 화면 공지로 지정할까요? (최대 2개)'
+      if (!confirm(msg)) return
+      if (pinned.length >= 2) {
+        await supabase.from('posts').update({ pinned_at: null }).eq('id', pinned[0].id)
+      }
+      const { error } = await supabase.from('posts').update({ pinned_at: new Date().toISOString() }).eq('id', p.id)
+      if (error) { alert('공지 지정에 실패했어요. 잠시 후 다시 시도해 주세요 🐾'); return }
+      loadPosts()
+    }
+  }
+
   function getImages(p) {
     if (p.images && p.images.length > 0) return p.images
     if (p.image_url) return [p.image_url]
@@ -230,7 +255,7 @@ export default function LoungePage() {
 
       <div className="header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <span style={{ fontSize:20 }}>💬</span>
+          <NavIcon name="chat" color="#fff" size={20} />
           <span className="header-title">라운지</span>
         </div>
       </div>
@@ -282,9 +307,11 @@ export default function LoungePage() {
 
                 const bubble = (
                   <div className={isNew ? 'bub-in' : ''}
+                    onClick={role === 'admin' ? () => togglePin(p) : undefined}
+                    title={role === 'admin' ? (p.pinned_at ? '눌러서 홈 공지 해제' : '눌러서 홈 공지로 지정') : undefined}
                     style={isMine
-                      ? { background:ACCENT, color:'#fff', fontSize:13.5, fontWeight:600, lineHeight:1.6, padding:'11px 14px', borderRadius:'24px 24px 8px 24px', boxShadow:'3px 3px 0 rgb(var(--ac-rgb) / 0.22)', whiteSpace:'pre-wrap', wordBreak:'break-word' }
-                      : { background:'var(--surf)', color:'var(--td)', border:`3px solid rgb(var(--ac-rgb) / 0.35)`, fontSize:13.5, fontWeight:600, lineHeight:1.6, padding:'10px 13px', borderRadius:'24px 24px 24px 8px', boxShadow:'3px 3px 0 rgb(var(--ac-rgb) / 0.12)', whiteSpace:'pre-wrap', wordBreak:'break-word' }}>
+                      ? { background:ACCENT, color:'#fff', fontSize:13.5, fontWeight:600, lineHeight:1.6, padding:'11px 14px', borderRadius:'24px 24px 8px 24px', boxShadow:'3px 3px 0 rgb(var(--ac-rgb) / 0.22)', whiteSpace:'pre-wrap', wordBreak:'break-word', cursor: role === 'admin' ? 'pointer' : 'default' }
+                      : { background:'var(--surf)', color:'var(--td)', border:`3px solid rgb(var(--ac-rgb) / 0.35)`, fontSize:13.5, fontWeight:600, lineHeight:1.6, padding:'10px 13px', borderRadius:'24px 24px 24px 8px', boxShadow:'3px 3px 0 rgb(var(--ac-rgb) / 0.12)', whiteSpace:'pre-wrap', wordBreak:'break-word', cursor: role === 'admin' ? 'pointer' : 'default' }}>
                     {p.title && <div style={{ fontWeight:900, fontSize:14, marginBottom:3, lineHeight:1.4 }}>{p.title}</div>}
                     {p.content && <div>{p.content}</div>}
                   </div>
@@ -320,6 +347,15 @@ export default function LoungePage() {
                     <span style={{ fontSize:9, color:'var(--tl)', fontWeight:700 }}>{time}</span>
                     {tab === 0 && p.tag && tagLabel && (
                       <span style={{ fontSize:8.5, fontWeight:900, padding:'2px 8px', borderRadius:10, background:tagStyle.bg, color:tagStyle.color }}>{tagLabel}</span>
+                    )}
+                    {role === 'admin' ? (
+                      <button onClick={() => togglePin(p)} title={p.pinned_at ? '홈 공지 해제' : '홈 공지로 지정 (최대 2개)'}
+                        style={{ display:'flex', alignItems:'center', gap:3, padding:'3px 9px', borderRadius:16, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:900, fontSize:9,
+                          border:`2px solid ${p.pinned_at ? 'var(--ac)' : 'rgb(var(--ac-rgb) / 0.25)'}`, background: p.pinned_at ? 'var(--ac)' : 'var(--surf)', color: p.pinned_at ? '#fff' : 'var(--tmu)', transition:'all 0.15s' }}>
+                        📌{p.pinned_at ? ' 공지 중' : ''}
+                      </button>
+                    ) : p.pinned_at && (
+                      <span style={{ fontSize:8.5, fontWeight:900, padding:'2px 8px', borderRadius:10, background:'var(--ac)', color:'#fff' }}>📌 공지</span>
                     )}
                     {canDelete && (
                       <button onClick={() => deletePost(p.id)} title="삭제"
@@ -434,13 +470,13 @@ export default function LoungePage() {
       {(role === 'admin' || role === 'artist') ? (
         <nav className="bottom-nav">
           {[
-            { href: role==='admin'?'/admin':role==='artist'?'/artist':'/student', label:'홈', icon:'🏠' },
-            ...(role === 'artist' ? [] : [{ href: role==='admin'?'/admin/notification':'/student/notification', label:'알림', icon:'🔔' }]),
-            { href:'/lounge', label:'라운지', icon:'💬', active:true },
-            ...(role === 'artist' ? [] : [{ href:'/student/farm', label:'냥밭', icon:'🌱' }]),
+            { href: role==='admin'?'/admin':role==='artist'?'/artist':'/student', label:'홈', icon:'home' },
+            ...(role === 'artist' ? [] : [{ href: role==='admin'?'/admin/notification':'/student/notification', label:'알림', icon:'bell' }]),
+            { href:'/lounge', label:'라운지', icon:'chat', active:true },
+            ...(role === 'artist' ? [] : [{ href:'/student/farm', label:'냥밭', icon:'plant' }]),
           ].map(t => (
             <a key={t.label} href={t.href} className={`nav-item ${t.active?'active':''}`}>
-              <span style={{ fontSize:20 }}>{t.icon}</span>
+              <NavIcon name={t.icon} active={t.active} />
               <span>{t.label}</span>
             </a>
           ))}
