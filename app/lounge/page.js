@@ -10,7 +10,7 @@ import { pixelCatImg, DEFAULT_PROFILE_CAT } from '../../lib/pixelCats'
 function CatAvatar({ catKey, size = 36 }) {
   const s = Math.round(size * 0.78)
   return (
-    <div style={{ width:size, height:size, borderRadius:'50%', background:'var(--acBg)', border:'1.5px solid var(--g2)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, overflow:'hidden' }}>
+    <div style={{ width:size, height:size, borderRadius:'50%', background:'var(--acBg)', border:'2.5px solid var(--ac)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, overflow:'hidden' }}>
       <img src={pixelCatImg(catKey || DEFAULT_PROFILE_CAT)} alt="" width={s} height={s} style={{ imageRendering:'pixelated', display:'block' }} />
     </div>
   )
@@ -313,8 +313,9 @@ function removeExistingImage(idx) {
             const on = tab === i
             return (
               <button key={t} onClick={() => setTab(i)}
-                style={{ flexShrink:0, padding:'7px 15px', borderRadius:20, fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif',
-                  border:`1.5px solid ${on ? 'var(--ac)' : 'var(--g2)'}`, background: on ? 'var(--ac)' : 'var(--surf)', color: on ? '#fff' : 'var(--tmu)', transition:'all 0.15s' }}>
+                style={{ flexShrink:0, padding:'8px 16px', borderRadius:22, fontSize:12, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif',
+                  border:`2.5px solid ${on ? 'var(--ac)' : 'rgb(var(--ac-rgb) / 0.25)'}`, background: on ? 'var(--ac)' : 'var(--surf)', color: on ? '#fff' : 'var(--tm)',
+                  boxShadow: on ? '2px 2px 0 rgb(var(--ac-rgb) / 0.25)' : 'none', transition:'all 0.15s' }}>
                 {t}
               </button>
             )
@@ -338,8 +339,8 @@ function removeExistingImage(idx) {
 
           return (
             <div key={p.id} onClick={() => setExpanded(isExp?null:p.id)}
-              style={{ background:'var(--surf)', borderRadius:18, border:`1.5px solid ${isExp?'var(--ac)':'var(--g1)'}`,
-                marginBottom:12, overflow:'hidden', cursor:'pointer', boxShadow: isExp ? '0 4px 16px rgba(0,0,0,0.07)' : 'none', transition:'border-color 0.15s, box-shadow 0.15s' }}>
+              style={{ background:'var(--surf)', borderRadius:26, border:`3px solid ${isExp?'var(--ac)':'rgb(var(--ac-rgb) / 0.3)'}`,
+                marginBottom:14, overflow:'hidden', cursor:'pointer', boxShadow: isExp ? '4px 4px 0 rgb(var(--ac-rgb) / 0.25)' : '3px 3px 0 rgb(var(--ac-rgb) / 0.12)', transition:'border-color 0.15s, box-shadow 0.15s' }}>
 
               {/* 작성자 헤더 — 프로필 고양이 아바타 */}
               <div style={{ display:'flex', alignItems:'center', gap:9, padding:'12px 14px 10px' }}>
@@ -348,7 +349,7 @@ function removeExistingImage(idx) {
                   <div style={{ fontSize:12.5, fontWeight:800, color:'var(--td)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.author_name}</div>
                   <div style={{ fontSize:10, color:'var(--tl)' }}>{p.created_at?.split('T')[0]}</div>
                 </div>
-                <span style={{ fontSize:9, fontWeight:800, padding:'4px 9px', borderRadius:8, background:tagStyle.bg, color:tagStyle.color, flexShrink:0 }}>
+                <span style={{ fontSize:9, fontWeight:900, padding:'4px 10px', borderRadius:12, background:tagStyle.bg, color:tagStyle.color, flexShrink:0 }}>
                   {TAGS[TAG_IDS.indexOf(p.tag)]}
                 </span>
               </div>
@@ -402,22 +403,23 @@ function removeExistingImage(idx) {
                 {/* 액션 — 하트 공감 + 댓글 */}
                 <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:11 }}>
                   <button onClick={(e) => { e.stopPropagation(); toggleLike(p.id) }} title="공감"
-                    style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 13px', borderRadius:20, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:800, fontSize:12,
-                      border:`1.5px solid ${liked ? '#ff5a7a' : 'var(--g2)'}`, background: liked ? '#ffeef2' : 'var(--surf)', color: liked ? '#ff2d55' : 'var(--tmu)', transition:'all 0.15s' }}>
+                    style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 15px', borderRadius:22, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:900, fontSize:12.5,
+                      border:`2.5px solid ${liked ? '#FF8FB1' : 'rgb(var(--ac-rgb) / 0.3)'}`, background: liked ? '#FF8FB1' : 'var(--surf)', color: liked ? '#fff' : 'var(--tm)',
+                      boxShadow: liked ? '2px 2px 0 rgba(255,143,177,0.4)' : 'none', transition:'all 0.15s' }}>
                     <span key={liked ? 'on' : 'off'} className={liked ? 'heart-pop' : ''} style={{ fontSize:13, lineHeight:1 }}>{liked ? '❤️' : '🤍'}</span>
-                    {likeN}
+                    <span style={{ fontVariantNumeric:'tabular-nums' }}>{likeN}</span>
                   </button>
                   <button onClick={(e) => { e.stopPropagation(); setExpanded(isExp?null:p.id) }}
-                    style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 13px', borderRadius:20, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700, fontSize:12,
-                      border:'1.5px solid var(--g2)', background: isExp ? 'var(--acBg)' : 'var(--surf)', color:'var(--tmu)' }}>
-                    💬 {p.comments?.length||0}
+                    style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 15px', borderRadius:22, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:900, fontSize:12.5,
+                      border:`2.5px solid rgb(var(--ac-rgb) / 0.3)`, background: isExp ? 'var(--acBg)' : 'var(--surf)', color:'var(--tm)' }}>
+                    💬 <span style={{ fontVariantNumeric:'tabular-nums' }}>{p.comments?.length||0}</span>
                   </button>
                 </div>
               </div>
 
               {/* 펼쳐진 상태 — 수정/삭제 + 댓글 */}
               {isExp && (
-                <div style={{ borderTop:'1px solid var(--g1)', padding:'12px 14px' }} onClick={e => e.stopPropagation()}>
+                <div style={{ borderTop:'2px dashed rgb(var(--ac-rgb) / 0.25)', padding:'12px 14px' }} onClick={e => e.stopPropagation()}>
                   {(role === 'admin' || p.author_id === user?.id) && (
                     <div style={{ display:'flex', gap:6, marginBottom:10, justifyContent:'flex-end' }}>
                       <button onClick={() => startEdit(p)}
@@ -435,22 +437,22 @@ function removeExistingImage(idx) {
                   {p.comments?.map(c => (
                     <div key={c.id} style={{ display:'flex', gap:8, marginBottom:9 }}>
                       <CatAvatar catKey={profileMap[c.user_id]} size={30} />
-                      <div style={{ background:'var(--bg)', borderRadius:12, padding:'7px 11px', flex:1, minWidth:0 }}>
-                        <div style={{ fontSize:9.5, fontWeight:800, color:'var(--tm)' }}>{c.author_name}</div>
-                        <div style={{ fontSize:11.5, color:'var(--td)', lineHeight:1.5, marginTop:1, whiteSpace:'pre-wrap' }}>{c.content}</div>
+                      <div style={{ background:'var(--acBg)', border:'2.5px solid rgb(var(--ac-rgb) / 0.35)', borderRadius:'18px 18px 18px 6px', padding:'8px 12px', maxWidth:'82%', minWidth:0 }}>
+                        <div style={{ fontSize:10, fontWeight:900, color:'var(--acTx)' }}>{c.author_name}</div>
+                        <div style={{ fontSize:12, color:'var(--td)', fontWeight:600, lineHeight:1.5, marginTop:1, whiteSpace:'pre-wrap' }}>{c.content}</div>
                       </div>
                     </div>
                   ))}
                   <div style={{ display:'flex', gap:6, marginTop:10 }}>
                     <input value={comment} onChange={e => setComment(e.target.value)}
-                      placeholder="댓글을 남겨보세요..."
+                      placeholder="댓글을 남겨보세요…"
                       onKeyDown={e => e.key==='Enter' && addComment(p.id)}
-                      style={{ flex:1, background:'var(--bg)', border:'1.5px solid var(--g1)', borderRadius:20,
-                        padding:'8px 13px', fontSize:11.5, fontFamily:'Nunito,sans-serif', outline:'none', color:'var(--td)' }}/>
+                      style={{ flex:1, background:'var(--surf)', border:'2.5px solid rgb(var(--ac-rgb) / 0.35)', borderRadius:22,
+                        padding:'9px 14px', fontSize:12, fontWeight:600, fontFamily:'Nunito,sans-serif', outline:'none', color:'var(--td)' }}/>
                     <button onClick={() => addComment(p.id)}
-                      style={{ background:'var(--ac)', color:'#fff', border:'none', borderRadius:20,
-                        padding:'8px 15px', fontSize:11, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
-                      등록
+                      style={{ width:40, height:40, flexShrink:0, background:'var(--ac)', color:'#fff', border:'none', borderRadius:'50%',
+                        fontSize:14, cursor:'pointer', fontFamily:'Nunito,sans-serif', boxShadow:'2px 2px 0 rgb(var(--ac-rgb) / 0.3)' }}>
+                      ➤
                     </button>
                   </div>
                 </div>
@@ -461,12 +463,13 @@ function removeExistingImage(idx) {
 
         {/* 글쓰기 버튼 (관리자만) */}
         
-          <button onClick={() => setShowWrite(true)}
-            style={{ position:'fixed', bottom:76, right:'calc(50% - 185px)',
-              display:'flex', alignItems:'center', gap:6, background:'var(--ac)', color:'#fff',
-              border:'none', borderRadius:24, padding:'11px 17px', fontSize:12, fontWeight:800,
-              cursor:'pointer', fontFamily:'Nunito,sans-serif', boxShadow:'0 4px 14px rgb(var(--ac-rgb) / 0.35)' }}>
-            ✏️ 글쓰기
+          <button onClick={() => setShowWrite(true)} title="글쓰기"
+            style={{ position:'fixed', bottom:78, right:'calc(50% - 180px)',
+              width:56, height:56, borderRadius:'50%', background:'var(--ac2)', color:'var(--td)',
+              border:'3px solid var(--ac)', fontSize:22, cursor:'pointer',
+              display:'flex', alignItems:'center', justifyContent:'center',
+              boxShadow:'4px 4px 0 rgb(var(--ac-rgb) / 0.3)', zIndex:90 }}>
+            ✏️
           </button>
        
       </div>
