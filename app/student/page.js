@@ -455,7 +455,7 @@ export default function StudentHomePage() {
 
         {/* 스튜디오 공지 — 라운지에서 관리자가 공지 지정한 글 (최대 2개) */}
         {notices.length > 0 && (
-          <div style={{ marginTop:2 }}>
+          <div style={{ marginTop:22, paddingTop:18, borderTop:'1.5px solid var(--g1)' }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', margin:'0 2px 8px' }}>
               <span style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, fontWeight:800, color:'var(--td)' }}>
                 <NavIcon name="pin" color="var(--ac)" size={15} /> 스튜디오 공지
