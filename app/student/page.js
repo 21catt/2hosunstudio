@@ -7,6 +7,9 @@ import { NavIcon } from '../../components/NavIcons'
 import { LogoMark, HeroDeco, DotPatch } from '../../components/Deco'
 import { applyTheme, isValidTheme } from '../../lib/theme'
 import { bookClass, requestBookingApproval, hasValidTicket, cancelBooking } from '../../lib/booking'
+import { sendPushToAdmins } from '../../lib/pushNotify'
+import { sendKakaoToAdmins } from '../../lib/kakaoNotify'
+import { pixelCatImg } from '../../lib/pixelCats'
 import LoadingCat from '../../components/LoadingCat'
 
 const CELL_W = 56
@@ -32,6 +35,13 @@ export default function StudentHomePage() {
   const [bookingBusy, setBookingBusy] = useState(null)
   const [cancelModal, setCancelModal] = useState(null) // { booking, label } — 취소 확인 다이얼로그
   const [cancelBusy, setCancelBusy] = useState(false)
+  // 수업 문의 팝업 — 안내 3가지 + 기타 문의(관리자 알림으로 전달)
+  const [askOpen, setAskOpen] = useState(false)
+  const [inqName, setInqName] = useState('')
+  const [inqPhone, setInqPhone] = useState('')
+  const [inqBody, setInqBody] = useState('')
+  const [inqSending, setInqSending] = useState(false)
+  const [inqSent, setInqSent] = useState(false)
   const stripRef = useRef(null)
   const dragMoved = useRef(false)
 
@@ -203,6 +213,39 @@ export default function StudentHomePage() {
     setCancelModal({ booking: mine, label })
   }
 
+  // 수업 문의 열기 — 계정 정보로 이름·연락처 미리 채움(수정 가능)
+  function openAsk() {
+    setInqName(user?.user_metadata?.name || '')
+    setInqPhone(user?.user_metadata?.phone || '')
+    setInqBody('')
+    setInqSent(false)
+    setAskOpen(true)
+  }
+
+  // 기타 문의 전송 — 관리자 전원에게 인앱 알림 + 푸시 + 카톡 (연락처 필수)
+  async function sendInquiry() {
+    const name = inqName.trim() || '이름 미기재'
+    const phone = inqPhone.trim()
+    const body = inqBody.trim()
+    if (!phone) { alert('연락받으실 핸드폰 번호를 적어주세요 🐾'); return }
+    if (!body) { alert('문의 내용을 적어주세요 🐾'); return }
+    setInqSending(true)
+    try {
+      const msg = `${name}님 수업 문의\n연락처: ${phone}\n내용: ${body}`
+      const { data: admins } = await supabase.from('users').select('id').eq('role', 'admin')
+      if (admins?.length) {
+        await supabase.from('notifications').insert(admins.map(a => ({
+          user_id: a.id, type: 'inquiry', title: '💬 수업 문의', body: msg,
+        })))
+      }
+      sendPushToAdmins('💬 수업 문의', `${name} · ${phone} · ${body.slice(0, 60)}`)
+      sendKakaoToAdmins('💬 수업 문의', msg)
+      setInqSent(true)
+    } finally {
+      setInqSending(false)
+    }
+  }
+
   // 다이얼로그 '확인' → 실제 취소 실행
   async function confirmCancel() {
     if (!cancelModal || !user) return
@@ -255,7 +298,7 @@ export default function StudentHomePage() {
               {user && nextBooking ? '이번 주 수업 예약' : '수업 예약, 여기서 시작'}
             </div>
             <div style={{ fontSize:12, color:'var(--tm)', margin:'4px 0 12px' }}>{heroSub}</div>
-            <div style={{ display:'flex', gap:8 }}>
+            <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
               {user ? (
                 <>
                   <button className="p-chip" onClick={()=>router.push('/student/curriculum?tab=core')}>자세히 알아보기</button>
@@ -267,6 +310,10 @@ export default function StudentHomePage() {
                   <button className="p-chip p-chip--fill" onClick={()=>router.push('/signup')}>가입하고 예약</button>
                 </>
               )}
+              <button className="p-chip" onClick={openAsk}
+                style={{ background:'var(--ac2)', color:'var(--g5)', borderColor:'var(--g5)', fontWeight:800 }}>
+                💬 수업 문의
+              </button>
             </div>
           </div>
         </div>
@@ -414,6 +461,99 @@ export default function StudentHomePage() {
                 style={{ flex:1, padding:'11px', background:'var(--g1)', color:'var(--g5)', border:'none', borderRadius:12, fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>돌아가기</button>
               <button disabled={cancelBusy} onClick={confirmCancel}
                 style={{ flex:1, padding:'11px', background:'var(--ac)', color:'#fff', border:'none', borderRadius:12, fontSize:13, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif', opacity:cancelBusy?0.6:1 }}>{cancelBusy?'취소 중…':'확인'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 수업 문의 팝업 — 안내 3가지 (한 화면) */}
+      {askOpen && (
+        <div onClick={e => { if (e.target === e.currentTarget && !inqSending) setAskOpen(false) }}
+          style={{ position:'fixed', inset:0, background:'rgba(27,28,70,0.45)', zIndex:1000, display:'flex', flexDirection:'column', justifyContent:'flex-end' }}>
+          <div style={{ background:'#fff', border:'3px solid var(--ac)', borderBottom:'none', borderRadius:'28px 28px 0 0', maxHeight:'88vh', overflowY:'auto', maxWidth:390, width:'100%', margin:'0 auto', boxSizing:'border-box' }}>
+
+            {/* 헤더 */}
+            <div style={{ display:'flex', alignItems:'center', gap:10, padding:'16px 16px 12px', borderBottom:'2px dashed var(--g1)' }}>
+              <img src={pixelCatImg('09-cat')} alt="" width={42} height={42} style={{ imageRendering:'pixelated', display:'block' }}/>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:15.5, fontWeight:900, color:'var(--td)' }}>무엇이 궁금하냥? 🐾</div>
+                <div style={{ fontSize:11, color:'var(--tmu)', fontWeight:700, marginTop:1 }}>수업 시작 전 자주 묻는 것들을 모았어요</div>
+              </div>
+              <button onClick={() => setAskOpen(false)}
+                style={{ width:30, height:30, borderRadius:'50%', border:'2px solid var(--g1)', background:'#fff', color:'var(--tmu)', fontWeight:900, fontSize:13, cursor:'pointer', flexShrink:0, padding:0 }}>✕</button>
+            </div>
+
+            <div style={{ padding:'13px 14px 22px', display:'flex', flexDirection:'column', gap:11 }}>
+
+              {/* 1. 커리큘럼 확인 */}
+              <div style={{ border:'2.5px solid rgb(var(--ac-rgb) / 0.32)', borderRadius:20, padding:'13px 14px' }}>
+                <span style={{ display:'inline-block', fontSize:10, fontWeight:900, background:'var(--ac)', color:'#fff', borderRadius:12, padding:'3px 10px', marginBottom:8, letterSpacing:0.5 }}>STEP 1</span>
+                <div style={{ fontSize:13.5, fontWeight:900, color:'var(--td)', marginBottom:5 }}>📚 어떤 수업인지 궁금해요</div>
+                <div style={{ fontSize:11.5, lineHeight:1.65, color:'var(--tm)', fontWeight:600 }}>
+                  수업별 <b style={{ color:'var(--acTx)' }}>핵심 내용</b>을 먼저 둘러보세요. 커리큘럼과 진행 방식을 한눈에 볼 수 있어요.
+                </div>
+                <button onClick={() => router.push('/student/curriculum?tab=core')}
+                  style={{ marginTop:9, fontSize:11.5, fontWeight:900, background:'var(--acBg)', color:'var(--acTx)', border:'2px solid rgb(var(--ac-rgb) / 0.4)', borderRadius:18, padding:'7px 13px', cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                  커리큘럼 핵심내용 보러가기 →
+                </button>
+              </div>
+
+              {/* 2. 수강권 없이 예약 */}
+              <div style={{ border:'2.5px solid rgb(var(--ac-rgb) / 0.32)', borderRadius:20, padding:'13px 14px' }}>
+                <span style={{ display:'inline-block', fontSize:10, fontWeight:900, background:'var(--ac)', color:'#fff', borderRadius:12, padding:'3px 10px', marginBottom:8, letterSpacing:0.5 }}>STEP 2</span>
+                <div style={{ fontSize:13.5, fontWeight:900, color:'var(--td)', marginBottom:8 }}>🎟️ 수강권 없이도 예약되나요?</div>
+                <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                  {[
+                    <>원하는 <b style={{ color:'var(--acTx)' }}>날짜·수업·시간</b>의 예약 버튼을 눌러요</>,
+                    <>관리자에게 <b style={{ color:'var(--acTx)' }}>예약 대기 알림</b>이 바로 전달돼요</>,
+                    <>관리자가 <b style={{ color:'var(--acTx)' }}>계약금 입금 안내</b>를 드려요</>,
+                    <>입금 확인되면 <b style={{ color:'var(--acTx)' }}>예약 확정!</b> 🎉</>,
+                  ].map((step, i) => (
+                    <div key={i} style={{ display:'flex', gap:8, alignItems:'flex-start', fontSize:11, fontWeight:700, color:'var(--tm)', background:'var(--acBg)', borderRadius:12, padding:'7px 10px', lineHeight:1.5 }}>
+                      <span style={{ flexShrink:0, width:17, height:17, borderRadius:'50%', background:'var(--ac)', color:'#fff', fontSize:9.5, fontWeight:900, display:'flex', alignItems:'center', justifyContent:'center', marginTop:1 }}>{i+1}</span>
+                      <span>{step}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 3. 기타 문의 — 연락처 필수, 관리자에게 푸시·카톡·알림 전달 */}
+              <div style={{ border:'2.5px solid rgb(var(--ac-rgb) / 0.32)', borderRadius:20, padding:'13px 14px' }}>
+                <span style={{ display:'inline-block', fontSize:10, fontWeight:900, background:'var(--ac)', color:'#fff', borderRadius:12, padding:'3px 10px', marginBottom:8, letterSpacing:0.5 }}>STEP 3</span>
+                <div style={{ fontSize:13.5, fontWeight:900, color:'var(--td)', marginBottom:5 }}>✍️ 다른 게 궁금해요</div>
+                {inqSent ? (
+                  <div style={{ textAlign:'center', padding:'14px 0 6px' }}>
+                    <img src={pixelCatImg('04-love')} alt="" width={52} height={52} style={{ imageRendering:'pixelated', display:'inline-block' }}/>
+                    <div style={{ fontSize:13, fontWeight:900, color:'var(--acTx)', marginTop:8 }}>문의가 전달됐어요!</div>
+                    <div style={{ fontSize:11.5, color:'var(--tm)', fontWeight:600, marginTop:4, lineHeight:1.6 }}>관리자가 확인 후 남겨주신 번호로 연락드릴게요 🐾</div>
+                    <button onClick={() => setAskOpen(false)}
+                      style={{ marginTop:12, fontSize:12, fontWeight:900, background:'var(--ac)', color:'#fff', border:'none', borderRadius:18, padding:'9px 22px', cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>닫기</button>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ fontSize:11.5, lineHeight:1.65, color:'var(--tm)', fontWeight:600, marginBottom:9 }}>
+                      남겨주시면 <b style={{ color:'var(--acTx)' }}>관리자에게 바로 전달</b>되고, 확인 후 연락드려요.
+                    </div>
+                    <div style={{ display:'flex', gap:7, marginBottom:7 }}>
+                      <input value={inqName} onChange={e => setInqName(e.target.value)} placeholder="이름"
+                        style={{ flex:1, minWidth:0, padding:'9px 11px', borderRadius:14, border:'2.5px solid rgb(var(--ac-rgb) / 0.4)', fontSize:12, fontWeight:600, background:'var(--acBg)', fontFamily:'Nunito,sans-serif', color:'var(--td)', outline:'none', boxSizing:'border-box' }}/>
+                      <input value={inqPhone} onChange={e => setInqPhone(e.target.value)} placeholder="연락받을 번호 (필수)" type="tel"
+                        style={{ flex:1.5, minWidth:0, padding:'9px 11px', borderRadius:14, border:'2.5px solid rgb(var(--ac-rgb) / 0.4)', fontSize:12, fontWeight:600, background:'var(--acBg)', fontFamily:'Nunito,sans-serif', color:'var(--td)', outline:'none', boxSizing:'border-box' }}/>
+                    </div>
+                    <textarea value={inqBody} onChange={e => setInqBody(e.target.value)} rows={3}
+                      placeholder="궁금한 점을 편하게 적어주세요…"
+                      style={{ width:'100%', padding:'9px 11px', borderRadius:14, border:'2.5px solid rgb(var(--ac-rgb) / 0.4)', fontSize:12, fontWeight:600, background:'var(--acBg)', resize:'none', fontFamily:'Nunito,sans-serif', color:'var(--td)', outline:'none', boxSizing:'border-box' }}/>
+                    <button onClick={sendInquiry} disabled={inqSending}
+                      style={{ width:'100%', marginTop:8, padding:'11px', background: inqSending ? '#aaa' : 'var(--ac)', color:'#fff', border:'none', borderRadius:16, fontSize:12.5, fontWeight:900, cursor: inqSending ? 'default' : 'pointer', fontFamily:'Nunito,sans-serif', boxShadow:'2.5px 2.5px 0 rgb(var(--ac-rgb) / 0.3)' }}>
+                      {inqSending ? '보내는 중…' : '문의 보내기 ➤'}
+                    </button>
+                    <div style={{ fontSize:10, color:'var(--tmu)', fontWeight:700, textAlign:'center', marginTop:7, lineHeight:1.5 }}>
+                      보내면 관리자에게 푸시·카톡 알림으로 전달돼요
+                    </div>
+                  </>
+                )}
+              </div>
+
             </div>
           </div>
         </div>
