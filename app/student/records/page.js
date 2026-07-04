@@ -203,10 +203,26 @@ function RecordsInner() {
   return (
     <>
       <style>{`
-        @keyframes bubIn { 0%{opacity:0; transform:translateY(22px) scale(0.55)} 55%{opacity:1; transform:translateY(-5px) scale(1.07)} 78%{transform:translateY(2px) scale(0.97)} 100%{opacity:1; transform:translateY(0) scale(1)} }
-        .bub-in { animation: bubIn 0.5s cubic-bezier(0.34,1.56,0.64,1) both; transform-origin: 100% 100%; }
-        @keyframes thumbIn { 0%{opacity:0; transform:scale(0.4) rotate(-6deg)} 70%{opacity:1; transform:scale(1.09) rotate(2deg)} 100%{opacity:1; transform:scale(1) rotate(0)} }
-        .thumb-in { animation: thumbIn 0.45s cubic-bezier(0.34,1.56,0.64,1) both; }
+        /* Squash & Stretch — 빠르게 길쭉하게 솟았다(stretch), 납작하게 눌리고(squash), 잔잔한 감쇠 진동으로 정지 */
+        @keyframes bubIn {
+          0%   { opacity:0; transform: translateY(26px) scale(0.5, 0.72); }
+          36%  { opacity:1; transform: translateY(-7px) scale(1.13, 0.9); }
+          54%  { transform: translateY(3px)  scale(0.94, 1.07); }
+          70%  { transform: translateY(-1.5px) scale(1.045, 0.975); }
+          83%  { transform: translateY(0.5px) scale(0.985, 1.012); }
+          93%  { transform: translateY(0) scale(1.006, 0.996); }
+          100% { opacity:1; transform: translateY(0) scale(1, 1); }
+        }
+        .bub-in { animation: bubIn 0.74s cubic-bezier(0.22, 1, 0.36, 1) both; transform-origin: 100% 100%; }
+        @keyframes thumbIn {
+          0%   { opacity:0; transform: scale(0.3, 0.45) rotate(-8deg); }
+          42%  { opacity:1; transform: scale(1.15, 0.88) rotate(3deg); }
+          62%  { transform: scale(0.93, 1.08) rotate(-1.5deg); }
+          78%  { transform: scale(1.045, 0.97) rotate(0.6deg); }
+          90%  { transform: scale(0.99, 1.008) rotate(-0.2deg); }
+          100% { opacity:1; transform: scale(1, 1) rotate(0); }
+        }
+        .thumb-in { animation: thumbIn 0.62s cubic-bezier(0.22, 1, 0.36, 1) both; }
         .press { transition: transform 0.12s cubic-bezier(0.34,1.56,0.64,1); }
         .press:active { transform: scale(0.84); }
         @media (prefers-reduced-motion: reduce) { .bub-in, .thumb-in { animation: none } .press:active { transform:none } }
