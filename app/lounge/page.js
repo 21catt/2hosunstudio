@@ -33,7 +33,11 @@ export default function LoungePage() {
   const [profileMap, setProfileMap] = useState({})   // {userId: profile_cat}
   const [likeCount, setLikeCount] = useState({})      // {postId: n}
   const [myLikes, setMyLikes] = useState(() => new Set())
-  const [viewer, setViewer] = useState(null)          // { images, idx } — 이미지 크게 보기
+  const [viewer, setViewer] = useState(null)          // { images, idx, postId } — 이미지 크게 보기 + 댓글
+  const [viewerText, setViewerText] = useState('')    // 라이트박스 댓글 입력
+  const [viewerSending, setViewerSending] = useState(false)
+  const [editPost, setEditPost] = useState(null)      // { id, text } — 게시글 내용 수정 중
+  const [editSaving, setEditSaving] = useState(false)
   const [lastAddedId, setLastAddedId] = useState(null)
 
   // 카톡식 입력바
@@ -178,6 +182,42 @@ export default function LoungePage() {
     setPosts(prev => prev.filter(p => p.id !== postId))
   }
 
+  // 게시글 내용 수정 저장 — 작성자 본인 또는 관리자
+  async function saveEdit() {
+    if (!editPost || editSaving) return
+    const text = editPost.text.trim()
+    if (!text) { alert('내용을 입력해 주세요 🐾'); return }
+    setEditSaving(true)
+    try {
+      const { error } = await supabase.from('posts').update({ content: text }).eq('id', editPost.id)
+      if (error) { alert('수정에 실패했어요 🐾'); return }
+      setPosts(prev => prev.map(x => x.id === editPost.id ? { ...x, content: text } : x))
+      setEditPost(null)
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
+  // 라이트박스에서 사진 보면서 댓글 남기기
+  async function sendViewerComment() {
+    const text = viewerText.trim()
+    if (!text || !user || !viewer?.postId || viewerSending) return
+    setViewerSending(true)
+    try {
+      const { data: c, error } = await supabase.from('comments').insert({
+        post_id: viewer.postId,
+        user_id: user.id,
+        author_name: user.user_metadata?.name || '익명',
+        content: text,
+      }).select().single()
+      if (error) { alert('댓글 등록에 실패했어요 🐾'); return }
+      setPosts(prev => prev.map(p => p.id === viewer.postId ? { ...p, comments: [...(p.comments || []), c] } : p))
+      setViewerText('')
+    } finally {
+      setViewerSending(false)
+    }
+  }
+
   // 홈 공지 지정/해제 (관리자) — 지정된 글은 홈 하단에 노출, 최대 2개.
   // 이미 2개면 가장 오래 전에 지정한 공지를 해제하고 새 글을 지정한다.
   async function togglePin(p) {
@@ -251,6 +291,7 @@ export default function LoungePage() {
         .press { transition: transform 0.12s cubic-bezier(0.34,1.56,0.64,1); }
         .press:active { transform: scale(0.84); }
         @media (prefers-reduced-motion: reduce) { .bub-in, .thumb-in, .heart-pop { animation: none } .press:active { transform:none } }
+        .viewer-input::placeholder { color: rgba(255,255,255,0.55); }
       `}</style>
 
       <div className="header">
@@ -317,12 +358,28 @@ export default function LoungePage() {
                   </div>
                 )
 
+                // 내용 수정 모드 — 말풍선 자리에 입력창
+                const isEditing = editPost?.id === p.id
+                const editBox = (
+                  <div style={{ width:'72vw', maxWidth:290 }}>
+                    <textarea value={editPost?.text || ''} autoFocus rows={3}
+                      onChange={e => setEditPost(prev => ({ ...prev, text: e.target.value }))}
+                      style={{ width:'100%', padding:'10px 12px', borderRadius:16, border:'2.5px solid var(--ac)', background:'var(--acBg)', fontSize:13, fontWeight:600, color:'var(--td)', lineHeight:1.6, resize:'none', outline:'none', fontFamily:'Nunito,sans-serif', boxSizing:'border-box', display:'block' }}/>
+                    <div style={{ display:'flex', gap:6, justifyContent: isMine ? 'flex-end' : 'flex-start', marginTop:5 }}>
+                      <button onClick={() => setEditPost(null)} disabled={editSaving}
+                        style={{ padding:'6px 14px', borderRadius:14, border:'2px solid var(--g2)', background:'#fff', color:'var(--tm)', fontSize:11, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>취소</button>
+                      <button onClick={saveEdit} disabled={editSaving}
+                        style={{ padding:'6px 16px', borderRadius:14, border:'none', background:'var(--ac)', color:'#fff', fontSize:11, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif', opacity: editSaving ? 0.6 : 1 }}>{editSaving ? '저장 중…' : '저장'}</button>
+                    </div>
+                  </div>
+                )
+
                 const thumbs = images.length > 0 && (
                   <div style={{ display:'flex', gap:6, flexWrap:'wrap', justifyContent: isMine ? 'flex-end' : 'flex-start', maxWidth:'100%' }}>
                     {images.slice(0, 6).map((src, i) => {
                       const more = i === 5 && images.length > 6
                       return (
-                        <div key={i} className={isNew ? 'thumb-in' : ''} onClick={() => setViewer({ images, idx: i })}
+                        <div key={i} className={isNew ? 'thumb-in' : ''} onClick={() => { setViewer({ images, idx: i, postId: p.id }); setViewerText('') }}
                           style={{ position:'relative', width:62, height:62, borderRadius:14, overflow:'hidden', cursor:'pointer', border:'2.5px solid rgb(var(--ac-rgb) / 0.3)', background:ACCENT_BG, flexShrink:0, animationDelay:`${i*60}ms` }}>
                           <img src={src} alt="" loading="lazy" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}/>
                           {more && (
@@ -358,6 +415,10 @@ export default function LoungePage() {
                       <span style={{ fontSize:8.5, fontWeight:900, padding:'2px 8px', borderRadius:10, background:'var(--ac)', color:'#fff' }}>📌 공지</span>
                     )}
                     {canDelete && (
+                      <button onClick={() => setEditPost({ id: p.id, text: p.content || '' })} title="내용 수정"
+                        style={{ width:18, height:18, borderRadius:'50%', border:'2px solid var(--line)', background:'#fff', fontSize:8.5, lineHeight:1, cursor:'pointer', padding:0 }}>✏️</button>
+                    )}
+                    {canDelete && (
                       <button onClick={() => deletePost(p.id)} title="삭제"
                         style={{ width:18, height:18, borderRadius:'50%', border:'2px solid var(--line)', background:'#fff', color:'var(--tl)', fontSize:9, lineHeight:1, cursor:'pointer', padding:0 }}>✕</button>
                     )}
@@ -369,7 +430,7 @@ export default function LoungePage() {
                     {isMine ? (
                       <div style={{ display:'flex', justifyContent:'flex-end' }}>
                         <div style={{ maxWidth:'82%', display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6 }}>
-                          {(p.title || p.content) && bubble}
+                          {isEditing ? editBox : (p.title || p.content) && bubble}
                           {thumbs}
                           {meta}
                         </div>
@@ -379,7 +440,7 @@ export default function LoungePage() {
                         <CatAvatar catKey={profileMap[p.author_id]} size={38} />
                         <div style={{ maxWidth:'78%', display:'flex', flexDirection:'column', alignItems:'flex-start', gap:5 }}>
                           <span style={{ fontSize:10.5, fontWeight:800, color:'var(--tmu)', marginLeft:4 }}>{p.author_name}</span>
-                          {(p.title || p.content) && bubble}
+                          {isEditing ? editBox : (p.title || p.content) && bubble}
                           {thumbs}
                           {meta}
                         </div>
@@ -445,7 +506,7 @@ export default function LoungePage() {
         <div onClick={() => setViewer(null)}
           onTouchStart={e => { touchX.current = e.touches[0].clientX }}
           onTouchEnd={viewerSwipe}
-          style={{ position:'fixed', inset:0, background:'rgba(10,11,35,0.93)', zIndex:1200, display:'flex', alignItems:'center', justifyContent:'center', padding:'46px 12px 40px' }}>
+          style={{ position:'fixed', inset:0, background:'rgba(10,11,35,0.93)', zIndex:1200, display:'flex', alignItems:'center', justifyContent:'center', padding:'46px 12px 150px' }}>
           <img src={viewer.images[viewer.idx]} alt="" onClick={e => e.stopPropagation()}
             style={{ maxWidth:'100%', maxHeight:'100%', objectFit:'contain', borderRadius:18, display:'block' }}/>
           <button onClick={() => setViewer(null)}
@@ -456,14 +517,44 @@ export default function LoungePage() {
                 style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', background:'rgba(255,255,255,0.16)', color:'#fff', border:'none', borderRadius:'50%', width:44, height:44, cursor:'pointer', fontSize:24, lineHeight:1 }}>‹</button>
               <button onClick={e => { e.stopPropagation(); setViewer(v => ({ ...v, idx:(v.idx+1)%v.images.length })) }}
                 style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', background:'rgba(255,255,255,0.16)', color:'#fff', border:'none', borderRadius:'50%', width:44, height:44, cursor:'pointer', fontSize:24, lineHeight:1 }}>›</button>
-              <div style={{ position:'absolute', bottom:16, left:'50%', transform:'translateX(-50%)', display:'flex', gap:7 }} onClick={e => e.stopPropagation()}>
+            </>
+          )}
+
+          {/* 사진 보면서 댓글 — 하단 패널 (닫히지 않게 클릭 전파 차단) */}
+          <div onClick={e => e.stopPropagation()}
+            style={{ position:'absolute', left:0, right:0, bottom:0, maxWidth:390, margin:'0 auto', padding:'22px 14px 16px', boxSizing:'border-box', display:'flex', flexDirection:'column', gap:8, background:'linear-gradient(to top, rgba(10,11,35,0.97) 65%, rgba(10,11,35,0))' }}>
+            {viewer.images.length > 1 && (
+              <div style={{ display:'flex', gap:7, justifyContent:'center' }}>
                 {viewer.images.map((_, i) => (
                   <div key={i} onClick={() => setViewer(v => ({ ...v, idx:i }))}
                     style={{ width:9, height:9, borderRadius:'50%', background: i===viewer.idx ? '#fff' : 'rgba(255,255,255,0.4)', cursor:'pointer' }}/>
                 ))}
               </div>
-            </>
-          )}
+            )}
+            {(() => {
+              const cs = posts.find(x => x.id === viewer.postId)?.comments || []
+              return cs.length > 0 && (
+                <div className="no-scrollbar" style={{ maxHeight:110, overflowY:'auto', display:'flex', flexDirection:'column', gap:5 }}>
+                  {cs.map(c => (
+                    <div key={c.id} style={{ fontSize:11.5, color:'#fff', lineHeight:1.5, wordBreak:'break-word' }}>
+                      <span style={{ fontWeight:900, color:'rgba(255,255,255,0.72)', marginRight:6 }}>{c.author_name}</span>
+                      <span style={{ fontWeight:600 }}>{c.content}</span>
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
+            <div style={{ display:'flex', gap:7, alignItems:'center' }}>
+              <input className="viewer-input" value={viewerText} onChange={e => setViewerText(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) sendViewerComment() }}
+                placeholder="사진 보면서 댓글 남기기…"
+                style={{ flex:1, minWidth:0, height:38, borderRadius:20, border:'2px solid rgba(255,255,255,0.4)', background:'rgba(255,255,255,0.14)', color:'#fff', padding:'0 14px', fontSize:12, fontWeight:600, outline:'none', fontFamily:'Nunito,sans-serif', boxSizing:'border-box' }}/>
+              <button onClick={sendViewerComment} disabled={viewerSending || !viewerText.trim()}
+                style={{ width:38, height:38, flexShrink:0, borderRadius:'50%', border:'none', color:'#fff', fontSize:13, cursor:'pointer', padding:0, display:'flex', alignItems:'center', justifyContent:'center', background: viewerText.trim() ? 'var(--ac)' : 'rgba(255,255,255,0.22)' }}>
+                {viewerSending ? '…' : '➤'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
