@@ -32,21 +32,18 @@ export default function LoungePage() {
   const [imageFiles, setImageFiles] = useState([])
   const [imagePreviews, setImagePreviews] = useState([])
   const [uploading, setUploading] = useState(false)
-  const [carouselIdx, setCarouselIdx] = useState({})
   const [profileMap, setProfileMap] = useState({})   // {userId: profile_cat}
   const [likeCount, setLikeCount] = useState({})      // {postId: n}
   const [myLikes, setMyLikes] = useState(() => new Set())
+  const [viewer, setViewer] = useState(null)          // { images, idx } — 이미지 크게 보기
   const fileRef = useRef()
   const touchX = useRef(null)
-  function handleSwipe(e, postId, len) {
-    if (touchX.current == null || len < 2) return
+  function viewerSwipe(e) {
+    if (touchX.current == null || !viewer || viewer.images.length < 2) return
     const delta = e.changedTouches[0].clientX - touchX.current
     touchX.current = null
     if (Math.abs(delta) < 50) return
-    setCarouselIdx(c => {
-      const cur = c[postId] || 0
-      return { ...c, [postId]: delta < 0 ? (cur+1)%len : (cur-1+len)%len }
-    })
+    setViewer(v => ({ ...v, idx: delta < 0 ? (v.idx+1)%v.images.length : (v.idx-1+v.images.length)%v.images.length }))
   }
 const [editingId, setEditingId] = useState(null)
 const [existingImages, setExistingImages] = useState([])
@@ -333,7 +330,6 @@ function removeExistingImage(idx) {
           const isExp = expanded === p.id
           const tagStyle = TAG_COLORS[p.tag] || TAG_COLORS.etc
           const images = getImages(p)
-          const idx = carouselIdx[p.id] || 0
           const liked = myLikes.has(p.id)
           const likeN = likeCount[p.id] ?? (p.likes_count || 0)
 
@@ -354,40 +350,6 @@ function removeExistingImage(idx) {
                 </span>
               </div>
 
-              {/* 이미지: 접힌 상태는 첫 장만, 펼친 상태는 캐러셀 */}
-              {images.length > 0 && !isExp && (
-                <div style={{ position:'relative' }}>
-                  <img src={images[0]} alt="" style={{ width:'100%', height:190, objectFit:'cover', display:'block' }}/>
-                  {images.length > 1 && (
-                    <div style={{ position:'absolute', top:8, right:8, background:'rgba(0,0,0,0.55)', color:'#fff', fontSize:10, fontWeight:700, padding:'3px 8px', borderRadius:12 }}>
-                      📷 {images.length}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {images.length > 0 && isExp && (
-                <div style={{ position:'relative', background:'#000' }} onClick={e => e.stopPropagation()}
-                  onTouchStart={e => { touchX.current = e.touches[0].clientX }}
-                  onTouchEnd={e => handleSwipe(e, p.id, images.length)}>
-                  <img src={images[idx]} alt="" style={{ width:'100%', maxHeight:360, objectFit:'contain', display:'block' }}/>
-                  {images.length > 1 && (
-                    <>
-                      <button onClick={() => setCarouselIdx(c => ({...c,[p.id]:(idx-1+images.length)%images.length}))}
-                        style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', background:'rgba(0,0,0,0.45)', color:'#fff', border:'none', borderRadius:'50%', width:44, height:44, cursor:'pointer', fontSize:26, lineHeight:1, display:'flex', alignItems:'center', justifyContent:'center' }}>‹</button>
-                      <button onClick={() => setCarouselIdx(c => ({...c,[p.id]:(idx+1)%images.length}))}
-                        style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', background:'rgba(0,0,0,0.45)', color:'#fff', border:'none', borderRadius:'50%', width:44, height:44, cursor:'pointer', fontSize:26, lineHeight:1, display:'flex', alignItems:'center', justifyContent:'center' }}>›</button>
-                      <div style={{ position:'absolute', bottom:8, left:'50%', transform:'translateX(-50%)', display:'flex', gap:6 }}>
-                        {images.map((_,i) => (
-                          <div key={i} onClick={() => setCarouselIdx(c => ({...c,[p.id]:i}))}
-                            style={{ width:8, height:8, borderRadius:'50%', background:i===idx?'#fff':'rgba(255,255,255,0.5)', cursor:'pointer' }}/>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-
               {/* 본문 */}
               <div style={{ padding:'11px 14px 13px' }}>
                 <div style={{ fontSize:14, fontWeight:800, color:'var(--td)', marginBottom:4, lineHeight:1.4 }}>{p.title}</div>
@@ -398,6 +360,28 @@ function removeExistingImage(idx) {
                   </div>
                 ) : (
                   <div style={{ fontSize:12.5, color:'var(--td)', lineHeight:1.8, whiteSpace:'pre-wrap', marginTop:2 }}>{p.content}</div>
+                )}
+
+                {/* 이미지 첨부 — 작은 썸네일, 누르면 크게 보기 */}
+                {images.length > 0 && (
+                  <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop:10 }} onClick={e => e.stopPropagation()}>
+                    {(isExp ? images : images.slice(0, 4)).map((src, i) => {
+                      const hiddenMore = !isExp && i === 3 && images.length > 4
+                      return (
+                        <div key={i} onClick={() => setViewer({ images, idx: i })}
+                          style={{ position:'relative', width:60, height:60, borderRadius:14, overflow:'hidden', cursor:'pointer',
+                            border:'2.5px solid rgb(var(--ac-rgb) / 0.3)', background:'var(--acBg)', flexShrink:0 }}>
+                          <img src={src} alt="" loading="lazy" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}/>
+                          {hiddenMore && (
+                            <div style={{ position:'absolute', inset:0, background:'rgba(27,28,70,0.55)', color:'#fff', fontSize:13, fontWeight:900, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                              +{images.length - 4}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                    <span style={{ alignSelf:'center', fontSize:10, color:'var(--tl)', fontWeight:700 }}>📷 {images.length}장 · 눌러서 보기</span>
+                  </div>
                 )}
 
                 {/* 액션 — 하트 공감 + 댓글 */}
@@ -473,6 +457,33 @@ function removeExistingImage(idx) {
           </button>
        
       </div>
+
+     {/* 이미지 크게 보기 — 라이트박스 */}
+     {viewer && (
+       <div onClick={() => setViewer(null)}
+         onTouchStart={e => { touchX.current = e.touches[0].clientX }}
+         onTouchEnd={viewerSwipe}
+         style={{ position:'fixed', inset:0, background:'rgba(10,11,35,0.93)', zIndex:1200, display:'flex', alignItems:'center', justifyContent:'center', padding:'46px 12px 40px' }}>
+         <img src={viewer.images[viewer.idx]} alt="" onClick={e => e.stopPropagation()}
+           style={{ maxWidth:'100%', maxHeight:'100%', objectFit:'contain', borderRadius:18, display:'block' }}/>
+         <button onClick={() => setViewer(null)}
+           style={{ position:'absolute', top:14, right:14, width:38, height:38, borderRadius:'50%', background:'rgba(255,255,255,0.16)', color:'#fff', border:'none', fontSize:17, cursor:'pointer', lineHeight:1 }}>✕</button>
+         {viewer.images.length > 1 && (
+           <>
+             <button onClick={e => { e.stopPropagation(); setViewer(v => ({ ...v, idx:(v.idx-1+v.images.length)%v.images.length })) }}
+               style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', background:'rgba(255,255,255,0.16)', color:'#fff', border:'none', borderRadius:'50%', width:44, height:44, cursor:'pointer', fontSize:24, lineHeight:1 }}>‹</button>
+             <button onClick={e => { e.stopPropagation(); setViewer(v => ({ ...v, idx:(v.idx+1)%v.images.length })) }}
+               style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', background:'rgba(255,255,255,0.16)', color:'#fff', border:'none', borderRadius:'50%', width:44, height:44, cursor:'pointer', fontSize:24, lineHeight:1 }}>›</button>
+             <div style={{ position:'absolute', bottom:16, left:'50%', transform:'translateX(-50%)', display:'flex', gap:7 }} onClick={e => e.stopPropagation()}>
+               {viewer.images.map((_, i) => (
+                 <div key={i} onClick={() => setViewer(v => ({ ...v, idx:i }))}
+                   style={{ width:9, height:9, borderRadius:'50%', background: i===viewer.idx ? '#fff' : 'rgba(255,255,255,0.4)', cursor:'pointer' }}/>
+               ))}
+             </div>
+           </>
+         )}
+       </div>
+     )}
 
      {(role === 'admin' || role === 'artist') ? (
      <nav className="bottom-nav">
