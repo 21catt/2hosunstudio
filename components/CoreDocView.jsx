@@ -91,7 +91,7 @@ function ApproachCard({ a, onZoom, zoomed }) {
   )
 }
 
-export default function CoreDocView({ doc, sample = false }) {
+export default function CoreDocView({ doc, sample = false, onCta }) {
   const d = normalizeDoc(doc)
   const [zoom, setZoom] = useState(null) // { type:'module'|'approach', item }
 
@@ -200,7 +200,8 @@ export default function CoreDocView({ doc, sample = false }) {
         <div style={{ position:'relative' }}>
           <h2 style={{ fontSize:32, fontWeight:800, letterSpacing:-1, margin:'0 0 14px', lineHeight:1.2, whiteSpace:'pre-line' }}>{d.cta.title}</h2>
           <p style={{ fontSize:14.5, color:'#B7B8E0', margin:'0 0 24px', lineHeight:1.7 }}>{d.cta.desc}</p>
-          <div style={{ display:'inline-flex', alignItems:'center', gap:10, background:C.green, color:C.dark, fontWeight:800, fontSize:15, padding:'15px 26px', borderRadius:14, border:`2px solid ${C.dark}`, boxShadow:`4px 4px 0 ${C.yellow}` }}>
+          <div onClick={onCta}
+            style={{ display:'inline-flex', alignItems:'center', gap:10, background:C.green, color:C.dark, fontWeight:800, fontSize:15, padding:'15px 26px', borderRadius:14, border:`2px solid ${C.dark}`, boxShadow:`4px 4px 0 ${C.yellow}`, cursor: onCta ? 'pointer' : 'default' }}>
             <span>{d.cta.buttonText}</span>
             <span style={{ fontFamily:PIX }}>→</span>
           </div>

@@ -728,7 +728,8 @@ function CurriculumInner() {
                         {/* 펼친 내용 — 리치 문서(있으면 실제, 없으면 예시 샘플), 아니면 텍스트+이미지 */}
                         {isOpen && richDoc && (
                           <div style={{ borderTop:`1px solid rgb(var(--ac-rgb) / 0.16)`, margin:'0 -14px', overflow:'hidden' }}>
-                            <CoreDocView doc={richDoc} sample={!savedRich}/>
+                            <CoreDocView doc={richDoc} sample={!savedRich}
+                              onCta={() => { setExpandedCourse(key); handleTabSwitch('browse') }}/>
                             <div style={{ display:'flex', gap:6, padding:'14px 14px 4px', flexWrap:'wrap' }}>
                               <button
                                 onClick={() => router.push(`/student?course=${encodeURIComponent(course.name)}`)}

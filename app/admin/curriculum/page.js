@@ -286,6 +286,7 @@ function AdminCurriculumInner() {
     setSelectedName(name)
     setAddingNew(false)
     setEditing({})
+    setCoreDoc(undefined) // 로딩 중 표시 — 로드 완료 후에만 에디터 마운트 (빈 문서로 초기화되는 버그 방지)
     await Promise.all([loadSteps(name), loadCore(name)])
   }
 
@@ -449,7 +450,11 @@ function AdminCurriculumInner() {
               <div style={{ fontSize:10, color:'var(--tmu)', marginBottom:10, lineHeight:1.5 }}>
                 아래를 작성해 저장하면 학생 화면에서 이 수업의 핵심내용이 <b>인물화형 랜딩</b>으로 보여요. (비워 두면 위의 기본 텍스트/사진이 사용돼요)
               </div>
-              <CoreDocEditor key={selectedName} initialDoc={coreDoc} onUploadImage={uploadImage} onSave={saveCoreDoc} saving={coreDocSaving}/>
+              {coreDoc === undefined ? (
+                <div style={{ textAlign:'center', padding:'18px 0', fontSize:12, color:'var(--tmu)' }}>불러오는 중… 🐾</div>
+              ) : (
+                <CoreDocEditor key={selectedName} initialDoc={coreDoc} onUploadImage={uploadImage} onSave={saveCoreDoc} saving={coreDocSaving}/>
+              )}
             </div>
 
             {/* Sortable list */}

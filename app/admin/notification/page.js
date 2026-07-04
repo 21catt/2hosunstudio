@@ -21,6 +21,10 @@ export default function AdminNotificationPage() {
   }, [])
 
   async function loadData(userId) {
+    // 3주 지난 알림은 자동 삭제 (내 알림만)
+    const cutoff = new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString()
+    await supabase.from('notifications').delete().eq('user_id', userId).lt('created_at', cutoff)
+
     const { data } = await supabase
       .from('notifications')
       .select('*')
