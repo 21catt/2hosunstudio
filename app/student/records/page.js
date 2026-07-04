@@ -5,7 +5,7 @@ import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
 import { NavIcon } from '../../../components/NavIcons'
 import LoadingCat from '../../../components/LoadingCat'
-import { pixelCatImg, DEFAULT_PROFILE_CAT, isValidPixelCat } from '../../../lib/pixelCats'
+import { pixelCatImg, DEFAULT_PROFILE_CAT, isValidPixelCat, getSavedProfileCat } from '../../../lib/pixelCats'
 
 // 카톡형 채팅 로그 — 하단 입력바에서 바로 쓰고 보내면 말풍선이 튕기며 등장한다.
 // 사진은 📷 아이콘 → 바로 선택, 날짜는 오늘(커리큘럼에서 넘어오면 그 날짜·수업 칩 표시).
@@ -167,7 +167,7 @@ function RecordsInner() {
               shareUrls.push(data.publicUrl)
             }
           }
-          await supabase.from('posts').insert({
+          const pbase = {
             title: ctx.cls ? `🎨 ${ctx.cls} 수업 기록` : '📋 오늘의 수업 기록',
             content: text || '',
             tag: 'class',
@@ -175,7 +175,10 @@ function RecordsInner() {
             author_name: user.user_metadata?.name || '익명',
             image_url: shareUrls[0] || null,
             images: shareUrls,
-          })
+          }
+          const { error: shErr } = await supabase.from('posts').insert({ ...pbase, author_cat: catMap[user.id] || getSavedProfileCat() })
+          if (shErr) await supabase.from('posts').insert(pbase) // author_cat 컬럼 없으면 없이 재시도
+
         } catch {} // 공유 실패해도 기록 저장은 유지
       }
       setComposeText('')

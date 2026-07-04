@@ -5,7 +5,7 @@ import { supabase } from '../../lib/supabase'
 import StudentNav from '../../components/StudentNav'
 import { NavIcon } from '../../components/NavIcons'
 import LoadingCat from '../../components/LoadingCat'
-import { pixelCatImg, DEFAULT_PROFILE_CAT } from '../../lib/pixelCats'
+import { pixelCatImg, DEFAULT_PROFILE_CAT, getSavedProfileCat } from '../../lib/pixelCats'
 
 // 카톡형 라운지 — 누구나 하단 입력바에서 바로 쓰고 보내는 단체 채팅 스타일.
 // 내 메시지는 오른쪽 테마색 말풍선, 다른 사람은 왼쪽(프로필 고양이 + 이름).
@@ -156,7 +156,9 @@ export default function LoungePage() {
         }
       }
 
-      const { data: post } = await supabase.from('posts').insert({
+      // 작성 당시 내 프로필 고양이를 글에 함께 저장 (비가입자·타인도 정확히 보이도록)
+      const myCat = profileMap[user.id] || getSavedProfileCat()
+      const base = {
         title: '',
         content: text || '',
         tag,
@@ -164,7 +166,11 @@ export default function LoungePage() {
         author_name: user.user_metadata?.name || '익명',
         image_url: urls[0] || null,
         images: urls,
-      }).select().single()
+      }
+      let { data: post, error: insErr } = await supabase.from('posts').insert({ ...base, author_cat: myCat }).select().single()
+      if (insErr) { // author_cat 컬럼이 아직 없으면(마이그레이션 전) 없이 재시도
+        ;({ data: post } = await supabase.from('posts').insert(base).select().single())
+      }
 
       if (post) {
         setPosts(prev => [...prev, { ...post, comments: [] }])
@@ -223,12 +229,16 @@ export default function LoungePage() {
     if (!user) { router.push('/login'); return }
     setViewerSending(true)
     try {
-      const { data: c, error } = await supabase.from('comments').insert({
+      const cbase = {
         post_id: viewer.postId,
         user_id: user.id,
         author_name: user.user_metadata?.name || '익명',
         content: text,
-      }).select().single()
+      }
+      let { data: c, error } = await supabase.from('comments').insert({ ...cbase, author_cat: profileMap[user.id] || getSavedProfileCat() }).select().single()
+      if (error) { // author_cat 컬럼이 아직 없으면 없이 재시도
+        ;({ data: c, error } = await supabase.from('comments').insert(cbase).select().single())
+      }
       if (error) { alert('댓글 등록에 실패했어요 🐾'); return }
       setPosts(prev => prev.map(p => p.id === viewer.postId ? { ...p, comments: [...(p.comments || []), c] } : p))
       setViewerText('')
@@ -476,11 +486,11 @@ export default function LoungePage() {
                           {thumbs}
                           {meta}
                         </div>
-                        <CatAvatar catKey={profileMap[p.author_id]} size={38} />
+                        <CatAvatar catKey={p.author_cat || profileMap[p.author_id]} size={38} />
                       </div>
                     ) : (
                       <div style={{ display:'flex', gap:8, alignItems:'flex-end' }}>
-                        <CatAvatar catKey={profileMap[p.author_id]} size={38} />
+                        <CatAvatar catKey={p.author_cat || profileMap[p.author_id]} size={38} />
                         <div style={{ maxWidth:'78%', display:'flex', flexDirection:'column', alignItems:'flex-start', gap:5 }}>
                           <span style={{ fontSize:10.5, fontWeight:800, color:'var(--tmu)', marginLeft:4 }}>{p.author_name}</span>
                           {isEditing ? editBox : (p.title || p.content) && bubble}
@@ -495,7 +505,7 @@ export default function LoungePage() {
                       <div style={{ marginTop:7, marginLeft: isMine ? 0 : 46, display:'flex', flexDirection:'column', gap:6, alignItems: isMine ? 'flex-end' : 'flex-start' }}>
                         {p.comments.map(c => (
                           <div key={c.id} style={{ display:'flex', gap:6, alignItems:'flex-end', flexDirection: isMine ? 'row-reverse' : 'row' }}>
-                            <CatAvatar catKey={profileMap[c.user_id]} size={24} />
+                            <CatAvatar catKey={c.author_cat || profileMap[c.user_id]} size={24} />
                             <div style={{ background:ACCENT_BG, border:'2px solid rgb(var(--ac-rgb) / 0.3)', borderRadius:14, padding:'6px 10px', maxWidth:240 }}>
                               <span style={{ fontSize:9, fontWeight:900, color:ACCENT_TEXT, marginRight:5 }}>{c.author_name}</span>
                               <span style={{ fontSize:11, color:'var(--td)', fontWeight:600, lineHeight:1.4 }}>{c.content}</span>
