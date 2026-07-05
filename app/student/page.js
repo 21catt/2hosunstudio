@@ -553,6 +553,7 @@ export default function StudentHomePage() {
                 <div style={{ fontSize:13.5, fontWeight:900, color:'var(--td)', marginBottom:8 }}>🎟️ 수강권 없이도 예약되나요?</div>
                 <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
                   {[
+                    <><b style={{ color:'var(--acTx)' }}>회원가입</b>을 먼저 해주세요</>,
                     <>원하는 <b style={{ color:'var(--acTx)' }}>날짜·수업·시간</b>의 예약 버튼을 눌러요</>,
                     <>관리자에게 <b style={{ color:'var(--acTx)' }}>예약 대기 알림</b>이 바로 전달돼요</>,
                     <>관리자가 <b style={{ color:'var(--acTx)' }}>계약금 입금 안내</b>를 드려요</>,
