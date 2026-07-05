@@ -6,6 +6,7 @@ import StudentNav from '../../../components/StudentNav'
 import { NavIcon } from '../../../components/NavIcons'
 import LoadingCat from '../../../components/LoadingCat'
 import { pixelCatImg, DEFAULT_PROFILE_CAT, isValidPixelCat, getSavedProfileCat } from '../../../lib/pixelCats'
+import { sendPushToAdmins } from '../../../lib/pushNotify'
 
 // 카톡형 채팅 로그 — 하단 입력바에서 바로 쓰고 보내면 말풍선이 튕기며 등장한다.
 // 사진은 📷 아이콘 → 바로 선택, 날짜는 오늘(커리큘럼에서 넘어오면 그 날짜·수업 칩 표시).
@@ -55,7 +56,9 @@ function RecordsInner() {
   const [viewer, setViewer] = useState(null)        // { photos:[url], idx, recordId }
   const [viewerText, setViewerText] = useState('')
   const [viewerSending, setViewerSending] = useState(false)
-  const [recordComments, setRecordComments] = useState({}) // { recordId: [comment] }
+  const [recordComments, setRecordComments] = useState({}) // { recordId: [comment] } — 강사·나 대화 스레드
+  const [rcInput, setRcInput] = useState({})   // 기록 아래 인라인 답글 입력
+  const [rcSending, setRcSending] = useState({})
   const viewerTouchX = useRef(null)
 
   useEffect(() => {
@@ -118,23 +121,49 @@ function RecordsInner() {
     setViewer(v => ({ ...v, idx: delta < 0 ? (v.idx+1)%v.photos.length : (v.idx-1+v.photos.length)%v.photos.length }))
   }
 
-  // 사진 보면서 댓글 남기기 (본인 기록 메모)
-  async function sendRecordComment() {
-    const text = viewerText.trim()
-    if (!text || !viewer?.recordId || viewerSending || !user) return
-    setViewerSending(true)
-    try {
-      const cbase = { record_id: viewer.recordId, user_id: user.id, author_name: user.user_metadata?.name || '나', content: text }
-      let { data: c, error } = await supabase.from('record_comments').insert({ ...cbase, author_cat: catMap[user.id] || getSavedProfileCat() }).select().single()
-      if (error) { // author_cat 컬럼/테이블 문제 시 최소 필드로 재시도
-        ;({ data: c, error } = await supabase.from('record_comments').insert(cbase).select().single())
-      }
-      if (error) { alert('댓글 등록에 실패했어요. record_comments 마이그레이션이 실행됐는지 확인해 주세요 🐾'); return }
-      setRecordComments(prev => ({ ...prev, [viewer.recordId]: [...(prev[viewer.recordId] || []), c] }))
-      setViewerText('')
-    } finally {
-      setViewerSending(false)
+  // 기록 댓글 등록 (라이트박스·인라인 공용). 성공 시 강사(관리자)에게 알림.
+  async function postRecordComment(recordId, text) {
+    const t = (text || '').trim()
+    if (!t || !user) return false
+    const cbase = { record_id: recordId, user_id: user.id, author_name: user.user_metadata?.name || '나', content: t }
+    let { data: c, error } = await supabase.from('record_comments').insert({ ...cbase, author_cat: catMap[user.id] || getSavedProfileCat() }).select().single()
+    if (error) { // author_cat 컬럼/테이블 문제 시 최소 필드로 재시도
+      ;({ data: c, error } = await supabase.from('record_comments').insert(cbase).select().single())
     }
+    if (error) { alert('댓글 등록에 실패했어요. record_comments 마이그레이션이 실행됐는지 확인해 주세요 🐾'); return false }
+    setRecordComments(prev => ({ ...prev, [recordId]: [...(prev[recordId] || []), c] }))
+    notifyAdminsOfRecordComment(recordId, t)
+    return true
+  }
+
+  // 학생이 기록에 댓글 → 강사(관리자 전원)에게 인앱 알림 + 푸시
+  async function notifyAdminsOfRecordComment(recordId, text) {
+    try {
+      const rec = records.find(r => r.id === recordId)
+      const label = rec?.class_name ? `${rec.class_name} 기록` : '기록'
+      const { data: admins } = await supabase.from('users').select('id').eq('role', 'admin')
+      if (admins?.length) {
+        const body = `${user.user_metadata?.name || '학생'}님이 ${label}에 댓글: ${text.slice(0, 40)}`
+        await supabase.from('notifications').insert(admins.map(a => ({ user_id: a.id, type: 'record_reply', title: '💬 기록 댓글', body })))
+        sendPushToAdmins('💬 기록 댓글', body)
+      }
+    } catch {}
+  }
+
+  // 사진 보면서 댓글 (라이트박스)
+  async function sendRecordComment() {
+    if (!viewer?.recordId || viewerSending) return
+    setViewerSending(true)
+    try { if (await postRecordComment(viewer.recordId, viewerText)) setViewerText('') }
+    finally { setViewerSending(false) }
+  }
+
+  // 기록 아래 인라인 답글
+  async function sendInlineComment(recordId) {
+    if (rcSending[recordId]) return
+    setRcSending(prev => ({ ...prev, [recordId]: true }))
+    try { if (await postRecordComment(recordId, rcInput[recordId])) setRcInput(prev => ({ ...prev, [recordId]: '' })) }
+    finally { setRcSending(prev => ({ ...prev, [recordId]: false })) }
   }
 
   async function loadAllPhotos(recs) {
@@ -375,6 +404,39 @@ function RecordsInner() {
                         </div>
                       </div>
                     ))}
+
+                    {/* 사진 댓글 스레드 (강사 ↔ 나) — 대화가 있으면 표시 + 이어서 답글 */}
+                    {(recordComments[r.id] || []).length > 0 && (
+                      <div style={{ marginTop:2, display:'flex', flexDirection:'column', gap:6 }}>
+                        {(recordComments[r.id] || []).map(c => {
+                          const mine = c.user_id === user?.id
+                          const catKey = isValidPixelCat(c.author_cat) ? c.author_cat : DEFAULT_PROFILE_CAT
+                          return (
+                            <div key={c.id} style={{ display:'flex', gap:6, alignItems:'flex-end', flexDirection: mine ? 'row-reverse' : 'row' }}>
+                              <div style={{ width:26, height:26, flexShrink:0, borderRadius:'50%', background:ACCENT_BG, border:`2px solid ${ACCENT}`, display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden' }}>
+                                <img src={pixelCatImg(catKey)} alt="" width={17} height={17} style={{ imageRendering:'pixelated', display:'block' }}/>
+                              </div>
+                              <div style={{ maxWidth:'72%', display:'flex', flexDirection:'column', alignItems: mine ? 'flex-end' : 'flex-start', gap:2 }}>
+                                {!mine && <span style={{ fontSize:9.5, fontWeight:800, color:'var(--tmu)', marginLeft:4 }}>{c.author_name} 쌤</span>}
+                                <div style={{ background: mine ? ACCENT : 'var(--surf)', color: mine ? '#fff' : 'var(--td)', border: mine ? 'none' : `2px solid rgb(var(--ac-rgb) / 0.3)`, fontSize:12, fontWeight:600, lineHeight:1.5, padding:'7px 11px', borderRadius: mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px', whiteSpace:'pre-wrap', wordBreak:'break-word' }}>
+                                  {c.content}
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                        <div style={{ display:'flex', gap:6, alignItems:'center', marginTop:2 }}>
+                          <input value={rcInput[r.id] || ''} onChange={e => setRcInput(prev => ({ ...prev, [r.id]: e.target.value }))}
+                            onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) sendInlineComment(r.id) }}
+                            placeholder="답글 남기기…"
+                            style={{ flex:1, minWidth:0, height:34, background:'var(--bg)', border:`2px solid rgb(var(--ac-rgb) / 0.25)`, borderRadius:18, padding:'0 12px', fontSize:12, color:'var(--td)', fontWeight:600, fontFamily:'Nunito,sans-serif', outline:'none', boxSizing:'border-box' }}/>
+                          <button onClick={() => sendInlineComment(r.id)} disabled={rcSending[r.id] || !(rcInput[r.id]?.trim())}
+                            style={{ width:34, height:34, flexShrink:0, borderRadius:'50%', border:'none', color:'#fff', fontSize:12, cursor:'pointer', padding:0, display:'flex', alignItems:'center', justifyContent:'center', background: rcInput[r.id]?.trim() ? ACCENT : 'rgb(var(--ac-rgb) / 0.35)' }}>
+                            {rcSending[r.id] ? '…' : '➤'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )
               })}
@@ -470,7 +532,7 @@ function RecordsInner() {
               <div className="no-scrollbar" style={{ maxHeight:110, overflowY:'auto', display:'flex', flexDirection:'column', gap:5 }}>
                 {(recordComments[viewer.recordId] || []).map(c => (
                   <div key={c.id} style={{ fontSize:11.5, color:'#fff', lineHeight:1.5, wordBreak:'break-word' }}>
-                    <span style={{ fontWeight:900, color:'rgba(255,255,255,0.72)', marginRight:6 }}>{c.author_name}</span>
+                    <span style={{ fontWeight:900, color:'rgba(255,255,255,0.72)', marginRight:6 }}>{c.author_name}{c.user_id !== user?.id ? ' 쌤' : ''}</span>
                     <span style={{ fontWeight:600 }}>{c.content}</span>
                   </div>
                 ))}
@@ -479,7 +541,7 @@ function RecordsInner() {
             <div style={{ display:'flex', gap:7, alignItems:'center' }}>
               <input className="viewer-input" value={viewerText} onChange={e => setViewerText(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) sendRecordComment() }}
-                placeholder="사진 보면서 메모 남기기…"
+                placeholder="사진 보면서 댓글 남기기…"
                 style={{ flex:1, minWidth:0, height:38, borderRadius:20, border:'2px solid rgba(255,255,255,0.4)', background:'rgba(255,255,255,0.14)', color:'#fff', padding:'0 14px', fontSize:12, fontWeight:600, outline:'none', fontFamily:'Nunito,sans-serif', boxSizing:'border-box' }}/>
               <button onClick={sendRecordComment} disabled={viewerSending || !viewerText.trim()}
                 style={{ width:38, height:38, flexShrink:0, borderRadius:'50%', border:'none', color:'#fff', fontSize:13, cursor:'pointer', padding:0, display:'flex', alignItems:'center', justifyContent:'center', background: viewerText.trim() ? ACCENT : 'rgba(255,255,255,0.22)' }}>

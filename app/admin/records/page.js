@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import AdminNav from '../../../components/AdminNav'
 import { NavIcon } from '../../../components/NavIcons'
+import { pixelCatImg, DEFAULT_PROFILE_CAT, isValidPixelCat, getSavedProfileCat } from '../../../lib/pixelCats'
+import { sendPushToUser } from '../../../lib/pushNotify'
 
 const ACCENT = 'var(--ac)'
 const ACCENT_BG = 'var(--acBg)'
@@ -24,6 +26,9 @@ export default function AdminRecordsPage() {
   const [fbInputs, setFbInputs] = useState({})
   const [fbEditing, setFbEditing] = useState({})
   const [fbSubmitting, setFbSubmitting] = useState({})
+  const [rcMap, setRcMap] = useState({})       // record_id → 댓글/답글 스레드
+  const [rcInput, setRcInput] = useState({})
+  const [rcSending, setRcSending] = useState({})
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -46,7 +51,35 @@ export default function AdminRecordsPage() {
     const map = {}
     ;(usrs || []).forEach(u => { map[u.id] = u.name })
     setUserMap(map)
+    // 사진 댓글/답글 스레드 로드 (테이블 없으면 조용히 빈 값)
+    const recIds = (recs || []).map(r => r.id)
+    if (recIds.length) {
+      const { data: cs } = await supabase.from('record_comments').select('*').in('record_id', recIds).order('created_at', { ascending: true })
+      const rc = {}; (cs || []).forEach(c => { (rc[c.record_id] = rc[c.record_id] || []).push(c) })
+      setRcMap(rc)
+    }
     setLoading(false)
+  }
+
+  // 강사 답글 → record_comments 저장 + 학생에게 알림
+  async function handleRcSubmit(record) {
+    const text = (rcInput[record.id] || '').trim()
+    if (!text || !user || rcSending[record.id]) return
+    setRcSending(prev => ({ ...prev, [record.id]: true }))
+    try {
+      const cbase = { record_id: record.id, user_id: user.id, author_name: user.user_metadata?.name || '강사', content: text }
+      let { data: c, error } = await supabase.from('record_comments').insert({ ...cbase, author_cat: getSavedProfileCat() }).select().single()
+      if (error) { ;({ data: c, error } = await supabase.from('record_comments').insert(cbase).select().single()) }
+      if (error) { alert('답글 등록에 실패했어요. record_comments 마이그레이션 확인이 필요해요 🐾'); return }
+      setRcMap(prev => ({ ...prev, [record.id]: [...(prev[record.id] || []), c] }))
+      setRcInput(prev => ({ ...prev, [record.id]: '' }))
+      const label = record.class_name ? `${record.class_name} 기록` : '기록'
+      const body = `${user.user_metadata?.name || '강사'} 쌤이 ${label}에 답글을 남겼어요: ${text.slice(0, 40)}`
+      await supabase.from('notifications').insert({ user_id: record.user_id, type: 'record_reply', title: '💬 기록 답글', body })
+      sendPushToUser(record.user_id, '💬 기록 답글', body)
+    } finally {
+      setRcSending(prev => ({ ...prev, [record.id]: false }))
+    }
   }
 
   async function loadPhotos(record) {
@@ -231,6 +264,42 @@ export default function AdminRecordsPage() {
                       style={{ width:'100%', padding:'9px', background:ACCENT, color:'#fff', border:'none', borderRadius:10, fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'Nunito,sans-serif', opacity: fbSubmitting[r.id] || !(fbInputs[r.id]?.trim()) ? 0.45 : 1 }}>
                       {fbSubmitting[r.id] ? '저장 중...' : '피드백 저장'}
                     </button>
+                  </div>
+
+                  {/* 사진 댓글 / 답글 스레드 — 학생 사진 댓글에 강사가 답글, 학생에게 알림 */}
+                  <div style={{ marginTop:12, paddingTop:12, borderTop:'1px dashed rgb(var(--ac-rgb) / 0.25)' }}>
+                    <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>💬 사진 댓글 · 답글</div>
+                    {(rcMap[r.id] || []).length > 0 && (
+                      <div style={{ display:'flex', flexDirection:'column', gap:6, marginBottom:8 }}>
+                        {(rcMap[r.id] || []).map(c => {
+                          const fromStudent = c.user_id === r.user_id
+                          const catKey = isValidPixelCat(c.author_cat) ? c.author_cat : DEFAULT_PROFILE_CAT
+                          return (
+                            <div key={c.id} style={{ display:'flex', gap:6, alignItems:'flex-end', flexDirection: fromStudent ? 'row' : 'row-reverse' }}>
+                              <div style={{ width:26, height:26, flexShrink:0, borderRadius:'50%', background:ACCENT_BG, border:`2px solid ${ACCENT}`, display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden' }}>
+                                <img src={pixelCatImg(catKey)} alt="" width={17} height={17} style={{ imageRendering:'pixelated', display:'block' }}/>
+                              </div>
+                              <div style={{ maxWidth:'76%', display:'flex', flexDirection:'column', alignItems: fromStudent ? 'flex-start' : 'flex-end', gap:2 }}>
+                                <span style={{ fontSize:9.5, fontWeight:800, color:'var(--tmu)' }}>{c.author_name}{fromStudent ? '' : ' 쌤'}</span>
+                                <div style={{ background: fromStudent ? 'var(--surf)' : ACCENT, color: fromStudent ? 'var(--td)' : '#fff', border: fromStudent ? `2px solid ${BORDER}` : 'none', fontSize:12, fontWeight:600, lineHeight:1.5, padding:'7px 11px', borderRadius: fromStudent ? '16px 16px 16px 4px' : '16px 16px 4px 16px', whiteSpace:'pre-wrap', wordBreak:'break-word' }}>
+                                  {c.content}
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                    <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+                      <input value={rcInput[r.id] || ''} onChange={e => setRcInput(prev => ({ ...prev, [r.id]: e.target.value }))}
+                        onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleRcSubmit(r) }}
+                        placeholder="답글 남기기…"
+                        style={{ flex:1, minWidth:0, height:36, background:'#fff', border:`1.5px solid ${BORDER}`, borderRadius:18, padding:'0 12px', fontSize:12, color:'var(--td)', fontWeight:600, fontFamily:'Nunito,sans-serif', outline:'none', boxSizing:'border-box' }}/>
+                      <button onClick={() => handleRcSubmit(r)} disabled={rcSending[r.id] || !(rcInput[r.id]?.trim())}
+                        style={{ width:36, height:36, flexShrink:0, borderRadius:'50%', border:'none', color:'#fff', fontSize:13, cursor:'pointer', padding:0, display:'flex', alignItems:'center', justifyContent:'center', background: rcInput[r.id]?.trim() ? ACCENT : 'rgb(var(--ac-rgb) / 0.35)' }}>
+                        {rcSending[r.id] ? '…' : '➤'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
