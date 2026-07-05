@@ -107,6 +107,13 @@ const PATHS = {
       <circle cx="12" cy="7" r="4"/>
     </>
   ),
+  profile: (
+    <>
+      <circle cx="12" cy="12" r="9"/>
+      <circle cx="12" cy="10" r="3"/>
+      <path d="M6.6 18.4a6 6 0 0 1 10.8 0"/>
+    </>
+  ),
   pin: (
     <>
       <path d="M12 17v5"/>
