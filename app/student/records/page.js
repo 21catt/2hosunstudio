@@ -1,5 +1,5 @@
 'use client'
-import { Suspense, useState, useEffect } from 'react'
+import { Suspense, useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
@@ -51,6 +51,12 @@ function RecordsInner() {
   const [sending, setSending] = useState(false)
   const [lastAddedId, setLastAddedId] = useState(null)
   const [shareLounge, setShareLounge] = useState(true) // 라운지 '수업' 카테고리로도 공유
+  // 사진 확대 라이트박스 + 댓글 (라운지와 동일 UX)
+  const [viewer, setViewer] = useState(null)        // { photos:[url], idx, recordId }
+  const [viewerText, setViewerText] = useState('')
+  const [viewerSending, setViewerSending] = useState(false)
+  const [recordComments, setRecordComments] = useState({}) // { recordId: [comment] }
+  const viewerTouchX = useRef(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -85,8 +91,50 @@ function RecordsInner() {
     const cm = {}; (prefs || []).forEach(p => { cm[p.user_id] = p.profile_cat })
     const nm = {}; (usrs || []).forEach(u => { nm[u.id] = u.name })
     setCatMap(cm); setNameMap(nm)
+
+    // 사진 라이트박스 댓글 로드 (테이블 없으면 조용히 빈 값)
+    const recIds = recs.map(r => r.id)
+    if (recIds.length) {
+      const { data: cs } = await supabase.from('record_comments').select('*').in('record_id', recIds).order('created_at', { ascending: true })
+      const rc = {}; (cs || []).forEach(c => { (rc[c.record_id] = rc[c.record_id] || []).push(c) })
+      setRecordComments(rc)
+    }
+
     setLoading(false)
     loadAllPhotos(recs)
+  }
+
+  // 기록의 사진들을 서명 URL 배열로 (아직 로딩 안 된 건 제외)
+  function recordPhotos(r) {
+    return (r.class_record_photos || []).map(p => signedUrls[p.storage_path]).filter(Boolean)
+  }
+
+  // 라이트박스 스와이프
+  function viewerSwipe(e) {
+    if (viewerTouchX.current == null || !viewer || viewer.photos.length < 2) return
+    const delta = e.changedTouches[0].clientX - viewerTouchX.current
+    viewerTouchX.current = null
+    if (Math.abs(delta) < 50) return
+    setViewer(v => ({ ...v, idx: delta < 0 ? (v.idx+1)%v.photos.length : (v.idx-1+v.photos.length)%v.photos.length }))
+  }
+
+  // 사진 보면서 댓글 남기기 (본인 기록 메모)
+  async function sendRecordComment() {
+    const text = viewerText.trim()
+    if (!text || !viewer?.recordId || viewerSending || !user) return
+    setViewerSending(true)
+    try {
+      const cbase = { record_id: viewer.recordId, user_id: user.id, author_name: user.user_metadata?.name || '나', content: text }
+      let { data: c, error } = await supabase.from('record_comments').insert({ ...cbase, author_cat: catMap[user.id] || getSavedProfileCat() }).select().single()
+      if (error) { // author_cat 컬럼/테이블 문제 시 최소 필드로 재시도
+        ;({ data: c, error } = await supabase.from('record_comments').insert(cbase).select().single())
+      }
+      if (error) { alert('댓글 등록에 실패했어요. record_comments 마이그레이션이 실행됐는지 확인해 주세요 🐾'); return }
+      setRecordComments(prev => ({ ...prev, [viewer.recordId]: [...(prev[viewer.recordId] || []), c] }))
+      setViewerText('')
+    } finally {
+      setViewerSending(false)
+    }
   }
 
   async function loadAllPhotos(recs) {
@@ -233,6 +281,7 @@ function RecordsInner() {
         .press { transition: transform 0.12s cubic-bezier(0.34,1.56,0.64,1); }
         .press:active { transform: scale(0.84); }
         @media (prefers-reduced-motion: reduce) { .bub-in, .thumb-in { animation: none } .press:active { transform:none } }
+        .viewer-input::placeholder { color: rgba(255,255,255,0.55); }
       `}</style>
 
       <div className="p-header">
@@ -292,14 +341,19 @@ function RecordsInner() {
                               <button onClick={() => handleDelete(r.id)} title="기록 삭제"
                                 style={{ width:22, height:22, borderRadius:'50%', border:`2px solid ${BORDER}`, background:'#fff', color:'var(--tl)', fontSize:11, lineHeight:1, cursor:'pointer', flexShrink:0, padding:0, marginRight:2 }}>✕</button>
                             )}
-                            {r.class_record_photos.map((p, i) => (
-                              <div key={p.id} className={isNew ? 'thumb-in' : ''} style={{ width:92, height:92, borderRadius:18, overflow:'hidden', border:`3px solid ${ACCENT}`, boxShadow:'3px 3px 0 rgb(var(--ac-rgb) / 0.22)', background:ACCENT_BG, flexShrink:0, animationDelay:`${i * 70}ms` }}>
-                                {signedUrls[p.storage_path]
-                                  ? <img src={signedUrls[p.storage_path]} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}/>
-                                  : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24 }}>📷</div>
-                                }
-                              </div>
-                            ))}
+                            {r.class_record_photos.map((p, i) => {
+                              const url = signedUrls[p.storage_path]
+                              return (
+                                <div key={p.id} className={isNew ? 'thumb-in' : ''}
+                                  onClick={() => { if (!url) return; const photos = recordPhotos(r); setViewer({ photos, idx: Math.max(0, photos.indexOf(url)), recordId: r.id }); setViewerText('') }}
+                                  style={{ width:92, height:92, borderRadius:18, overflow:'hidden', border:`3px solid ${ACCENT}`, boxShadow:'3px 3px 0 rgb(var(--ac-rgb) / 0.22)', background:ACCENT_BG, flexShrink:0, cursor: url ? 'pointer' : 'default', animationDelay:`${i * 70}ms` }}>
+                                  {url
+                                    ? <img src={url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}/>
+                                    : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24 }}>📷</div>
+                                  }
+                                </div>
+                              )
+                            })}
                           </div>
                         )}
                       </div>
@@ -381,6 +435,60 @@ function RecordsInner() {
           </button>
         </div>
       </div>
+
+      {/* 사진 크게 보기 — 라이트박스 + 댓글 (라운지와 동일) */}
+      {viewer && (
+        <div onClick={() => setViewer(null)}
+          onTouchStart={e => { viewerTouchX.current = e.touches[0].clientX }}
+          onTouchEnd={viewerSwipe}
+          style={{ position:'fixed', inset:0, background:'rgba(10,11,35,0.93)', zIndex:1200, display:'flex', alignItems:'center', justifyContent:'center', padding:'46px 12px 150px' }}>
+          <img src={viewer.photos[viewer.idx]} alt="" onClick={e => e.stopPropagation()}
+            style={{ maxWidth:'100%', maxHeight:'100%', objectFit:'contain', borderRadius:18, display:'block' }}/>
+          <button onClick={() => setViewer(null)}
+            style={{ position:'absolute', top:14, right:14, width:38, height:38, borderRadius:'50%', background:'rgba(255,255,255,0.16)', color:'#fff', border:'none', fontSize:17, cursor:'pointer', lineHeight:1 }}>✕</button>
+          {viewer.photos.length > 1 && (
+            <>
+              <button onClick={e => { e.stopPropagation(); setViewer(v => ({ ...v, idx:(v.idx-1+v.photos.length)%v.photos.length })) }}
+                style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', background:'rgba(255,255,255,0.16)', color:'#fff', border:'none', borderRadius:'50%', width:44, height:44, cursor:'pointer', fontSize:24, lineHeight:1 }}>‹</button>
+              <button onClick={e => { e.stopPropagation(); setViewer(v => ({ ...v, idx:(v.idx+1)%v.photos.length })) }}
+                style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', background:'rgba(255,255,255,0.16)', color:'#fff', border:'none', borderRadius:'50%', width:44, height:44, cursor:'pointer', fontSize:24, lineHeight:1 }}>›</button>
+            </>
+          )}
+
+          {/* 사진 보면서 댓글 — 하단 패널 */}
+          <div onClick={e => e.stopPropagation()}
+            style={{ position:'absolute', left:0, right:0, bottom:0, maxWidth:390, margin:'0 auto', padding:'22px 14px 16px', boxSizing:'border-box', display:'flex', flexDirection:'column', gap:8, background:'linear-gradient(to top, rgba(10,11,35,0.97) 65%, rgba(10,11,35,0))' }}>
+            {viewer.photos.length > 1 && (
+              <div style={{ display:'flex', gap:7, justifyContent:'center' }}>
+                {viewer.photos.map((_, i) => (
+                  <div key={i} onClick={() => setViewer(v => ({ ...v, idx:i }))}
+                    style={{ width:9, height:9, borderRadius:'50%', background: i===viewer.idx ? '#fff' : 'rgba(255,255,255,0.4)', cursor:'pointer' }}/>
+                ))}
+              </div>
+            )}
+            {(recordComments[viewer.recordId] || []).length > 0 && (
+              <div className="no-scrollbar" style={{ maxHeight:110, overflowY:'auto', display:'flex', flexDirection:'column', gap:5 }}>
+                {(recordComments[viewer.recordId] || []).map(c => (
+                  <div key={c.id} style={{ fontSize:11.5, color:'#fff', lineHeight:1.5, wordBreak:'break-word' }}>
+                    <span style={{ fontWeight:900, color:'rgba(255,255,255,0.72)', marginRight:6 }}>{c.author_name}</span>
+                    <span style={{ fontWeight:600 }}>{c.content}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ display:'flex', gap:7, alignItems:'center' }}>
+              <input className="viewer-input" value={viewerText} onChange={e => setViewerText(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) sendRecordComment() }}
+                placeholder="사진 보면서 메모 남기기…"
+                style={{ flex:1, minWidth:0, height:38, borderRadius:20, border:'2px solid rgba(255,255,255,0.4)', background:'rgba(255,255,255,0.14)', color:'#fff', padding:'0 14px', fontSize:12, fontWeight:600, outline:'none', fontFamily:'Nunito,sans-serif', boxSizing:'border-box' }}/>
+              <button onClick={sendRecordComment} disabled={viewerSending || !viewerText.trim()}
+                style={{ width:38, height:38, flexShrink:0, borderRadius:'50%', border:'none', color:'#fff', fontSize:13, cursor:'pointer', padding:0, display:'flex', alignItems:'center', justifyContent:'center', background: viewerText.trim() ? ACCENT : 'rgba(255,255,255,0.22)' }}>
+                {viewerSending ? '…' : '➤'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <StudentNav active="records" role={user?.user_metadata?.role || undefined}/>
     </>
