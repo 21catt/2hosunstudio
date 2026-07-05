@@ -146,6 +146,7 @@ export default function FarmPage() {
   const [weedRemoved, setWeedRemoved] = useState(0)
   const [weedReward, setWeedReward] = useState(false)
   const [pileBump, setPileBump] = useState(0)
+  const [pileImgOk, setPileImgOk] = useState(true) // weed-pile.png 없으면 이모지 폴백
   const [, setTickN] = useState(0) // 성장 재렌더용
   const weedRef = useRef(null)
   const ticketValidRef = useRef(false)
@@ -462,7 +463,9 @@ export default function FarmPage() {
           {/* 잡초더미 아이콘 + 제거 개수 (수강권 있을 때) */}
           {ticketValid && (
             <div style={{ position:'absolute', top:8, right:8, zIndex:26, display:'flex', flexDirection:'column', alignItems:'center', gap:1, background:'rgba(255,255,255,0.92)', border:'1.5px solid var(--g5)', borderRadius:12, padding:'6px 9px', boxShadow:'2px 2px 0 rgba(0,0,0,0.1)' }}>
-              <span key={pileBump} className="pile-bump" style={{ fontSize:20, lineHeight:1 }}>🌿</span>
+              {pileImgOk
+                ? <img key={pileBump} className="pile-bump" src="/farm/weed-pile.png" alt="잡초더미" width={30} height={30} onError={() => setPileImgOk(false)} style={{ imageRendering:'pixelated', display:'block' }}/>
+                : <span key={pileBump} className="pile-bump" style={{ fontSize:20, lineHeight:1 }}>🌿</span>}
               <span style={{ fontSize:11, fontWeight:900, color:'var(--g5)', fontFamily:'Nunito,sans-serif', fontVariantNumeric:'tabular-nums' }}>{weedRemoved}/{WEED.REWARD_AT}</span>
             </div>
           )}
