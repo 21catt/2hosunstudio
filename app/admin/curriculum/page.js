@@ -28,7 +28,7 @@ const CARD        = 'var(--card)'
 const BORDER      = 'var(--line)'
 
 // ─── Sortable row ────────────────────────────────────────────────────────────
-function SortableStepItem({ step, index, editing, setEditing, handleUpdate, handleDelete, saving, onUploadImage, uploading }) {
+function SortableStepItem({ step, index, editing, setEditing, handleUpdate, handleDelete, handleDuplicate, saving, onUploadImage, uploading }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: step.id })
 
   const wrapStyle = {
@@ -120,6 +120,11 @@ function SortableStepItem({ step, index, editing, setEditing, handleUpdate, hand
                 onClick={() => setEditing(prev => ({ ...prev, [step.id]: { title: step.title, keyword: step.keyword || '', image_url: step.image_url || '' } }))}
                 style={{ fontSize:10, padding:'3px 8px', borderRadius:20, background:'transparent', color:'var(--tmu)', border:`1px solid ${BORDER}`, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
                 수정
+              </button>
+              <button
+                onClick={() => handleDuplicate(step)} disabled={saving} title="이 회차를 복제해 바로 뒤에 추가"
+                style={{ fontSize:10, padding:'3px 8px', borderRadius:20, background:'transparent', color:'var(--acTx)', border:'1px solid rgb(var(--ac-rgb) / 0.4)', cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                복제
               </button>
               <button
                 onClick={() => handleDelete(step.id)}
@@ -310,6 +315,31 @@ function AdminCurriculumInner() {
     await loadSteps(selectedName)
   }
 
+  // 회차 복제 — 원본을 그대로 복사해 바로 뒤에 끼워넣는다 (제목·키워드·사진 동일, 이후 수정 가능)
+  async function handleDuplicate(step) {
+    if (!selectedName || saving) return
+    setSaving(true)
+    try {
+      const maxOrder = steps.length > 0 ? Math.max(...steps.map(s => s.step_order)) : 0
+      const { data: dup } = await supabase.from('course_curriculum').insert({
+        course_name: selectedName,
+        step_order: maxOrder + 1, // 임시로 맨 뒤 → 아래 재정렬로 원본 뒤에 배치
+        title: step.title,
+        keyword: step.keyword || null,
+        image_url: step.image_url || null,
+      }).select().single()
+      if (dup) {
+        const ids = steps.map(s => s.id)
+        const idx = ids.indexOf(step.id)
+        const newOrder = [...ids.slice(0, idx + 1), dup.id, ...ids.slice(idx + 1)]
+        await supabase.rpc('reorder_curriculum', { p_course_name: selectedName, p_ids: newOrder })
+      }
+      await loadSteps(selectedName)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   async function handleUpdate(step) {
     const e = editing[step.id]
     if (!e || !e.title?.trim()) return
@@ -470,6 +500,7 @@ function AdminCurriculumInner() {
                     setEditing={setEditing}
                     handleUpdate={handleUpdate}
                     handleDelete={handleDelete}
+                    handleDuplicate={handleDuplicate}
                     saving={saving}
                     onUploadImage={uploadImage}
                     uploading={uploading}
