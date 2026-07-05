@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
 import { NavIcon } from '../../../components/NavIcons'
+import ProfileHeaderIcon from '../../../components/ProfileHeaderIcon'
 import LoadingCat from '../../../components/LoadingCat'
 
 export default function StudentNotificationPage() {
@@ -100,6 +101,7 @@ export default function StudentNotificationPage() {
           <NavIcon name="bell" color="var(--ac)" size={20} />
           <span className="p-title">알림</span>
         </div>
+        <ProfileHeaderIcon />
       </div>
 
       <div style={{ background:'#fff', padding:'8px 14px 80px' }}>

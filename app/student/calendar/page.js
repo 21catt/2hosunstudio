@@ -5,6 +5,7 @@ import { supabase } from '../../../lib/supabase'
 import { useTodayWeather } from '../../../components/WeatherBar'
 import StudentNav from '../../../components/StudentNav'
 import { NavIcon } from '../../../components/NavIcons'
+import ProfileHeaderIcon from '../../../components/ProfileHeaderIcon'
 import { sortCoursesByCategory } from '../../../lib/courseSort'
 import { sendPushToAdmins } from '../../../lib/pushNotify'
 import { sendKakaoToAdmins } from '../../../lib/kakaoNotify'
@@ -751,9 +752,12 @@ export default function CalendarPage() {
           <NavIcon name="calendar" color="var(--ac)" size={20} />
           <span className="p-title">캘린더</span>
         </div>
-        {!user && (
-          <button onClick={()=>router.push('/login')} className="p-chip p-chip--sm">로그인 / 가입</button>
-        )}
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {!user && (
+            <button onClick={()=>router.push('/login')} className="p-chip p-chip--sm">로그인 / 가입</button>
+          )}
+          <ProfileHeaderIcon />
+        </div>
       </div>
 
       <div style={{ background:'#fff', padding:'8px 14px 0' }}>

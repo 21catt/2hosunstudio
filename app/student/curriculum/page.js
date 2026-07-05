@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
 import { NavIcon } from '../../../components/NavIcons'
+import ProfileHeaderIcon from '../../../components/ProfileHeaderIcon'
 import LoadingCat from '../../../components/LoadingCat'
 import CoreDocView from '../../../components/CoreDocView'
 import { hasRichDoc, DEFAULT_CORE_DOC } from '../../../lib/coreDoc'
@@ -536,6 +537,7 @@ function CurriculumInner() {
           <NavIcon name="book" color="var(--ac)" size={20} />
           <span className="p-title">학습 경로</span>
         </div>
+        <ProfileHeaderIcon />
       </div>
 
       <div style={{ background:'#fff', padding:'8px 14px 0', minHeight:'80vh' }}>
