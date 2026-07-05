@@ -5,7 +5,7 @@ import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
 import { NavIcon } from '../../../components/NavIcons'
 import LoadingCat from '../../../components/LoadingCat'
-import { pixelCatImg, DEFAULT_PROFILE_CAT, isValidPixelCat } from '../../../lib/pixelCats'
+import { pixelCatImg, DEFAULT_PROFILE_CAT, isValidPixelCat, getSavedProfileCat } from '../../../lib/pixelCats'
 import { FARM_CATS } from '../../../lib/farmCats'
 
 // 인스타형 개인 프로필 = 그 사람의 기록 사진 갤러리.
@@ -33,6 +33,9 @@ export default function ProfilePage() {
   const [isOwner, setIsOwner] = useState(false)
   const [viewerIdx, setViewerIdx] = useState(null) // 확대 뷰: photos 인덱스
   const [toggling, setToggling] = useState(() => new Set())
+  const [commentsByPhoto, setCommentsByPhoto] = useState({}) // {photoId: [comment]}
+  const [viewerText, setViewerText] = useState('')
+  const [viewerSending, setViewerSending] = useState(false)
 
   const touchX = useRef(null)
   function swipe(e) {
@@ -72,12 +75,25 @@ export default function ProfilePage() {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
       const json = await res.json()
-      setPhotos(Array.isArray(json.photos) ? json.photos : [])
+      const list = Array.isArray(json.photos) ? json.photos : []
+      setPhotos(list)
       setIsOwner(!!json.isOwner)
+      loadComments(list.map(p => p.id))
     } catch {
       setPhotos([]); setIsOwner(false)
     }
     setLoading(false)
+  }
+
+  // 공개 사진 댓글 로드 — record_comments를 photo_id로 스코프(RLS 읽기 오픈, 외부인도 조회 가능)
+  async function loadComments(ids) {
+    if (!ids || !ids.length) { setCommentsByPhoto({}); return }
+    try {
+      const { data: cs } = await supabase.from('record_comments').select('*').in('photo_id', ids).order('created_at', { ascending: true })
+      const map = {}
+      ;(cs || []).forEach(c => { (map[c.photo_id] = map[c.photo_id] || []).push(c) })
+      setCommentsByPhoto(map)
+    } catch { setCommentsByPhoto({}) }
   }
 
   // 공개/비공개 토글 (본인) — 낙관적 갱신
@@ -99,6 +115,24 @@ export default function ProfilePage() {
       alert('공개 설정 변경에 실패했어요 🐾')
     } finally {
       setToggling(prev => { const n = new Set(prev); n.delete(photoId); return n })
+    }
+  }
+
+  // 사진 댓글 등록 (record_comments.photo_id). 로그인 필요.
+  async function sendComment() {
+    const text = viewerText.trim()
+    if (!text || !cur || viewerSending) return
+    if (!user) { router.push('/login'); return }
+    setViewerSending(true)
+    try {
+      const cbase = { photo_id: cur.id, user_id: user.id, author_name: user.user_metadata?.name || '익명', content: text }
+      let { data: c, error } = await supabase.from('record_comments').insert({ ...cbase, author_cat: getSavedProfileCat() }).select().single()
+      if (error) { ({ data: c, error } = await supabase.from('record_comments').insert(cbase).select().single()) }
+      if (error) { alert('댓글 등록에 실패했어요 🐾'); return }
+      setCommentsByPhoto(prev => ({ ...prev, [cur.id]: [ ...(prev[cur.id] || []), c ] }))
+      setViewerText('')
+    } finally {
+      setViewerSending(false)
     }
   }
 
@@ -175,58 +209,80 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* 확대 뷰 — 사진 + (본인) 공개/비공개 토글. 심플. */}
+      {/* 확대 뷰 — 사진 + (본인) 공개/비공개 토글 + 댓글 */}
       {cur && (
         <div onClick={() => setViewerIdx(null)}
           onTouchStart={e => { touchX.current = e.touches[0].clientX }}
           onTouchEnd={swipe}
-          style={{ position:'fixed', inset:0, background:'rgba(10,11,35,0.94)', zIndex:1200, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'20px 12px' }}>
+          style={{ position:'fixed', inset:0, background:'rgba(10,11,35,0.94)', zIndex:1200, display:'flex', alignItems:'center', justifyContent:'center', padding:'40px 12px 240px' }}>
 
           <button onClick={() => setViewerIdx(null)}
-            style={{ position:'absolute', top:14, right:14, width:38, height:38, borderRadius:'50%', background:'rgba(255,255,255,0.16)', color:'#fff', border:'none', fontSize:17, cursor:'pointer', lineHeight:1 }}>✕</button>
+            style={{ position:'absolute', top:14, right:14, width:38, height:38, borderRadius:'50%', background:'rgba(255,255,255,0.16)', color:'#fff', border:'none', fontSize:17, cursor:'pointer', lineHeight:1, zIndex:2 }}>✕</button>
 
           <img src={cur.url} alt="" onClick={e => e.stopPropagation()}
-            style={{ maxWidth:'100%', maxHeight:'62vh', objectFit:'contain', borderRadius:16, display:'block' }} />
+            style={{ maxWidth:'100%', maxHeight:'52vh', objectFit:'contain', borderRadius:16, display:'block' }} />
 
           {photos.length > 1 && (
             <>
               <button onClick={e => { e.stopPropagation(); setViewerIdx(i => (i-1+photos.length)%photos.length) }}
-                style={{ position:'absolute', left:8, top:'44%', background:'rgba(255,255,255,0.16)', color:'#fff', border:'none', borderRadius:'50%', width:44, height:44, cursor:'pointer', fontSize:24, lineHeight:1 }}>‹</button>
+                style={{ position:'absolute', left:8, top:'38%', background:'rgba(255,255,255,0.16)', color:'#fff', border:'none', borderRadius:'50%', width:44, height:44, cursor:'pointer', fontSize:24, lineHeight:1 }}>‹</button>
               <button onClick={e => { e.stopPropagation(); setViewerIdx(i => (i+1)%photos.length) }}
-                style={{ position:'absolute', right:8, top:'44%', background:'rgba(255,255,255,0.16)', color:'#fff', border:'none', borderRadius:'50%', width:44, height:44, cursor:'pointer', fontSize:24, lineHeight:1 }}>›</button>
+                style={{ position:'absolute', right:8, top:'38%', background:'rgba(255,255,255,0.16)', color:'#fff', border:'none', borderRadius:'50%', width:44, height:44, cursor:'pointer', fontSize:24, lineHeight:1 }}>›</button>
             </>
           )}
 
-          {/* 캡션(기록 메모) */}
-          {cur.note && (
-            <div onClick={e => e.stopPropagation()} className="no-scrollbar"
-              style={{ maxWidth:360, maxHeight:64, overflowY:'auto', marginTop:14, color:'rgba(255,255,255,0.9)', fontSize:12, fontWeight:600, lineHeight:1.55, textAlign:'center', whiteSpace:'pre-wrap', wordBreak:'break-word' }}>
-              {cur.note}
-            </div>
-          )}
+          {/* 하단 패널 — 토글 + 캡션 + 댓글 + 입력 */}
+          <div onClick={e => e.stopPropagation()}
+            style={{ position:'absolute', left:0, right:0, bottom:0, maxWidth:390, margin:'0 auto', padding:'18px 14px 14px', boxSizing:'border-box', display:'flex', flexDirection:'column', gap:9, background:'linear-gradient(to top, rgba(10,11,35,0.98) 72%, rgba(10,11,35,0))' }}>
 
-          {/* 공개/비공개 토글 (본인만) */}
-          {isOwner ? (
-            <div onClick={e => e.stopPropagation()} style={{ marginTop:18, display:'flex', flexDirection:'column', alignItems:'center', gap:8 }}>
-              <div style={{ display:'flex', background:'rgba(255,255,255,0.14)', borderRadius:22, padding:4, gap:4 }}>
-                <button onClick={() => setPublic(cur.id, false)} disabled={toggling.has(cur.id)}
-                  style={{ display:'flex', alignItems:'center', gap:6, border:'none', cursor:'pointer', borderRadius:18, padding:'9px 18px', fontSize:12.5, fontWeight:900, fontFamily:'Nunito,sans-serif',
-                    background: !cur.is_public ? '#fff' : 'transparent', color: !cur.is_public ? 'var(--td)' : 'rgba(255,255,255,0.75)' }}>
-                  🔒 나만 보기
-                </button>
-                <button onClick={() => setPublic(cur.id, true)} disabled={toggling.has(cur.id)}
-                  style={{ display:'flex', alignItems:'center', gap:6, border:'none', cursor:'pointer', borderRadius:18, padding:'9px 18px', fontSize:12.5, fontWeight:900, fontFamily:'Nunito,sans-serif',
-                    background: cur.is_public ? 'var(--ac)' : 'transparent', color: cur.is_public ? '#fff' : 'rgba(255,255,255,0.75)' }}>
-                  🌐 전체공개
-                </button>
+            {isOwner && (
+              <div style={{ display:'flex', justifyContent:'center' }}>
+                <div style={{ display:'flex', background:'rgba(255,255,255,0.14)', borderRadius:20, padding:3, gap:3 }}>
+                  <button onClick={() => setPublic(cur.id, false)} disabled={toggling.has(cur.id)}
+                    style={{ border:'none', cursor:'pointer', borderRadius:16, padding:'7px 15px', fontSize:12, fontWeight:900, fontFamily:'Nunito,sans-serif',
+                      background: !cur.is_public ? '#fff' : 'transparent', color: !cur.is_public ? 'var(--td)' : 'rgba(255,255,255,0.72)' }}>
+                    🔒 나만 보기
+                  </button>
+                  <button onClick={() => setPublic(cur.id, true)} disabled={toggling.has(cur.id)}
+                    style={{ border:'none', cursor:'pointer', borderRadius:16, padding:'7px 15px', fontSize:12, fontWeight:900, fontFamily:'Nunito,sans-serif',
+                      background: cur.is_public ? 'var(--ac)' : 'transparent', color: cur.is_public ? '#fff' : 'rgba(255,255,255,0.72)' }}>
+                    🌐 전체공개
+                  </button>
+                </div>
               </div>
-              <span style={{ fontSize:11, fontWeight:700, color:'rgba(255,255,255,0.7)' }}>
-                {cur.is_public ? '누구나 이 사진을 볼 수 있어요' : '나만 볼 수 있어요 (외부인 안 보임)'}
-              </span>
+            )}
+
+            {cur.note && (
+              <div className="no-scrollbar" style={{ maxHeight:44, overflowY:'auto', color:'rgba(255,255,255,0.82)', fontSize:11.5, fontWeight:600, lineHeight:1.5, whiteSpace:'pre-wrap', wordBreak:'break-word' }}>
+                {cur.note}
+              </div>
+            )}
+
+            {(() => {
+              const cs = commentsByPhoto[cur.id] || []
+              return cs.length > 0 && (
+                <div className="no-scrollbar" style={{ maxHeight:96, overflowY:'auto', display:'flex', flexDirection:'column', gap:5 }}>
+                  {cs.map(c => (
+                    <div key={c.id} style={{ fontSize:11.5, color:'#fff', lineHeight:1.5, wordBreak:'break-word' }}>
+                      <span onClick={() => c.user_id && router.push(`/profile/${c.user_id}`)} style={{ fontWeight:900, color:'rgba(255,255,255,0.72)', marginRight:6, cursor:'pointer' }}>{c.author_name}</span>
+                      <span style={{ fontWeight:600 }}>{c.content}</span>
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
+
+            <div style={{ display:'flex', gap:7, alignItems:'center' }}>
+              <input value={viewerText} onChange={e => setViewerText(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) sendComment() }}
+                placeholder={user ? '귀엽게 댓글 남기기…' : '로그인하고 댓글 남기기…'}
+                style={{ flex:1, minWidth:0, height:38, borderRadius:20, border:'2px solid rgba(255,255,255,0.4)', background:'rgba(255,255,255,0.14)', color:'#fff', padding:'0 14px', fontSize:12, fontWeight:600, outline:'none', fontFamily:'Nunito,sans-serif', boxSizing:'border-box' }}/>
+              <button onClick={sendComment} disabled={viewerSending || !viewerText.trim()}
+                style={{ width:38, height:38, flexShrink:0, borderRadius:'50%', border:'none', color:'#fff', fontSize:13, cursor:'pointer', padding:0, display:'flex', alignItems:'center', justifyContent:'center', background: viewerText.trim() ? 'var(--ac)' : 'rgba(255,255,255,0.22)' }}>
+                {viewerSending ? '…' : '➤'}
+              </button>
             </div>
-          ) : (
-            <span style={{ marginTop:16, fontSize:11, fontWeight:800, color:'rgba(255,255,255,0.55)' }}>🌐 공개 사진</span>
-          )}
+          </div>
         </div>
       )}
 

@@ -7,7 +7,6 @@ import { NavIcon } from '../../../components/NavIcons'
 import ProfileHeaderIcon from '../../../components/ProfileHeaderIcon'
 import LoadingCat from '../../../components/LoadingCat'
 import { pixelCatImg, DEFAULT_PROFILE_CAT, isValidPixelCat, getSavedProfileCat } from '../../../lib/pixelCats'
-import { sendPushToAdmins } from '../../../lib/pushNotify'
 
 // 카톡형 채팅 로그 — 하단 입력바에서 바로 쓰고 보내면 말풍선이 튕기며 등장한다.
 // 사진은 📷 아이콘 → 바로 선택, 날짜는 오늘(커리큘럼에서 넘어오면 그 날짜·수업 칩 표시).
@@ -122,7 +121,7 @@ function RecordsInner() {
     setViewer(v => ({ ...v, idx: delta < 0 ? (v.idx+1)%v.photos.length : (v.idx-1+v.photos.length)%v.photos.length }))
   }
 
-  // 기록 댓글 등록 (라이트박스·인라인 공용). 성공 시 강사(관리자)에게 알림.
+  // 기록 댓글 등록 (라이트박스·인라인 공용).
   async function postRecordComment(recordId, text) {
     const t = (text || '').trim()
     if (!t || !user) return false
@@ -133,22 +132,7 @@ function RecordsInner() {
     }
     if (error) { alert('댓글 등록에 실패했어요. record_comments 마이그레이션이 실행됐는지 확인해 주세요 🐾'); return false }
     setRecordComments(prev => ({ ...prev, [recordId]: [...(prev[recordId] || []), c] }))
-    notifyAdminsOfRecordComment(recordId, t)
     return true
-  }
-
-  // 학생이 기록에 댓글 → 강사(관리자 전원)에게 인앱 알림 + 푸시
-  async function notifyAdminsOfRecordComment(recordId, text) {
-    try {
-      const rec = records.find(r => r.id === recordId)
-      const label = rec?.class_name ? `${rec.class_name} 기록` : '기록'
-      const { data: admins } = await supabase.from('users').select('id').eq('role', 'admin')
-      if (admins?.length) {
-        const body = `${user.user_metadata?.name || '학생'}님이 ${label}에 댓글: ${text.slice(0, 40)}`
-        await supabase.from('notifications').insert(admins.map(a => ({ user_id: a.id, type: 'record_reply', title: '💬 기록 댓글', body })))
-        sendPushToAdmins('💬 기록 댓글', body)
-      }
-    } catch {}
   }
 
   // 사진 보면서 댓글 (라이트박스)
