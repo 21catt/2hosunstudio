@@ -125,6 +125,12 @@ export default function CalendarPage() {
     setSelCat(course.category); setSelCourse(course); setSelSchedule(null)
   }, [pendingCourse, classes])
 
+  // 최초 로드: 딥링크가 없으면 오늘 날짜의 첫 수업 시간표까지 자동으로 펼침
+  useEffect(() => {
+    if (classes.length === 0 || pendingCourse || selCat || selCourse) return
+    autoSelectFirst(selectedDay)
+  }, [classes])
+
   async function loadData(userId) {
     if (userId) {
       const { data: t } = await supabase.from('tickets').select('*').eq('user_id', userId).single()
@@ -230,12 +236,17 @@ export default function CalendarPage() {
     const dow = new Date(year, month, d).getDay()
     if (dow === 1) return
     setSelectedDay(d)
-    setSelCat(null)
-    setSelCourse(null)
-    setSelSchedule(null)
+    autoSelectFirst(d)   // 첫 카테고리·첫 수업 자동 펼침(시간표까지)
     setAnimDay(d)
     spawnParticles(cellRefs.current[d])
     setTimeout(() => setAnimDay(null), 500)
+  }
+
+  // 그날 첫 카테고리(자율창작 제외)의 첫 수업을 자동 선택 → 시간표까지 바로 보이게
+  function autoSelectFirst(d) {
+    const first = dayClasses(d).find(c => c.category !== 'free') // dayClasses는 카테고리 순 정렬됨
+    if (first) { setSelCat(first.category); setSelCourse(first); setSelSchedule(null) }
+    else { setSelCat(null); setSelCourse(null); setSelSchedule(null) }
   }
 
   function monthDiff() {
