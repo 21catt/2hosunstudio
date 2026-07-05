@@ -140,7 +140,7 @@ export default function StudentHomePage() {
     // 공개 데이터: 수업(운영 요일·기간) + 정원 계산용 전체 예약
     const { data: c } = await supabase.from('class_courses').select('*, class_schedules(*), class_exceptions(*)').eq('is_active', true)
     setClasses(c || [])
-    const { data: ab } = await supabase.from('bookings').select('course_id, schedule_id, class_date').eq('status', 'booked')
+    const { data: ab } = await supabase.from('bookings').select('course_id, schedule_id, class_date, class_time').eq('status', 'booked')
     setAllBookings(ab || [])
     // 홈 하단 공지 — 라운지에서 관리자가 공지 지정한 글. 컬럼(pinned_at)이 아직 없으면 조용히 숨김
     const { data: pin } = await supabase.from('posts')
@@ -186,8 +186,11 @@ export default function StudentHomePage() {
     }).sort((a, b) => a.start_time.localeCompare(b.start_time))
   }
 
+  // 같은 날짜+시간대의 모든 일반수업 예약 합산 — 5개 수업이 물리 5자리를 공유(자율창작·모임 제외)
   function seatCount(c, s, ds) {
-    return allBookings.filter(b => b.course_id === c.id && b.schedule_id === s.id && b.class_date === ds).length
+    const slot = `${s.start_time}~${s.end_time}`
+    const excluded = new Set(classes.filter(x => x.category === 'free' || x.category === 'meeting').map(x => x.id))
+    return allBookings.filter(b => b.class_date === ds && b.class_time === slot && !excluded.has(b.course_id)).length
   }
 
   function myBookingFor(c, s, ds) {

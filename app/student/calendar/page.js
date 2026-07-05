@@ -137,7 +137,7 @@ export default function CalendarPage() {
       setTicket(t)
       const { data: b } = await supabase.from('bookings').select('*').eq('user_id', userId).neq('status', 'cancelled')
       setBookings(b || [])
-      const { data: ab } = await supabase.from('bookings').select('course_id, schedule_id, class_date').eq('status', 'booked')
+      const { data: ab } = await supabase.from('bookings').select('course_id, schedule_id, class_date, class_time').eq('status', 'booked')
       setAllBookings(ab || [])
       const { data: profile } = await supabase.from('users').select('name').eq('id', userId).single()
       setProfileName(profile?.name || '')
@@ -208,6 +208,18 @@ export default function CalendarPage() {
     return allBookings.filter(b => b.course_id === courseId && b.schedule_id === scheduleId && b.class_date === dateStr).length
   }
 
+  // 같은 날짜+시간대(start~end)의 모든 일반수업 예약을 합산 — 5개 수업이 물리 5자리를 공유하므로
+  // 한 수업 예약이 같은 시간의 다른 수업 자리도 차감한다. (자율창작·모임은 별도라 제외)
+  function sharedSlotCountByDate(dateStr, startTime, endTime) {
+    const slot = `${startTime}~${endTime}`
+    const excluded = new Set(classes.filter(c => c.category === 'free' || c.category === 'meeting').map(c => c.id))
+    return allBookings.filter(b => b.class_date === dateStr && b.class_time === slot && !excluded.has(b.course_id)).length
+  }
+  function sharedSlotCount(day, startTime, endTime) {
+    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
+    return sharedSlotCountByDate(dateStr, startTime, endTime)
+  }
+
   function getBooking(courseId, scheduleId, day) {
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
     return bookings.find(b => b.course_id === courseId && b.schedule_id === scheduleId && b.class_date === dateStr)
@@ -273,6 +285,15 @@ export default function CalendarPage() {
   }
 
   async function execBook(course, schedule, dateStr) {
+    // 예약 직전 같은 시간대 실시간 확인 — 다른 수업 포함 5자리가 이미 찼으면 막음
+    const slot = `${schedule.start_time}~${schedule.end_time}`
+    const excluded = new Set(classes.filter(c => c.category === 'free' || c.category === 'meeting').map(c => c.id))
+    const { data: live } = await supabase.from('bookings').select('course_id, class_time').eq('status', 'booked').eq('class_date', dateStr)
+    const taken = (live || []).filter(b => b.class_time === slot && !excluded.has(b.course_id)).length
+    if (taken >= (course.max_count || 999)) {
+      alert('이 시간대 자리가 방금 마감됐어요. 다른 시간을 선택해 주세요 🐾')
+      setSelSchedule(null); loadData(user.id); return
+    }
     const { data: newBooking } = await supabase.from('bookings').insert({
       user_id: user.id,
       course_id: course.id,
@@ -522,8 +543,7 @@ export default function CalendarPage() {
       if (seen.has(chipKey)) return
       seen.add(chipKey)
       if (bookings.some(b => b.course_id === course.id && b.schedule_id === s.id && b.class_date === dateStr && b.status === 'booked')) return
-      const cnt = allBookings.filter(b => b.course_id === course.id && b.schedule_id === s.id && b.class_date === dateStr).length
-      if (cnt >= (course.max_count || 999)) return
+      if (sharedSlotCountByDate(dateStr, s.start_time, s.end_time) >= (course.max_count || 999)) return
       chips.push({ schedule: s, dateStr, day })
     })
     return chips.sort((a, b) => a.dateStr.localeCompare(b.dateStr) || a.schedule.start_time.localeCompare(b.schedule.start_time))
@@ -584,7 +604,7 @@ export default function CalendarPage() {
         if (!schedule) return null
         const next = getHabitNextDate(course, schedule)
         if (!next) return null
-        const isFull = allBookings.filter(b => b.course_id === course.id && b.schedule_id === schedule.id && b.class_date === next.dateStr).length >= (course.max_count || 999)
+        const isFull = sharedSlotCountByDate(next.dateStr, schedule.start_time, schedule.end_time) >= (course.max_count || 999)
         const chips = getSameWeekSlots(course, schedule.id, next.dateStr)
         return { course, schedule, next, isFull, chips }
       })
@@ -974,7 +994,7 @@ export default function CalendarPage() {
                           ) : daySchedules.map(s => {
                             const booked = isBooked(c.id, s.id, selectedDay)
                             const booking = getBooking(c.id, s.id, selectedDay)
-                            const cnt = getBookingCount(c.id, s.id, selectedDay)
+                            const cnt = sharedSlotCount(selectedDay, s.start_time, s.end_time) // 같은 시간대 전체 수업 합산(5자리 공유)
                             const remain = c.max_count - cnt
                             const full = remain <= 0 && !booked
                             const isSel = selSchedule?.id === s.id
