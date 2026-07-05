@@ -5,6 +5,7 @@ import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
 import { NavIcon } from '../../../components/NavIcons'
 import { FARM_CATS, getSavedFarmCat, isValidFarmCat, CROP_STAGES, cropImg, getSavedHarvest, saveHarvestLocal } from '../../../lib/farmCats'
+import { WEED, weedImg, weedStage, tickWeeds } from '../../../lib/weeds'
 import LoadingCat from '../../../components/LoadingCat'
 
 // 테마별 픽셀 냥밭 환경 — ground는 이미지 하단 지면 픽셀 색과 동일(이음매 방지)
@@ -139,6 +140,18 @@ export default function FarmPage() {
   const [farmTheme, setFarmTheme] = useState('ultra')
   const [farmCat, setFarmCat] = useState('watering')
   const [fx, setFx] = useState([])
+  // 잡초 시스템 (수강권 있을 때만 활성)
+  const [ticketValid, setTicketValid] = useState(false)
+  const [weeds, setWeeds] = useState([])
+  const [weedRemoved, setWeedRemoved] = useState(0)
+  const [weedReward, setWeedReward] = useState(false)
+  const [pileBump, setPileBump] = useState(0)
+  const [, setTickN] = useState(0) // 성장 재렌더용
+  const weedRef = useRef(null)
+  const ticketValidRef = useRef(false)
+  const harvestRef = useRef(0)
+
+  useEffect(() => { harvestRef.current = harvest }, [harvest])
 
   useEffect(() => {
     const t = document.documentElement.getAttribute('data-theme')
@@ -187,6 +200,13 @@ export default function FarmPage() {
     })
   }, [])
 
+  // 앱 열려 있는 동안 1분마다 잡초 성장/스폰 확인
+  useEffect(() => {
+    if (loading) return
+    const iv = setInterval(doTick, 60 * 1000)
+    return () => clearInterval(iv)
+  }, [loading])
+
   async function loadData(userId) {
     const { data: b } = await supabase
       .from('bookings').select('*').eq('user_id', userId)
@@ -196,8 +216,67 @@ export default function FarmPage() {
     setHistory(h)
     const { data: pref } = await supabase.from('user_prefs').select('*').eq('user_id', userId).single()
     if (isValidFarmCat(pref?.farm_cat)) setFarmCat(pref.farm_cat)
-    if (Number.isFinite(pref?.harvest_count) && pref.harvest_count >= 0) { setHarvest(pref.harvest_count); saveHarvestLocal(pref.harvest_count) }
+    if (Number.isFinite(pref?.harvest_count) && pref.harvest_count >= 0) { setHarvest(pref.harvest_count); saveHarvestLocal(pref.harvest_count); harvestRef.current = pref.harvest_count }
+
+    // 수강권 유효성 → 잡초 기능 on/off
+    const { data: tk } = await supabase.from('tickets').select('*').eq('user_id', userId).limit(1)
+    const t = tk?.[0]
+    const valid = !!(t && t.remain > 0 && (!t.expires_at || t.expires_at >= todayStr))
+    setTicketValid(valid); ticketValidRef.current = valid
+
+    // 잡초 상태 로드 + 경과 시간만큼 스폰/성장·페널티 반영
+    const { state, cropLoss } = tickWeeds(pref?.weed_state, Date.now(), valid)
+    weedRef.current = state
+    setWeeds(state.weeds); setWeedRemoved(state.removed)
+    if (cropLoss > 0) applyCropLoss(cropLoss, userId)
+    persistWeeds(state, userId)
+
     setLoading(false)
+  }
+
+  // 잡초 상태 저장 (weed_state 컬럼 없으면 조용히 무시)
+  function persistWeeds(state, uid) {
+    const id = uid || user?.id
+    if (!id) return
+    supabase.from('user_prefs').upsert({ user_id: id, weed_state: state }).then(() => {}, () => {})
+  }
+
+  // 완전 성장 잡초 10개↑ → 수확 작물 1개 소멸 (harvest_count -1)
+  function applyCropLoss(n, uid) {
+    const nh = Math.max(0, harvestRef.current - n)
+    harvestRef.current = nh
+    setHarvest(nh); saveHarvestLocal(nh)
+    const id = uid || user?.id
+    if (id) supabase.from('user_prefs').upsert({ user_id: id, harvest_count: nh })
+    spawnFx('plus', { x: 42, y: 1, label: '🥀 작물 -1' })
+  }
+
+  // 주기적 성장/스폰 확인 (앱 열려 있을 때)
+  function doTick() {
+    const prev = weedRef.current
+    if (!prev) return
+    const { state, cropLoss } = tickWeeds(prev, Date.now(), ticketValidRef.current)
+    weedRef.current = state
+    setWeeds(state.weeds); setWeedRemoved(state.removed)
+    setTickN(x => x + 1)
+    const changed = state.lastSpawn !== prev.lastSpawn || state.weeds.length !== prev.weeds.length
+    if (cropLoss > 0) applyCropLoss(cropLoss)
+    if (changed || cropLoss > 0) persistWeeds(state)
+  }
+
+  // 잡초 뽑기 (4단계부터) → 제거 수 +1, 100개면 보상
+  function removeWeed(w) {
+    const s = weedRef.current
+    if (!s) return
+    if (weedStage(w, Date.now()) < WEED.REMOVABLE_STAGE) return
+    const nextWeeds = s.weeds.filter(x => x.id !== w.id)
+    const removed = s.removed + 1
+    const gotReward = !s.rewarded && removed >= WEED.REWARD_AT
+    const state = { ...s, weeds: nextWeeds, removed, rewarded: s.rewarded || removed >= WEED.REWARD_AT }
+    weedRef.current = state
+    setWeeds(nextWeeds); setWeedRemoved(removed); setPileBump(Date.now())
+    if (gotReward) setWeedReward(true)
+    persistWeeds(state)
   }
 
 
@@ -245,6 +324,10 @@ export default function FarmPage() {
         .crop-zip { animation: cropZip 0.38s cubic-bezier(0.5,0,0.9,0.4) forwards; }
         @keyframes plusPop { 0%{opacity:0; transform:translateY(6px) scale(0.8)} 20%{opacity:1; transform:translateY(0) scale(1.15)} 100%{opacity:0; transform:translateY(-30px) scale(1)} }
         .plus-pop { position:absolute; animation: plusPop 1.4s ease-out forwards; }
+        @keyframes weedWobble { 0%,100%{transform:translate(-50%,-100%) rotate(-4deg)} 50%{transform:translate(-50%,-100%) rotate(4deg)} }
+        .weed-ready { animation: weedWobble 1.1s ease-in-out infinite; transform-origin: 50% 100%; }
+        @keyframes pileBump { 0%{transform:scale(1)} 40%{transform:scale(1.45)} 100%{transform:scale(1)} }
+        .pile-bump { animation: pileBump 0.4s ease; display:inline-block; }
       `}</style>
 
       <div className="p-header">
@@ -360,10 +443,51 @@ export default function FarmPage() {
             )
           })}
 
+          {/* 잡초 — 수강권 있을 때만. 4단계부터 뽑을 수 있음(흔들림 표시) */}
+          {ticketValid && weeds.map(w => {
+            const stage = weedStage(w, Date.now())
+            const removable = stage >= WEED.REMOVABLE_STAGE
+            const size = 26 + stage * 7
+            return (
+              <img key={w.id} src={weedImg(stage)} alt="잡초"
+                onClick={removable ? () => removeWeed(w) : undefined}
+                title={removable ? '잡초 뽑기 ✂️' : '아직 못 뽑아요'}
+                className={removable ? 'weed-ready' : ''}
+                style={{ position:'absolute', left:`${w.x}%`, top:`${w.y}%`, width:size, transform:'translate(-50%,-100%)', imageRendering:'pixelated', zIndex:7,
+                  cursor: removable ? 'pointer' : 'default', pointerEvents: removable ? 'auto' : 'none',
+                  filter: removable ? 'drop-shadow(0 0 4px rgba(226,75,74,0.85))' : 'none' }} />
+            )
+          })}
+
+          {/* 잡초더미 아이콘 + 제거 개수 (수강권 있을 때) */}
+          {ticketValid && (
+            <div style={{ position:'absolute', top:8, right:8, zIndex:26, display:'flex', flexDirection:'column', alignItems:'center', gap:1, background:'rgba(255,255,255,0.92)', border:'1.5px solid var(--g5)', borderRadius:12, padding:'6px 9px', boxShadow:'2px 2px 0 rgba(0,0,0,0.1)' }}>
+              <span key={pileBump} className="pile-bump" style={{ fontSize:20, lineHeight:1 }}>🌿</span>
+              <span style={{ fontSize:11, fontWeight:900, color:'var(--g5)', fontFamily:'Nunito,sans-serif', fontVariantNumeric:'tabular-nums' }}>{weedRemoved}/{WEED.REWARD_AT}</span>
+            </div>
+          )}
+
         </div>
 
         {/* 통계 */}
         <div style={{ padding:'16px 18px 0' }}>
+
+          {/* 잡초 관리 안내 */}
+          {ticketValid ? (
+            <div style={{ background:'var(--bg)', border:'1.5px solid var(--g1)', borderRadius:12, padding:'11px 13px', display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
+              <span style={{ fontSize:20 }}>🌿</span>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:12, fontWeight:800, color:'var(--td)' }}>잡초 뽑기 {weedRemoved}/{WEED.REWARD_AT}</div>
+                <div style={{ fontSize:10, color:'var(--tmu)', marginTop:1, lineHeight:1.5 }}>다 자란 잡초는 밭에서 눌러 뽑아요. 100개 뽑으면 드로잉노트+연필! (완전 성장 10개↑ 방치 시 작물 소멸)</div>
+              </div>
+            </div>
+          ) : (
+            <div style={{ background:'var(--bg)', border:'1.5px dashed var(--g2)', borderRadius:12, padding:'11px 13px', display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
+              <span style={{ fontSize:18 }}>🔒</span>
+              <div style={{ fontSize:11, color:'var(--tmu)', fontWeight:600, lineHeight:1.5 }}>수강권이 있으면 잡초 관리로 드로잉노트+연필 보상을 받을 수 있어요 🐾</div>
+            </div>
+          )}
+
           <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, marginBottom:14 }}>
             {[
               { label:'총 출석', val:`${attended}회`, color:'var(--g4)' },
@@ -397,6 +521,23 @@ export default function FarmPage() {
           )}
         </div>
       </div>
+
+      {/* 잡초 100개 제거 보상 */}
+      {weedReward && (
+        <div onClick={() => setWeedReward(false)}
+          style={{ position:'fixed', inset:0, background:'rgba(27,28,70,0.55)', zIndex:1200, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background:'#fff', borderRadius:22, padding:'26px 22px', maxWidth:320, width:'100%', textAlign:'center', border:'3px solid var(--ac)', boxShadow:'0 14px 40px rgba(0,0,0,0.25)' }}>
+            <div style={{ fontSize:46 }}>🎁</div>
+            <div style={{ fontSize:16, fontWeight:900, color:'var(--td)', margin:'10px 0 6px' }}>잡초 100개 제거 완료!</div>
+            <div style={{ fontSize:12.5, color:'var(--tm)', fontWeight:600, lineHeight:1.7, marginBottom:16 }}>
+              2호선 스튜디오 고양이 <b style={{ color:'var(--acTx)' }}>드로잉노트 + 연필</b>을 받았어요! 🐾<br/>스튜디오에서 수령해 주세요.
+            </div>
+            <button onClick={() => setWeedReward(false)}
+              style={{ padding:'11px 26px', background:'var(--ac)', color:'#fff', border:'none', borderRadius:16, fontSize:13, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>야호! 🎉</button>
+          </div>
+        </div>
+      )}
 
       <StudentNav active="farm" role={user?.user_metadata?.role || undefined} />
     </>
