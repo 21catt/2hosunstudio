@@ -14,7 +14,8 @@ export const metadata = {
     title: '2호선 스튜디오',
   },
   icons: {
-    apple: '/icon-192.png',
+    icon: '/icon-192.png?v=2',
+    apple: '/icon-192.png?v=2',
   },
 }
 
