@@ -151,7 +151,7 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
     }
     setSaving(true)
     const courseData = {
-      name, category:cat, max_count:maxCount, price,
+      name, category:cat, max_count:maxCount, price: cat === 'meeting' ? 0 : price,
       is_unlimited:isUnlimited, start_date:startDate||null, end_date:endDate||null
     }
     const todayStr = new Date().toISOString().split('T')[0]
@@ -270,12 +270,7 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
           })}
         </div>
       </div>
-      <div style={{ display:'grid', gridTemplateColumns: cat === 'meeting' ? '1fr 1fr' : '1fr', gap:10 }}>
-        {cat === 'meeting' && (
-          <div className="field"><label>참여비 (원)</label>
-            <input type="number" value={price} onChange={e=>setPrice(Number(e.target.value))} placeholder="예: 30000"/>
-          </div>
-        )}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr', gap:10 }}>
         <div className="field"><label>정원 (최대 {cat === 'meeting' ? 15 : 10}명)</label>
           <input type="number" value={maxCount} min={1} max={cat === 'meeting' ? 15 : 10} onChange={e=>setMaxCount(Number(e.target.value))}/>
         </div>

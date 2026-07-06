@@ -5,6 +5,16 @@ import { supabase } from '../../../lib/supabase'
 import AdminNav from '../../../components/AdminNav'
 import { NavIcon } from '../../../components/NavIcons'
 
+// booking_request 알림 본문(고정 템플릿)에서 예약 정보 추출 — 확정 시 예약 생성용.
+function parseRequest(body = '') {
+  const name = (body.match(/^(.+?)님이/) || [])[1] || ''
+  const course = (body.match(/님이\s+(.+?)\s+예약을 요청/) || [])[1] || ''
+  const date = (body.match(/일시:\s*(\d{4}-\d{2}-\d{2})/) || [])[1] || ''
+  const time = ((body.match(/(\d{2}:\d{2}\s*~\s*\d{2}:\d{2})/) || [])[1] || '').replace(/\s/g, '')
+  const phone = (body.match(/연락처:\s*([\d-]+)/) || [])[1] || ''
+  return { name, course, date, time, phone }
+}
+
 export default function AdminNotificationPage() {
   const router = useRouter()
   const [user, setUser] = useState(null)
@@ -120,6 +130,62 @@ await supabase.from('notifications')
     loadData(user.id)
   }
 
+  // 수강권 없는 예약 요청 → 계약금 입금 확인 후 예약 확정(예약 행 생성).
+  // 본문 파싱으로 오늘 기존 요청 알림도 그대로 처리된다.
+  async function approveBookingRequest(notif) {
+    setProcessing(notif.id)
+    try {
+      const { name, course, date, time, phone } = parseRequest(notif.body)
+      if (!course || !date || !time) { alert('요청 정보를 읽을 수 없어요. 수동으로 처리해 주세요.'); return }
+      const digits = (phone || '').replace(/\D/g, '')
+
+      // 요청 학생 찾기 (연락처 우선, 이름 보조)
+      const { data: users } = await supabase.from('users').select('id, name, phone')
+      const reqUser = (users || []).find(u => digits && (u.phone || '').replace(/\D/g, '') === digits)
+        || (users || []).find(u => u.name === name)
+      if (!reqUser) { alert('요청한 학생을 찾을 수 없어요. 수동으로 처리해 주세요.'); return }
+
+      // 수업 찾기
+      const { data: courses } = await supabase.from('class_courses').select('id, name, teacher').eq('name', course)
+      const c = courses?.[0]
+      if (!c) { alert(`"${course}" 수업을 찾을 수 없어요. 수동으로 처리해 주세요.`); return }
+
+      // 스케줄 찾기 (시작시간 + 요일/날짜)
+      const start = time.split('~')[0]
+      const dow = new Date(date + 'T00:00:00').getDay()
+      const { data: schedules } = await supabase.from('class_schedules').select('*').eq('course_id', c.id)
+      const sch = (schedules || []).find(s => s.start_time === start && (s.day_of_week === dow || s.specific_date === date))
+        || (schedules || []).find(s => s.start_time === start)
+
+      // 예약 생성 (수강권 없이 계약금 확정 예약)
+      const { error } = await supabase.from('bookings').insert({
+        user_id: reqUser.id, course_id: c.id, schedule_id: sch?.id || null,
+        class_name: c.name, class_date: date, class_time: time, teacher: c.teacher || '',
+        status: 'booked', confirmed: true
+      })
+      if (error) { alert('예약 생성에 실패했어요: ' + error.message); return }
+
+      // 학생 알림 + 이 알림 처리완료 표시
+      await supabase.from('notifications').insert({
+        user_id: reqUser.id, type: 'booking_confirmed', title: '예약 확정 🎉',
+        body: `계약금 입금이 확인되어 ${c.name} ${date} ${start} 예약이 확정됐어요! 🐾`
+      })
+      await supabase.from('notifications').update({ type: 'booking_confirmed_admin', title: '✓ 예약 확정 완료' }).eq('id', notif.id)
+      loadData(user.id)
+    } finally {
+      setProcessing(null)
+    }
+  }
+
+  // 요청 무시 (예약 생성 안 함)
+  async function dismissRequest(notif) {
+    if (!confirm('이 예약 요청을 무시할까요? (예약이 생성되지 않아요)')) return
+    setProcessing(notif.id)
+    await supabase.from('notifications').update({ type: 'booking_request_dismissed', title: '요청 무시됨' }).eq('id', notif.id)
+    setProcessing(null)
+    loadData(user.id)
+  }
+
   function timeAgo(iso) {
     const diff = (new Date() - new Date(iso)) / 1000
     if (diff < 60) return '방금'
@@ -136,6 +202,8 @@ await supabase.from('notifications')
   if (type === 'meeting_pending') return { emoji:'💰', bg:'#FFF3E0', color:'#E65100' }
   if (type === 'meeting_confirmed_admin') return { emoji:'✓', bg:'var(--g1)', color:'var(--g5)' }
   if (type === 'meeting_cancelled_admin') return { emoji:'✗', bg:'#ffebee', color:'#c0392b' }
+  if (type === 'booking_confirmed_admin') return { emoji:'✅', bg:'var(--g1)', color:'var(--g5)' }
+  if (type === 'booking_request_dismissed') return { emoji:'✖', bg:'var(--bg)', color:'var(--tmu)' }
   return { emoji:'🔔', bg:'var(--bg)', color:'var(--tm)' }
 }
 
@@ -179,10 +247,12 @@ await supabase.from('notifications')
         ) : notifications.map(n => {
           const ic = iconFor(n.type)
           const isMeetingPending = n.type === 'meeting_pending'
+          const isBookingRequest = n.type === 'booking_request'
+          const isActionable = isMeetingPending || isBookingRequest
           const isProc = processing === n.id
           return (
-            <div key={n.id} style={{ background: isMeetingPending ? '#FFF8E1' : 'var(--bg)', borderRadius:14, padding:'12px 14px',
-              marginBottom:8, border:`1.5px solid ${isMeetingPending ? '#FFE082' : 'var(--g1)'}` }}>
+            <div key={n.id} style={{ background: isActionable ? '#FFF8E1' : 'var(--bg)', borderRadius:14, padding:'12px 14px',
+              marginBottom:8, border:`1.5px solid ${isActionable ? '#FFE082' : 'var(--g1)'}` }}>
               <div style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
                 <div style={{ width:32, height:32, borderRadius:10, background:ic.bg,
                   display:'flex', alignItems:'center', justifyContent:'center',
@@ -217,6 +287,19 @@ await supabase.from('notifications')
                       cursor:isProc?'not-allowed':'pointer', opacity:isProc?0.5:1,
                       fontFamily:'Nunito,sans-serif' }}>
                     {isProc ? '처리중...' : '입금 확인 → 확정'}
+                  </button>
+                </div>
+              )}
+
+              {isBookingRequest && (
+                <div style={{ display:'flex', gap:6, marginTop:10, paddingTop:10, borderTop:'1px solid #FFE082' }}>
+                  <button onClick={()=>dismissRequest(n)} disabled={isProc}
+                    style={{ flex:1, padding:'8px', background:'#ffebee', color:'#c0392b', border:'none', borderRadius:10, fontSize:11, fontWeight:700, cursor:isProc?'not-allowed':'pointer', opacity:isProc?0.5:1, fontFamily:'Nunito,sans-serif' }}>
+                    무시
+                  </button>
+                  <button onClick={()=>approveBookingRequest(n)} disabled={isProc}
+                    style={{ flex:2, padding:'8px', background:'var(--g4)', color:'#fff', border:'none', borderRadius:10, fontSize:11, fontWeight:700, cursor:isProc?'not-allowed':'pointer', opacity:isProc?0.5:1, fontFamily:'Nunito,sans-serif' }}>
+                    {isProc ? '처리중...' : '입금 확인 → 예약 확정'}
                   </button>
                 </div>
               )}
