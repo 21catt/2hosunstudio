@@ -77,7 +77,6 @@ export default function AdminHomePage() {
     { label: '자리사진', icon: 'photo', href: '/admin/seats' },
     { label: '커리큘럼', icon: 'book', href: '/admin/curriculum' },
     { label: '라운지', icon: 'chat', href: '/lounge' },
-    { label: '설정', icon: 'user', href: '/admin/settings' },
   ]
 
   if (loading) return (
@@ -102,6 +101,10 @@ export default function AdminHomePage() {
           <button onClick={() => window.location.href = '/api/kakao/login'}
             style={{ background: 'rgba(255,232,120,0.26)', border: 'none', borderRadius: 10, padding: '5px 10px', color: '#fff', fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>
             💬 카톡연동
+          </button>
+          <button onClick={() => router.push('/admin/settings')} title="개인 설정"
+            style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 10, padding: '5px 9px', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', lineHeight: 1 }}>
+            ⚙️
           </button>
           <button onClick={() => supabase.auth.signOut().then(() => router.push('/login'))}
             style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 10, padding: '5px 10px', color: '#fff', fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>

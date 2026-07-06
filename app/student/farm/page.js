@@ -421,7 +421,7 @@ export default function FarmPage() {
           {/* 설정에서 고른 농부냥 1마리만 등장 */}
           {(() => {
             const cat = FARM_CATS.find(c => c.key === farmCat) || FARM_CATS[0]
-            return <FarmerCat key={cat.key} img={cat.img} bottom={6} size={64} act={cat.act} z={8} onFx={(a,x,b,sz)=>spawnFx(a,{ x, b: b + sz*0.55 })} />
+            return <FarmerCat key={cat.key} img={cat.img} bottom={6} size={128} act={cat.act} z={8} onFx={(a,x,b,sz)=>spawnFx(a,{ x, b: b + sz*0.55 })} />
           })()}
 
           {/* 작물 4칸 열 종대 — 앞칸이 크고 뒤로 갈수록 작아짐(원근). 맨 앞 완숙 작물만 수확 가능 */}
