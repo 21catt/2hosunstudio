@@ -289,9 +289,13 @@ export default function FarmPage() {
   const attended = history.filter(h => h.attended === true).length
   const absent = history.filter(h => h.class_date < todayStr && !h.attended).length
   const activeCat = FARM_CATS.find(c => c.key === farmCat) || FARM_CATS[0]
-  // 남은 포인트(출석 - 수확×4)가 앞칸부터 4점씩 순서대로 작물을 채운다.
+  // 참여작가는 모임 출석 1회당 2pt → 출석 2회면 작물 1개(4pt) 수확 가능. 수강생은 1회당 1pt.
+  const isArtist = user?.user_metadata?.role === 'artist'
+  const ptsPerAttend = isArtist ? 2 : 1
+  const cropAttended = attended * ptsPerAttend
+  // 남은 포인트(포인트 - 수확×4)가 앞칸부터 4점씩 순서대로 작물을 채운다.
   // 수확하면 4점 소모 → 뒷칸 작물이 한 칸씩 앞으로 당겨진 것처럼 보인다.
-  const cropPoints = Math.max(0, attended - harvest * CROP_STAGES)
+  const cropPoints = Math.max(0, cropAttended - harvest * CROP_STAGES)
   const cropReady = cropPoints >= CROP_STAGES
 
   if (loading) return <LoadingCat />
@@ -343,7 +347,7 @@ export default function FarmPage() {
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
           <span style={{ color:'var(--acTx)', fontSize:11, fontWeight:700, background:'var(--acBg)', border:'1.5px solid rgb(var(--ac-rgb) / 0.3)', padding:'4px 10px', borderRadius:20 }}>
-            {cropReady ? `${activeCat.cropName} 수확 가능!` : `총 ${attended}pt · 수확 ${harvest}개`}
+            {cropReady ? `${activeCat.cropName} 수확 가능!` : `총 ${cropAttended}pt · 수확 ${harvest}개`}
           </span>
           <ProfileHeaderIcon />
         </div>
@@ -523,7 +527,7 @@ export default function FarmPage() {
                 <div style={{ fontSize:10, color:'var(--tmu)' }}>{h.class_date}</div>
               </div>
               <span style={{ fontSize:11, fontWeight:800, color:h.attended===true?'var(--g4)':'var(--tmu)' }}>
-                {h.attended===true?'+1 pt':'0 pt'}
+                {h.attended===true?`+${ptsPerAttend} pt`:'0 pt'}
               </span>
             </div>
           ))}
