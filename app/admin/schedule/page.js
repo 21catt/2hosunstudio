@@ -276,8 +276,8 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
             <input type="number" value={price} onChange={e=>setPrice(Number(e.target.value))} placeholder="예: 30000"/>
           </div>
         )}
-        <div className="field"><label>정원</label>
-          <input type="number" value={maxCount} min={1} max={10} onChange={e=>setMaxCount(Number(e.target.value))}/>
+        <div className="field"><label>정원 (최대 {cat === 'meeting' ? 15 : 10}명)</label>
+          <input type="number" value={maxCount} min={1} max={cat === 'meeting' ? 15 : 10} onChange={e=>setMaxCount(Number(e.target.value))}/>
         </div>
       </div>
 
