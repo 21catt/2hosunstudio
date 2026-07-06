@@ -16,7 +16,6 @@ export default function ArtistHomePage() {
   const weather = useTodayWeather()
   const [user, setUser] = useState(null)
   const [bookings, setBookings] = useState([])
-  const [ticket, setTicket] = useState(null)
   const [notices, setNotices] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -34,16 +33,14 @@ export default function ArtistHomePage() {
   }, [])
 
   async function loadData(userId) {
-    const [{ data: b }, { data: t }, { data: pin }] = await Promise.all([
+    const [{ data: b }, { data: pin }] = await Promise.all([
       supabase.from('bookings').select('*').eq('user_id', userId).neq('status', 'cancelled'),
-      supabase.from('tickets').select('*').eq('user_id', userId).eq('type', 'meeting').single(),
       supabase.from('posts')
         .select('id, title, content, author_name, created_at, pinned_at, images, image_url')
         .not('pinned_at', 'is', null)
         .order('pinned_at', { ascending: false }),
     ])
     setBookings(b || [])
-    setTicket(t)
     setNotices(pin || [])
     setLoading(false)
   }
@@ -125,27 +122,6 @@ export default function ArtistHomePage() {
             </div>
           ))}
         </div>
-
-        {/* 회의 참여권 */}
-        {ticket ? (
-          <div className="p-card" style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 10, color: 'var(--tm)', fontWeight: 700 }}>회의 참여권</div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--td)', margin: '2px 0 6px' }}>{ticket.total}회권 · 잔여 {ticket.remain}회</div>
-              <div style={{ width: '100%', height: 5, background: 'var(--g1)', borderRadius: 3, overflow: 'hidden' }}>
-                <div style={{ width: `${(ticket.remain / ticket.total) * 100}%`, height: '100%', background: 'var(--ac)', transition: 'width 0.3s ease' }} />
-              </div>
-            </div>
-            <span style={{ fontSize: 10, color: 'var(--tmu)', flexShrink: 0 }}>만료 {ticket.expires_at}</span>
-          </div>
-        ) : (
-          <div className="p-card" style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 10, color: 'var(--tm)', fontWeight: 700 }}>회의 참여권</div>
-              <div style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--td)', marginTop: 2 }}>참여권 없음 🐾</div>
-            </div>
-          </div>
-        )}
 
         {/* 스튜디오 공지 — 라운지에서 관리자가 공지 지정한 글 (최대 2개) */}
         {notices.length > 0 && (
