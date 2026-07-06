@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import StudentNav from '../../components/StudentNav'
 import { NavIcon } from '../../components/NavIcons'
+import { useTodayWeather, WeatherGlyph } from '../../components/WeatherBar'
 import { LogoMark, HeroDeco, DotPatch } from '../../components/Deco'
 import { applyTheme, isValidTheme } from '../../lib/theme'
 import { bookClass, requestBookingApproval, hasValidTicket, cancelBooking } from '../../lib/booking'
@@ -23,6 +24,7 @@ function fmtDate(d) {
 
 export default function StudentHomePage() {
   const router = useRouter()
+  const weather = useTodayWeather()
   const [user, setUser] = useState(null)
   const [ticket, setTicket] = useState(null)
   const [nextBooking, setNextBooking] = useState(null)
@@ -310,7 +312,13 @@ export default function StudentHomePage() {
 
         <div className="p-hero" style={{ marginBottom:14 }}>
           <HeroDeco />
-          <div style={{ padding:'14px 16px 16px' }}>
+          <div style={{ padding:'14px 16px 16px', position:'relative' }}>
+            {weather && (
+              <div style={{ position:'absolute', top:14, right:16, display:'flex', alignItems:'center', gap:5, color:'var(--acTx)' }}>
+                <WeatherGlyph code={weather.code} size={20} />
+                <span style={{ fontSize:12.5, fontWeight:800 }}>{weather.temp}°</span>
+              </div>
+            )}
             <div style={{ fontSize:17, fontWeight:800, color:'var(--td)', letterSpacing:'-0.4px' }}>
               {user && nextBooking ? '이번 주 수업 예약' : '수업 예약, 여기서 시작'}
             </div>
