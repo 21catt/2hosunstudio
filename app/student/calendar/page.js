@@ -19,7 +19,7 @@ const CAT_NAME = { drawing:'드로잉', painting:'페인팅', sculpture:'조소'
 const CAT_COLOR = { drawing:'#e8f5e0', painting:'#EDE7F6', sculpture:'#FFF3E0', free:'#E3F2FD', meeting:'#FFF8E1' }
 const CAT_TEXT = { drawing:'var(--g5)', painting:'#4A148C', sculpture:'#E65100', free:'#0D47A1', meeting:'#F57F17' }
 
-const DEPOSIT = { bank: '카카오뱅크', account: '3333038381397', holder: '양승민' }
+const DEPOSIT = { bank: '국민은행', account: '392801-04-209666', holder: '양승민 (2호선스튜디오)' }
 
 const ACCENT = 'var(--ac)'
 const ACCENT_BG = 'var(--acBg)'
@@ -663,7 +663,7 @@ export default function CalendarPage() {
               <div style={{ fontSize:20, fontWeight:800, color:'var(--g5)', marginBottom:10 }}>{((paymentModal.course.price || 0) * selectedCount).toLocaleString()}원</div>
               <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:4 }}>입금 계좌</div>
               <div style={{ fontSize:12, fontWeight:700, color:'var(--td)', lineHeight:1.6 }}>
-                카카오뱅크<br/>3333-03-8381397<br/>예금주: 양승민
+                국민은행<br/>392801-04-209666<br/>예금주: 양승민 (2호선스튜디오)
               </div>
             </div>
             <div style={{ fontSize:11, color:'var(--tmu)', lineHeight:1.6, marginBottom:14 }}>

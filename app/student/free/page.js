@@ -7,7 +7,7 @@ import { sendPushToAdmins } from '../../../lib/pushNotify'
 import { notifyAllAdmins } from '../../../lib/adminNotify'
 
 
-const DEPOSIT = { bank: '카카오뱅크', account: '3333038381397', holder: '양승민' }
+const DEPOSIT = { bank: '국민은행', account: '392801-04-209666', holder: '양승민 (2호선스튜디오)' }
 
 function getHourlyRate(date, hour) {
   const dow = date.getDay()

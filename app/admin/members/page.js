@@ -37,6 +37,7 @@ export default function AdminMembersPage() {
   const [memberUnlockAll, setMemberUnlockAll] = useState({}) // {userId: bool} — 냥 꾸미기 전체 해금
   const [artists, setArtists] = useState([]) // 참여작가 (하단 별도 목록)
   const [harvestMap, setHarvestMap] = useState({}) // {userId: harvest_count}
+  const [deleting, setDeleting] = useState(null) // 삭제 중인 userId
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -100,6 +101,26 @@ export default function AdminMembersPage() {
     if (error) {
       setHarvestMap(prev => ({ ...prev, [userId]: prevN }))
       alert(`저장에 실패했어요: ${error.message}`)
+    }
+  }
+
+  // 회원 삭제 — 관리자 전용 서버 라우트로 관련 데이터 정리 후 users+auth 삭제(되돌릴 수 없음)
+  async function deleteMember(m) {
+    if (!confirm(`${m.name || '이 회원'}님을 삭제할까요?\n예약·수강권·알림 등 데이터가 함께 삭제되고 되돌릴 수 없어요.`)) return
+    setDeleting(m.id)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      const res = await fetch('/api/admin/delete-member', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ userId: m.id }),
+      })
+      if (!res.ok) { const j = await res.json().catch(() => ({})); alert('삭제 실패: ' + (j.error || res.status)); return }
+      setExpanded(null)
+      loadMembers()
+    } finally {
+      setDeleting(null)
     }
   }
 
@@ -457,6 +478,11 @@ export default function AdminMembersPage() {
                       </div>
                     </div>
 
+                    <button onClick={e => { e.stopPropagation(); deleteMember(m) }} disabled={deleting === m.id}
+                      style={{ width:'100%', marginTop:10, padding:'9px', background:'#fff', color:'#c0392b', border:'1.5px solid #f0c0c0', borderRadius:11, fontSize:11, fontWeight:800, cursor: deleting === m.id ? 'default' : 'pointer', opacity: deleting === m.id ? 0.5 : 1, fontFamily:'Nunito,sans-serif' }}>
+                      {deleting === m.id ? '삭제 중…' : '🗑 회원 삭제'}
+                    </button>
+
                   </div>
                 )}
               </div>
@@ -476,43 +502,54 @@ export default function AdminMembersPage() {
             {artistList.map(a => {
               const on = memberUnlockAll[a.id] === true
               const hv = harvestMap[a.id] || 0
+              const isOpen = expanded === a.id
               return (
-                <div key={a.id} style={{ border:'0.5px solid rgba(0,0,0,0.06)', borderRadius:16, marginBottom:7, background:'#fff', padding:'12px 13px' }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:11 }}>
+                <div key={a.id} style={{ border:'0.5px solid rgba(0,0,0,0.06)', borderRadius:16, marginBottom:7, background:'#fff', overflow:'hidden' }}>
+                  <div onClick={() => setExpanded(isOpen ? null : a.id)} style={{ display:'flex', alignItems:'center', gap:10, padding:'12px 13px', cursor:'pointer' }}>
                     <div style={{ width:36, height:36, borderRadius:'50%', background:'#FBEFE7', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:800, color:'#B5650E', flexShrink:0 }}>{a.name?.[0] || '?'}</div>
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ fontSize:13.5, fontWeight:800, color:'#1c2a24', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{a.name || '작가'}</div>
                       <div style={{ fontSize:11, color:'#a2aaa1', fontWeight:600 }}>{a.phone || a.email || '전시 작가'}</div>
                     </div>
                     <span style={{ fontSize:9, fontWeight:800, color:'#B5650E', background:'#FBEFE7', borderRadius:8, padding:'3px 8px', flexShrink:0 }}>작가</span>
+                    <span style={{ fontSize:12, color:'#bcc2ba', flexShrink:0, transform: isOpen ? 'rotate(180deg)' : 'none', transition:'transform 0.15s' }}>▾</span>
                   </div>
 
-                  {/* 수확 작물 부여 */}
-                  <div style={{ background:'#F6F5F1', borderRadius:13, padding:'11px 12px', marginBottom:9, display:'flex', alignItems:'center', gap:9 }}>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:12, fontWeight:800, color:'#1c2a24' }}>🌾 수확 작물 {hv}개</div>
-                      <div style={{ fontSize:10, color:'#a2aaa1', fontWeight:600, marginTop:2 }}>수확 개수로 테마·냥이가 열려요</div>
+                  {isOpen && (
+                  <div style={{ padding:'0 13px 12px' }}>
+                    {/* 수확 작물 부여 */}
+                    <div style={{ background:'#F6F5F1', borderRadius:13, padding:'11px 12px', marginBottom:9, display:'flex', alignItems:'center', gap:9 }}>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:12, fontWeight:800, color:'#1c2a24' }}>🌾 수확 작물 {hv}개</div>
+                        <div style={{ fontSize:10, color:'#a2aaa1', fontWeight:600, marginTop:2 }}>수확 개수로 테마·냥이가 열려요</div>
+                      </div>
+                      <button onClick={() => setHarvestCount(a.id, hv - 1)} disabled={hv <= 0}
+                        style={{ width:30, height:30, borderRadius:9, border:'none', background:'#EDEBE4', color:'#6a6a5a', fontSize:15, fontWeight:800, cursor: hv <= 0 ? 'default' : 'pointer', opacity: hv <= 0 ? 0.4 : 1, fontFamily:'Nunito,sans-serif' }}>−</button>
+                      <button onClick={() => setHarvestCount(a.id, hv + 1)}
+                        style={{ width:30, height:30, borderRadius:9, border:'none', background:'var(--acBg)', color:'var(--acTx)', fontSize:15, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>+</button>
+                      <button onClick={() => setHarvestCount(a.id, hv + 5)}
+                        style={{ height:30, padding:'0 11px', borderRadius:9, border:'none', background:'var(--ac)', color:'#fff', fontSize:12, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif', whiteSpace:'nowrap' }}>+5</button>
                     </div>
-                    <button onClick={() => setHarvestCount(a.id, hv - 1)} disabled={hv <= 0}
-                      style={{ width:30, height:30, borderRadius:9, border:'none', background:'#EDEBE4', color:'#6a6a5a', fontSize:15, fontWeight:800, cursor: hv <= 0 ? 'default' : 'pointer', opacity: hv <= 0 ? 0.4 : 1, fontFamily:'Nunito,sans-serif' }}>−</button>
-                    <button onClick={() => setHarvestCount(a.id, hv + 1)}
-                      style={{ width:30, height:30, borderRadius:9, border:'none', background:'var(--acBg)', color:'var(--acTx)', fontSize:15, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>+</button>
-                    <button onClick={() => setHarvestCount(a.id, hv + 5)}
-                      style={{ height:30, padding:'0 11px', borderRadius:9, border:'none', background:'var(--ac)', color:'#fff', fontSize:12, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif', whiteSpace:'nowrap' }}>+5</button>
-                  </div>
 
-                  {/* 모든 기능 해금 (냥 꾸미기·테마 전체) */}
-                  <div style={{ background:'#FBFAF5', border:'0.5px solid rgba(0,0,0,0.07)', borderRadius:13, padding:'11px 12px', display:'flex', alignItems:'center', gap:11 }}>
-                    <span style={{ fontSize:18, flexShrink:0 }}>{on ? '🔓' : '🔒'}</span>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:12, fontWeight:800, color:'#1c2a24' }}>모든 기능 해금</div>
-                      <div style={{ fontSize:10, color:'#a2aaa1', fontWeight:600, marginTop:2, lineHeight:1.5 }}>{on ? '수확 없이 테마·프로필냥·농부냥 전부 사용' : '켜면 수확 없이 전부 열려요'}</div>
+                    {/* 모든 기능 해금 (냥 꾸미기·테마 전체) */}
+                    <div style={{ background:'#FBFAF5', border:'0.5px solid rgba(0,0,0,0.07)', borderRadius:13, padding:'11px 12px', display:'flex', alignItems:'center', gap:11 }}>
+                      <span style={{ fontSize:18, flexShrink:0 }}>{on ? '🔓' : '🔒'}</span>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:12, fontWeight:800, color:'#1c2a24' }}>모든 기능 해금</div>
+                        <div style={{ fontSize:10, color:'#a2aaa1', fontWeight:600, marginTop:2, lineHeight:1.5 }}>{on ? '수확 없이 테마·프로필냥·농부냥 전부 사용' : '켜면 수확 없이 전부 열려요'}</div>
+                      </div>
+                      <div onClick={() => toggleUnlockAll(a.id, !on)}
+                        style={{ width:46, height:27, borderRadius:14, background: on ? 'var(--ac)' : '#E4E2D9', position:'relative', cursor:'pointer', transition:'background 0.18s ease', flexShrink:0 }}>
+                        <span style={{ position:'absolute', top:3, left: on ? 22 : 3, width:21, height:21, borderRadius:'50%', background:'#fff', boxShadow:'0 1px 3px rgba(0,0,0,0.25)', transition:'left 0.18s ease' }}/>
+                      </div>
                     </div>
-                    <div onClick={() => toggleUnlockAll(a.id, !on)}
-                      style={{ width:46, height:27, borderRadius:14, background: on ? 'var(--ac)' : '#E4E2D9', position:'relative', cursor:'pointer', transition:'background 0.18s ease', flexShrink:0 }}>
-                      <span style={{ position:'absolute', top:3, left: on ? 22 : 3, width:21, height:21, borderRadius:'50%', background:'#fff', boxShadow:'0 1px 3px rgba(0,0,0,0.25)', transition:'left 0.18s ease' }}/>
-                    </div>
+
+                    <button onClick={() => deleteMember(a)} disabled={deleting === a.id}
+                      style={{ width:'100%', marginTop:9, padding:'9px', background:'#fff', color:'#c0392b', border:'1.5px solid #f0c0c0', borderRadius:11, fontSize:11, fontWeight:800, cursor: deleting === a.id ? 'default' : 'pointer', opacity: deleting === a.id ? 0.5 : 1, fontFamily:'Nunito,sans-serif' }}>
+                      {deleting === a.id ? '삭제 중…' : '🗑 작가 삭제'}
+                    </button>
                   </div>
+                  )}
                 </div>
               )
             })}
