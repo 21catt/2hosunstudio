@@ -21,5 +21,5 @@ export function useTodayWeather() {
       .then(d => setWeather(d.current))
       .catch(() => {})
   }, [])
-  return weather ? { icon: ICONS[weather.weather_code] || '🌤', temp: Math.round(weather.temperature_2m) } : null
+  return weather ? { icon: ICONS[weather.weather_code] || '🌤', temp: Math.round(weather.temperature_2m), code: weather.weather_code } : null
 }
