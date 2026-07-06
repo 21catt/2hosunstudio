@@ -35,6 +35,8 @@ export default function AdminMembersPage() {
   const [meetingInputs, setMeetingInputs] = useState({})
   const [memberMeetingTickets, setMemberMeetingTickets] = useState({})
   const [memberUnlockAll, setMemberUnlockAll] = useState({}) // {userId: bool} — 냥 꾸미기 전체 해금
+  const [artists, setArtists] = useState([]) // 참여작가 (하단 별도 목록)
+  const [harvestMap, setHarvestMap] = useState({}) // {userId: harvest_count}
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -51,6 +53,9 @@ export default function AdminMembersPage() {
       .select('*, tickets(*), bookings(*)')
       .eq('role', 'student')
     setMembers(data || [])
+    // 참여작가 — 하단 별도 목록
+    const { data: art } = await supabase.from('users').select('*, bookings(*)').eq('role', 'artist')
+    setArtists(art || [])
     const { data: mt } = await supabase.from('meeting_tickets').select('*')
     const ticketMap = {}
     mt?.forEach(t => {
@@ -58,11 +63,13 @@ export default function AdminMembersPage() {
       ticketMap[t.user_id].push(t)
     })
     setMemberMeetingTickets(ticketMap)
-    // 냥 꾸미기 해금 상태 — unlock_all 컬럼이 아직 없으면 전부 꺼진 것으로 표시
-    const { data: prefs } = await supabase.from('user_prefs').select('user_id, unlock_all')
+    // 냥 꾸미기 해금 상태 + 수확 개수 — 컬럼이 아직 없으면 전부 꺼진 것으로 표시
+    const { data: prefs } = await supabase.from('user_prefs').select('user_id, unlock_all, harvest_count')
     const unlockMap = {}
-    prefs?.forEach(p => { unlockMap[p.user_id] = p.unlock_all === true })
+    const hvMap = {}
+    prefs?.forEach(p => { unlockMap[p.user_id] = p.unlock_all === true; if (Number.isFinite(p.harvest_count)) hvMap[p.user_id] = p.harvest_count })
     setMemberUnlockAll(unlockMap)
+    setHarvestMap(hvMap)
     setLoading(false)
   }
 
@@ -73,6 +80,18 @@ export default function AdminMembersPage() {
     if (error) {
       setMemberUnlockAll(prev => ({ ...prev, [userId]: !next }))
       alert(`저장에 실패했어요: ${error.message}\n\n권한 문제라면 migration-user-prefs-admin-policy.sql을 실행해 주세요.`)
+    }
+  }
+
+  // 수확 작물 부여 — user_prefs.harvest_count 설정(테마·냥이 해금 기준)
+  async function setHarvestCount(userId, next) {
+    const n = Math.max(0, next)
+    const prevN = harvestMap[userId] || 0
+    setHarvestMap(prev => ({ ...prev, [userId]: n }))
+    const { error } = await supabase.from('user_prefs').upsert({ user_id: userId, harvest_count: n })
+    if (error) {
+      setHarvestMap(prev => ({ ...prev, [userId]: prevN }))
+      alert(`저장에 실패했어요: ${error.message}`)
     }
   }
 
@@ -155,6 +174,10 @@ export default function AdminMembersPage() {
       <div style={{ fontSize:32 }}>🐱</div>
     </div>
   )
+
+  const artistList = search
+    ? artists.filter(a => (a.name || '').includes(search) || (a.phone || '').includes(search))
+    : artists
 
   let lastStatus = null
 
@@ -432,6 +455,61 @@ export default function AdminMembersPage() {
             </div>
           )
         })}
+
+        {/* ── 참여작가 (하단 별도 목록) — 수확 작물 부여 / 모든 기능 해금 ── */}
+        {artistList.length > 0 && (
+          <div style={{ marginTop:24 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:7, margin:'0 3px 9px' }}>
+              <span style={{ width:6, height:6, borderRadius:'50%', background:'#B5650E' }}/>
+              <span style={{ fontSize:11, fontWeight:800, color:'#B5650E', letterSpacing:'0.2px' }}>참여작가</span>
+              <span style={{ fontSize:10, fontWeight:700, color:'#bcc2ba' }}>{artistList.length}</span>
+              <span style={{ flex:1, height:1, background:'rgba(0,0,0,0.05)' }}/>
+            </div>
+            {artistList.map(a => {
+              const on = memberUnlockAll[a.id] === true
+              const hv = harvestMap[a.id] || 0
+              return (
+                <div key={a.id} style={{ border:'0.5px solid rgba(0,0,0,0.06)', borderRadius:16, marginBottom:7, background:'#fff', padding:'12px 13px' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:11 }}>
+                    <div style={{ width:36, height:36, borderRadius:'50%', background:'#FBEFE7', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:800, color:'#B5650E', flexShrink:0 }}>{a.name?.[0] || '?'}</div>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:13.5, fontWeight:800, color:'#1c2a24', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{a.name || '작가'}</div>
+                      <div style={{ fontSize:11, color:'#a2aaa1', fontWeight:600 }}>{a.phone || a.email || '전시 작가'}</div>
+                    </div>
+                    <span style={{ fontSize:9, fontWeight:800, color:'#B5650E', background:'#FBEFE7', borderRadius:8, padding:'3px 8px', flexShrink:0 }}>작가</span>
+                  </div>
+
+                  {/* 수확 작물 부여 */}
+                  <div style={{ background:'#F6F5F1', borderRadius:13, padding:'11px 12px', marginBottom:9, display:'flex', alignItems:'center', gap:9 }}>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:12, fontWeight:800, color:'#1c2a24' }}>🌾 수확 작물 {hv}개</div>
+                      <div style={{ fontSize:10, color:'#a2aaa1', fontWeight:600, marginTop:2 }}>수확 개수로 테마·냥이가 열려요</div>
+                    </div>
+                    <button onClick={() => setHarvestCount(a.id, hv - 1)} disabled={hv <= 0}
+                      style={{ width:30, height:30, borderRadius:9, border:'none', background:'#EDEBE4', color:'#6a6a5a', fontSize:15, fontWeight:800, cursor: hv <= 0 ? 'default' : 'pointer', opacity: hv <= 0 ? 0.4 : 1, fontFamily:'Nunito,sans-serif' }}>−</button>
+                    <button onClick={() => setHarvestCount(a.id, hv + 1)}
+                      style={{ width:30, height:30, borderRadius:9, border:'none', background:'var(--acBg)', color:'var(--acTx)', fontSize:15, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>+</button>
+                    <button onClick={() => setHarvestCount(a.id, hv + 5)}
+                      style={{ height:30, padding:'0 11px', borderRadius:9, border:'none', background:'var(--ac)', color:'#fff', fontSize:12, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif', whiteSpace:'nowrap' }}>+5</button>
+                  </div>
+
+                  {/* 모든 기능 해금 (냥 꾸미기·테마 전체) */}
+                  <div style={{ background:'#FBFAF5', border:'0.5px solid rgba(0,0,0,0.07)', borderRadius:13, padding:'11px 12px', display:'flex', alignItems:'center', gap:11 }}>
+                    <span style={{ fontSize:18, flexShrink:0 }}>{on ? '🔓' : '🔒'}</span>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:12, fontWeight:800, color:'#1c2a24' }}>모든 기능 해금</div>
+                      <div style={{ fontSize:10, color:'#a2aaa1', fontWeight:600, marginTop:2, lineHeight:1.5 }}>{on ? '수확 없이 테마·프로필냥·농부냥 전부 사용' : '켜면 수확 없이 전부 열려요'}</div>
+                    </div>
+                    <div onClick={() => toggleUnlockAll(a.id, !on)}
+                      style={{ width:46, height:27, borderRadius:14, background: on ? 'var(--ac)' : '#E4E2D9', position:'relative', cursor:'pointer', transition:'background 0.18s ease', flexShrink:0 }}>
+                      <span style={{ position:'absolute', top:3, left: on ? 22 : 3, width:21, height:21, borderRadius:'50%', background:'#fff', boxShadow:'0 1px 3px rgba(0,0,0,0.25)', transition:'left 0.18s ease' }}/>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       <AdminNav active="member" />
