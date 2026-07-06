@@ -402,7 +402,7 @@ setAllBookings(allMeetingBookings || [])
                     color:dow===0?'#b05050':dow===6?'#5070a0':'var(--td)' }}>{d}</div>
                 )}
                 {!isB && hasCls && !isSel && (
-                  <div style={{ width:4, height:4, borderRadius:'50%', background:'var(--g3)', marginTop:2 }}/>
+                  <span style={{ display:'flex', marginTop:1 }} title="회의"><NavIcon name="users" color="var(--g4)" size={13} /></span>
                 )}
               </div>
             )

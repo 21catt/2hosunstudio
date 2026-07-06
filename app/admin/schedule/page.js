@@ -624,11 +624,14 @@ const myCourses = sortCoursesByCategory(courses.filter(c => c.category === 'meet
                  {(() => {
   const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
   const cnt = bookings.filter(b => b.class_date === dateStr).length
-  return cnt > 0 ? (
-    <div style={{ fontSize:9, fontWeight:800, color: OK.main, marginTop:2 }}>
-      {cnt}
+  const hasMeeting = dayCourses.some(c => c.category === 'meeting')
+  if (!cnt && !hasMeeting) return null
+  return (
+    <div style={{ display:'flex', alignItems:'center', gap:3, marginTop:2 }}>
+      {hasMeeting && <span style={{ display:'flex' }} title="개설된 회의"><NavIcon name="users" color="#F57F17" size={12} /></span>}
+      {cnt > 0 && <span style={{ fontSize:9, fontWeight:800, color: OK.main }}>{cnt}</span>}
     </div>
-  ) : null
+  )
 })()}
                   </div>
                 )
