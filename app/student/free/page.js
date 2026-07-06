@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
 import { sendPushToAdmins } from '../../../lib/pushNotify'
+import { notifyAllAdmins } from '../../../lib/adminNotify'
 
 
 const DEPOSIT = { bank: '카카오뱅크', account: '3333038381397', holder: '양승민' }
@@ -202,14 +203,7 @@ function FreeInner() {
     }).then(({ error }) => {
       if (error) return
       const pushMsg = `${name}님 자율창작 ${dateStr} ${startStr}~${endStr} ${selSeat}자리 (입금대기)`
-      if (freeCourse?.teacher_id) {
-        supabase.from('notifications').insert({
-          user_id: freeCourse.teacher_id,
-          type: 'booking_created',
-          title: '자율창작 예약 (입금대기)',
-          body: pushMsg
-        })
-      }
+      notifyAllAdmins({ type: 'booking_created', title: '자율창작 예약 (입금대기)', body: pushMsg })
       sendPushToAdmins('🎨 자율창작 예약', pushMsg)
       fetch('/api/kakao/notify', {
         method: 'POST',

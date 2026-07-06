@@ -9,6 +9,7 @@ import ProfileHeaderIcon from '../../../components/ProfileHeaderIcon'
 import { sortCoursesByCategory } from '../../../lib/courseSort'
 import { sendPushToAdmins } from '../../../lib/pushNotify'
 import { sendKakaoToAdmins } from '../../../lib/kakaoNotify'
+import { notifyAllAdmins } from '../../../lib/adminNotify'
 import { applyTheme, isValidTheme } from '../../../lib/theme'
 import MoodIndicator from '../../../components/MoodIndicator'
 import LoadingCat from '../../../components/LoadingCat'
@@ -308,15 +309,7 @@ export default function CalendarPage() {
     await supabase.from('tickets').update({ remain: ticket.remain - 1 }).eq('id', ticket.id)
     const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
     const pushMsg = `${profile?.name || '학생'}님 ${course.name} ${dateStr} ${schedule.start_time} 예약`
-    if (course.teacher_id) {
-      await supabase.from('notifications').insert({
-        user_id: course.teacher_id,
-        type: 'booking_created',
-        title: '새 예약',
-        body: pushMsg,
-        related_id: newBooking?.id
-      })
-    }
+    await notifyAllAdmins({ type: 'booking_created', title: '새 예약', body: pushMsg, related_id: newBooking?.id })
     sendPushToAdmins('🐾 새 예약', pushMsg)
     sendKakaoToAdmins('🐾 새 예약', pushMsg)
     setSelCat(null); setSelCourse(null); setSelSchedule(null)
@@ -334,14 +327,7 @@ export default function CalendarPage() {
     const nm = profile?.name || profileName || '학생'
     const phone = profile?.phone || '미등록'
     const when = `${dateStr} ${schedule.start_time}~${schedule.end_time}`
-    if (course.teacher_id) {
-      await supabase.from('notifications').insert({
-        user_id: course.teacher_id,
-        type: 'booking_request',
-        title: '📩 수업 예약 요청 (수강권 확인 필요)',
-        body: `${nm}님이 ${course.name} 예약을 요청했어요.\n일시: ${when}\n연락처: ${phone}\n수강권이 없거나 소진된 상태예요. 확인 후 안내해 주세요.`
-      })
-    }
+    await notifyAllAdmins({ type: 'booking_request', title: '📩 수업 예약 요청 (수강권 확인 필요)', body: `${nm}님이 ${course.name} 예약을 요청했어요.\n일시: ${when}\n연락처: ${phone}\n수강권이 없거나 소진된 상태예요. 확인 후 안내해 주세요.` })
     sendPushToAdmins('📩 예약 요청', `${nm}님 ${course.name} ${when} · 연락처 ${phone}`)
     sendKakaoToAdmins('📩 예약 요청', `${nm}님 ${course.name} ${when} / 연락처 ${phone}`)
     setSelCat(null); setSelCourse(null); setSelSchedule(null)
@@ -399,15 +385,7 @@ export default function CalendarPage() {
     }).select().single()
 
     const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
-    if (course.teacher_id) {
-      await supabase.from('notifications').insert({
-        user_id: course.teacher_id,
-        type: 'meeting_pending',
-        title: '모임 참여권 신청 (입금 대기)',
-        body: `${profile?.name || '학생'}님이 ${course.name} ${selectedCount}회권 신청. 금액: ${((course.price || 0) * selectedCount).toLocaleString()}원. 입금 확인 후 확정 처리 필요.`,
-        related_id: newBooking?.id
-      })
-    }
+    await notifyAllAdmins({ type: 'meeting_pending', title: '모임 참여권 신청 (입금 대기)', body: `${profile?.name || '학생'}님이 ${course.name} ${selectedCount}회권 신청. 금액: ${((course.price || 0) * selectedCount).toLocaleString()}원. 입금 확인 후 확정 처리 필요.`, related_id: newBooking?.id })
 
     setPaymentModal(null)
     setSelectedCount(1)
@@ -488,14 +466,7 @@ export default function CalendarPage() {
     }
 
     const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
-    if (course?.teacher_id) {
-      await supabase.from('notifications').insert({
-        user_id: course.teacher_id,
-        type: 'booking_cancelled',
-        title: '예약 취소',
-        body: `${profile?.name || '학생'}님이 ${booking.class_name} ${booking.class_date} ${booking.class_time} 취소`
-      })
-    }
+    await notifyAllAdmins({ type: 'booking_cancelled', title: '예약 취소', body: `${profile?.name || '학생'}님이 ${booking.class_name} ${booking.class_date} ${booking.class_time} 취소` })
 
     loadData(user.id)
   }

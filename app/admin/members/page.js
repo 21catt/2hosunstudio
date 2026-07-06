@@ -47,6 +47,14 @@ export default function AdminMembersPage() {
     })
   }, [])
 
+  // 다른 화면 다녀온 뒤 돌아오면 최신 명단 자동 반영(새 가입자 등) — 하드 리로드 불필요
+  useEffect(() => {
+    const refresh = () => { if (document.visibilityState === 'visible') loadMembers() }
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', refresh)
+    return () => { window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh) }
+  }, [])
+
   async function loadMembers() {
     const { data } = await supabase
       .from('users')
