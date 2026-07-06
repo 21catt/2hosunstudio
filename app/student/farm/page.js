@@ -15,6 +15,10 @@ const FARM_ENV = {
   line2: { img: '/farm/line2.png', ground: '#D3EF6B' },
   ink:   { img: '/farm/ink.png',   ground: '#FF6A2B' },
   lilac: { img: '/farm/lilac.png', ground: '#FF9AC9' },
+  burgundy: { img: '/farm/burgundy.png', ground: '#A9CEE0' },
+  palu:     { img: '/farm/palu.png',     ground: '#E7A24E' },
+  sage:     { img: '/farm/sage.png',     ground: '#E8C64F' },
+  midgreen: { img: '/farm/midgreen.png', ground: '#B4DDA6' },
 }
 
 // 픽셀 구름 5종 — [x, y, w, h] 사각형 조합 (56x22 그리드)
