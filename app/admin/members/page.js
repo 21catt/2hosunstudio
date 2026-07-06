@@ -38,6 +38,8 @@ export default function AdminMembersPage() {
   const [artists, setArtists] = useState([]) // 참여작가 (하단 별도 목록)
   const [harvestMap, setHarvestMap] = useState({}) // {userId: harvest_count}
   const [deleting, setDeleting] = useState(null) // 삭제 중인 userId
+  const [attOpen, setAttOpen] = useState(null)   // 참석기록 펼친 userId
+  const [armed, setArmed] = useState(null)       // 삭제 확인(잠금해제)된 userId
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -106,7 +108,6 @@ export default function AdminMembersPage() {
 
   // 회원 삭제 — 관리자 전용 서버 라우트로 관련 데이터 정리 후 users+auth 삭제(되돌릴 수 없음)
   async function deleteMember(m) {
-    if (!confirm(`${m.name || '이 회원'}님을 삭제할까요?\n예약·수강권·알림 등 데이터가 함께 삭제되고 되돌릴 수 없어요.`)) return
     setDeleting(m.id)
     try {
       const { data: { session } } = await supabase.auth.getSession()
@@ -117,7 +118,7 @@ export default function AdminMembersPage() {
         body: JSON.stringify({ userId: m.id }),
       })
       if (!res.ok) { const j = await res.json().catch(() => ({})); alert('삭제 실패: ' + (j.error || res.status)); return }
-      setExpanded(null)
+      setArmed(null); setExpanded(null)
       loadMembers()
     } finally {
       setDeleting(null)
@@ -480,43 +481,84 @@ export default function AdminMembersPage() {
                       </div>
                     </div>
 
-                    {/* 수업 참석 기록 */}
+                    {/* 수업 참석 기록 — 접기/펼치기 · 월별 묶음 · 요일 표시 */}
                     {(() => {
                       const recs = (m.bookings || []).filter(b => b.status !== 'cancelled')
                         .sort((a, b) => (b.class_date || '').localeCompare(a.class_date || '') || (b.class_time || '').localeCompare(a.class_time || ''))
+                      const attOpenOn = attOpen === m.id
+                      const groups = []
+                      for (const b of recs) {
+                        const ym = (b.class_date || '').slice(0, 7)
+                        let g = groups[groups.length - 1]
+                        if (!g || g.ym !== ym) { g = { ym, items: [] }; groups.push(g) }
+                        g.items.push(b)
+                      }
+                      const DOW = ['일', '월', '화', '수', '목', '금', '토']
                       return (
                         <div style={{ marginTop:12 }}>
-                          <div style={{ fontSize:11, fontWeight:800, color:'#1c2a24', margin:'0 0 8px 2px' }}>수업 참석 기록</div>
-                          {recs.length === 0 ? (
+                          <div onClick={e => { e.stopPropagation(); setAttOpen(attOpenOn ? null : m.id) }}
+                            style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', padding:'6px 2px' }}>
+                            <span style={{ fontSize:11, fontWeight:800, color:'#1c2a24' }}>수업 참석 기록</span>
+                            <span style={{ fontSize:10, fontWeight:700, color:'#a2aaa1' }}>{recs.length}</span>
+                            <span style={{ flex:1 }}/>
+                            <span style={{ fontSize:11, color:'#bcc2ba', transform: attOpenOn ? 'rotate(180deg)' : 'none', transition:'transform 0.15s' }}>▾</span>
+                          </div>
+                          {attOpenOn && (recs.length === 0 ? (
                             <div style={{ fontSize:11, color:'#a2aaa1', textAlign:'center', padding:'16px 0', background:'#F8F7F3', borderRadius:12 }}>예약 기록이 없어요 🐾</div>
                           ) : (
-                            <div className="no-scrollbar" style={{ display:'flex', flexDirection:'column', gap:5, maxHeight:236, overflowY:'auto' }}>
-                              {recs.map(b => {
-                                const past = (b.class_date || '') < todayStr
-                                const st = b.attended === true ? { t:'출석', c:'#2E7D4F', bg:'#EAF3E4', dot:'#4CA06A' }
-                                  : past ? { t:'결석', c:'#94382F', bg:'#F9E9E7', dot:'#C1564D' }
-                                  : { t:'예정', c:'#B5650E', bg:'#FBF3E4', dot:'#E8912A' }
+                            <div className="no-scrollbar" style={{ display:'flex', flexDirection:'column', gap:12, maxHeight:320, overflowY:'auto' }}>
+                              {groups.map(g => {
+                                const [gy, gm] = g.ym.split('-')
+                                const att = g.items.filter(b => b.attended === true).length
                                 return (
-                                  <div key={b.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 11px', background:'#fff', border:'0.5px solid rgba(0,0,0,0.07)', borderRadius:11 }}>
-                                    <span style={{ width:7, height:7, borderRadius:'50%', background:st.dot, flexShrink:0 }}/>
-                                    <div style={{ flex:1, minWidth:0 }}>
-                                      <div style={{ fontSize:12, fontWeight:800, color:'#1c2a24', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{b.class_name || '수업'}</div>
-                                      <div style={{ fontSize:10, color:'#a2aaa1', fontWeight:600, fontVariantNumeric:'tabular-nums' }}>{(b.class_date || '').slice(5).replace('-', '/')}{b.class_time ? ` · ${b.class_time.split('~')[0]}` : ''}</div>
+                                  <div key={g.ym}>
+                                    <div style={{ display:'flex', alignItems:'center', gap:6, margin:'0 2px 6px' }}>
+                                      <span style={{ fontSize:11, fontWeight:800, color:'#B5650E', fontVariantNumeric:'tabular-nums' }}>{gy}.{gm}</span>
+                                      <span style={{ fontSize:9.5, fontWeight:700, color:'#a2aaa1' }}>출석 {att}/{g.items.length}</span>
+                                      <span style={{ flex:1, height:1, background:'rgba(0,0,0,0.05)' }}/>
                                     </div>
-                                    <span style={{ fontSize:10, fontWeight:800, color:st.c, background:st.bg, borderRadius:8, padding:'3px 9px', flexShrink:0 }}>{st.t}</span>
+                                    <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
+                                      {g.items.map(b => {
+                                        const dt = new Date((b.class_date || '') + 'T00:00:00')
+                                        const dow = isNaN(dt.getTime()) ? '' : DOW[dt.getDay()]
+                                        const past = (b.class_date || '') < todayStr
+                                        const st = b.attended === true ? { t:'출석', c:'#2E7D4F', bg:'#EAF3E4', dot:'#4CA06A' }
+                                          : past ? { t:'결석', c:'#94382F', bg:'#F9E9E7', dot:'#C1564D' }
+                                          : { t:'예정', c:'#B5650E', bg:'#FBF3E4', dot:'#E8912A' }
+                                        return (
+                                          <div key={b.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 11px', background:'#fff', border:'0.5px solid rgba(0,0,0,0.07)', borderRadius:11 }}>
+                                            <span style={{ width:7, height:7, borderRadius:'50%', background:st.dot, flexShrink:0 }}/>
+                                            <div style={{ flex:1, minWidth:0 }}>
+                                              <div style={{ fontSize:12, fontWeight:800, color:'#1c2a24', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{b.class_name || '수업'}</div>
+                                              <div style={{ fontSize:10, color:'#a2aaa1', fontWeight:600, fontVariantNumeric:'tabular-nums' }}>{(b.class_date || '').slice(5).replace('-', '/')}{dow ? ` (${dow})` : ''}{b.class_time ? ` · ${b.class_time.split('~')[0]}` : ''}</div>
+                                            </div>
+                                            <span style={{ fontSize:10, fontWeight:800, color:st.c, background:st.bg, borderRadius:8, padding:'3px 9px', flexShrink:0 }}>{st.t}</span>
+                                          </div>
+                                        )
+                                      })}
+                                    </div>
                                   </div>
                                 )
                               })}
                             </div>
-                          )}
+                          ))}
                         </div>
                       )
                     })()}
 
-                    <button onClick={e => { e.stopPropagation(); deleteMember(m) }} disabled={deleting === m.id}
-                      style={{ width:'100%', marginTop:10, padding:'9px', background:'#fff', color:'#c0392b', border:'1.5px solid #f0c0c0', borderRadius:11, fontSize:11, fontWeight:800, cursor: deleting === m.id ? 'default' : 'pointer', opacity: deleting === m.id ? 0.5 : 1, fontFamily:'Nunito,sans-serif' }}>
-                      {deleting === m.id ? '삭제 중…' : '🗑 회원 삭제'}
-                    </button>
+                    <div style={{ marginTop:12, borderTop:'1px solid var(--g1)', paddingTop:11 }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                        <span style={{ flex:1, fontSize:11, fontWeight:700, color:'#a2aaa1' }}>회원 삭제 — 실수 방지 확인</span>
+                        <div onClick={e => { e.stopPropagation(); setArmed(armed === m.id ? null : m.id) }}
+                          style={{ width:42, height:24, borderRadius:12, background: armed === m.id ? '#c0392b' : '#E4E2D9', position:'relative', cursor:'pointer', transition:'background 0.18s', flexShrink:0 }}>
+                          <span style={{ position:'absolute', top:3, left: armed === m.id ? 21 : 3, width:18, height:18, borderRadius:'50%', background:'#fff', boxShadow:'0 1px 3px rgba(0,0,0,0.25)', transition:'left 0.18s' }}/>
+                        </div>
+                      </div>
+                      <button onClick={e => { e.stopPropagation(); deleteMember(m) }} disabled={armed !== m.id || deleting === m.id}
+                        style={{ width:'100%', marginTop:9, padding:'9px', background: armed === m.id ? '#c0392b' : '#f2efec', color: armed === m.id ? '#fff' : '#bcbcbc', border:'none', borderRadius:11, fontSize:11, fontWeight:800, cursor: (armed === m.id && deleting !== m.id) ? 'pointer' : 'default', opacity: deleting === m.id ? 0.6 : 1, fontFamily:'Nunito,sans-serif' }}>
+                        {deleting === m.id ? '삭제 중…' : armed === m.id ? '🗑 정말 삭제하기' : '삭제하려면 확인을 켜세요'}
+                      </button>
+                    </div>
 
                   </div>
                 )}
@@ -579,10 +621,19 @@ export default function AdminMembersPage() {
                       </div>
                     </div>
 
-                    <button onClick={() => deleteMember(a)} disabled={deleting === a.id}
-                      style={{ width:'100%', marginTop:9, padding:'9px', background:'#fff', color:'#c0392b', border:'1.5px solid #f0c0c0', borderRadius:11, fontSize:11, fontWeight:800, cursor: deleting === a.id ? 'default' : 'pointer', opacity: deleting === a.id ? 0.5 : 1, fontFamily:'Nunito,sans-serif' }}>
-                      {deleting === a.id ? '삭제 중…' : '🗑 작가 삭제'}
-                    </button>
+                    <div style={{ marginTop:9, borderTop:'1px solid var(--g1)', paddingTop:11 }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                        <span style={{ flex:1, fontSize:11, fontWeight:700, color:'#a2aaa1' }}>작가 삭제 — 실수 방지 확인</span>
+                        <div onClick={() => setArmed(armed === a.id ? null : a.id)}
+                          style={{ width:42, height:24, borderRadius:12, background: armed === a.id ? '#c0392b' : '#E4E2D9', position:'relative', cursor:'pointer', transition:'background 0.18s', flexShrink:0 }}>
+                          <span style={{ position:'absolute', top:3, left: armed === a.id ? 21 : 3, width:18, height:18, borderRadius:'50%', background:'#fff', boxShadow:'0 1px 3px rgba(0,0,0,0.25)', transition:'left 0.18s' }}/>
+                        </div>
+                      </div>
+                      <button onClick={() => deleteMember(a)} disabled={armed !== a.id || deleting === a.id}
+                        style={{ width:'100%', marginTop:9, padding:'9px', background: armed === a.id ? '#c0392b' : '#f2efec', color: armed === a.id ? '#fff' : '#bcbcbc', border:'none', borderRadius:11, fontSize:11, fontWeight:800, cursor: (armed === a.id && deleting !== a.id) ? 'pointer' : 'default', opacity: deleting === a.id ? 0.6 : 1, fontFamily:'Nunito,sans-serif' }}>
+                        {deleting === a.id ? '삭제 중…' : armed === a.id ? '🗑 정말 삭제하기' : '삭제하려면 확인을 켜세요'}
+                      </button>
+                    </div>
                   </div>
                   )}
                 </div>
