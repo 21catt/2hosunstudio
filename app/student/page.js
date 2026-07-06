@@ -580,9 +580,23 @@ export default function StudentHomePage() {
                 </div>
               </div>
 
-              {/* 3. 기타 문의 — 연락처 필수, 관리자에게 푸시·카톡·알림 전달 */}
+              {/* 3. 위치 소개 — 신도림역 인근 + 네이버 지도 길찾기 */}
               <div style={{ border:'2.5px solid rgb(var(--ac-rgb) / 0.32)', borderRadius:20, padding:'13px 14px' }}>
                 <span style={{ display:'inline-block', fontSize:10, fontWeight:900, background:'var(--ac)', color:'#fff', borderRadius:12, padding:'3px 10px', marginBottom:8, letterSpacing:0.5 }}>STEP 3</span>
+                <div style={{ fontSize:13.5, fontWeight:900, color:'var(--td)', marginBottom:5 }}>📍 어디로 가면 되나요?</div>
+                <div style={{ fontSize:11.5, lineHeight:1.65, color:'var(--tm)', fontWeight:600 }}>
+                  <b style={{ color:'var(--acTx)' }}>신도림역 1번 출구</b>에서 3분 거리예요.<br/>
+                  경인로 72길 3, 고동경양 <b style={{ color:'var(--acTx)' }}>3층 녹색문</b>으로 오시면 돼요.
+                </div>
+                <a href="https://map.naver.com/p/search/2호선%20스튜디오?searchType=place&c=17.00,0,0,0,dh" target="_blank" rel="noopener noreferrer"
+                  style={{ display:'inline-block', marginTop:9, fontSize:11.5, fontWeight:900, background:'var(--acBg)', color:'var(--acTx)', border:'2px solid rgb(var(--ac-rgb) / 0.4)', borderRadius:18, padding:'7px 13px', cursor:'pointer', fontFamily:'Nunito,sans-serif', textDecoration:'none' }}>
+                  네이버 지도로 길찾기 →
+                </a>
+              </div>
+
+              {/* 4. 기타 문의 — 연락처 필수, 관리자에게 푸시·카톡·알림 전달 */}
+              <div style={{ border:'2.5px solid rgb(var(--ac-rgb) / 0.32)', borderRadius:20, padding:'13px 14px' }}>
+                <span style={{ display:'inline-block', fontSize:10, fontWeight:900, background:'var(--ac)', color:'#fff', borderRadius:12, padding:'3px 10px', marginBottom:8, letterSpacing:0.5 }}>STEP 4</span>
                 <div style={{ fontSize:13.5, fontWeight:900, color:'var(--td)', marginBottom:5 }}>✍️ 다른 게 궁금해요</div>
                 {inqSent ? (
                   <div style={{ textAlign:'center', padding:'14px 0 6px' }}>
