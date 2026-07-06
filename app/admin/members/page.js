@@ -208,6 +208,8 @@ export default function AdminMembersPage() {
     ? artists.filter(a => (a.name || '').includes(search) || (a.phone || '').includes(search))
     : artists
 
+  const todayStr = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` })()
+
   let lastStatus = null
 
   return (
@@ -469,14 +471,47 @@ export default function AdminMembersPage() {
                         <div style={{ fontSize:10, color:'#a2aaa1', fontWeight:700, marginTop:2 }}>총 예약</div>
                       </div>
                       <div style={{ background:'var(--acBg)', borderRadius:13, padding:'11px 12px' }}>
-                        <div style={{ fontSize:19, fontWeight:800, color:'var(--acTx)', fontVariantNumeric:'tabular-nums' }}>{m.bookings?.filter(b => b.status === 'attended').length || 0}</div>
+                        <div style={{ fontSize:19, fontWeight:800, color:'var(--acTx)', fontVariantNumeric:'tabular-nums' }}>{m.bookings?.filter(b => b.attended === true).length || 0}</div>
                         <div style={{ fontSize:10, color:'#7c9a6a', fontWeight:700, marginTop:2 }}>출석</div>
                       </div>
                       <div style={{ background:'#F6E8E6', borderRadius:13, padding:'11px 12px' }}>
-                        <div style={{ fontSize:19, fontWeight:800, color:'#94382F', fontVariantNumeric:'tabular-nums' }}>{m.bookings?.filter(b => b.status === 'absent').length || 0}</div>
+                        <div style={{ fontSize:19, fontWeight:800, color:'#94382F', fontVariantNumeric:'tabular-nums' }}>{m.bookings?.filter(b => b.attended !== true && b.status !== 'cancelled' && (b.class_date || '') < todayStr).length || 0}</div>
                         <div style={{ fontSize:10, color:'#b98d86', fontWeight:700, marginTop:2 }}>결석</div>
                       </div>
                     </div>
+
+                    {/* 수업 참석 기록 */}
+                    {(() => {
+                      const recs = (m.bookings || []).filter(b => b.status !== 'cancelled')
+                        .sort((a, b) => (b.class_date || '').localeCompare(a.class_date || '') || (b.class_time || '').localeCompare(a.class_time || ''))
+                      return (
+                        <div style={{ marginTop:12 }}>
+                          <div style={{ fontSize:11, fontWeight:800, color:'#1c2a24', margin:'0 0 8px 2px' }}>수업 참석 기록</div>
+                          {recs.length === 0 ? (
+                            <div style={{ fontSize:11, color:'#a2aaa1', textAlign:'center', padding:'16px 0', background:'#F8F7F3', borderRadius:12 }}>예약 기록이 없어요 🐾</div>
+                          ) : (
+                            <div className="no-scrollbar" style={{ display:'flex', flexDirection:'column', gap:5, maxHeight:236, overflowY:'auto' }}>
+                              {recs.map(b => {
+                                const past = (b.class_date || '') < todayStr
+                                const st = b.attended === true ? { t:'출석', c:'#2E7D4F', bg:'#EAF3E4', dot:'#4CA06A' }
+                                  : past ? { t:'결석', c:'#94382F', bg:'#F9E9E7', dot:'#C1564D' }
+                                  : { t:'예정', c:'#B5650E', bg:'#FBF3E4', dot:'#E8912A' }
+                                return (
+                                  <div key={b.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 11px', background:'#fff', border:'0.5px solid rgba(0,0,0,0.07)', borderRadius:11 }}>
+                                    <span style={{ width:7, height:7, borderRadius:'50%', background:st.dot, flexShrink:0 }}/>
+                                    <div style={{ flex:1, minWidth:0 }}>
+                                      <div style={{ fontSize:12, fontWeight:800, color:'#1c2a24', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{b.class_name || '수업'}</div>
+                                      <div style={{ fontSize:10, color:'#a2aaa1', fontWeight:600, fontVariantNumeric:'tabular-nums' }}>{(b.class_date || '').slice(5).replace('-', '/')}{b.class_time ? ` · ${b.class_time.split('~')[0]}` : ''}</div>
+                                    </div>
+                                    <span style={{ fontSize:10, fontWeight:800, color:st.c, background:st.bg, borderRadius:8, padding:'3px 9px', flexShrink:0 }}>{st.t}</span>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
 
                     <button onClick={e => { e.stopPropagation(); deleteMember(m) }} disabled={deleting === m.id}
                       style={{ width:'100%', marginTop:10, padding:'9px', background:'#fff', color:'#c0392b', border:'1.5px solid #f0c0c0', borderRadius:11, fontSize:11, fontWeight:800, cursor: deleting === m.id ? 'default' : 'pointer', opacity: deleting === m.id ? 0.5 : 1, fontFamily:'Nunito,sans-serif' }}>
