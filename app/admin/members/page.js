@@ -323,6 +323,71 @@ export default function AdminMembersPage() {
                 {isOpen && (
                   <div style={{ padding:'0 13px 15px' }}>
 
+                    {/* 수업 참석 기록 — 접기/펼치기 · 월별 묶음 · 요일 표시 */}
+                    {(() => {
+                      const recs = (m.bookings || []).filter(b => b.status !== 'cancelled')
+                        .sort((a, b) => (b.class_date || '').localeCompare(a.class_date || '') || (b.class_time || '').localeCompare(a.class_time || ''))
+                      const attOpenOn = attOpen === m.id
+                      const groups = []
+                      for (const b of recs) {
+                        const ym = (b.class_date || '').slice(0, 7)
+                        let g = groups[groups.length - 1]
+                        if (!g || g.ym !== ym) { g = { ym, items: [] }; groups.push(g) }
+                        g.items.push(b)
+                      }
+                      const DOW = ['일', '월', '화', '수', '목', '금', '토']
+                      return (
+                        <div style={{ marginBottom:10 }}>
+                          <div onClick={e => { e.stopPropagation(); setAttOpen(attOpenOn ? null : m.id) }}
+                            style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', padding:'6px 2px' }}>
+                            <span style={{ fontSize:11, fontWeight:800, color:'#1c2a24' }}>수업 참석 기록</span>
+                            <span style={{ fontSize:10, fontWeight:700, color:'#a2aaa1' }}>{recs.length}</span>
+                            <span style={{ flex:1 }}/>
+                            <span style={{ fontSize:11, color:'#bcc2ba', transform: attOpenOn ? 'rotate(180deg)' : 'none', transition:'transform 0.15s' }}>▾</span>
+                          </div>
+                          {attOpenOn && (recs.length === 0 ? (
+                            <div style={{ fontSize:11, color:'#a2aaa1', textAlign:'center', padding:'16px 0', background:'#F8F7F3', borderRadius:12 }}>예약 기록이 없어요 🐾</div>
+                          ) : (
+                            <div className="no-scrollbar" style={{ display:'flex', flexDirection:'column', gap:12, maxHeight:320, overflowY:'auto', marginTop:8 }}>
+                              {groups.map(g => {
+                                const [gy, gm] = g.ym.split('-')
+                                const att = g.items.filter(b => b.attended === true).length
+                                return (
+                                  <div key={g.ym}>
+                                    <div style={{ display:'flex', alignItems:'center', gap:6, margin:'0 2px 6px' }}>
+                                      <span style={{ fontSize:11, fontWeight:800, color:'#B5650E', fontVariantNumeric:'tabular-nums' }}>{gy}.{gm}</span>
+                                      <span style={{ fontSize:9.5, fontWeight:700, color:'#a2aaa1' }}>출석 {att}/{g.items.length}</span>
+                                      <span style={{ flex:1, height:1, background:'rgba(0,0,0,0.05)' }}/>
+                                    </div>
+                                    <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
+                                      {g.items.map(b => {
+                                        const dt = new Date((b.class_date || '') + 'T00:00:00')
+                                        const dow = isNaN(dt.getTime()) ? '' : DOW[dt.getDay()]
+                                        const past = (b.class_date || '') < todayStr
+                                        const st = b.attended === true ? { t:'출석', c:'#2E7D4F', bg:'#EAF3E4', dot:'#4CA06A' }
+                                          : past ? { t:'결석', c:'#94382F', bg:'#F9E9E7', dot:'#C1564D' }
+                                          : { t:'예정', c:'#B5650E', bg:'#FBF3E4', dot:'#E8912A' }
+                                        return (
+                                          <div key={b.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 11px', background:'#fff', border:'0.5px solid rgba(0,0,0,0.07)', borderRadius:11 }}>
+                                            <span style={{ width:7, height:7, borderRadius:'50%', background:st.dot, flexShrink:0 }}/>
+                                            <div style={{ flex:1, minWidth:0 }}>
+                                              <div style={{ fontSize:12, fontWeight:800, color:'#1c2a24', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{b.class_name || '수업'}</div>
+                                              <div style={{ fontSize:10, color:'#a2aaa1', fontWeight:600, fontVariantNumeric:'tabular-nums' }}>{(b.class_date || '').slice(5).replace('-', '/')}{dow ? ` (${dow})` : ''}{b.class_time ? ` · ${b.class_time.split('~')[0]}` : ''}</div>
+                                            </div>
+                                            <span style={{ fontSize:10, fontWeight:800, color:st.c, background:st.bg, borderRadius:8, padding:'3px 9px', flexShrink:0 }}>{st.t}</span>
+                                          </div>
+                                        )
+                                      })}
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    })()}
+
                     {/* 수강권 */}
                     <div style={{ background:'#fff', border:'0.5px solid rgba(0,0,0,0.08)', borderRadius:15, padding:14, marginBottom:10 }}>
                       <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:10, marginBottom: ticket ? 11 : 0 }}>
@@ -480,71 +545,6 @@ export default function AdminMembersPage() {
                         <div style={{ fontSize:10, color:'#b98d86', fontWeight:700, marginTop:2 }}>결석</div>
                       </div>
                     </div>
-
-                    {/* 수업 참석 기록 — 접기/펼치기 · 월별 묶음 · 요일 표시 */}
-                    {(() => {
-                      const recs = (m.bookings || []).filter(b => b.status !== 'cancelled')
-                        .sort((a, b) => (b.class_date || '').localeCompare(a.class_date || '') || (b.class_time || '').localeCompare(a.class_time || ''))
-                      const attOpenOn = attOpen === m.id
-                      const groups = []
-                      for (const b of recs) {
-                        const ym = (b.class_date || '').slice(0, 7)
-                        let g = groups[groups.length - 1]
-                        if (!g || g.ym !== ym) { g = { ym, items: [] }; groups.push(g) }
-                        g.items.push(b)
-                      }
-                      const DOW = ['일', '월', '화', '수', '목', '금', '토']
-                      return (
-                        <div style={{ marginTop:12 }}>
-                          <div onClick={e => { e.stopPropagation(); setAttOpen(attOpenOn ? null : m.id) }}
-                            style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', padding:'6px 2px' }}>
-                            <span style={{ fontSize:11, fontWeight:800, color:'#1c2a24' }}>수업 참석 기록</span>
-                            <span style={{ fontSize:10, fontWeight:700, color:'#a2aaa1' }}>{recs.length}</span>
-                            <span style={{ flex:1 }}/>
-                            <span style={{ fontSize:11, color:'#bcc2ba', transform: attOpenOn ? 'rotate(180deg)' : 'none', transition:'transform 0.15s' }}>▾</span>
-                          </div>
-                          {attOpenOn && (recs.length === 0 ? (
-                            <div style={{ fontSize:11, color:'#a2aaa1', textAlign:'center', padding:'16px 0', background:'#F8F7F3', borderRadius:12 }}>예약 기록이 없어요 🐾</div>
-                          ) : (
-                            <div className="no-scrollbar" style={{ display:'flex', flexDirection:'column', gap:12, maxHeight:320, overflowY:'auto' }}>
-                              {groups.map(g => {
-                                const [gy, gm] = g.ym.split('-')
-                                const att = g.items.filter(b => b.attended === true).length
-                                return (
-                                  <div key={g.ym}>
-                                    <div style={{ display:'flex', alignItems:'center', gap:6, margin:'0 2px 6px' }}>
-                                      <span style={{ fontSize:11, fontWeight:800, color:'#B5650E', fontVariantNumeric:'tabular-nums' }}>{gy}.{gm}</span>
-                                      <span style={{ fontSize:9.5, fontWeight:700, color:'#a2aaa1' }}>출석 {att}/{g.items.length}</span>
-                                      <span style={{ flex:1, height:1, background:'rgba(0,0,0,0.05)' }}/>
-                                    </div>
-                                    <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
-                                      {g.items.map(b => {
-                                        const dt = new Date((b.class_date || '') + 'T00:00:00')
-                                        const dow = isNaN(dt.getTime()) ? '' : DOW[dt.getDay()]
-                                        const past = (b.class_date || '') < todayStr
-                                        const st = b.attended === true ? { t:'출석', c:'#2E7D4F', bg:'#EAF3E4', dot:'#4CA06A' }
-                                          : past ? { t:'결석', c:'#94382F', bg:'#F9E9E7', dot:'#C1564D' }
-                                          : { t:'예정', c:'#B5650E', bg:'#FBF3E4', dot:'#E8912A' }
-                                        return (
-                                          <div key={b.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 11px', background:'#fff', border:'0.5px solid rgba(0,0,0,0.07)', borderRadius:11 }}>
-                                            <span style={{ width:7, height:7, borderRadius:'50%', background:st.dot, flexShrink:0 }}/>
-                                            <div style={{ flex:1, minWidth:0 }}>
-                                              <div style={{ fontSize:12, fontWeight:800, color:'#1c2a24', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{b.class_name || '수업'}</div>
-                                              <div style={{ fontSize:10, color:'#a2aaa1', fontWeight:600, fontVariantNumeric:'tabular-nums' }}>{(b.class_date || '').slice(5).replace('-', '/')}{dow ? ` (${dow})` : ''}{b.class_time ? ` · ${b.class_time.split('~')[0]}` : ''}</div>
-                                            </div>
-                                            <span style={{ fontSize:10, fontWeight:800, color:st.c, background:st.bg, borderRadius:8, padding:'3px 9px', flexShrink:0 }}>{st.t}</span>
-                                          </div>
-                                        )
-                                      })}
-                                    </div>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          ))}
-                        </div>
-                      )
-                    })()}
 
                     <div style={{ marginTop:12, borderTop:'1px solid var(--g1)', paddingTop:11 }}>
                       <div style={{ display:'flex', alignItems:'center', gap:10 }}>
