@@ -104,6 +104,7 @@ export default function AdminSettingsPage() {
                 style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, padding: '11px 12px', borderRadius: 14, background: on ? 'var(--acBg)' : '#fff', border: on ? `2px solid ${t.a1}` : '1.5px solid var(--g2)' }}>
                 <span style={{ width: 16, height: 16, borderRadius: '50%', background: t.a1, flexShrink: 0 }} />
                 <span style={{ width: 16, height: 16, borderRadius: '50%', background: t.a2, marginLeft: -14, flexShrink: 0, border: '2px solid #fff' }} />
+                {t.a3 && <span style={{ width: 16, height: 16, borderRadius: '50%', background: t.a3, marginLeft: -14, flexShrink: 0, border: '2px solid #fff' }} />}
                 <span style={{ fontSize: 12, fontWeight: on ? 800 : 600, color: on ? 'var(--acTx)' : 'var(--td)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</span>
               </div>
             )

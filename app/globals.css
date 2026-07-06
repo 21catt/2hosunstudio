@@ -81,6 +81,86 @@
   --card: #f2f0f8;
 }
 
+/* 버건디 블루 (2색, 수확 5) */
+[data-theme='burgundy'] {
+  --g1: #f0e7ea;
+  --g2: #dcc6cd;
+  --g3: #9c6b78;
+  --g4: #64313e;
+  --g5: #451f28;
+  --bg: #fbf7f8;
+  --td: #241419;
+  --tm: #665157;
+  --tmu: #a8949a;
+  --tl: #d9c8cd;
+  --ac: #64313e;
+  --ac-rgb: 100 49 62;
+  --ac2: #c1dbe8;
+  --acBg: #f4ebee;
+  --acTx: #4a2530;
+  --card: #f2edef;
+}
+
+/* 팔루 선셋 (3색, 수확 6) */
+[data-theme='palu'] {
+  --g1: #f4e8e7;
+  --g2: #e2c4c2;
+  --g3: #b06d6d;
+  --g4: #711d1d;
+  --g5: #4e1212;
+  --bg: #fbf7f5;
+  --td: #241615;
+  --tm: #6a534f;
+  --tmu: #a8928e;
+  --tl: #d9c8c5;
+  --ac: #711d1d;
+  --ac-rgb: 113 29 29;
+  --ac2: #ffc973;
+  --acBg: #f9ece9;
+  --acTx: #5a1414;
+  --card: #f4edeb;
+}
+
+/* 세이지 버터 (3색, 수확 6) */
+[data-theme='sage'] {
+  --g1: #e5edf5;
+  --g2: #bccfe3;
+  --g3: #6d8fb8;
+  --g4: #2d5996;
+  --g5: #1c3c68;
+  --bg: #f6f9fc;
+  --td: #161f2c;
+  --tm: #556070;
+  --tmu: #97a2b0;
+  --tl: #c6d0dc;
+  --ac: #2d5996;
+  --ac-rgb: 45 89 150;
+  --ac2: #f2d976;
+  --acBg: #eaf1f8;
+  --acTx: #1e3e6b;
+  --card: #eef2f6;
+}
+
+/* 미드 그린 (3색, 수확 6) */
+[data-theme='midgreen'] {
+  --g1: #e3efec;
+  --g2: #b6d2ce;
+  --g3: #4f8288;
+  --g4: #0f464c;
+  --g5: #082e32;
+  --bg: #f5faf9;
+  --td: #10201f;
+  --tm: #4d615f;
+  --tmu: #91a5a2;
+  --tl: #c3d3d0;
+  --ac: #0f464c;
+  --ac-rgb: 15 70 76;
+  --ac2: #f4eb9a;
+  --acBg: #e6f1ef;
+  --acTx: #0a3438;
+  --card: #eef3f2;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
