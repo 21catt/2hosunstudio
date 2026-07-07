@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import StudentNav from '../../components/StudentNav'
+import AdminNav from '../../components/AdminNav'
 import { NavIcon } from '../../components/NavIcons'
 import LoadingCat from '../../components/LoadingCat'
 import { pixelCatImg, DEFAULT_PROFILE_CAT, getSavedProfileCat } from '../../lib/pixelCats'
@@ -630,18 +631,7 @@ export default function LoungePage() {
       )}
 
       {role === 'admin' ? (
-        <nav className="bottom-nav">
-          {[
-            { href:'/admin', label:'홈', icon:'home' },
-            { href:'/admin/notification', label:'알림', icon:'bell' },
-            { href:'/lounge', label:'라운지', icon:'chat', active:true },
-          ].map(t => (
-            <a key={t.label} href={t.href} className={`nav-item ${t.active?'active':''}`}>
-              <NavIcon name={t.icon} active={t.active} />
-              <span>{t.label}</span>
-            </a>
-          ))}
-        </nav>
+        <AdminNav active="lounge" />
       ) : (
         <StudentNav active="lounge" role={role === 'artist' ? 'artist' : 'student'} />
       )}
