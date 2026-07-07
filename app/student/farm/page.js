@@ -270,7 +270,7 @@ export default function FarmPage() {
     if (changed || cropLoss > 0) persistWeeds(state)
   }
 
-  // 잡초 뽑기 (4단계부터) → 제거 수 +1, 100개면 보상
+  // 잡초 뽑기 (4단계부터) → 제거 수 +1, 500개면 보상
   function removeWeed(w) {
     const s = weedRef.current
     if (!s) return
@@ -493,7 +493,7 @@ export default function FarmPage() {
               <span style={{ fontSize:20 }}>🌿</span>
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontSize:12, fontWeight:800, color:'var(--td)' }}>잡초 뽑기 {weedRemoved}/{WEED.REWARD_AT}</div>
-                <div style={{ fontSize:10, color:'var(--tmu)', marginTop:1, lineHeight:1.5 }}>다 자란 잡초는 밭에서 눌러 뽑아요. 100개 뽑으면 드로잉노트+연필! (완전 성장 10개↑ 방치 시 작물 소멸)</div>
+                <div style={{ fontSize:10, color:'var(--tmu)', marginTop:1, lineHeight:1.5 }}>다 자란 잡초는 밭에서 눌러 뽑아요. 500개 뽑으면 드로잉노트+연필! (완전 성장 10개↑ 방치 시 작물 소멸)</div>
               </div>
             </div>
           ) : (
@@ -537,14 +537,14 @@ export default function FarmPage() {
         </div>
       </div>
 
-      {/* 잡초 100개 제거 보상 */}
+      {/* 잡초 500개 제거 보상 */}
       {weedReward && (
         <div onClick={() => setWeedReward(false)}
           style={{ position:'fixed', inset:0, background:'rgba(27,28,70,0.55)', zIndex:1200, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}>
           <div onClick={e => e.stopPropagation()}
             style={{ background:'#fff', borderRadius:22, padding:'26px 22px', maxWidth:320, width:'100%', textAlign:'center', border:'3px solid var(--ac)', boxShadow:'0 14px 40px rgba(0,0,0,0.25)' }}>
             <div style={{ fontSize:46 }}>🎁</div>
-            <div style={{ fontSize:16, fontWeight:900, color:'var(--td)', margin:'10px 0 6px' }}>잡초 100개 제거 완료!</div>
+            <div style={{ fontSize:16, fontWeight:900, color:'var(--td)', margin:'10px 0 6px' }}>잡초 500개 제거 완료!</div>
             <div style={{ fontSize:12.5, color:'var(--tm)', fontWeight:600, lineHeight:1.7, marginBottom:16 }}>
               2호선 스튜디오 고양이 <b style={{ color:'var(--acTx)' }}>드로잉노트 + 연필</b>을 받았어요! 🐾<br/>스튜디오에서 수령해 주세요.
             </div>
