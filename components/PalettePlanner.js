@@ -33,6 +33,18 @@ function munsellHueStr(m){const fam=['R','YR','Y','GY','G','BG','B','PB','P','RP
 function munsell(c){const rgb=hsl2rgb(c.h,c.s,c.l),lab=rgb2lab(rgb),Cab=Math.hypot(lab.a,lab.b),hab=(Math.atan2(lab.b,lab.a)*180/Math.PI+360)%360
   const V=Math.round(munsellValue(relLum(rgb))*2)/2,C=Math.round(Cab/5.2)
   return C<1?`N ${V}`:`${munsellHueStr(labHueToMunsell(hab))} ${V}/${C}`}
+// 색채가 주는 느낌 — 한난·채도·명도 평균으로 인상 태그(먼셀 명도·CIELAB 채도 기준)
+function moodOf(P){
+  const M=P.map(c=>{const rgb=hsl2rgb(c.h,c.s,c.l),lab=rgb2lab(rgb),h=(Math.atan2(lab.b,lab.a)*180/Math.PI+360)%360
+    return { V:munsellValue(relLum(rgb)), C:Math.hypot(lab.a,lab.b), warm:Math.cos((h-50)*Math.PI/180) }})
+  const avgV=(M[0].V+M[1].V+M[2].V)/3,avgC=(M[0].C+M[1].C+M[2].C)/3,avgW=(M[0].warm+M[1].warm+M[2].warm)/3
+  const wc=M.filter(m=>m.warm>0.2).length,cc=M.filter(m=>m.warm<-0.2).length
+  const temp=(wc>0&&cc>0)?'한난 공존':avgW>0.15?'따뜻함':avgW<-0.15?'서늘함':'중성'
+  const chroma=avgC>55?'선명·활기':avgC<30?'은은·차분':'부드러움'
+  const value=avgV>6.5?'밝고 경쾌':avgV<4?'묵직·깊음':'안정'
+  return `${temp} · ${chroma} · ${value}`
+}
+const DOMWHY={ sat:'넓은 60% 바탕은 차분해야 눈이 편하고 포인트가 살아나요', light:'밝은 바탕으로 화사하고 열린 하이키 느낌을 내요', mid:'중간 명도라 어느 색과도 무난한 균형형 바탕이에요' }
 function hx(h,s,l){const r=hsl2rgb(h,s,l),t=x=>x.toString(16).padStart(2,'0');return '#'+t(r[0])+t(r[1])+t(r[2])}
 const warm=h=>Math.cos((h-42)*Math.PI/180)
 const tint=c=>({h:c.h,s:c.s*0.5,l:c.l+(100-c.l)*0.5})
@@ -105,7 +117,7 @@ function drawWheelOn(ctx,cx,cy,R,D){
   ;[0,120,240].forEach(th=>{const a=(th-90)*Math.PI/180;ctx.fillText('P',cx+Math.cos(a)*(R+R*0.1),cy+Math.sin(a)*(R+R*0.1))})
 }
 function rrect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
-function drawCard(ctx,W,H,D,P){
+function drawCard(ctx,W,H,D,P,mood,ratioStr,domLabel){
   ctx.fillStyle=BG;ctx.fillRect(0,0,W,H)
   ctx.fillStyle=TX;ctx.textAlign='left';ctx.textBaseline='alphabetic'
   ctx.font='500 40px Nunito, sans-serif';ctx.fillText('삼색 · 색 계획',44,72)
@@ -122,8 +134,9 @@ function drawCard(ctx,W,H,D,P){
   groups.forEach(g=>{const segW=barW*g[1]/100,each=segW/g[0].length
     g[0].forEach((c,j)=>{ctx.fillStyle=cssH(c);ctx.fillRect(cx+j*each,barY,each+0.5,barH)});cx+=segW})
   cx=barX;groups.forEach(g=>{const segW=barW*g[1]/100;ctx.fillStyle=TX2;ctx.font='400 22px Nunito, sans-serif';ctx.textAlign='center';ctx.fillText(`${g[2]} ${g[1]}%`,cx+segW/2,barY+barH+34);cx+=segW})
-  ctx.textAlign='left';ctx.fillStyle=cssH(D.acc);ctx.font='500 30px Nunito, sans-serif';ctx.fillText(`추천 대비 · ${D.con.headline}`,44,912)
-  ctx.fillStyle=MUT;ctx.font='400 21px Nunito, sans-serif';ctx.fillText(`혼합 ${'물감식'} · ${D.con.reco}`.slice(0,60),44,946)
+  ctx.textAlign='left';ctx.fillStyle=TX2;ctx.font='400 23px Nunito, sans-serif';ctx.fillText(`느낌 · ${mood}`,44,884)
+  ctx.fillStyle=cssH(D.acc);ctx.font='500 30px Nunito, sans-serif';ctx.fillText(`추천 대비 · ${D.con.headline}`,44,922)
+  ctx.fillStyle=MUT;ctx.font='400 21px Nunito, sans-serif';ctx.fillText(`면적 ${ratioStr} · 주체 ${domLabel} 기준`,44,954)
 }
 
 export default function PalettePlanner({ initial, role, saving, onClose, onSave }){
@@ -136,6 +149,7 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
   const cv=useRef(null)
 
   const D=useMemo(()=>derive(P,mix,ratio,domCrit,accentSel),[P,mix,ratio,domCrit,accentSel])
+  const mood=useMemo(()=>moodOf(P),[P])
 
   useEffect(()=>{ const c=cv.current; if(!c)return; drawWheelOn(c.getContext('2d'),105,105,89,D) },[D])
 
@@ -143,12 +157,15 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
   const brickSel=c=>accentSel&&Math.abs(accentSel.h-c.h)<0.6&&Math.abs(accentSel.l-c.l)<0.6&&Math.abs(accentSel.s-c.s)<0.6
 
   async function save(){
+    const domLabel=domCrit==='sat'?'저채도':domCrit==='light'?'최고명도':'중명도'
+    const ratioStr=ratio==='631'?'6:3:1':'6:2:2'
     const c=document.createElement('canvas');c.width=720;c.height=1000
-    drawCard(c.getContext('2d'),720,1000,D,P)
+    drawCard(c.getContext('2d'),720,1000,D,P,mood,ratioStr,domLabel)
     const blob=await new Promise(res=>c.toBlob(res,'image/png'))
     const palette={ v:1, primaries:P, mix, ratio, domCrit, accentManual:!!accentSel, accent:D.acc,
-      hex:[...P.map(p=>hx(p.h,p.s,p.l)), hx(D.acc.h,D.acc.s,D.acc.l)], munsell:P.map(munsell), contrasts:D.con.keys }
-    onSave(blob,palette)
+      hex:[...P.map(p=>hx(p.h,p.s,p.l)), hx(D.acc.h,D.acc.s,D.acc.l)], munsell:P.map(munsell), mood, contrasts:D.con.keys }
+    const note=`🎨 색 계획\n· 느낌: ${mood}\n· 추천 대비: ${D.con.headline}\n· 면적 ${ratioStr} · 주체 ${domLabel} 기준`
+    onSave(blob,palette,note)
   }
 
   const seg=(on)=>({ fontSize:11, padding:'5px 11px', borderRadius:20, cursor:'pointer', fontFamily:'inherit',
@@ -217,6 +234,7 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
 
         <div style={{ padding:'16px 16px 0' }}>
           <div style={{ fontSize:12.5, fontWeight:500, color:TX, marginBottom:9 }}>◐ 추천 대비 <span style={{ color:TX2, fontWeight:400, fontSize:11 }}>— 먼셀 색채대비 기준</span></div>
+          <div style={{ fontSize:11.5, color:'#c9c9d4', marginBottom:8, lineHeight:1.5 }}>색채 느낌 · <span style={{ color:cssH(D.acc), fontWeight:500 }}>{mood}</span></div>
           <div style={{ background:CARD, border:`1px solid ${BORD}`, borderRadius:12, padding:'10px 12px' }}>
             <div style={{ fontSize:13.5, fontWeight:500, color:cssH(D.acc), marginBottom:3 }}>{D.con.headline}</div>
             <div style={{ fontSize:11, color:'#a0a0b0', lineHeight:1.5 }}>{D.con.reco}</div>
@@ -245,12 +263,13 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
               <button onClick={()=>setRatio('622')} style={seg(ratio==='622')}>6 : 2 : 2</button>
             </span>
           </div>
-          <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:10, flexWrap:'wrap' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:6, flexWrap:'wrap' }}>
             <span style={{ fontSize:11, color:TX2 }}>주체 기준</span>
             <button onClick={()=>setDomCrit('sat')} style={seg(domCrit==='sat')}>저채도</button>
             <button onClick={()=>setDomCrit('light')} style={seg(domCrit==='light')}>최고명도</button>
             <button onClick={()=>setDomCrit('mid')} style={seg(domCrit==='mid')}>중명도</button>
           </div>
+          <div style={{ fontSize:10.5, color:MUT, marginBottom:10, lineHeight:1.5 }}>ⓘ {DOMWHY[domCrit]}</div>
           <div style={{ display:'flex', gap:8 }}>
             {[[[D.dom,D.domD],D.wd[0],'주체'],[[D.sec,D.secT],D.wd[1],'부수'],[[D.acc],D.wd[2],'종속',D.rec?'추천':'선택']].map((g,gi)=>(
               <div key={gi} style={{ flex:`0 0 ${g[1]}%`, display:'flex', flexDirection:'column', gap:4 }}>

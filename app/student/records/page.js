@@ -260,13 +260,13 @@ function RecordsInner() {
   }
 
   // 색 계획 카드 저장 — 도구가 만든 합성 PNG + palette JSON을 그날 기록 사진으로 저장
-  async function handleSavePlan(blob, palette) {
+  async function handleSavePlan(blob, palette, note) {
     if (!user || savingPlan) return
     setSavingPlan(true)
     try {
       const { data: rec } = await supabase
         .from('class_records')
-        .insert({ user_id: user.id, class_date: ctx.date, class_name: ctx.cls || null, note: '🎨 색 계획' })
+        .insert({ user_id: user.id, class_date: ctx.date, class_name: ctx.cls || null, note: note || '🎨 색 계획' })
         .select().single()
       if (!rec) throw new Error('insert failed')
 
