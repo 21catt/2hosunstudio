@@ -18,6 +18,12 @@ const cssH=c=>`hsl(${Math.round(c.h)} ${Math.round(c.s)}% ${Math.round(c.l)}%)`
 const cssR=a=>`rgb(${a[0]} ${a[1]} ${a[2]})`
 function hsl2rgb(h,s,l){s/=100;l/=100;const k=n=>(n+h/30)%12,a=s*Math.min(l,1-l),f=n=>l-a*Math.max(-1,Math.min(k(n)-3,9-k(n),1));return [f(0),f(8),f(4)].map(x=>Math.round(x*255))}
 function rgb2hsl(r,g,b){r/=255;g/=255;b/=255;const mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn;let h=0;if(d){if(mx===r)h=((g-b)/d+6)%6;else if(mx===g)h=(b-r)/d+2;else h=(r-g)/d+4;h*=60}const l=(mx+mn)/2,s=d?d/(1-Math.abs(2*l-1)):0;return {h,s:s*100,l:l*100}}
+// 먼셀 색채대비 분석용 — sRGB → CIELAB(D65). 먼셀 명도 V≈L*/10, 채도 C≈C*ab, 보색=대립색공간 마주봄.
+function srgbLin(c){c/=255;return c<=0.04045?c/12.92:Math.pow((c+0.055)/1.055,2.4)}
+function rgb2lab([r,g,b]){const R=srgbLin(r),G=srgbLin(g),B=srgbLin(b)
+  let X=(R*0.4124+G*0.3576+B*0.1805)/0.95047,Y=R*0.2126+G*0.7152+B*0.0722,Z=(R*0.0193+G*0.1192+B*0.9505)/1.08883
+  const f=t=>t>0.008856?Math.cbrt(t):7.787*t+16/116,fx=f(X),fy=f(Y),fz=f(Z)
+  return { L:116*fy-16, a:500*(fx-fy), b:200*(fy-fz) }}
 function hx(h,s,l){const r=hsl2rgb(h,s,l),t=x=>x.toString(16).padStart(2,'0');return '#'+t(r[0])+t(r[1])+t(r[2])}
 const warm=h=>Math.cos((h-42)*Math.PI/180)
 const tint=c=>({h:c.h,s:c.s*0.5,l:c.l+(100-c.l)*0.5})
@@ -27,17 +33,32 @@ function avgRGB(P){let r=0,g=0,b=0;P.forEach(c=>{const x=hsl2rgb(c.h,c.s,c.l);r+
 const hd=(a,b)=>{let d=Math.abs(a-b)%360;return d>180?360-d:d}
 function makePureAt(P,mix){return function(th){th=((th%360)+360)%360;let a,b,t;if(th<120){a=P[0];b=P[1];t=th/120}else if(th<240){a=P[1];b=P[2];t=(th-120)/120}else{a=P[2];b=P[0];t=(th-240)/120}return mix==='sub'?pureSub(a,b,t):mixHSL(a,b,t)}}
 
+// 먼셀 색채대비 기준 분석 — CIELAB 근사. 3속성(색상·명도·채도) + 보색·한난·동시·면적.
 function contrastsOf(P){
-  const Ls=P.map(c=>c.l),sat=P.map(c=>c.s),w=P.map(c=>warm(c.h))
-  const Ls2=Math.round(Math.max(...Ls)-Math.min(...Ls)),wc=w.filter(x=>x>0.15).length,cc=w.filter(x=>x<-0.15).length
-  let mx=0;for(let i=0;i<3;i++)for(let j=i+1;j<3;j++)mx=Math.max(mx,hd(P[i].h,P[j].h));mx=Math.round(mx)
-  const avgS=(sat[0]+sat[1]+sat[2])/3,set=new Set(['면적'])
-  if(Ls2>32)set.add('명도');if(wc>0&&cc>0)set.add('한난');if(mx>=138)set.add('보색');if(mx<=56)set.add('유사');if(mx>=138&&avgS>54)set.add('동시')
-  const pr=[['한난','한난대비'],['명도','명도대비'],['보색','보색대비'],['유사','유사대비'],['동시','동시대비']],pk=pr.filter(p=>set.has(p[0]))
-  const headline=pk.slice(0,2).map(p=>p[1]).join(' + ')||'면적대비 중심'
-  const RS={한난:`따뜻한 색 ${wc} · 차가운 색 ${cc}개라 한난대비가 또렷해요`,명도:`명도 차이가 ${Ls2}%라 명도대비가 잘 살아요`,보색:`가장 먼 두 색이 ${mx}° 벌어져 보색대비가 가능해요`,유사:`색이 ${mx}° 안에 모여 유사대비가 안정적이에요`,동시:`고채도 보색이라 동시대비 효과가 강해요`}
-  const reco=pk.slice(0,2).map(p=>RS[p[0]]).join('. ')||'면적으로 균형을 잡아요'
-  return { set, headline, keys:pk.slice(0,2).map(p=>p[0]), reco, chips:['명도','보색','유사','한난','동시','면적'].map(k=>({k,on:set.has(k)})) }
+  const M=P.map(c=>{const lab=rgb2lab(hsl2rgb(c.h,c.s,c.l)),C=Math.hypot(lab.a,lab.b),h=(Math.atan2(lab.b,lab.a)*180/Math.PI+360)%360
+    return { L:lab.L, C, h, warm:Math.cos((h-50)*Math.PI/180) }})
+  let dL=0,dC=0,dH=0,comp=0
+  for(let i=0;i<3;i++)for(let j=i+1;j<3;j++){dL=Math.max(dL,Math.abs(M[i].L-M[j].L));dC=Math.max(dC,Math.abs(M[i].C-M[j].C));const dh=hd(M[i].h,M[j].h);dH=Math.max(dH,dh);comp=Math.max(comp,dh)}
+  const wc=M.filter(m=>m.warm>0.2).length,cc=M.filter(m=>m.warm<-0.2).length
+  const warmSpread=Math.max(...M.map(m=>m.warm))-Math.min(...M.map(m=>m.warm)),avgC=(M[0].C+M[1].C+M[2].C)/3
+  const compSt=comp>=150?cl((comp-120)/60,0,1):0
+  const st={ 색상:cl(dH/170,0,1), 명도:cl(dL/60,0,1), 채도:cl(dC/70,0,1), 보색:compSt, 한난:(wc>0&&cc>0)?cl(warmSpread/1.6,0,1):0, 동시:compSt*cl(avgC/60,0,1) }
+  const present=[]
+  if(st.색상>=0.30)present.push('색상')
+  if(st.명도>=0.32)present.push('명도')
+  if(st.채도>=0.30)present.push('채도')
+  if(st.보색>=0.35)present.push('보색')
+  if(st.한난>0)present.push('한난')
+  if(st.동시>=0.30)present.push('동시')
+  present.push('면적')
+  const setObj=new Set(present)
+  const ranked=present.filter(k=>k!=='면적').sort((a,b)=>st[b]-st[a])
+  const label={색상:'색상대비',명도:'명도대비',채도:'채도대비',보색:'보색대비',한난:'한난대비',동시:'동시대비'}
+  const headline=ranked.slice(0,2).map(k=>label[k]).join(' + ')||'면적대비 중심'
+  const dV=Math.round(dL/10*10)/10,dh0=Math.round(dH),dCr=Math.round(dC)
+  const RS={ 색상:`먼셀 색상차가 ${dh0}°로 색상대비가 또렷해요`, 명도:`먼셀 명도차 ΔV ${dV}로 명도대비가 강해요`, 채도:`채도차 ΔC ${dCr}로 선명↔차분 대비가 생겨요`, 보색:`두 색이 색상환에서 마주봐(보색) 대비가 최대예요`, 한난:`따뜻한 색 ${wc} · 차가운 색 ${cc}개라 한난대비가 또렷해요`, 동시:`고채도 보색이 인접해 동시대비로 서로 더 강해 보여요` }
+  const reco=ranked.slice(0,2).map(k=>RS[k]).join('. ')||'면적으로 균형을 잡아요'
+  return { headline, keys:ranked.slice(0,2), reco, chips:['색상','명도','채도','보색','한난','동시','면적'].map(k=>({k,on:setObj.has(k)})) }
 }
 
 function derive(P,mix,ratio,domCrit,accentSel){
@@ -183,7 +204,7 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
         </div>
 
         <div style={{ padding:'16px 16px 0' }}>
-          <div style={{ fontSize:12.5, fontWeight:500, color:TX, marginBottom:9 }}>◐ 추천 대비</div>
+          <div style={{ fontSize:12.5, fontWeight:500, color:TX, marginBottom:9 }}>◐ 추천 대비 <span style={{ color:TX2, fontWeight:400, fontSize:11 }}>— 먼셀 색채대비 기준</span></div>
           <div style={{ background:CARD, border:`1px solid ${BORD}`, borderRadius:12, padding:'10px 12px' }}>
             <div style={{ fontSize:13.5, fontWeight:500, color:cssH(D.acc), marginBottom:3 }}>{D.con.headline}</div>
             <div style={{ fontSize:11, color:'#a0a0b0', lineHeight:1.5 }}>{D.con.reco}</div>
