@@ -24,6 +24,15 @@ function rgb2lab([r,g,b]){const R=srgbLin(r),G=srgbLin(g),B=srgbLin(b)
   let X=(R*0.4124+G*0.3576+B*0.1805)/0.95047,Y=R*0.2126+G*0.7152+B*0.0722,Z=(R*0.0193+G*0.1192+B*0.9505)/1.08883
   const f=t=>t>0.008856?Math.cbrt(t):7.787*t+16/116,fx=f(X),fy=f(Y),fz=f(Z)
   return { L:116*fy-16, a:500*(fx-fy), b:200*(fy-fz) }}
+// 먼셀 H V/C 표기 — 명도 V는 ASTM D1535 역변환(정확), 색상 H·채도 C는 CIELAB 보정 근사.
+function relLum([r,g,b]){return srgbLin(r)*0.2126+srgbLin(g)*0.7152+srgbLin(b)*0.0722}
+function munsellValue(Yrel){const Y=Yrel*100;let lo=0,hi=10;for(let k=0;k<36;k++){const V=(lo+hi)/2,y=1.2219*V-0.23111*V*V+0.23951*V**3-0.021009*V**4+0.0008404*V**5;if(y<Y)lo=V;else hi=V}return (lo+hi)/2}
+const HANCH=[[34,5],[52,15],[86,25],[120,35],[158,45],[192,55],[248,65],[296,75],[330,85],[356,95],[394,105]]
+function labHueToMunsell(h){let x=h;if(x<34)x+=360;for(let i=0;i<HANCH.length-1;i++){const[h0,m0]=HANCH[i],[h1,m1]=HANCH[i+1];if(x>=h0&&x<=h1){const t=(x-h0)/(h1-h0);return ((m0+(m1-m0)*t)%100+100)%100}}return 5}
+function munsellHueStr(m){const fam=['R','YR','Y','GY','G','BG','B','PB','P','RP'];let mm=((Math.round(m/2.5)*2.5)%100+100)%100,idx=Math.floor(mm/10)%10,step=mm-idx*10;if(step===0){step=10;idx=(idx-1+10)%10}return `${step}${fam[idx]}`}
+function munsell(c){const rgb=hsl2rgb(c.h,c.s,c.l),lab=rgb2lab(rgb),Cab=Math.hypot(lab.a,lab.b),hab=(Math.atan2(lab.b,lab.a)*180/Math.PI+360)%360
+  const V=Math.round(munsellValue(relLum(rgb))*2)/2,C=Math.round(Cab/5.2)
+  return C<1?`N ${V}`:`${munsellHueStr(labHueToMunsell(hab))} ${V}/${C}`}
 function hx(h,s,l){const r=hsl2rgb(h,s,l),t=x=>x.toString(16).padStart(2,'0');return '#'+t(r[0])+t(r[1])+t(r[2])}
 const warm=h=>Math.cos((h-42)*Math.PI/180)
 const tint=c=>({h:c.h,s:c.s*0.5,l:c.l+(100-c.l)*0.5})
@@ -104,7 +113,8 @@ function drawCard(ctx,W,H,D,P){
   drawWheelOn(ctx,W/2,300,168,D)
   const swW=200,gap=16,x0=(W-(swW*3+gap*2))/2,sy=500
   P.forEach((c,i)=>{const x=x0+i*(swW+gap);rrect(ctx,x,sy,swW,74,16);ctx.fillStyle=cssH(c);ctx.fill()
-    ctx.fillStyle=TX2;ctx.font='400 22px Nunito, sans-serif';ctx.textAlign='center';ctx.fillText(hx(c.h,c.s,c.l).toUpperCase(),x+swW/2,sy+108)})
+    ctx.textAlign='center';ctx.fillStyle=TX2;ctx.font='400 22px Nunito, sans-serif';ctx.fillText(hx(c.h,c.s,c.l).toUpperCase(),x+swW/2,sy+106)
+    ctx.fillStyle=MUT;ctx.font='400 19px Nunito, sans-serif';ctx.fillText(munsell(c),x+swW/2,sy+132)})
   ctx.textAlign='left';ctx.fillStyle=TX2;ctx.font='400 24px Nunito, sans-serif'
   ctx.fillText(`면적 ${D.wd[0]} : ${D.wd[1]} : ${D.wd[2]}`,44,690)
   const groups=[[[D.dom,D.domD],D.wd[0],'주체'],[[D.sec,D.secT],D.wd[1],'부수'],[[D.acc],D.wd[2],'종속']]
@@ -137,7 +147,7 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
     drawCard(c.getContext('2d'),720,1000,D,P)
     const blob=await new Promise(res=>c.toBlob(res,'image/png'))
     const palette={ v:1, primaries:P, mix, ratio, domCrit, accentManual:!!accentSel, accent:D.acc,
-      hex:[...P.map(p=>hx(p.h,p.s,p.l)), hx(D.acc.h,D.acc.s,D.acc.l)], contrasts:D.con.keys }
+      hex:[...P.map(p=>hx(p.h,p.s,p.l)), hx(D.acc.h,D.acc.s,D.acc.l)], munsell:P.map(munsell), contrasts:D.con.keys }
     onSave(blob,palette)
   }
 
@@ -184,10 +194,12 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
               <button key={i} onClick={()=>setAct(i)} style={{ flex:1, border:'none', padding:0, background:'none', cursor:'pointer', textAlign:'center' }}>
                 <div style={{ height:52, borderRadius:12, border:`2px solid ${act===i?'#ededf2':'transparent'}`, background:cssH(c) }}/>
                 <span style={{ fontFamily:'monospace', fontSize:11, color:TX2, marginTop:5, display:'block' }}>{hx(c.h,c.s,c.l).toUpperCase()}</span>
+                <span style={{ fontSize:10.5, color:MUT, display:'block', marginTop:1 }}>{munsell(c)}</span>
               </button>
             ))}
           </div>
-          <div style={{ marginTop:10, display:'flex', flexDirection:'column', gap:8, background:CARD, border:`1px solid ${BORD}`, borderRadius:12, padding:'11px' }}>
+          <div style={{ fontSize:10.5, color:MUT, marginTop:5, textAlign:'center' }}>표기 = 먼셀 H V/C (명도 정확 · 색상·채도 근사)</div>
+          <div style={{ marginTop:8, display:'flex', flexDirection:'column', gap:8, background:CARD, border:`1px solid ${BORD}`, borderRadius:12, padding:'11px' }}>
             {[['색상','h',0,360],['채도','s',5,95],['명도','l',8,92]].map(([lab,f,mn,mx])=>(
               <div key={f} style={{ display:'flex', alignItems:'center', gap:9 }}>
                 <span style={{ fontSize:11, color:TX2, width:34, flexShrink:0 }}>{lab}</span>
@@ -264,7 +276,7 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
         </div>
 
         <div style={{ padding:'14px 16px 0', display:'flex', gap:10, alignItems:'center' }}>
-          <span style={{ fontSize:11, color:TX2 }}>포인트 <span style={{ fontFamily:'monospace', color:'#c9c9d4' }}>{hx(D.acc.h,D.acc.s,D.acc.l).toUpperCase()}</span></span>
+          <span style={{ fontSize:11, color:TX2 }}>포인트 <span style={{ fontFamily:'monospace', color:'#c9c9d4' }}>{hx(D.acc.h,D.acc.s,D.acc.l).toUpperCase()}</span> <span style={{ color:MUT }}>· {munsell(D.acc)}</span></span>
           {accentSel && <button onClick={()=>setAccentSel(null)} style={{ ...seg(false), display:'inline-flex', alignItems:'center', gap:5 }}>↺ 추천으로</button>}
         </div>
 
