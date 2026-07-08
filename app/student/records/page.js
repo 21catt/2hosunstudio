@@ -6,6 +6,7 @@ import StudentNav from '../../../components/StudentNav'
 import { NavIcon } from '../../../components/NavIcons'
 import ProfileHeaderIcon from '../../../components/ProfileHeaderIcon'
 import LoadingCat from '../../../components/LoadingCat'
+import PalettePlanner from '../../../components/PalettePlanner'
 import { pixelCatImg, DEFAULT_PROFILE_CAT, isValidPixelCat, getSavedProfileCat } from '../../../lib/pixelCats'
 
 // 카톡형 채팅 로그 — 하단 입력바에서 바로 쓰고 보내면 말풍선이 튕기며 등장한다.
@@ -60,6 +61,10 @@ function RecordsInner() {
   const [rcInput, setRcInput] = useState({})   // 기록 아래 인라인 답글 입력
   const [rcSending, setRcSending] = useState({})
   const viewerTouchX = useRef(null)
+  // 색 계획 도구(삼색) — 열림 상태 + 재편집용 초기 팔레트
+  const [plannerOpen, setPlannerOpen] = useState(false)
+  const [plannerInit, setPlannerInit] = useState(null)
+  const [savingPlan, setSavingPlan] = useState(false)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -254,6 +259,40 @@ function RecordsInner() {
     }
   }
 
+  // 색 계획 카드 저장 — 도구가 만든 합성 PNG + palette JSON을 그날 기록 사진으로 저장
+  async function handleSavePlan(blob, palette) {
+    if (!user || savingPlan) return
+    setSavingPlan(true)
+    try {
+      const { data: rec } = await supabase
+        .from('class_records')
+        .insert({ user_id: user.id, class_date: ctx.date, class_name: ctx.cls || null, note: '🎨 색 계획' })
+        .select().single()
+      if (!rec) throw new Error('insert failed')
+
+      const path = `${user.id}/${rec.id}/${Date.now()}_plan.png`
+      const file = new File([blob], 'plan.png', { type: 'image/png' })
+      const { error: upErr } = await supabase.storage.from('class-records').upload(path, file)
+      if (upErr) throw upErr
+
+      // palette 컬럼(마이그레이션) 미실행 시 조용히 없이 재시도 → 저장은 유지
+      let { data: pr } = await supabase.from('class_record_photos').insert({ record_id: rec.id, storage_path: path, palette }).select().single()
+      if (!pr) { ({ data: pr } = await supabase.from('class_record_photos').insert({ record_id: rec.id, storage_path: path }).select().single()) }
+
+      const photoRow = { ...(pr || { id: `tmp-${rec.id}` }), storage_path: path, palette }
+      const newRec = { ...rec, class_record_photos: [photoRow], class_record_feedback: [] }
+      setRecords(prev => [...prev, newRec].sort((a, b) => a.class_date.localeCompare(b.class_date)))
+      setSignedUrls(prev => ({ ...prev, [path]: URL.createObjectURL(blob) }))
+      setLastAddedId(rec.id)
+      setPlannerOpen(false); setPlannerInit(null)
+      setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 80)
+    } catch {
+      alert('색 계획 저장에 실패했어요 🐾')
+    } finally {
+      setSavingPlan(false)
+    }
+  }
+
   async function handleDelete(id) {
     if (!confirm('이 기록을 삭제할까요?')) return
     await supabase.from('class_records').delete().eq('id', id)
@@ -363,11 +402,15 @@ function RecordsInner() {
                               return (
                                 <div key={p.id} className={isNew ? 'thumb-in' : ''}
                                   onClick={() => { if (!url) return; const photos = recordPhotos(r); setViewer({ photos, idx: Math.max(0, photos.indexOf(url)), recordId: r.id }); setViewerText('') }}
-                                  style={{ width:92, height:92, borderRadius:18, overflow:'hidden', border:`3px solid ${ACCENT}`, boxShadow:'3px 3px 0 rgb(var(--ac-rgb) / 0.22)', background:ACCENT_BG, flexShrink:0, cursor: url ? 'pointer' : 'default', animationDelay:`${i * 70}ms` }}>
+                                  style={{ position:'relative', width:92, height:92, borderRadius:18, overflow:'hidden', border:`3px solid ${ACCENT}`, boxShadow:'3px 3px 0 rgb(var(--ac-rgb) / 0.22)', background:ACCENT_BG, flexShrink:0, cursor: url ? 'pointer' : 'default', animationDelay:`${i * 70}ms` }}>
                                   {url
                                     ? <img src={url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}/>
                                     : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24 }}>📷</div>
                                   }
+                                  {p.palette && (
+                                    <button onClick={e => { e.stopPropagation(); setPlannerInit(p.palette); setPlannerOpen(true) }} title="색 계획 편집"
+                                      style={{ position:'absolute', top:4, left:4, width:24, height:24, borderRadius:8, border:'none', background:'rgba(11,11,14,0.72)', color:'#fff', fontSize:12, lineHeight:1, cursor:'pointer', padding:0, display:'flex', alignItems:'center', justifyContent:'center' }}>🎨</button>
+                                  )}
                                 </div>
                               )
                             })}
@@ -473,6 +516,10 @@ function RecordsInner() {
             📷
             <input type="file" multiple accept="image/*" onChange={pickFiles} style={{ display:'none' }}/>
           </label>
+          <button className="press" title="색 계획 (삼색)" onClick={() => { setPlannerInit(null); setPlannerOpen(true) }}
+            style={{ width:42, height:42, flexShrink:0, borderRadius:'50%', background:'#fff', border:`3px solid ${ACCENT}`, fontSize:17, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', padding:0 }}>
+            🎨
+          </button>
           <input value={composeText} onChange={e => setComposeText(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleSend() }}
             placeholder="오늘 기록 남기기…"
@@ -538,6 +585,16 @@ function RecordsInner() {
             </div>
           </div>
         </div>
+      )}
+
+      {plannerOpen && (
+        <PalettePlanner
+          initial={plannerInit}
+          role={user?.user_metadata?.role}
+          saving={savingPlan}
+          onClose={() => { setPlannerOpen(false); setPlannerInit(null) }}
+          onSave={handleSavePlan}
+        />
       )}
 
       <StudentNav active="records" role={user?.user_metadata?.role || undefined}/>
