@@ -11,7 +11,10 @@ const KW = {
   '새벽 냉색': [{ h:206, s:56, l:56 }, { h:168, s:40, l:52 }, { h:268, s:40, l:56 }],
   '살구 파스텔':[{ h:24, s:70, l:70 }, { h:196, s:44, l:66 }, { h:338, s:52, l:72 }],
 }
-const BG='#0b0b0e', CARD='#131318', BORD='#23232c', TX='#ededf2', TX2='#9a9aa8', MUT='#6f6f80'
+const BG='#7c7e86', CARD='#fbfbfc', INSET='#eceef1', BORD='#e3e4e9', TX='#282a31', TX2='#63656e', MUT='#9a9ba2'
+const CARDSTYLE={ background:CARD, borderRadius:16, padding:14, margin:'0 12px 12px', boxShadow:'0 1px 3px rgba(20,22,28,0.10)' }
+const INSETSTYLE={ background:INSET, borderRadius:12, padding:'10px 12px' }
+const HSTYLE={ fontSize:13, fontWeight:500, color:TX, margin:'0 0 10px', display:'flex', alignItems:'center', gap:6 }
 
 const cl=(v,a,b)=>Math.max(a,Math.min(b,v))
 const cssH=c=>`hsl(${Math.round(c.h)} ${Math.round(c.s)}% ${Math.round(c.l)}%)`
@@ -118,7 +121,7 @@ function drawWheelOn(ctx,cx,cy,R,D){
   ctx.beginPath();ctx.arc(cx,cy,rIn,0,7);ctx.fillStyle=cssR(D.ctr);ctx.fill()
   for(let i=0;i<12;i++){const a=(i*30+15-90)*Math.PI/180;ctx.beginPath();ctx.moveTo(cx+Math.cos(a)*rBand,cy+Math.sin(a)*rBand);ctx.lineTo(cx+Math.cos(a)*rPure,cy+Math.sin(a)*rPure);ctx.strokeStyle='rgba(8,8,11,0.4)';ctx.lineWidth=Math.max(1,R/95);ctx.stroke()}
   ;[rPure,rTint,rBand,rIn].forEach(r=>{ctx.beginPath();ctx.arc(cx,cy,r,0,7);ctx.strokeStyle='rgba(8,8,11,0.35)';ctx.lineWidth=Math.max(1,R/120);ctx.stroke()})
-  ctx.fillStyle='#ededf2';ctx.font=`500 ${Math.round(R*0.15)}px Nunito, sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle'
+  ctx.fillStyle='#2a2c33';ctx.font=`500 ${Math.round(R*0.15)}px Nunito, sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle'
   ;[0,120,240].forEach(th=>{const a=(th-90)*Math.PI/180;ctx.fillText('P',cx+Math.cos(a)*(R+R*0.1),cy+Math.sin(a)*(R+R*0.1))})
 }
 function rrect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
@@ -131,7 +134,7 @@ function drawCard(ctx,W,H,D,P,mood,ratioStr,domLabel){
   const swW=200,gap=16,x0=(W-(swW*3+gap*2))/2,sy=500
   P.forEach((c,i)=>{const x=x0+i*(swW+gap);rrect(ctx,x,sy,swW,74,16);ctx.fillStyle=cssH(c);ctx.fill()
     ctx.textAlign='center';ctx.fillStyle=TX2;ctx.font='400 22px Nunito, sans-serif';ctx.fillText(hx(c.h,c.s,c.l).toUpperCase(),x+swW/2,sy+106)
-    ctx.fillStyle=MUT;ctx.font='400 19px Nunito, sans-serif';ctx.fillText(munsell(c),x+swW/2,sy+132)})
+    ctx.fillStyle=TX2;ctx.font='400 19px Nunito, sans-serif';ctx.fillText(munsell(c),x+swW/2,sy+132)})
   ctx.textAlign='left';ctx.fillStyle=TX2;ctx.font='400 24px Nunito, sans-serif'
   ctx.fillText(`면적 ${D.wd[0]} : ${D.wd[1]} : ${D.wd[2]}`,44,690)
   const groups=[[[D.dom,D.domD],D.wd[0],'주체'],[[D.sec,D.secT],D.wd[1],'부수'],[[D.acc],D.wd[2],'종속']]
@@ -141,7 +144,7 @@ function drawCard(ctx,W,H,D,P,mood,ratioStr,domLabel){
   cx=barX;groups.forEach(g=>{const segW=barW*g[1]/100;ctx.fillStyle=TX2;ctx.font='400 22px Nunito, sans-serif';ctx.textAlign='center';ctx.fillText(`${g[2]} ${g[1]}%`,cx+segW/2,barY+barH+34);cx+=segW})
   ctx.textAlign='left';ctx.fillStyle=TX2;ctx.font='400 23px Nunito, sans-serif';ctx.fillText(`느낌 · ${mood}`,44,884)
   ctx.fillStyle=cssH(D.acc);ctx.font='500 30px Nunito, sans-serif';ctx.fillText(`추천 대비 · ${D.con.headline}`,44,922)
-  ctx.fillStyle=MUT;ctx.font='400 21px Nunito, sans-serif';ctx.fillText(`면적 ${ratioStr} · 주체 ${domLabel} 기준`,44,954)
+  ctx.fillStyle=TX2;ctx.font='400 21px Nunito, sans-serif';ctx.fillText(`면적 ${ratioStr} · 주체 ${domLabel} 기준`,44,954)
 }
 
 export default function PalettePlanner({ initial, role, saving, onClose, onSave }){
@@ -174,55 +177,56 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
     onSave(blob,palette,note)
   }
 
-  const seg=(on)=>({ fontSize:11, padding:'5px 11px', borderRadius:20, cursor:'pointer', fontFamily:'inherit',
-    background:on?'#ededf2':'#1c1c22', color:on?'#141018':'#b6b6c4', border:`1px solid ${on?'transparent':'#2b2b35'}` })
-  const sub={ fontSize:11, color:TX2, marginBottom:5 }
+  const seg=(on)=>({ fontSize:11, padding:'6px 12px', borderRadius:9, cursor:'pointer', fontFamily:'inherit', fontWeight:on?500:400,
+    background:on?TX:'#fff', color:on?'#fff':TX2, border:`1px solid ${on?TX:BORD}` })
   const wg={ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:5 }
 
   return (
-    <div style={{ position:'fixed', inset:0, background:'rgba(4,4,7,0.86)', zIndex:1500, display:'flex', justifyContent:'center', overflowY:'auto' }}>
-      <div style={{ width:'100%', maxWidth:400, background:BG, minHeight:'100%', paddingBottom:32 }}>
+    <div style={{ position:'fixed', inset:0, background:'rgba(28,30,36,0.55)', zIndex:1500, display:'flex', justifyContent:'center', overflowY:'auto' }}>
+      <div style={{ width:'100%', maxWidth:410, background:BG, minHeight:'100%', paddingBottom:24 }}>
 
-        <div style={{ position:'sticky', top:0, zIndex:2, background:BG, borderBottom:`1px solid ${BORD}`, display:'flex', alignItems:'center', gap:10, padding:'12px 14px' }}>
-          <button onClick={onClose} style={{ width:32, height:32, borderRadius:'50%', border:`1px solid ${BORD}`, background:CARD, color:TX2, fontSize:14, cursor:'pointer', flexShrink:0 }}>✕</button>
+        <div style={{ position:'sticky', top:0, zIndex:2, background:CARD, borderBottom:`1px solid ${BORD}`, display:'flex', alignItems:'center', gap:10, padding:'12px 16px', marginBottom:12 }}>
+          <button onClick={onClose} style={{ width:32, height:32, borderRadius:'50%', border:`1px solid ${BORD}`, background:'#fff', color:TX2, fontSize:14, cursor:'pointer', flexShrink:0 }}>✕</button>
           <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ fontSize:15, fontWeight:500, color:TX }}>🎨 색 계획</div>
+            <div style={{ fontSize:15, fontWeight:500, color:TX }}>색 계획</div>
             <div style={{ fontSize:11, color:TX2 }}>3원색으로 배색 잡고 기록에 저장</div>
           </div>
           <button onClick={save} disabled={saving}
-            style={{ fontSize:13, fontWeight:500, padding:'8px 16px', borderRadius:11, border:'none', cursor: saving?'default':'pointer', background: saving?'#3a3a44':'#ededf2', color:'#141018', fontFamily:'inherit' }}>
+            style={{ fontSize:13, fontWeight:500, padding:'9px 16px', borderRadius:10, border:'none', cursor: saving?'default':'pointer', background: saving?'#b4b5bb':TX, color:'#fff', fontFamily:'inherit' }}>
             {saving?'저장 중…':'기록에 저장'}
           </button>
         </div>
 
-        <div style={{ textAlign:'center', padding:'14px 16px 0' }}>
-          <div style={{ display:'flex', justifyContent:'center', gap:6, marginBottom:4 }}>
+        <div style={CARDSTYLE}>
+          <div style={{ display:'flex', justifyContent:'center', gap:6, marginBottom:10 }}>
             <button onClick={()=>setMix('sub')} style={seg(mix==='sub')}>물감식 감산</button>
             <button onClick={()=>setMix('bright')} style={seg(mix==='bright')}>밝은 보간</button>
           </div>
-          <canvas ref={cv} width={210} height={210} style={{ width:210, height:210, display:'block', margin:'2px auto 0' }}/>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'5px 12px', marginTop:10, maxWidth:250, margin:'10px auto 0' }}>
+          <div style={{ background:BG, borderRadius:14, padding:'8px 0' }}>
+            <canvas ref={cv} width={210} height={210} style={{ width:210, height:210, display:'block', margin:'0 auto' }}/>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'7px 12px', marginTop:12 }}>
             {[['바깥 · 순색',cssH(D.pureAt(0))],['중간 · +화이트50%',cssH(tint(D.pureAt(0)))],['띠 · 3원색 순회색',cssR(D.gray)],['중앙 · 회색+화이트',cssR(D.ctr)]].map(([t,bg])=>(
-              <span key={t} style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:'#9a9aa8' }}>
-                <i style={{ width:12, height:12, borderRadius:3, background:bg, display:'inline-block' }}/>{t}
+              <span key={t} style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:TX2 }}>
+                <i style={{ width:12, height:12, borderRadius:3, background:bg, display:'inline-block', border:`1px solid ${BORD}` }}/>{t}
               </span>
             ))}
           </div>
         </div>
 
-        <div style={{ padding:'16px 16px 0' }}>
-          <div style={{ fontSize:12.5, fontWeight:500, color:TX, marginBottom:9 }}>🎨 3원색 (P) <span style={{ color:TX2, fontWeight:400, fontSize:11 }}>— 탭해서 조절</span></div>
+        <div style={CARDSTYLE}>
+          <div style={HSTYLE}>3원색 (P) <span style={{ color:TX2, fontWeight:400, fontSize:11 }}>— 탭해서 조절</span></div>
           <div style={{ display:'flex', gap:8 }}>
             {P.map((c,i)=>(
               <button key={i} onClick={()=>setAct(i)} style={{ flex:1, border:'none', padding:0, background:'none', cursor:'pointer', textAlign:'center' }}>
-                <div style={{ height:52, borderRadius:12, border:`2px solid ${act===i?'#ededf2':'transparent'}`, background:cssH(c) }}/>
-                <span style={{ fontFamily:'monospace', fontSize:11, color:TX2, marginTop:5, display:'block' }}>{hx(c.h,c.s,c.l).toUpperCase()}</span>
+                <div style={{ height:52, borderRadius:12, border:`2px solid ${act===i?TX:BORD}`, background:cssH(c) }}/>
+                <span style={{ fontFamily:'monospace', fontSize:11, color:TX2, marginTop:6, display:'block' }}>{hx(c.h,c.s,c.l).toUpperCase()}</span>
                 <span style={{ fontSize:10.5, color:MUT, display:'block', marginTop:1 }}>{munsell(c)}</span>
               </button>
             ))}
           </div>
-          <div style={{ fontSize:10.5, color:MUT, marginTop:5, textAlign:'center' }}>표기 = 먼셀 H V/C (명도 정확 · 색상·채도 근사)</div>
-          <div style={{ marginTop:8, display:'flex', flexDirection:'column', gap:8, background:CARD, border:`1px solid ${BORD}`, borderRadius:12, padding:'11px' }}>
+          <div style={{ fontSize:10.5, color:MUT, marginTop:7, textAlign:'center' }}>표기 = 먼셀 H V/C (명도 정확 · 색상·채도 근사)</div>
+          <div style={{ ...INSETSTYLE, marginTop:10, display:'flex', flexDirection:'column', gap:9 }}>
             {[['색상','h',0,360],['채도','s',5,95],['명도','l',8,92]].map(([lab,f,mn,mx])=>(
               <div key={f} style={{ display:'flex', alignItems:'center', gap:9 }}>
                 <span style={{ fontSize:11, color:TX2, width:34, flexShrink:0 }}>{lab}</span>
@@ -231,97 +235,100 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
               </div>
             ))}
           </div>
-          <div style={{ marginTop:9, display:'flex', flexWrap:'wrap', gap:6 }}>
+          <div style={{ marginTop:10, display:'flex', flexWrap:'wrap', gap:6 }}>
             {Object.keys(KW).map(k=>(
               <button key={k} onClick={()=>{ setP(KW[k].map(c=>({...c}))); setAccentSel(null) }} style={seg(false)}>{k}</button>
             ))}
           </div>
         </div>
 
-        <div style={{ padding:'16px 16px 0' }}>
-          <div style={{ fontSize:12.5, fontWeight:500, color:TX, marginBottom:9 }}>◐ 추천 대비 <span style={{ color:TX2, fontWeight:400, fontSize:11 }}>— 먼셀 색채대비 기준</span></div>
-          <div style={{ fontSize:11.5, color:'#c9c9d4', marginBottom:8, lineHeight:1.5 }}>색채 느낌 · <span style={{ color:cssH(D.acc), fontWeight:500 }}>{mood}</span></div>
-          <div style={{ background:CARD, border:`1px solid ${BORD}`, borderRadius:12, padding:'10px 12px' }}>
-            <div style={{ fontSize:13.5, fontWeight:500, color:cssH(D.acc), marginBottom:3 }}>{D.con.headline}</div>
-            <div style={{ fontSize:11, color:'#a0a0b0', lineHeight:1.5 }}>{D.con.reco}</div>
+        <div style={CARDSTYLE}>
+          <div style={HSTYLE}>추천 대비 <span style={{ color:TX2, fontWeight:400, fontSize:11 }}>— 먼셀 색채대비 기준</span></div>
+          <div style={INSETSTYLE}>
+            <div style={{ fontSize:11.5, color:TX2, marginBottom:8, lineHeight:1.5 }}>색채 느낌 · <span style={{ color:TX, fontWeight:500 }}>{mood}</span></div>
+            <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom:4 }}>
+              <span style={{ width:12, height:12, borderRadius:4, background:cssH(D.acc), flexShrink:0 }}/>
+              <span style={{ fontSize:14, fontWeight:500, color:TX }}>{D.con.headline}</span>
+            </div>
+            <div style={{ fontSize:11, color:TX2, lineHeight:1.5 }}>{D.con.reco}</div>
           </div>
-          <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginTop:8 }}>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginTop:10 }}>
             {D.con.chips.map(ch=>(
-              <span key={ch.k} style={{ fontSize:11, padding:'5px 9px', borderRadius:20, fontWeight: ch.on?500:400,
-                background: ch.on?cssH(D.acc):'#1c1c22', color: ch.on?'#141018':'#87879a', border:`1px solid ${ch.on?'transparent':'#2b2b35'}` }}>{ch.k}대비</span>
+              <span key={ch.k} style={{ fontSize:11, padding:'5px 10px', borderRadius:9, fontWeight: ch.on?500:400,
+                background: ch.on?TX:'#fff', color: ch.on?'#fff':TX2, border:`1px solid ${ch.on?TX:BORD}` }}>{ch.k}대비</span>
             ))}
           </div>
         </div>
 
-        <div style={{ padding:'16px 16px 0' }}>
-          <div style={{ fontSize:12.5, fontWeight:500, color:TX, marginBottom:9 }}>▦ 벽돌 팔레트 <span style={{ color:TX2, fontWeight:400, fontSize:11 }}>— 탭하면 종속(포인트)</span></div>
-          <div style={sub}>순색</div>
-          <div style={wg}>{D.pure.map((c,i)=><button key={'p'+i} onClick={()=>setAccentSel({h:c.h,s:c.s,l:c.l})} style={{ height:32, borderRadius:7, border:`2px solid ${brickSel(c)?'#fff':'transparent'}`, background:cssH(c), cursor:'pointer', padding:0 }}/>)}</div>
-          <div style={{ ...sub, marginTop:9 }}>틴트 · +화이트 50%</div>
-          <div style={wg}>{D.tin.map((c,i)=><button key={'t'+i} onClick={()=>setAccentSel({h:c.h,s:c.s,l:c.l})} style={{ height:32, borderRadius:7, border:`2px solid ${brickSel(c)?'#fff':'transparent'}`, background:cssH(c), cursor:'pointer', padding:0 }}/>)}</div>
+        <div style={CARDSTYLE}>
+          <div style={HSTYLE}>벽돌 팔레트 <span style={{ color:TX2, fontWeight:400, fontSize:11 }}>— 탭하면 종속(포인트)</span></div>
+          <div style={{ fontSize:11, color:TX2, marginBottom:6 }}>순색</div>
+          <div style={wg}>{D.pure.map((c,i)=><button key={'p'+i} onClick={()=>setAccentSel({h:c.h,s:c.s,l:c.l})} style={{ height:30, borderRadius:8, border:`2px solid ${brickSel(c)?TX:BORD}`, background:cssH(c), cursor:'pointer', padding:0 }}/>)}</div>
+          <div style={{ fontSize:11, color:TX2, margin:'11px 0 6px' }}>틴트 · +화이트 50%</div>
+          <div style={wg}>{D.tin.map((c,i)=><button key={'t'+i} onClick={()=>setAccentSel({h:c.h,s:c.s,l:c.l})} style={{ height:30, borderRadius:8, border:`2px solid ${brickSel(c)?TX:BORD}`, background:cssH(c), cursor:'pointer', padding:0 }}/>)}</div>
         </div>
 
-        <div style={{ padding:'16px 16px 0' }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:9 }}>
-            <span style={{ fontSize:12.5, fontWeight:500, color:TX }}>▧ 면적 구성</span>
+        <div style={CARDSTYLE}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+            <span style={{ fontSize:13, fontWeight:500, color:TX }}>면적 구성</span>
             <span style={{ display:'flex', gap:6 }}>
               <button onClick={()=>setRatio('631')} style={seg(ratio==='631')}>6 : 3 : 1</button>
               <button onClick={()=>setRatio('622')} style={seg(ratio==='622')}>6 : 2 : 2</button>
             </span>
           </div>
-          <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:6, flexWrap:'wrap' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:7, flexWrap:'wrap' }}>
             <span style={{ fontSize:11, color:TX2 }}>주체 기준</span>
             <button onClick={()=>setDomCrit('sat')} style={seg(domCrit==='sat')}>저채도</button>
             <button onClick={()=>setDomCrit('light')} style={seg(domCrit==='light')}>최고명도</button>
             <button onClick={()=>setDomCrit('mid')} style={seg(domCrit==='mid')}>중명도</button>
           </div>
-          <div style={{ fontSize:10.5, color:MUT, marginBottom:10, lineHeight:1.5 }}>ⓘ {DOMWHY[domCrit]}</div>
+          <div style={{ fontSize:10.5, color:TX2, marginBottom:12, lineHeight:1.5 }}>ⓘ {DOMWHY[domCrit]}</div>
           <div style={{ display:'flex', gap:8 }}>
             {[[[D.dom,D.domD],D.wd[0],'주체'],[[D.sec,D.secT],D.wd[1],'부수'],[[D.acc],D.wd[2],'종속',D.rec?'추천':'선택']].map((g,gi)=>(
-              <div key={gi} style={{ flex:`0 0 ${g[1]}%`, display:'flex', flexDirection:'column', gap:4 }}>
-                <div style={{ display:'flex', height:50, borderRadius:8, overflow:'hidden' }}>
+              <div key={gi} style={{ flex:`0 0 ${g[1]}%`, display:'flex', flexDirection:'column', gap:5 }}>
+                <div style={{ display:'flex', height:50, borderRadius:8, overflow:'hidden', border:`1px solid ${BORD}` }}>
                   {g[0].map((c,j)=><div key={j} style={{ flex:1, background:cssH(c) }}/>)}
                 </div>
-                <div style={{ fontSize:11, color:'#9a9aa8', textAlign:'center' }}>{g[2]} <span style={{ color:'#d6d6de' }}>{g[1]}%</span>{g[3]?<span style={{ color:MUT }}> · {g[3]}</span>:null}</div>
+                <div style={{ fontSize:11, color:TX2, textAlign:'center' }}>{g[2]} <span style={{ color:TX }}>{g[1]}%</span>{g[3]?<span style={{ color:MUT }}> · {g[3]}</span>:null}</div>
               </div>
             ))}
           </div>
-          <div style={{ marginTop:10, background:CARD, border:`1px solid ${BORD}`, borderRadius:12, padding:'10px 12px', display:'flex', flexDirection:'column', gap:9 }}>
-            <div style={{ fontSize:11, color:MUT }}>이렇게 나눈 이유</div>
+          <div style={{ ...INSETSTYLE, marginTop:12, display:'flex', flexDirection:'column', gap:9 }}>
+            <div style={{ fontSize:11, color:TX2, fontWeight:500 }}>이렇게 나눈 이유</div>
             {[['주체',cssH(D.dom),D.reasons.rDom],['부수',cssH(D.sec),D.reasons.rSec],['종속',cssH(D.acc),D.reasons.rAcc]].map((r,i)=>(
               <div key={i} style={{ display:'flex', gap:9, alignItems:'flex-start' }}>
-                <span style={{ width:16, height:16, borderRadius:5, flexShrink:0, marginTop:2, background:r[1] }}/>
+                <span style={{ width:16, height:16, borderRadius:5, flexShrink:0, marginTop:2, background:r[1], border:`1px solid ${BORD}` }}/>
                 <div style={{ minWidth:0 }}>
-                  <span style={{ fontSize:11.5, fontWeight:500, color:'#e6e6ee' }}>{r[0]}</span>
-                  <span style={{ fontSize:11, color:'#9a9aa8', display:'block', lineHeight:1.5, marginTop:1 }}>{r[2]}</span>
+                  <span style={{ fontSize:11.5, fontWeight:500, color:TX }}>{r[0]}</span>
+                  <span style={{ fontSize:11, color:TX2, display:'block', lineHeight:1.5, marginTop:1 }}>{r[2]}</span>
                 </div>
               </div>
             ))}
           </div>
 
           <button onClick={()=>setGuideOpen(v=>!v)}
-            style={{ marginTop:10, width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', background:CARD, border:`1px solid ${BORD}`, borderRadius:12, padding:'10px 12px', color:TX, fontSize:12, fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>
+            style={{ marginTop:10, width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', background:INSET, border:'none', borderRadius:12, padding:'11px 12px', color:TX, fontSize:12, fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>
             <span>🖌 적용 가이드 <span style={{ color:TX2, fontWeight:400, fontSize:11 }}>— 화면 어디에 쓸까</span></span>
             <span style={{ color:TX2 }}>{guideOpen?'▴':'▾'}</span>
           </button>
           {guideOpen && (
-            <div style={{ marginTop:8, background:CARD, border:`1px solid ${BORD}`, borderRadius:12, padding:'12px', display:'flex', flexDirection:'column', gap:12 }}>
+            <div style={{ ...INSETSTYLE, marginTop:8, display:'flex', flexDirection:'column', gap:12 }}>
               <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
                 {[['주체',D.dom,DOMTIP[domCrit]],['부수',D.sec,SECTIP],['종속',D.acc,ACCTIP]].map(([name,c,tip],i)=>(
                   <div key={i} style={{ display:'flex', flexDirection:'column', gap:3 }}>
-                    <span style={{ alignSelf:'flex-start', background:cssH(c), color:c.l>52?'#141018':'#fff', fontSize:11, fontWeight:500, padding:'2px 10px', borderRadius:12 }}>{name}</span>
-                    <span style={{ fontSize:11, color:'#9a9aa8', lineHeight:1.5 }}>{tip}</span>
+                    <span style={{ alignSelf:'flex-start', background:cssH(c), color:c.l>52?'#20222a':'#fff', fontSize:11, fontWeight:500, padding:'2px 10px', borderRadius:9, border:`1px solid ${BORD}` }}>{name}</span>
+                    <span style={{ fontSize:11, color:TX2, lineHeight:1.5 }}>{tip}</span>
                   </div>
                 ))}
               </div>
               <div style={{ height:1, background:BORD }}/>
               <div>
-                <div style={{ fontSize:11, color:MUT, marginBottom:7 }}>다른 배분 방식</div>
+                <div style={{ fontSize:11, color:TX2, fontWeight:500, marginBottom:7 }}>다른 배분 방식</div>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:7 }}>
                   {DISTRIB.map(([emo,title,desc],i)=>(
-                    <div key={i} style={{ background:'#1a1a20', borderRadius:9, padding:'8px 9px' }}>
-                      <div style={{ fontSize:11.5, fontWeight:500, color:'#e6e6ee' }}>{emo} {title}</div>
-                      <div style={{ fontSize:10.5, color:'#8b8b98', lineHeight:1.45, marginTop:2 }}>{desc}</div>
+                    <div key={i} style={{ background:'#fff', border:`1px solid ${BORD}`, borderRadius:9, padding:'8px 9px' }}>
+                      <div style={{ fontSize:11.5, fontWeight:500, color:TX }}>{emo} {title}</div>
+                      <div style={{ fontSize:10.5, color:TX2, lineHeight:1.45, marginTop:2 }}>{desc}</div>
                     </div>
                   ))}
                 </div>
@@ -330,9 +337,10 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
           )}
         </div>
 
-        <div style={{ padding:'14px 16px 0', display:'flex', gap:10, alignItems:'center' }}>
-          <span style={{ fontSize:11, color:TX2 }}>포인트 <span style={{ fontFamily:'monospace', color:'#c9c9d4' }}>{hx(D.acc.h,D.acc.s,D.acc.l).toUpperCase()}</span> <span style={{ color:MUT }}>· {munsell(D.acc)}</span></span>
-          {accentSel && <button onClick={()=>setAccentSel(null)} style={{ ...seg(false), display:'inline-flex', alignItems:'center', gap:5 }}>↺ 추천으로</button>}
+        <div style={{ ...CARDSTYLE, display:'flex', gap:10, alignItems:'center' }}>
+          <span style={{ width:22, height:22, borderRadius:6, background:cssH(D.acc), flexShrink:0, border:`1px solid ${BORD}` }}/>
+          <span style={{ fontSize:11, color:TX2 }}>포인트 <span style={{ fontFamily:'monospace', color:TX }}>{hx(D.acc.h,D.acc.s,D.acc.l).toUpperCase()}</span> <span style={{ color:MUT }}>· {munsell(D.acc)}</span></span>
+          {accentSel && <button onClick={()=>setAccentSel(null)} style={{ ...seg(false), marginLeft:'auto', display:'inline-flex', alignItems:'center', gap:5 }}>↺ 추천으로</button>}
         </div>
 
       </div>
