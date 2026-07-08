@@ -45,6 +45,11 @@ function moodOf(P){
   return `${temp} · ${chroma} · ${value}`
 }
 const DOMWHY={ sat:'넓은 60% 바탕은 차분해야 눈이 편하고 포인트가 살아나요', light:'밝은 바탕으로 화사하고 열린 하이키 느낌을 내요', mid:'중간 명도라 어느 색과도 무난한 균형형 바탕이에요' }
+// 적용 가이드 — 화면 어디에 쓸까 (주체는 기준별로 놓일 자리가 달라짐)
+const DOMTIP={ sat:'빛·어둠 양쪽에 조금씩 섞는 기조색으로 — 배경·중간톤·넓은 여백에 깔아 화면을 하나로 묶어요', light:'빛 받는 밝은 면·하늘·열린 공간에 — 밝은 쪽을 지배해 화사한 하이키로', mid:'사물의 고유색(몸통)에 — 하이라이트도 그림자도 아닌 중간 명암 면을 채워요' }
+const SECTIP='주체의 반대 명암을 맡아요 — 주체가 빛이면 부수는 그림자·덩어리로 짝을 이뤄 명암 뼈대를 세워요'
+const ACCTIP='초점(주인공·빛과 그림자가 만나는 경계)에만 좁게 — 넓히지 말고 가장 대비 강한 한 곳에'
+const DISTRIB=[['🧭','공간(깊이)','따뜻한 역할 앞으로 · 차가운 역할 뒤로'],['👁','시선 유도','주체로 쉬는 면 → 종속을 시선 도착점에'],['◼','덩어리·실루엣','주체=큰 형태 · 부수=인접 덩어리 · 종속=구두점'],['🌡','온도 리듬','주체 면 사이에 반대 온도의 종속으로 리듬']]
 function hx(h,s,l){const r=hsl2rgb(h,s,l),t=x=>x.toString(16).padStart(2,'0');return '#'+t(r[0])+t(r[1])+t(r[2])}
 const warm=h=>Math.cos((h-42)*Math.PI/180)
 const tint=c=>({h:c.h,s:c.s*0.5,l:c.l+(100-c.l)*0.5})
@@ -146,6 +151,7 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
   const [ratio,setRatio]=useState(initial?.ratio==='622'?'622':'631')
   const [domCrit,setDomCrit]=useState(['sat','light','mid'].includes(initial?.domCrit)?initial.domCrit:'sat')
   const [accentSel,setAccentSel]=useState(()=> initial?.accentManual && initial?.accent ? {...initial.accent} : null)
+  const [guideOpen,setGuideOpen]=useState(false)
   const cv=useRef(null)
 
   const D=useMemo(()=>derive(P,mix,ratio,domCrit,accentSel),[P,mix,ratio,domCrit,accentSel])
@@ -292,6 +298,36 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
               </div>
             ))}
           </div>
+
+          <button onClick={()=>setGuideOpen(v=>!v)}
+            style={{ marginTop:10, width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', background:CARD, border:`1px solid ${BORD}`, borderRadius:12, padding:'10px 12px', color:TX, fontSize:12, fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>
+            <span>🖌 적용 가이드 <span style={{ color:TX2, fontWeight:400, fontSize:11 }}>— 화면 어디에 쓸까</span></span>
+            <span style={{ color:TX2 }}>{guideOpen?'▴':'▾'}</span>
+          </button>
+          {guideOpen && (
+            <div style={{ marginTop:8, background:CARD, border:`1px solid ${BORD}`, borderRadius:12, padding:'12px', display:'flex', flexDirection:'column', gap:12 }}>
+              <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                {[['주체',D.dom,DOMTIP[domCrit]],['부수',D.sec,SECTIP],['종속',D.acc,ACCTIP]].map(([name,c,tip],i)=>(
+                  <div key={i} style={{ display:'flex', flexDirection:'column', gap:3 }}>
+                    <span style={{ alignSelf:'flex-start', background:cssH(c), color:c.l>52?'#141018':'#fff', fontSize:11, fontWeight:500, padding:'2px 10px', borderRadius:12 }}>{name}</span>
+                    <span style={{ fontSize:11, color:'#9a9aa8', lineHeight:1.5 }}>{tip}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{ height:1, background:BORD }}/>
+              <div>
+                <div style={{ fontSize:11, color:MUT, marginBottom:7 }}>다른 배분 방식</div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:7 }}>
+                  {DISTRIB.map(([emo,title,desc],i)=>(
+                    <div key={i} style={{ background:'#1a1a20', borderRadius:9, padding:'8px 9px' }}>
+                      <div style={{ fontSize:11.5, fontWeight:500, color:'#e6e6ee' }}>{emo} {title}</div>
+                      <div style={{ fontSize:10.5, color:'#8b8b98', lineHeight:1.45, marginTop:2 }}>{desc}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div style={{ padding:'14px 16px 0', display:'flex', gap:10, alignItems:'center' }}>
