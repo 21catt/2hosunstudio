@@ -1,4 +1,5 @@
 import './globals.css'
+import PaletteFab from '../components/PaletteFab'
 
 export const viewport = {
   themeColor: '#2B2FD4',
@@ -30,6 +31,7 @@ export default function RootLayout({ children }) {
         }} />
         <div className="app-shell">
           {children}
+          <PaletteFab />
         </div>
       </body>
     </html>
