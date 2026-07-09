@@ -184,7 +184,7 @@ function drawCard(ctx,W,H,D,P,mood,ratioStr,domLabel,tintW){
   ctx.fillStyle=MUT;ctx.font='500 21px Pretendard, sans-serif';ctx.fillText(`면적 ${ratioStr} · 주체 ${domLabel} 기준`,44,954)
 }
 
-export default function PalettePlanner({ initial, role, saving, onClose, onSave }){
+export default function PalettePlanner({ initial, role, saving, onClose, onSave, locked, onSignup }){
   const [P,setP]=useState(()=> initial?.primaries?.length===3 ? initial.primaries.map(c=>({...c})) : DEF.map(c=>({...c})))
   const [act,setAct]=useState(0)
   const [mix,setMix]=useState(initial?.mix==='bright'?'bright':'sub')
@@ -196,6 +196,8 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
   const [domSel,setDomSel]=useState(()=> Number.isInteger(initial?.domSel)?initial.domSel:null)
   const [moodSel,setMoodSel]=useState(()=> typeof initial?.moodSel==='string'?initial.moodSel:null)
   const [tintW,setTintW]=useState(()=> typeof initial?.tintW==='number'?cl(initial.tintW,0.2,0.8):0.5)
+  const [lockToast,setLockToast]=useState(false)
+  const lockTimer=useRef()
   const cv=useRef(null)
 
   const D=useMemo(()=>derive(P,mix,ratio,domCrit,accentSel,blackMix,domSel,moodSel,tintW),[P,mix,ratio,domCrit,accentSel,blackMix,domSel,moodSel,tintW])
@@ -208,6 +210,7 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
   const pickAccent=c=>{ setAccentSel({h:c.h,s:c.s,l:c.l}); setDomSel(null); setMoodSel(null) }   // 종속 지정 → 주체 자동
   const pickDom=i=>{ setDomSel(i); setAccentSel(null); setMoodSel(null) }                        // 주체 지정 → 부수·종속 자동
   const pickMood=key=>{ setMoodSel(prev=>prev===key?null:key); setDomSel(null); setAccentSel(null) } // 분위기 추천
+  const flashLock=()=>{ setLockToast(true); clearTimeout(lockTimer.current); lockTimer.current=setTimeout(()=>setLockToast(false),3200) } // 비회원 편집 시도 → 가입 안내
 
   async function save(){
     const domLabel=domCrit==='sat'?'저채도':domCrit==='light'?'최고명도':'중명도'
@@ -258,13 +261,23 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
             <div style={{ width:16, height:16, borderRadius:5, background:`conic-gradient(${cssH(P[0])},${cssH(P[1])},${cssH(P[2])},${cssH(P[0])})` }}/>
             <span style={{ font:`600 12px ${FMONO}`, letterSpacing:'0.14em', color:'#C9C3D2' }}>PIGMENT</span>
           </div>
-          <button onClick={save} disabled={saving}
+          <button onClick={locked?flashLock:save} disabled={saving}
             style={{ padding:'9px 16px', borderRadius:11, border:'none', cursor: saving?'default':'pointer', font:`600 13px ${FSANS}`, background: saving?'#3a3540':'#EFEAF4', color: saving?'#8f8799':'#17131e' }}>
             {saving?'저장 중…':'저장'}
           </button>
         </div>
 
-        <div style={{ padding:'14px 0 0' }}>
+        {locked && (
+          <div style={{ margin:'2px 15px 12px', background:cssHA(D.acc,0.13), border:`1px solid ${cssHA(D.acc,0.42)}`, borderRadius:14, padding:'12px 14px', display:'flex', alignItems:'center', gap:11 }}>
+            <span style={{ fontSize:17 }}>🔒</span>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ font:`600 12.5px ${FSANS}`, color:TX }}>미리보기예요</div>
+              <div style={{ font:`500 11px ${FSANS}`, color:TX2, marginTop:2 }}>가입하면 3원색·분위기·색을 직접 바꿀 수 있어요</div>
+            </div>
+            <button onClick={onSignup} style={{ ...pill(true), padding:'8px 14px', flexShrink:0 }}>가입하기</button>
+          </div>
+        )}
+        <div style={{ padding:'14px 0 0', position:'relative' }}>
 
           <section style={section}>
             <div style={eb}>Color Wheel</div>
@@ -469,7 +482,15 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
             </div>)}
           </section>
 
+          {locked && <div onClick={flashLock} aria-label="가입 필요" style={{ position:'absolute', inset:0, zIndex:4, cursor:'pointer' }}/>}
         </div>
+
+        {lockToast && (
+          <div style={{ position:'fixed', left:'50%', bottom:104, transform:'translateX(-50%)', zIndex:1600, background:'rgba(20,16,26,0.96)', border:`1px solid ${cssHA(D.acc,0.5)}`, borderRadius:22, padding:'9px 12px 9px 15px', display:'flex', alignItems:'center', gap:10, boxShadow:'0 10px 26px rgba(0,0,0,0.45)', whiteSpace:'nowrap' }}>
+            <span style={{ font:`600 12px ${FSANS}`, color:'#fff' }}>가입하면 색을 직접 바꿀 수 있어요 🐾</span>
+            <button onClick={onSignup} style={{ ...pill(true), padding:'6px 12px' }}>가입하기</button>
+          </div>
+        )}
 
         <div style={{ position:'sticky', bottom:0, marginTop:'auto', background:'rgba(14,10,18,0.86)', backdropFilter:'blur(14px)', WebkitBackdropFilter:'blur(14px)', borderTop:`1px solid ${BORD}`, padding:'15px 20px', display:'flex', alignItems:'center', gap:13 }}>
           <span style={{ width:34, height:34, borderRadius:10, background:accent, flex:'none', boxShadow:`0 0 20px ${cssHA(D.acc,0.4)}` }}/>

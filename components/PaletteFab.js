@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
 import PalettePlanner from './PalettePlanner'
 
@@ -11,6 +11,7 @@ const HIDE = ['/login', '/signup', '/reset-password', '/student/records', '/loun
 
 export default function PaletteFab() {
   const pathname = usePathname()
+  const router = useRouter()
   const [user, setUser] = useState(null)
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -63,10 +64,10 @@ export default function PaletteFab() {
     }
   }
 
-  // 회원 가입자(수강생·참여작가·강사)만 사용 가능 — 비로그인·역할 없는 세션은 노출 안 함
+  // 아이콘·미리보기는 누구나(비로그인 포함). 실제 편집·저장은 회원만 — 비회원은 잠금+가입 안내.
   const role = user?.user_metadata?.role
   const isMember = !!user && (role === 'student' || role === 'artist' || role === 'admin')
-  if (!isMember || HIDE.includes(pathname)) return null
+  if (HIDE.includes(pathname)) return null
 
   return (
     <>
@@ -98,7 +99,7 @@ export default function PaletteFab() {
         </div>
       )}
 
-      {open && <PalettePlanner role={user?.user_metadata?.role} saving={saving} onClose={() => setOpen(false)} onSave={handleSave} />}
+      {open && <PalettePlanner role={role} saving={saving} locked={!isMember} onSignup={() => { setOpen(false); router.push('/signup') }} onClose={() => setOpen(false)} onSave={handleSave} />}
     </>
   )
 }
