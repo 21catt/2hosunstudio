@@ -95,14 +95,15 @@ function contrastsOf(P){
   return { headline, keys:ranked.slice(0,2), reco, chips:['색상','명도','채도','보색','한난','동시','면적'].map(k=>({k,on:setObj.has(k)})) }
 }
 
-function derive(P,mix,ratio,domCrit,accentSel,blackMix){
+function derive(P,mix,ratio,domCrit,accentSel,blackMix,domSel){
   const pureAt=makePureAt(P,mix),pure=[],tin=[]
   for(let i=0;i<12;i++){const p=pureAt(i*30);pure.push(p);tin.push(tint(p))}
   const gray=avgRGB(P),ctr=gray.map(v=>Math.round(v*0.5+127.5))
   const vivid=()=>{let m=-1,i0=0;P.forEach((c,i)=>{const w=(warm(c.h)+1)/2,sc=c.s/100*(0.6+0.4*w);if(sc>m){m=sc;i0=i}});return i0}
   const pick=idx=>{if(domCrit==='sat')return idx.reduce((m,i)=>P[i].s<P[m].s?i:m,idx[0]);if(domCrit==='light')return idx.reduce((m,i)=>P[i].l>P[m].l?i:m,idx[0]);return idx.reduce((m,i)=>Math.abs(P[i].l-50)<Math.abs(P[m].l-50)?i:m,idx[0])}
   let domI,secI,acc,rec=!accentSel
-  if(accentSel){acc={...accentSel};domI=pick([0,1,2]);const rest=[0,1,2].filter(i=>i!==domI);secI=rest.sort((a,b)=>P[b].s-P[a].s)[0]}
+  if(domSel!=null){domI=domSel;const rest=[0,1,2].filter(i=>i!==domI);let bi=rest[0],best=-1;rest.forEach(i=>{const sc=P[i].s/100*(0.4+0.6*hd(P[i].h,P[domI].h)/180);if(sc>best){best=sc;bi=i}});acc={...P[bi]};secI=rest.find(i=>i!==bi)}
+  else if(accentSel){acc={...accentSel};domI=pick([0,1,2]);const rest=[0,1,2].filter(i=>i!==domI);secI=rest.sort((a,b)=>P[b].s-P[a].s)[0]}
   else{const ai=vivid();acc={...P[ai]};const rest=[0,1,2].filter(i=>i!==ai);domI=pick(rest);secI=rest.find(i=>i!==domI)}
   const dom=tint(P[domI]),domD={h:P[domI].h,s:P[domI].s,l:cl(P[domI].l-18,10,90)},sec=P[secI],secT=tint(P[secI])
   const domGroup=blackMix?[dom,P[domI],shade(P[domI])]:[dom,domD]
@@ -111,7 +112,7 @@ function derive(P,mix,ratio,domCrit,accentSel,blackMix){
   const wd=ratio==='631'?[60,30,10]:[60,20,20],con=contrastsOf(P)
   const dS=Math.round(P[domI].s),dL=Math.round(P[domI].l),sHd=Math.round(hd(P[domI].h,P[secI].h)),aS=Math.round(acc.s),aHd=Math.round(hd(P[domI].h,acc.h))
   const dW=warm(P[domI].h),sW=warm(P[secI].h),aW=warm(acc.h)
-  let rDom=domCrit==='sat'?`채도가 ${dS}%로 셋 중 가장 낮아, 넓게 깔아도 눈이 피로하지 않아요`:domCrit==='light'?`명도가 ${dL}%로 가장 밝아, 화면을 열어주는 바탕이 돼요`:`명도 ${dL}%의 중간 톤이라, 어떤 색과도 무난히 어울리는 바탕이에요`
+  let rDom=domSel!=null?`직접 고른 주체색이에요 — 부수·종속을 이 색에 맞춰 자동 추천했어요`:domCrit==='sat'?`채도가 ${dS}%로 셋 중 가장 낮아, 넓게 깔아도 눈이 피로하지 않아요`:domCrit==='light'?`명도가 ${dL}%로 가장 밝아, 화면을 열어주는 바탕이 돼요`:`명도 ${dL}%의 중간 톤이라, 어떤 색과도 무난히 어울리는 바탕이에요`
   let rSec=sHd<=45?`주체와 색상이 ${sHd}°만 떨어져 톤이 이어지며 자연스럽게 받쳐줘요`:`주체와 ${sHd}° 떨어져 단조로움을 깨고 화면에 리듬을 줘요`
   if((dW>0.15&&sW<-0.15)||(dW<-0.15&&sW>0.15))rSec+=` (주체와 한난이 갈려요)`
   let rAcc=accentSel?`직접 고른 색이에요. 채도 ${aS}%로 좁게 써도 시선을 잡아요`:`추천 포인트예요. 채도 ${aS}%로 가장 선명해 10%만 써도 시선이 꽂혀요`
@@ -165,15 +166,18 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
   const [accentSel,setAccentSel]=useState(()=> initial?.accentManual && initial?.accent ? {...initial.accent} : null)
   const [guideOpen,setGuideOpen]=useState(false)
   const [blackMix,setBlackMix]=useState(()=> initial?.blackMix!==false)
+  const [domSel,setDomSel]=useState(()=> Number.isInteger(initial?.domSel)?initial.domSel:null)
   const cv=useRef(null)
 
-  const D=useMemo(()=>derive(P,mix,ratio,domCrit,accentSel,blackMix),[P,mix,ratio,domCrit,accentSel,blackMix])
+  const D=useMemo(()=>derive(P,mix,ratio,domCrit,accentSel,blackMix,domSel),[P,mix,ratio,domCrit,accentSel,blackMix,domSel])
   const mood=useMemo(()=>moodOf(P),[P])
 
   useEffect(()=>{ const c=cv.current; if(!c)return; drawWheelOn(c.getContext('2d'),120,120,100,D) },[D])
 
   const setField=(f,v)=>setP(prev=>prev.map((c,i)=>i===act?{...c,[f]:v}:c))
   const brickSel=c=>accentSel&&Math.abs(accentSel.h-c.h)<0.6&&Math.abs(accentSel.l-c.l)<0.6&&Math.abs(accentSel.s-c.s)<0.6
+  const pickAccent=c=>{ setAccentSel({h:c.h,s:c.s,l:c.l}); setDomSel(null) }   // 종속 지정 → 주체 자동
+  const pickDom=i=>{ setDomSel(i); setAccentSel(null) }                        // 주체 지정 → 부수·종속 자동
 
   async function save(){
     const domLabel=domCrit==='sat'?'저채도':domCrit==='light'?'최고명도':'중명도'
@@ -181,7 +185,7 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
     const c=document.createElement('canvas');c.width=720;c.height=1000
     drawCard(c.getContext('2d'),720,1000,D,P,mood,ratioStr,domLabel)
     const blob=await new Promise(res=>c.toBlob(res,'image/png'))
-    const palette={ v:1, primaries:P, mix, ratio, domCrit, blackMix, accentManual:!!accentSel, accent:D.acc,
+    const palette={ v:1, primaries:P, mix, ratio, domCrit, blackMix, domSel, accentManual:!!accentSel, accent:D.acc,
       hex:[...P.map(p=>hx(p.h,p.s,p.l)), hx(D.acc.h,D.acc.s,D.acc.l)], munsell:P.map(munsell), mood, contrasts:D.con.keys }
     const note=`🎨 색 계획\n· 느낌: ${mood}\n· 추천 대비: ${D.con.headline}\n· 면적 ${ratioStr} · 주체 ${domLabel} 기준`
     onSave(blob,palette,note)
@@ -275,7 +279,7 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
               )})}
             </div>
             <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginTop:14 }}>
-              {Object.keys(KW).map(k=>(<button key={k} onClick={()=>{ setP(KW[k].map(c=>({...c}))); setAccentSel(null) }} style={pill(false)}>{k}</button>))}
+              {Object.keys(KW).map(k=>(<button key={k} onClick={()=>{ setP(KW[k].map(c=>({...c}))); setAccentSel(null); setDomSel(null) }} style={pill(false)}>{k}</button>))}
             </div>
           </section>
 
@@ -300,11 +304,11 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
             <h2 style={h2s}>벽돌 팔레트</h2>
             <div style={{ marginTop:16, font:`600 11px ${FMONO}`, letterSpacing:'0.06em', color:MUT }}>순색</div>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:7, marginTop:9 }}>
-              {D.pure.map((c,i)=><button key={'p'+i} onClick={()=>setAccentSel({h:c.h,s:c.s,l:c.l})} style={{ height:46, borderRadius:9, border:'none', background:cssH(c), cursor:'pointer', padding:0, boxShadow: brickSel(c)?`0 0 0 2px ${BG}, 0 0 0 4px #F0ECF4`:'none' }}/>)}
+              {D.pure.map((c,i)=><button key={'p'+i} onClick={()=>pickAccent(c)} style={{ height:46, borderRadius:9, border:'none', background:cssH(c), cursor:'pointer', padding:0, boxShadow: brickSel(c)?`0 0 0 2px ${BG}, 0 0 0 4px #F0ECF4`:'none' }}/>)}
             </div>
             <div style={{ marginTop:18, font:`600 11px ${FMONO}`, letterSpacing:'0.06em', color:MUT }}>틴트 · +화이트 50%</div>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:7, marginTop:9 }}>
-              {D.tin.map((c,i)=><button key={'t'+i} onClick={()=>setAccentSel({h:c.h,s:c.s,l:c.l})} style={{ height:46, borderRadius:9, border:'none', background:cssH(c), cursor:'pointer', padding:0, boxShadow: brickSel(c)?`0 0 0 2px ${BG}, 0 0 0 4px #F0ECF4`:'none' }}/>)}
+              {D.tin.map((c,i)=><button key={'t'+i} onClick={()=>pickAccent(c)} style={{ height:46, borderRadius:9, border:'none', background:cssH(c), cursor:'pointer', padding:0, boxShadow: brickSel(c)?`0 0 0 2px ${BG}, 0 0 0 4px #F0ECF4`:'none' }}/>)}
             </div>
           </section>
 
@@ -329,7 +333,7 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
                 <Fragment key={i}>
                   <div style={{ font:`700 11px ${FMONO}`, color:TX2 }}>P{i+1}</div>
                   {cells.map((cc,j)=>(
-                    <button key={j} onClick={()=>setAccentSel({h:cc.h,s:cc.s,l:cc.l})} style={{ border:'none', background:'none', padding:0, cursor:'pointer', textAlign:'left' }}>
+                    <button key={j} onClick={()=>pickAccent(cc)} style={{ border:'none', background:'none', padding:0, cursor:'pointer', textAlign:'left' }}>
                       <div style={{ height:38, borderRadius:8, background:cssH(cc), boxShadow: brickSel(cc)?`0 0 0 2px ${BG}, 0 0 0 4px #F0ECF4`:'none' }}/>
                       <div style={{ marginTop:5, font:`600 10px ${FMONO}`, color:'#c9c3d2' }}>{hx(cc.h,cc.s,cc.l).toUpperCase()}</div>
                       <div style={{ marginTop:1, font:`500 9.5px ${FMONO}`, color:MUT }}>{munsell(cc)}</div>
@@ -348,11 +352,16 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
                 <button onClick={()=>setRatio('622')} style={pillM(ratio==='622')}>6:2:2</button>
               </div>
             </div>
-            <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:16, flexWrap:'wrap' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:16, flexWrap:'wrap', opacity: domSel!=null?0.4:1, transition:'opacity .2s' }}>
               <span style={{ font:`600 12px ${FSANS}`, color:MUT }}>주체 기준</span>
-              {[['sat','저채도'],['light','최고명도'],['mid','중명도']].map(([k,lab])=>(<button key={k} onClick={()=>setDomCrit(k)} style={{ ...pill(domCrit===k), padding:'7px 13px' }}>{lab}</button>))}
+              {[['sat','저채도'],['light','최고명도'],['mid','중명도']].map(([k,lab])=>(<button key={k} onClick={()=>{ setDomCrit(k); setDomSel(null) }} style={{ ...pill(domCrit===k), padding:'7px 13px' }}>{lab}</button>))}
             </div>
-            <div style={{ marginTop:12, font:`500 12px ${FSANS}`, color:'#8a8294', lineHeight:1.55 }}><span style={{ color:accent }}>ⓘ</span> {DOMWHY[domCrit]}</div>
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:10, flexWrap:'wrap' }}>
+              <span style={{ font:`600 12px ${FSANS}`, color:MUT }}>주체 색</span>
+              <button onClick={()=>setDomSel(null)} style={{ ...pill(domSel==null), padding:'6px 12px' }}>자동</button>
+              {P.map((c,i)=>(<button key={i} onClick={()=>pickDom(i)} aria-label={`P${i+1} 주체로`} style={{ width:32, height:32, borderRadius:9, border: domSel===i?'2px solid #F0ECF4':`1px solid ${BORD2}`, background:cssH(c), cursor:'pointer', padding:0, boxShadow: domSel===i?`0 0 0 3px ${cssHA(c,0.32)}`:'none' }}/>))}
+            </div>
+            <div style={{ marginTop:12, font:`500 12px ${FSANS}`, color:'#8a8294', lineHeight:1.55 }}><span style={{ color:accent }}>ⓘ</span> {domSel!=null?'주체를 직접 지정했어요 — 부수·종속은 이 색에 맞춰 자동 추천돼요':DOMWHY[domCrit]}</div>
             <div style={{ marginTop:14 }}>
               <div style={{ display:'flex', gap:6, height:78 }}>
                 {[[D.domGroup,D.wd[0]],[D.secGroup,D.wd[1]],[D.accGroup,D.wd[2]]].map((g,gi)=>(
@@ -417,7 +426,7 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
             <span style={{ font:`700 15px ${FMONO}`, color:TX }}>{hx(D.acc.h,D.acc.s,D.acc.l).toUpperCase()}</span>
             <span style={{ font:`500 12px ${FMONO}`, color:MUT }}>· {munsell(D.acc)}</span>
           </div>
-          {accentSel && <button onClick={()=>setAccentSel(null)} style={{ marginLeft:'auto', ...pill(false), padding:'7px 12px', flexShrink:0 }}>↺ 추천</button>}
+          {(accentSel||domSel!=null) && <button onClick={()=>{ setAccentSel(null); setDomSel(null) }} style={{ marginLeft:'auto', ...pill(false), padding:'7px 12px', flexShrink:0 }}>↺ 자동</button>}
         </div>
 
       </div>
