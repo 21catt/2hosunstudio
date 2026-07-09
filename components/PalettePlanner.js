@@ -1,5 +1,5 @@
 'use client'
-import { useState, useMemo, useRef, useEffect } from 'react'
+import { useState, useMemo, useRef, useEffect, Fragment } from 'react'
 
 // PIGMENT — 3원색으로 색상휠(물감식 감산 기본)을 만들고, 먼셀 추천 대비 · 6:3:1 면적을 잡아
 // "색 계획 카드" PNG + palette JSON으로 기록에 저장하는 모달. (학생·참여작가 공용)
@@ -58,6 +58,9 @@ const DISTRIB=[['공간 · 깊이','따뜻한 역할 앞으로 · 차가운 역�
 function hx(h,s,l){const r=hsl2rgb(h,s,l),t=x=>x.toString(16).padStart(2,'0');return '#'+t(r[0])+t(r[1])+t(r[2])}
 const warm=h=>Math.cos((h-42)*Math.PI/180)
 const tint=c=>({h:c.h,s:c.s*0.5,l:c.l+(100-c.l)*0.5})
+// 암청색 검정 — 순검정 대신 섞어 그림자가 죽지 않게. 셰이드=색+암청색검정 50% (RGB 혼합)
+const BLACK={h:222,s:38,l:9}
+const shade=c=>{const a=hsl2rgb(c.h,c.s,c.l),b=hsl2rgb(BLACK.h,BLACK.s,BLACK.l),m=i=>Math.round(a[i]*0.5+b[i]*0.5);return rgb2hsl(m(0),m(1),m(2))}
 function mixHSL(a,b,t){const dh=((b.h-a.h+540)%360)-180;return {h:(a.h+dh*t+360)%360,s:a.s+(b.s-a.s)*t,l:a.l+(b.l-a.l)*t}}
 function pureSub(a,b,t){const ra=hsl2rgb(a.h,a.s,a.l),rb=hsl2rgb(b.h,b.s,b.l),g=i=>Math.round(Math.pow(Math.max(ra[i],4)/255,1-t)*Math.pow(Math.max(rb[i],4)/255,t)*255);return rgb2hsl(g(0),g(1),g(2))}
 function avgRGB(P){let r=0,g=0,b=0;P.forEach(c=>{const x=hsl2rgb(c.h,c.s,c.l);r+=x[0];g+=x[1];b+=x[2]});return [r/3,g/3,b/3].map(Math.round)}
@@ -158,6 +161,7 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
   const [domCrit,setDomCrit]=useState(['sat','light','mid'].includes(initial?.domCrit)?initial.domCrit:'sat')
   const [accentSel,setAccentSel]=useState(()=> initial?.accentManual && initial?.accent ? {...initial.accent} : null)
   const [guideOpen,setGuideOpen]=useState(false)
+  const [blackMix,setBlackMix]=useState(()=> initial?.blackMix!==false)
   const cv=useRef(null)
 
   const D=useMemo(()=>derive(P,mix,ratio,domCrit,accentSel),[P,mix,ratio,domCrit,accentSel])
@@ -174,7 +178,7 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
     const c=document.createElement('canvas');c.width=720;c.height=1000
     drawCard(c.getContext('2d'),720,1000,D,P,mood,ratioStr,domLabel)
     const blob=await new Promise(res=>c.toBlob(res,'image/png'))
-    const palette={ v:1, primaries:P, mix, ratio, domCrit, accentManual:!!accentSel, accent:D.acc,
+    const palette={ v:1, primaries:P, mix, ratio, domCrit, blackMix, accentManual:!!accentSel, accent:D.acc,
       hex:[...P.map(p=>hx(p.h,p.s,p.l)), hx(D.acc.h,D.acc.s,D.acc.l)], munsell:P.map(munsell), mood, contrasts:D.con.keys }
     const note=`🎨 색 계획\n· 느낌: ${mood}\n· 추천 대비: ${D.con.headline}\n· 면적 ${ratioStr} · 주체 ${domLabel} 기준`
     onSave(blob,palette,note)
@@ -290,6 +294,38 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
             <div style={{ marginTop:18, font:`600 11px ${FMONO}`, letterSpacing:'0.06em', color:MUT }}>틴트 · +화이트 50%</div>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:7, marginTop:9 }}>
               {D.tin.map((c,i)=><button key={'t'+i} onClick={()=>setAccentSel({h:c.h,s:c.s,l:c.l})} style={{ height:46, borderRadius:9, border:'none', background:cssH(c), cursor:'pointer', padding:0, boxShadow: brickSel(c)?`0 0 0 2px ${BG}, 0 0 0 4px #F0ECF4`:'none' }}/>)}
+            </div>
+          </section>
+
+          <section style={section}>
+            <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12 }}>
+              <div><div style={eb}>Value · Shade</div><h2 style={h2s}>명암 분석</h2></div>
+              <button onClick={()=>setBlackMix(v=>!v)} style={{ ...pill(blackMix), padding:'8px 13px', flex:'none' }}>암청색 검정 {blackMix?'ON':'OFF'}</button>
+            </div>
+            <div style={{ display:'flex', alignItems:'center', gap:9, marginTop:14 }}>
+              <span style={{ width:26, height:26, borderRadius:7, background:cssH(BLACK), flex:'none', border:`1px solid ${BORD2}` }}/>
+              <div style={{ minWidth:0 }}>
+                <div style={{ font:`600 11px ${FMONO}`, color:'#c9c3d2' }}>{hx(BLACK.h,BLACK.s,BLACK.l).toUpperCase()} · 암청색 검정 <span style={{ color:MUT }}>{munsell(BLACK)}</span></div>
+                <div style={{ font:`500 11px ${FSANS}`, color:'#8a8294', marginTop:2 }}>순검정 대신 섞으면 그림자가 죽지 않고 깊어져요</div>
+              </div>
+            </div>
+            <div style={{ marginTop:15, display:'grid', gridTemplateColumns: blackMix?'30px 1fr 1fr 1fr':'30px 1fr 1fr', gap:'10px 7px', alignItems:'center' }}>
+              <div/>
+              {blackMix && <div style={{ font:`600 10px ${FMONO}`, letterSpacing:'0.05em', color:MUT }}>셰이드</div>}
+              <div style={{ font:`600 10px ${FMONO}`, letterSpacing:'0.05em', color:MUT }}>순색</div>
+              <div style={{ font:`600 10px ${FMONO}`, letterSpacing:'0.05em', color:MUT }}>틴트</div>
+              {P.map((c,i)=>{const cells=blackMix?[shade(c),c,tint(c)]:[c,tint(c)];return (
+                <Fragment key={i}>
+                  <div style={{ font:`700 11px ${FMONO}`, color:TX2 }}>P{i+1}</div>
+                  {cells.map((cc,j)=>(
+                    <button key={j} onClick={()=>setAccentSel({h:cc.h,s:cc.s,l:cc.l})} style={{ border:'none', background:'none', padding:0, cursor:'pointer', textAlign:'left' }}>
+                      <div style={{ height:38, borderRadius:8, background:cssH(cc), boxShadow: brickSel(cc)?`0 0 0 2px ${BG}, 0 0 0 4px #F0ECF4`:'none' }}/>
+                      <div style={{ marginTop:5, font:`600 10px ${FMONO}`, color:'#c9c3d2' }}>{hx(cc.h,cc.s,cc.l).toUpperCase()}</div>
+                      <div style={{ marginTop:1, font:`500 9.5px ${FMONO}`, color:MUT }}>{munsell(cc)}</div>
+                    </button>
+                  ))}
+                </Fragment>
+              )})}
             </div>
           </section>
 
