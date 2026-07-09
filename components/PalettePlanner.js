@@ -95,23 +95,28 @@ function contrastsOf(P){
   return { headline, keys:ranked.slice(0,2), reco, chips:['색상','명도','채도','보색','한난','동시','면적'].map(k=>({k,on:setObj.has(k)})) }
 }
 
-// 분위기·느낌 추천 — 색상휠 색(순색·틴트·셰이드)을 활용해 주체·부수·종속을 다르게 제안
+// 분위기·느낌 추천 — PCCS 톤 체계 + 고바야시/IRI 이미지 스케일 기준으로 재정립.
+// 은은=soft·grayish 저채도 톤온톤 / 화사=bright·light 밝고선명 / 깊은=deep·dark 어두운 고채도 /
+// 따뜻=warm 난색지배 / 모던=achromatic+vivid 무채색바탕+샤프한 강조.
 const MOODS=[
-  {key:'soft',label:'은은',desc:'톤을 좁혀 부드럽고 차분한 분위기'},
-  {key:'bright',label:'화사',desc:'밝은 바탕으로 화사하고 가벼운 분위기'},
-  {key:'deep',label:'깊은',desc:'어두운 바탕에 강한 명암 대비로 극적인 분위기'},
-  {key:'warm',label:'따뜻',desc:'따뜻한 색을 지배로 포근한 분위기'},
-  {key:'modern',label:'모던',desc:'중성 바탕에 한 색만 또렷한 세련된 분위기'},
+  {key:'soft',label:'은은',desc:'채도를 낮춘 톤온톤으로 차분하고 우아한 분위기'},
+  {key:'bright',label:'화사',desc:'밝고 선명한 난색으로 화려하고 사랑스러운 분위기'},
+  {key:'deep',label:'깊은',desc:'어둡고 짙은 바탕으로 중후하고 고급스러운 분위기'},
+  {key:'warm',label:'따뜻',desc:'난색이 지배하는 포근하고 편안한 분위기'},
+  {key:'modern',label:'모던',desc:'무채색 바탕에 한 색만 강조한 세련되고 샤프한 분위기'},
 ]
+const muted=c=>({h:c.h,s:cl(c.s*0.34,6,34),l:cl(c.l*0.5+50,46,74)})       // soft·grayish 톤
+const brite=c=>({h:c.h,s:cl(c.s*0.72+16,46,90),l:cl(c.l*0.32+60,62,84)})  // bright·light 톤
+const deepT=c=>({h:c.h,s:cl(c.s*0.92,34,94),l:cl(c.l*0.42+7,12,32)})      // deep·dark 톤
 function moodPalette(P,key){
   const idx=[0,1,2],a=idx.reduce((m,i)=>P[i].s>P[m].s?i:m,0),rest=idx.filter(i=>i!==a)   // 종속=최고채도, 나머지 둘로 주체·부수
   const dark=P[rest[0]].l<P[rest[1]].l?rest[0]:rest[1],light=dark===rest[0]?rest[1]:rest[0]
-  const warmr=warm(P[rest[0]].h)>warm(P[rest[1]].h)?rest[0]:rest[1],cool=warmr===rest[0]?rest[1]:rest[0]
-  if(key==='soft')return{dom:tint(P[cool]),sec:tint(P[warmr]),acc:P[a]}
-  if(key==='bright')return{dom:tint(P[light]),sec:tint(P[dark]),acc:P[a]}
-  if(key==='deep')return{dom:shade(P[dark]),sec:P[light],acc:P[a]}
-  if(key==='warm')return{dom:tint(P[warmr]),sec:P[cool],acc:P[a]}
-  if(key==='modern')return{dom:{h:P[cool].h,s:12,l:80},sec:shade(P[cool]),acc:P[a]}
+  const warmr=warm(P[rest[0]].h)>warm(P[rest[1]].h)?rest[0]:rest[1],cool=warmr===rest[0]?rest[1]:rest[0],V=P[a]
+  if(key==='soft')  return{ dom:muted(P[cool]), sec:muted(P[warmr]), acc:{h:V.h,s:cl(V.s*0.5,28,54),l:58} }
+  if(key==='bright')return{ dom:brite(P[light]), sec:brite(P[dark]), acc:{h:V.h,s:cl(V.s+6,62,92),l:cl(V.l,52,66)} }
+  if(key==='deep')  return{ dom:deepT(P[dark]), sec:deepT(P[light]), acc:{h:V.h,s:cl(V.s,58,92),l:cl(V.l+8,54,70)} }
+  if(key==='warm')  return{ dom:tint(P[warmr]), sec:{h:P[warmr].h,s:cl(P[warmr].s*0.62,30,64),l:cl(P[warmr].l-4,34,58)}, acc:{h:warm(V.h)>0?V.h:P[warmr].h,s:cl(V.s,58,90),l:56} }
+  if(key==='modern')return{ dom:{h:P[cool].h,s:9,l:83}, sec:{h:P[cool].h,s:13,l:19}, acc:{h:V.h,s:cl(V.s+10,72,95),l:cl(V.l,48,60)} }
   return{dom:P[0],sec:P[1],acc:P[2]}
 }
 function derive(P,mix,ratio,domCrit,accentSel,blackMix,domSel,moodSel){
