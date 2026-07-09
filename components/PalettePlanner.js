@@ -95,7 +95,7 @@ function contrastsOf(P){
   return { headline, keys:ranked.slice(0,2), reco, chips:['색상','명도','채도','보색','한난','동시','면적'].map(k=>({k,on:setObj.has(k)})) }
 }
 
-function derive(P,mix,ratio,domCrit,accentSel){
+function derive(P,mix,ratio,domCrit,accentSel,blackMix){
   const pureAt=makePureAt(P,mix),pure=[],tin=[]
   for(let i=0;i<12;i++){const p=pureAt(i*30);pure.push(p);tin.push(tint(p))}
   const gray=avgRGB(P),ctr=gray.map(v=>Math.round(v*0.5+127.5))
@@ -105,6 +105,9 @@ function derive(P,mix,ratio,domCrit,accentSel){
   if(accentSel){acc={...accentSel};domI=pick([0,1,2]);const rest=[0,1,2].filter(i=>i!==domI);secI=rest.sort((a,b)=>P[b].s-P[a].s)[0]}
   else{const ai=vivid();acc={...P[ai]};const rest=[0,1,2].filter(i=>i!==ai);domI=pick(rest);secI=rest.find(i=>i!==domI)}
   const dom=tint(P[domI]),domD={h:P[domI].h,s:P[domI].s,l:cl(P[domI].l-18,10,90)},sec=P[secI],secT=tint(P[secI])
+  const domGroup=blackMix?[dom,P[domI],shade(P[domI])]:[dom,domD]
+  const secGroup=blackMix?[sec,shade(P[secI])]:[sec,secT]
+  const accGroup=[acc]
   const wd=ratio==='631'?[60,30,10]:[60,20,20],con=contrastsOf(P)
   const dS=Math.round(P[domI].s),dL=Math.round(P[domI].l),sHd=Math.round(hd(P[domI].h,P[secI].h)),aS=Math.round(acc.s),aHd=Math.round(hd(P[domI].h,acc.h))
   const dW=warm(P[domI].h),sW=warm(P[secI].h),aW=warm(acc.h)
@@ -114,7 +117,7 @@ function derive(P,mix,ratio,domCrit,accentSel){
   let rAcc=accentSel?`직접 고른 색이에요. 채도 ${aS}%로 좁게 써도 시선을 잡아요`:`추천 포인트예요. 채도 ${aS}%로 가장 선명해 10%만 써도 시선이 꽂혀요`
   if(aHd>=120)rAcc+=` — 주체의 반대편 색이라 강조가 강해요`
   else if((dW>0.15&&aW<-0.15)||(dW<-0.15&&aW>0.15))rAcc+=` — 주체와 한난 대비로 도드라져요`
-  return { pureAt,pure,tin,gray,ctr,domI,secI,acc,rec,dom,domD,sec,secT,wd,con,reasons:{rDom,rSec,rAcc} }
+  return { pureAt,pure,tin,gray,ctr,domI,secI,acc,rec,dom,sec,domGroup,secGroup,accGroup,wd,con,reasons:{rDom,rSec,rAcc} }
 }
 
 function wedge(ctx,cx,cy,r0,r1,a0,a1,f){ctx.beginPath();ctx.arc(cx,cy,r1,a0,a1);ctx.arc(cx,cy,r0,a1,a0,true);ctx.closePath();ctx.fillStyle=f;ctx.fill()}
@@ -143,7 +146,7 @@ function drawCard(ctx,W,H,D,P,mood,ratioStr,domLabel){
     ctx.fillStyle=MUT;ctx.font=`500 19px ${FMONO}`;ctx.fillText(munsell(c),x+swW/2,sy+132)})
   ctx.textAlign='left';ctx.fillStyle=TX2;ctx.font='600 24px Pretendard, sans-serif'
   ctx.fillText(`면적 ${D.wd[0]} : ${D.wd[1]} : ${D.wd[2]}`,44,690)
-  const groups=[[[D.dom,D.domD],D.wd[0],'주체'],[[D.sec,D.secT],D.wd[1],'부수'],[[D.acc],D.wd[2],'종속']]
+  const groups=[[D.domGroup,D.wd[0],'주체'],[D.secGroup,D.wd[1],'부수'],[D.accGroup,D.wd[2],'종속']]
   const barX=44,barY=712,barW=W-88,barH=96;let cx=barX
   groups.forEach(g=>{const segW=barW*g[1]/100,each=segW/g[0].length
     g[0].forEach((c,j)=>{ctx.fillStyle=cssH(c);ctx.fillRect(cx+j*each,barY,each+0.5,barH)});cx+=segW})
@@ -164,7 +167,7 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
   const [blackMix,setBlackMix]=useState(()=> initial?.blackMix!==false)
   const cv=useRef(null)
 
-  const D=useMemo(()=>derive(P,mix,ratio,domCrit,accentSel),[P,mix,ratio,domCrit,accentSel])
+  const D=useMemo(()=>derive(P,mix,ratio,domCrit,accentSel,blackMix),[P,mix,ratio,domCrit,accentSel,blackMix])
   const mood=useMemo(()=>moodOf(P),[P])
 
   useEffect(()=>{ const c=cv.current; if(!c)return; drawWheelOn(c.getContext('2d'),120,120,100,D) },[D])
@@ -196,14 +199,22 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
   const pctf=(v,mn,mx)=>Math.round((v-mn)/(mx-mn)*100)
 
   return (
-    <div style={{ position:'fixed', inset:0, zIndex:1500, overflowY:'auto', display:'flex', justifyContent:'center',
+    <div className="pp-overlay" style={{ position:'fixed', inset:0, zIndex:1500, overflowY:'auto', display:'flex', justifyContent:'center',
       background:'radial-gradient(120% 80% at 50% -10%, #17121d 0%, #0a0810 45%, #050406 100%)' }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:ital,wght@0,600;0,700;1,500&family=JetBrains+Mono:wght@400;500;600;700&display=swap');@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
         .pp-range{-webkit-appearance:none;appearance:none;height:7px;border-radius:99px;outline:none;cursor:pointer}
         .pp-range::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.5);cursor:pointer}
         .pp-range::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:#fff;border:none;box-shadow:0 1px 4px rgba(0,0,0,.5);cursor:pointer}
         .pp-range::-moz-range-track{background:transparent}
-        .pp-sc::-webkit-scrollbar{width:0;height:0}`}</style>
+        .pp-sc::-webkit-scrollbar{width:0;height:0}
+        .pp-sc button{transition:transform .13s cubic-bezier(.34,1.4,.64,1),filter .15s,box-shadow .2s}
+        @media(hover:hover){.pp-sc button:hover{filter:brightness(1.08)}}
+        .pp-sc button:active{transform:scale(.93)}
+        .pp-seg{transition:flex-grow .35s cubic-bezier(.22,1,.36,1)}
+        .pp-reveal{animation:pp-rev .3s cubic-bezier(.22,1,.36,1)}
+        @keyframes pp-rev{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+        .pp-overlay{animation:pp-fade .28s ease}
+        @keyframes pp-fade{from{opacity:0}to{opacity:1}}`}</style>
 
       <div className="pp-sc" style={{ width:406, maxWidth:'100%', minHeight:'100%', background:BG, borderLeft:`1px solid rgba(255,255,255,0.06)`, borderRight:`1px solid rgba(255,255,255,0.06)`, display:'flex', flexDirection:'column', fontFamily:FSANS }}>
 
@@ -344,8 +355,8 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
             <div style={{ marginTop:12, font:`500 12px ${FSANS}`, color:'#8a8294', lineHeight:1.55 }}><span style={{ color:accent }}>ⓘ</span> {DOMWHY[domCrit]}</div>
             <div style={{ marginTop:14 }}>
               <div style={{ display:'flex', gap:6, height:78 }}>
-                {[[[D.dom,D.domD],D.wd[0]],[[D.sec,D.secT],D.wd[1]],[[D.acc],D.wd[2]]].map((g,gi)=>(
-                  <div key={gi} style={{ flex:g[1], display:'flex', borderRadius:12, overflow:'hidden' }}>
+                {[[D.domGroup,D.wd[0]],[D.secGroup,D.wd[1]],[D.accGroup,D.wd[2]]].map((g,gi)=>(
+                  <div key={gi} className="pp-seg" style={{ flex:g[1], display:'flex', borderRadius:12, overflow:'hidden' }}>
                     {g[0].map((c,j)=><div key={j} style={{ flex:1, background:cssH(c) }}/>)}
                   </div>
                 ))}
@@ -353,6 +364,7 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
               <div style={{ display:'flex', gap:6, marginTop:8, textAlign:'center' }}>
                 {[['주체',D.wd[0],false],['부수',D.wd[1],false],['종속',D.wd[2],true]].map(([n,w,ac],i)=>(<div key={i} style={{ flex:w, font:`600 ${ac?10:11}px ${FSANS}`, color: ac?accent:TX2 }}>{n} {w}%</div>))}
               </div>
+              {blackMix && <div style={{ marginTop:9, display:'flex', alignItems:'center', gap:6, font:`500 11px ${FSANS}`, color:'#8a8294' }}><span style={{ width:8, height:8, borderRadius:2, background:accent, flexShrink:0 }}/>주체·부수 그림자 = 암청색 검정 셰이드로 깊게</div>}
             </div>
             <div style={{ marginTop:16, background:INSET, border:`1px solid rgba(255,255,255,0.05)`, borderRadius:16, padding:16 }}>
               <div style={{ font:`700 13px ${FSANS}`, color:'#cfc8d8' }}>이렇게 나눈 이유</div>
@@ -373,7 +385,7 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
               <div><div style={eyeRow}><div style={eb}>Guide</div><span style={dash}>— 화면 어디에 쓸까</span></div><h2 style={h2s}>적용 가이드</h2></div>
               <span style={{ color:MUT, fontSize:12, flexShrink:0, marginLeft:10 }}>{guideOpen?'▲':'▼'}</span>
             </button>
-            {guideOpen && (<>
+            {guideOpen && (<div className="pp-reveal">
               <div style={{ marginTop:16, display:'flex', flexDirection:'column', gap:14 }}>
                 {[['주체',D.dom,DOMTIP[domCrit]],['부수',D.sec,SECTIP],['종속',D.acc,ACCTIP]].map(([name,c,tip],i)=>(
                   <div key={i}>
@@ -393,7 +405,7 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
                   </div>
                 ))}
               </div>
-            </>)}
+            </div>)}
           </section>
 
         </div>
