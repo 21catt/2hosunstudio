@@ -95,7 +95,26 @@ function contrastsOf(P){
   return { headline, keys:ranked.slice(0,2), reco, chips:['색상','명도','채도','보색','한난','동시','면적'].map(k=>({k,on:setObj.has(k)})) }
 }
 
-function derive(P,mix,ratio,domCrit,accentSel,blackMix,domSel){
+// 분위기·느낌 추천 — 색상휠 색(순색·틴트·셰이드)을 활용해 주체·부수·종속을 다르게 제안
+const MOODS=[
+  {key:'soft',label:'은은',desc:'톤을 좁혀 부드럽고 차분한 분위기'},
+  {key:'bright',label:'화사',desc:'밝은 바탕으로 화사하고 가벼운 분위기'},
+  {key:'deep',label:'깊은',desc:'어두운 바탕에 강한 명암 대비로 극적인 분위기'},
+  {key:'warm',label:'따뜻',desc:'따뜻한 색을 지배로 포근한 분위기'},
+  {key:'modern',label:'모던',desc:'중성 바탕에 한 색만 또렷한 세련된 분위기'},
+]
+function moodPalette(P,key){
+  const idx=[0,1,2],a=idx.reduce((m,i)=>P[i].s>P[m].s?i:m,0),rest=idx.filter(i=>i!==a)   // 종속=최고채도, 나머지 둘로 주체·부수
+  const dark=P[rest[0]].l<P[rest[1]].l?rest[0]:rest[1],light=dark===rest[0]?rest[1]:rest[0]
+  const warmr=warm(P[rest[0]].h)>warm(P[rest[1]].h)?rest[0]:rest[1],cool=warmr===rest[0]?rest[1]:rest[0]
+  if(key==='soft')return{dom:tint(P[cool]),sec:tint(P[warmr]),acc:P[a]}
+  if(key==='bright')return{dom:tint(P[light]),sec:tint(P[dark]),acc:P[a]}
+  if(key==='deep')return{dom:shade(P[dark]),sec:P[light],acc:P[a]}
+  if(key==='warm')return{dom:tint(P[warmr]),sec:P[cool],acc:P[a]}
+  if(key==='modern')return{dom:{h:P[cool].h,s:12,l:80},sec:shade(P[cool]),acc:P[a]}
+  return{dom:P[0],sec:P[1],acc:P[2]}
+}
+function derive(P,mix,ratio,domCrit,accentSel,blackMix,domSel,moodSel){
   const pureAt=makePureAt(P,mix),pure=[],tin=[]
   for(let i=0;i<12;i++){const p=pureAt(i*30);pure.push(p);tin.push(tint(p))}
   const gray=avgRGB(P),ctr=gray.map(v=>Math.round(v*0.5+127.5))
@@ -105,20 +124,23 @@ function derive(P,mix,ratio,domCrit,accentSel,blackMix,domSel){
   if(domSel!=null){domI=domSel;const rest=[0,1,2].filter(i=>i!==domI);let bi=rest[0],best=-1;rest.forEach(i=>{const sc=P[i].s/100*(0.4+0.6*hd(P[i].h,P[domI].h)/180);if(sc>best){best=sc;bi=i}});acc={...P[bi]};secI=rest.find(i=>i!==bi)}
   else if(accentSel){acc={...accentSel};domI=pick([0,1,2]);const rest=[0,1,2].filter(i=>i!==domI);secI=rest.sort((a,b)=>P[b].s-P[a].s)[0]}
   else{const ai=vivid();acc={...P[ai]};const rest=[0,1,2].filter(i=>i!==ai);domI=pick(rest);secI=rest.find(i=>i!==domI)}
-  const dom=tint(P[domI]),domD={h:P[domI].h,s:P[domI].s,l:cl(P[domI].l-18,10,90)},sec=P[secI],secT=tint(P[secI])
-  const domGroup=blackMix?[dom,P[domI],shade(P[domI])]:[dom,domD]
-  const secGroup=blackMix?[sec,shade(P[secI])]:[sec,secT]
-  const accGroup=[acc]
+  let domBase,secBase,accBase
+  if(moodSel){const mp=moodPalette(P,moodSel);domBase=mp.dom;secBase=mp.sec;accBase=mp.acc}
+  else{domBase=P[domI];secBase=P[secI];accBase=acc}
+  const domGroup=blackMix?[tint(domBase),domBase,shade(domBase)]:[tint(domBase),domBase]
+  const secGroup=blackMix?[secBase,shade(secBase)]:[secBase,tint(secBase)]
+  const accGroup=[accBase]
   const wd=ratio==='631'?[60,30,10]:[60,20,20],con=contrastsOf(P)
-  const dS=Math.round(P[domI].s),dL=Math.round(P[domI].l),sHd=Math.round(hd(P[domI].h,P[secI].h)),aS=Math.round(acc.s),aHd=Math.round(hd(P[domI].h,acc.h))
-  const dW=warm(P[domI].h),sW=warm(P[secI].h),aW=warm(acc.h)
-  let rDom=domSel!=null?`직접 고른 주체색이에요 — 부수·종속을 이 색에 맞춰 자동 추천했어요`:domCrit==='sat'?`채도가 ${dS}%로 셋 중 가장 낮아, 넓게 깔아도 눈이 피로하지 않아요`:domCrit==='light'?`명도가 ${dL}%로 가장 밝아, 화면을 열어주는 바탕이 돼요`:`명도 ${dL}%의 중간 톤이라, 어떤 색과도 무난히 어울리는 바탕이에요`
+  const dS=Math.round(domBase.s),dL=Math.round(domBase.l),sHd=Math.round(hd(domBase.h,secBase.h)),aS=Math.round(accBase.s),aHd=Math.round(hd(domBase.h,accBase.h))
+  const dW=warm(domBase.h),sW=warm(secBase.h),aW=warm(accBase.h)
+  const mood=MOODS.find(m=>m.key===moodSel)
+  let rDom=mood?`'${mood.label}' 분위기 — ${mood.desc}`:domSel!=null?`직접 고른 주체색이에요 — 부수·종속을 이 색에 맞춰 자동 추천했어요`:domCrit==='sat'?`채도가 ${dS}%로 셋 중 가장 낮아, 넓게 깔아도 눈이 피로하지 않아요`:domCrit==='light'?`명도가 ${dL}%로 가장 밝아, 화면을 열어주는 바탕이 돼요`:`명도 ${dL}%의 중간 톤이라, 어떤 색과도 무난히 어울리는 바탕이에요`
   let rSec=sHd<=45?`주체와 색상이 ${sHd}°만 떨어져 톤이 이어지며 자연스럽게 받쳐줘요`:`주체와 ${sHd}° 떨어져 단조로움을 깨고 화면에 리듬을 줘요`
   if((dW>0.15&&sW<-0.15)||(dW<-0.15&&sW>0.15))rSec+=` (주체와 한난이 갈려요)`
   let rAcc=accentSel?`직접 고른 색이에요. 채도 ${aS}%로 좁게 써도 시선을 잡아요`:`추천 포인트예요. 채도 ${aS}%로 가장 선명해 10%만 써도 시선이 꽂혀요`
   if(aHd>=120)rAcc+=` — 주체의 반대편 색이라 강조가 강해요`
   else if((dW>0.15&&aW<-0.15)||(dW<-0.15&&aW>0.15))rAcc+=` — 주체와 한난 대비로 도드라져요`
-  return { pureAt,pure,tin,gray,ctr,domI,secI,acc,rec,dom,sec,domGroup,secGroup,accGroup,wd,con,reasons:{rDom,rSec,rAcc} }
+  return { pureAt,pure,tin,gray,ctr,rec,dom:domBase,sec:secBase,acc:accBase,domGroup,secGroup,accGroup,wd,con,reasons:{rDom,rSec,rAcc} }
 }
 
 function wedge(ctx,cx,cy,r0,r1,a0,a1,f){ctx.beginPath();ctx.arc(cx,cy,r1,a0,a1);ctx.arc(cx,cy,r0,a1,a0,true);ctx.closePath();ctx.fillStyle=f;ctx.fill()}
@@ -167,17 +189,19 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
   const [guideOpen,setGuideOpen]=useState(false)
   const [blackMix,setBlackMix]=useState(()=> initial?.blackMix!==false)
   const [domSel,setDomSel]=useState(()=> Number.isInteger(initial?.domSel)?initial.domSel:null)
+  const [moodSel,setMoodSel]=useState(()=> typeof initial?.moodSel==='string'?initial.moodSel:null)
   const cv=useRef(null)
 
-  const D=useMemo(()=>derive(P,mix,ratio,domCrit,accentSel,blackMix,domSel),[P,mix,ratio,domCrit,accentSel,blackMix,domSel])
+  const D=useMemo(()=>derive(P,mix,ratio,domCrit,accentSel,blackMix,domSel,moodSel),[P,mix,ratio,domCrit,accentSel,blackMix,domSel,moodSel])
   const mood=useMemo(()=>moodOf(P),[P])
 
   useEffect(()=>{ const c=cv.current; if(!c)return; drawWheelOn(c.getContext('2d'),120,120,100,D) },[D])
 
   const setField=(f,v)=>setP(prev=>prev.map((c,i)=>i===act?{...c,[f]:v}:c))
   const brickSel=c=>accentSel&&Math.abs(accentSel.h-c.h)<0.6&&Math.abs(accentSel.l-c.l)<0.6&&Math.abs(accentSel.s-c.s)<0.6
-  const pickAccent=c=>{ setAccentSel({h:c.h,s:c.s,l:c.l}); setDomSel(null) }   // 종속 지정 → 주체 자동
-  const pickDom=i=>{ setDomSel(i); setAccentSel(null) }                        // 주체 지정 → 부수·종속 자동
+  const pickAccent=c=>{ setAccentSel({h:c.h,s:c.s,l:c.l}); setDomSel(null); setMoodSel(null) }   // 종속 지정 → 주체 자동
+  const pickDom=i=>{ setDomSel(i); setAccentSel(null); setMoodSel(null) }                        // 주체 지정 → 부수·종속 자동
+  const pickMood=key=>{ setMoodSel(prev=>prev===key?null:key); setDomSel(null); setAccentSel(null) } // 분위기 추천
 
   async function save(){
     const domLabel=domCrit==='sat'?'저채도':domCrit==='light'?'최고명도':'중명도'
@@ -185,7 +209,7 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
     const c=document.createElement('canvas');c.width=720;c.height=1000
     drawCard(c.getContext('2d'),720,1000,D,P,mood,ratioStr,domLabel)
     const blob=await new Promise(res=>c.toBlob(res,'image/png'))
-    const palette={ v:1, primaries:P, mix, ratio, domCrit, blackMix, domSel, accentManual:!!accentSel, accent:D.acc,
+    const palette={ v:1, primaries:P, mix, ratio, domCrit, blackMix, domSel, moodSel, accentManual:!!accentSel, accent:D.acc,
       hex:[...P.map(p=>hx(p.h,p.s,p.l)), hx(D.acc.h,D.acc.s,D.acc.l)], munsell:P.map(munsell), mood, contrasts:D.con.keys }
     const note=`🎨 색 계획\n· 느낌: ${mood}\n· 추천 대비: ${D.con.headline}\n· 면적 ${ratioStr} · 주체 ${domLabel} 기준`
     onSave(blob,palette,note)
@@ -279,7 +303,7 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
               )})}
             </div>
             <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginTop:14 }}>
-              {Object.keys(KW).map(k=>(<button key={k} onClick={()=>{ setP(KW[k].map(c=>({...c}))); setAccentSel(null); setDomSel(null) }} style={pill(false)}>{k}</button>))}
+              {Object.keys(KW).map(k=>(<button key={k} onClick={()=>{ setP(KW[k].map(c=>({...c}))); setAccentSel(null); setDomSel(null); setMoodSel(null) }} style={pill(false)}>{k}</button>))}
             </div>
           </section>
 
@@ -352,28 +376,39 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
                 <button onClick={()=>setRatio('622')} style={pillM(ratio==='622')}>6:2:2</button>
               </div>
             </div>
-            <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:16, flexWrap:'wrap', opacity: domSel!=null?0.4:1, transition:'opacity .2s' }}>
-              <span style={{ font:`600 12px ${FSANS}`, color:MUT }}>주체 기준</span>
-              {[['sat','저채도'],['light','최고명도'],['mid','중명도']].map(([k,lab])=>(<button key={k} onClick={()=>{ setDomCrit(k); setDomSel(null) }} style={{ ...pill(domCrit===k), padding:'7px 13px' }}>{lab}</button>))}
+            <div style={{ marginTop:16 }}>
+              <div style={{ font:`600 12px ${FSANS}`, color:MUT, marginBottom:8 }}>분위기 추천 <span style={{ color:DIM, fontWeight:400, fontSize:11 }}>— 눌러서 미리보기</span></div>
+              <div style={{ display:'flex', flexWrap:'wrap', gap:7 }}>
+                {MOODS.map(m=>(<button key={m.key} onClick={()=>pickMood(m.key)} style={{ ...pill(moodSel===m.key), padding:'7px 14px' }}>{m.label}</button>))}
+              </div>
             </div>
-            <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:10, flexWrap:'wrap' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:12, flexWrap:'wrap' }}>
               <span style={{ font:`600 12px ${FSANS}`, color:MUT }}>주체 색</span>
-              <button onClick={()=>setDomSel(null)} style={{ ...pill(domSel==null), padding:'6px 12px' }}>자동</button>
+              <button onClick={()=>{ setDomSel(null); setMoodSel(null) }} style={{ ...pill(domSel==null&&!moodSel), padding:'6px 12px' }}>자동</button>
               {P.map((c,i)=>(<button key={i} onClick={()=>pickDom(i)} aria-label={`P${i+1} 주체로`} style={{ width:32, height:32, borderRadius:9, border: domSel===i?'2px solid #F0ECF4':`1px solid ${BORD2}`, background:cssH(c), cursor:'pointer', padding:0, boxShadow: domSel===i?`0 0 0 3px ${cssHA(c,0.32)}`:'none' }}/>))}
             </div>
-            <div style={{ marginTop:12, font:`500 12px ${FSANS}`, color:'#8a8294', lineHeight:1.55 }}><span style={{ color:accent }}>ⓘ</span> {domSel!=null?'주체를 직접 지정했어요 — 부수·종속은 이 색에 맞춰 자동 추천돼요':DOMWHY[domCrit]}</div>
+            <div style={{ marginTop:12, font:`500 12px ${FSANS}`, color:'#8a8294', lineHeight:1.55 }}><span style={{ color:accent }}>ⓘ</span> {moodSel?MOODS.find(m=>m.key===moodSel).desc:domSel!=null?'주체를 직접 지정했어요 — 부수·종속은 이 색에 맞춰 자동 추천돼요':'분위기를 고르거나 주체 색을 직접 지정하면 나머지를 자동 추천해요'}</div>
             <div style={{ marginTop:14 }}>
-              <div style={{ display:'flex', gap:6, height:78 }}>
-                {[[D.domGroup,D.wd[0]],[D.secGroup,D.wd[1]],[D.accGroup,D.wd[2]]].map((g,gi)=>(
-                  <div key={gi} className="pp-seg" style={{ flex:g[1], display:'flex', borderRadius:12, overflow:'hidden' }}>
-                    {g[0].map((c,j)=><div key={j} style={{ flex:1, background:cssH(c) }}/>)}
-                  </div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gridAutoRows:'30px', gap:6 }}>
+                <div style={{ gridColumn:1, gridRow:1, background:cssH({h:D.dom.h,s:16,l:10}), borderRadius:6 }}/>
+                <div style={{ gridColumn:'2 / span 2', gridRow:'1 / span 3', background:cssH(tint(D.dom)), borderRadius:8 }} title="주체"/>
+                <div style={{ gridColumn:4, gridRow:1, background:cssH(tint(D.sec)), borderRadius:6 }}/>
+                <div style={{ gridColumn:1, gridRow:'2 / span 2', background:cssH({h:D.sec.h,s:16,l:12}), borderRadius:6 }}/>
+                <div style={{ gridColumn:4, gridRow:'2 / span 2', background:cssH(D.sec), borderRadius:6 }} title="부수"/>
+                <div style={{ gridColumn:1, gridRow:4, background:cssH(shade(D.sec)), borderRadius:6 }}/>
+                <div style={{ gridColumn:2, gridRow:4, background:cssH({h:D.dom.h,s:14,l:92}), borderRadius:6 }}/>
+                <div style={{ gridColumn:3, gridRow:4, background:cssH({h:D.acc.h,s:18,l:13}), borderRadius:6 }}/>
+                <div style={{ gridColumn:4, gridRow:4, background:cssH(D.acc), borderRadius:6 }} title="종속"/>
+              </div>
+              <div style={{ height:14, width:'40%', borderRadius:7, background:cssH({h:D.dom.h,s:13,l:90}), margin:'6px 0 0 26%' }}/>
+              <div style={{ display:'flex', gap:14, marginTop:11, flexWrap:'wrap' }}>
+                {[['주체',cssH(tint(D.dom)),D.wd[0]],['부수',cssH(D.sec),D.wd[1]],['종속',cssH(D.acc),D.wd[2]]].map(([n,bg,w],i)=>(
+                  <span key={i} style={{ display:'flex', alignItems:'center', gap:6, font:`600 11px ${FSANS}`, color:TX2 }}>
+                    <span style={{ width:11, height:11, borderRadius:3, background:bg, flexShrink:0 }}/>{n} <span style={{ color:MUT }}>{w}%</span>
+                  </span>
                 ))}
               </div>
-              <div style={{ display:'flex', gap:6, marginTop:8, textAlign:'center' }}>
-                {[['주체',D.wd[0],false],['부수',D.wd[1],false],['종속',D.wd[2],true]].map(([n,w,ac],i)=>(<div key={i} style={{ flex:w, font:`600 ${ac?10:11}px ${FSANS}`, color: ac?accent:TX2 }}>{n} {w}%</div>))}
-              </div>
-              {blackMix && <div style={{ marginTop:9, display:'flex', alignItems:'center', gap:6, font:`500 11px ${FSANS}`, color:'#8a8294' }}><span style={{ width:8, height:8, borderRadius:2, background:accent, flexShrink:0 }}/>주체·부수 그림자 = 암청색 검정 셰이드로 깊게</div>}
+              {blackMix && <div style={{ marginTop:9, display:'flex', alignItems:'center', gap:6, font:`500 11px ${FSANS}`, color:'#8a8294' }}><span style={{ width:8, height:8, borderRadius:2, background:accent, flexShrink:0 }}/>어두운 칸 = 암청색 검정 셰이드</div>}
             </div>
             <div style={{ marginTop:16, background:INSET, border:`1px solid rgba(255,255,255,0.05)`, borderRadius:16, padding:16 }}>
               <div style={{ font:`700 13px ${FSANS}`, color:'#cfc8d8' }}>이렇게 나눈 이유</div>
@@ -426,7 +461,7 @@ export default function PalettePlanner({ initial, role, saving, onClose, onSave 
             <span style={{ font:`700 15px ${FMONO}`, color:TX }}>{hx(D.acc.h,D.acc.s,D.acc.l).toUpperCase()}</span>
             <span style={{ font:`500 12px ${FMONO}`, color:MUT }}>· {munsell(D.acc)}</span>
           </div>
-          {(accentSel||domSel!=null) && <button onClick={()=>{ setAccentSel(null); setDomSel(null) }} style={{ marginLeft:'auto', ...pill(false), padding:'7px 12px', flexShrink:0 }}>↺ 자동</button>}
+          {(accentSel||domSel!=null||moodSel) && <button onClick={()=>{ setAccentSel(null); setDomSel(null); setMoodSel(null) }} style={{ marginLeft:'auto', ...pill(false), padding:'7px 12px', flexShrink:0 }}>↺ 자동</button>}
         </div>
 
       </div>
