@@ -63,7 +63,10 @@ export default function PaletteFab() {
     }
   }
 
-  if (!user || HIDE.includes(pathname)) return null
+  // 회원 가입자(수강생·참여작가·강사)만 사용 가능 — 비로그인·역할 없는 세션은 노출 안 함
+  const role = user?.user_metadata?.role
+  const isMember = !!user && (role === 'student' || role === 'artist' || role === 'admin')
+  if (!isMember || HIDE.includes(pathname)) return null
 
   return (
     <>
