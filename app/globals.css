@@ -161,6 +161,26 @@
   --card: #eef3f2;
 }
 
+/* 싱그러운 (3색: 라임그린·하늘·라임, 수확 9) */
+[data-theme='fresh'] {
+  --g1: #edf3de;
+  --g2: #cddfa4;
+  --g3: #9bb04a;
+  --g4: #7f9227;
+  --g5: #59691a;
+  --bg: #f5f9ee;
+  --td: #2b3320;
+  --tm: #59654a;
+  --tmu: #97a487;
+  --tl: #ccd6bc;
+  --ac: #7f9227;
+  --ac-rgb: 127 146 39;
+  --ac2: #94c6e8;
+  --acBg: #eef4df;
+  --acTx: #566b1a;
+  --card: #eef3e4;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
