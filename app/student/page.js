@@ -12,6 +12,7 @@ import { sendPushToAdmins } from '../../lib/pushNotify'
 import { sendKakaoToAdmins } from '../../lib/kakaoNotify'
 import { pixelCatImg } from '../../lib/pixelCats'
 import { sortCoursesByCategory } from '../../lib/courseSort'
+import { fetchLockedDates } from '../../lib/lockedDates'
 import LoadingCat from '../../components/LoadingCat'
 
 const CELL_W = 56
@@ -32,6 +33,7 @@ export default function StudentHomePage() {
   const [unread, setUnread] = useState(0)
   const [loading, setLoading] = useState(true)
   const [classes, setClasses] = useState([])
+  const [lockedDates, setLockedDates] = useState(new Set())
   const [allBookings, setAllBookings] = useState([])
   const [notices, setNotices] = useState([]) // 라운지에서 관리자가 공지 지정한 글 (최대 2개)
   const [myBookings, setMyBookings] = useState([])
@@ -142,6 +144,7 @@ export default function StudentHomePage() {
     // 공개 데이터: 수업(운영 요일·기간) + 정원 계산용 전체 예약
     const { data: c } = await supabase.from('class_courses').select('*, class_schedules(*), class_exceptions(*)').eq('is_active', true)
     setClasses(c || [])
+    setLockedDates(await fetchLockedDates())
     const { data: ab } = await supabase.from('bookings').select('course_id, schedule_id, class_date, class_time').eq('status', 'booked')
     setAllBookings(ab || [])
     // 홈 하단 공지 — 라운지에서 관리자가 공지 지정한 글. 컬럼(pinned_at)이 아직 없으면 조용히 숨김
@@ -165,6 +168,7 @@ export default function StudentHomePage() {
 
   // 캘린더 페이지의 courseOpenOnDay와 동일 규칙 (예외 요일·운영 기간 반영), 카테고리 순 정렬
   function coursesOn(ds) {
+    if (lockedDates.has(ds)) return []  // 관리자 날짜 잠금 → 그날 예약 불가
     const dow = new Date(ds + 'T00:00:00').getDay()
     return sortCoursesByCategory(classes.filter(c => {
       if (!c.class_schedules?.some(s => s.day_of_week === dow)) return false

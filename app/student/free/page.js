@@ -5,6 +5,7 @@ import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
 import { sendPushToAdmins } from '../../../lib/pushNotify'
 import { notifyAllAdmins } from '../../../lib/adminNotify'
+import { fetchLockedDates } from '../../../lib/lockedDates'
 
 
 const DEPOSIT = { bank: '국민은행', account: '392801-04-209666', holder: '양승민 (2호선스튜디오)' }
@@ -45,6 +46,7 @@ function FreeInner() {
   const [userName, setUserName] = useState('')
   const [allBookings, setAllBookings] = useState([])
   const [freeCourse, setFreeCourse] = useState(null)
+  const [lockedDates, setLockedDates] = useState(new Set())
   const [loading, setLoading] = useState(true)
   const [depositModal, setDepositModal] = useState(null)
 
@@ -96,6 +98,7 @@ function FreeInner() {
 
     const { data: ab } = await supabase.from('bookings').select('class_date, class_time, seat').eq('status', 'booked')
     setAllBookings(ab || [])
+    setLockedDates(await fetchLockedDates())
 
     const { data: courses } = await supabase
       .from('class_courses')
@@ -180,6 +183,7 @@ function FreeInner() {
     if (!startHour || !selSeat) return
 
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
+    if (lockedDates.has(dateStr)) { alert('이 날은 예약이 닫혀 있어요 🐾'); return }
     const startStr = `${String(startHour).padStart(2,'0')}:00`
     const endStr = `${String(startHour + duration).padStart(2,'0')}:00`
     const amount = calcPrice(selectedDay, startHour, duration)
@@ -228,6 +232,7 @@ function FreeInner() {
   const selDate = new Date(year, month, selectedDay)
   const occ = startHour ? getSeatOccupancyRange(selectedDay, startHour, duration) : { A:false, B:false, C:false, D:false, E:false }
   const price = startHour ? calcPrice(selectedDay, startHour, duration) : 0
+  const selLocked = lockedDates.has(`${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`)
 
   const dateLabel = `${year}.${String(month+1).padStart(2,'0')}.${String(selectedDay).padStart(2,'0')} ${['일','월','화','수','목','금','토'][selDate.getDay()]}요일`
   const rateLabel = startHour ? getRateLabel(selDate, startHour) : '평일 낮'
@@ -319,18 +324,20 @@ function FreeInner() {
               const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
               const todayStr = `${todayY}-${String(todayM+1).padStart(2,'0')}-${String(todayD).padStart(2,'0')}`
               const isPast = dateStr < todayStr
+              const isLocked = lockedDates.has(dateStr)
               const isSel = d===selectedDay
               const isT = year===todayY && month===todayM && d===todayD
 
               return (
                 <div key={d}
-                  onClick={()=>{ if(!isPast){ setSelectedDay(d); setStartHour(null) } }}
-                  style={{ height:38, display:'flex', alignItems:'center', justifyContent:'center',
-                    cursor:isPast?'default':'pointer', borderRadius:10, opacity:isPast?0.25:1,
+                  onClick={()=>{ if(!isPast && !isLocked){ setSelectedDay(d); setStartHour(null) } }}
+                  style={{ height:38, display:'flex', alignItems:'center', justifyContent:'center', position:'relative',
+                    cursor:(isPast||isLocked)?'default':'pointer', borderRadius:10, opacity:isPast?0.25:(isLocked?0.5:1),
                     background:isSel?'var(--g4)':isT?'var(--g1)':'transparent',
                     color:isSel?'#fff':dow===0?'#b05050':dow===6?'#5070a0':'var(--td)',
                     fontSize:12, fontWeight:isSel||isT?800:700 }}>
                   {d}
+                  {isLocked && <span style={{ position:'absolute', bottom:0, right:2, fontSize:9 }}>🔒</span>}
                 </div>
               )
             })}
@@ -523,7 +530,11 @@ function FreeInner() {
           </div>
         )}
 
-        {startHour && (
+        {selLocked ? (
+          <div style={{ padding:'14px', background:'var(--g1)', borderRadius:14, textAlign:'center', color:'var(--tmu)', fontSize:12, fontWeight:700, border:'1.5px solid var(--g2)' }}>
+            🔒 이 날은 예약이 닫혀 있어요
+          </div>
+        ) : startHour && (
           selSeat ? (
             <button onClick={handleBook}
               style={{ width:'100%', padding:'14px', background:'var(--g4)', color:'#fff', border:'none', borderRadius:14, fontSize:14, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>

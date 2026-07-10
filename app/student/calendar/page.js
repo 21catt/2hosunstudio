@@ -7,6 +7,7 @@ import StudentNav from '../../../components/StudentNav'
 import { NavIcon } from '../../../components/NavIcons'
 import ProfileHeaderIcon from '../../../components/ProfileHeaderIcon'
 import { sortCoursesByCategory } from '../../../lib/courseSort'
+import { fetchLockedDates } from '../../../lib/lockedDates'
 import { sendPushToAdmins } from '../../../lib/pushNotify'
 import { sendKakaoToAdmins } from '../../../lib/kakaoNotify'
 import { notifyAllAdmins } from '../../../lib/adminNotify'
@@ -40,7 +41,7 @@ function getCatImage(d) {
 }
 
 // 특정 수업이 다음으로 열리는 날짜 (커리큘럼 → 예약 딥링크용)
-function findNextOpenDate(course) {
+function findNextOpenDate(course, lockedDates) {
   const now = new Date()
   for (let i = 0; i < 70; i++) {
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i)
@@ -49,6 +50,7 @@ function findNextOpenDate(course) {
     if (!course.class_schedules?.some(s => s.day_of_week === dow)) continue
     if (course.class_exceptions?.some(e => e.day_of_week === dow)) continue
     const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+    if (lockedDates?.has(ds)) continue  // 잠긴 날짜는 건너뜀
     if (!course.is_unlimited) {
       if (course.start_date && ds < course.start_date) continue
       if (course.end_date && ds > course.end_date) continue
@@ -67,6 +69,7 @@ export default function CalendarPage() {
   const [bookings, setBookings] = useState([])
   const [allBookings, setAllBookings] = useState([])
   const [classes, setClasses] = useState([])
+  const [lockedDates, setLockedDates] = useState(new Set())
   const [curriculumNames, setCurriculumNames] = useState(new Set())
   const [pendingCourse, setPendingCourse] = useState(null)
   const deepLinkApplied = useRef(false)
@@ -121,7 +124,7 @@ export default function CalendarPage() {
     deepLinkApplied.current = true
     const course = classes.find(c => c.name === pendingCourse)
     if (!course) return
-    const d = findNextOpenDate(course)
+    const d = findNextOpenDate(course, lockedDates)
     if (!d) return
     setYear(d.getFullYear()); setMonth(d.getMonth()); setSelectedDay(d.getDate())
     setSelCat(course.category); setSelCourse(course); setSelSchedule(null)
@@ -153,6 +156,7 @@ export default function CalendarPage() {
     // 공개 데이터: 로그인 여부와 무관하게 수업/스케줄/예외 로드 (관리자 예외·운영기간 반영)
     const { data: c } = await supabase.from('class_courses').select('*, class_schedules(*), class_exceptions(*)').eq('is_active', true)
     setClasses(c || [])
+    setLockedDates(await fetchLockedDates())
     const { data: cur } = await supabase.from('course_curriculum').select('course_name')
     setCurriculumNames(new Set((cur || []).map(r => r.course_name).filter(Boolean)))
     setLoading(false)
@@ -175,6 +179,7 @@ export default function CalendarPage() {
   function courseOpenOnDay(c, day) {
     const dow = new Date(year, month, day).getDay()
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
+    if (lockedDates.has(dateStr)) return false  // 관리자 날짜 잠금 → 그날 예약 불가
     if (!c.class_schedules?.some(s => s.day_of_week === dow)) return false
     if (c.class_exceptions?.some(e => e.day_of_week === dow)) return false
     if (!c.is_unlimited) {
@@ -279,6 +284,7 @@ export default function CalendarPage() {
 
   function isBookable(day) {
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
+    if (lockedDates.has(dateStr)) return false
     const todayStr = `${todayY}-${String(todayM+1).padStart(2,'0')}-${String(todayD).padStart(2,'0')}`
     if (dateStr < todayStr) return false
     const diff = monthDiff()
@@ -337,6 +343,8 @@ export default function CalendarPage() {
   async function handleBook() {
     if (!user) { router.push('/signup'); return }
     if (!selCourse || !selSchedule) return
+    const lockStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
+    if (lockedDates.has(lockStr)) { alert('이 날은 예약이 닫혀 있어요 🐾'); return }
 
     if (selCourse.category === 'meeting') {
       const { data: mt } = await supabase.from('meeting_tickets').select('*').eq('user_id', user.id).eq('status', 'confirmed').gt('remain', 0).gte('expires_at', new Date().toISOString().split('T')[0]).limit(1)
@@ -531,6 +539,8 @@ export default function CalendarPage() {
   const firstDow = new Date(year, month, 1).getDay()
   const bd = bookedDays()
   const dc = dayClasses(selectedDay)
+  const selDateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
+  const selLocked = lockedDates.has(selDateStr)
 
   const dayBookings = bookings.filter(b => {
     const d = new Date(b.class_date)
@@ -828,12 +838,15 @@ export default function CalendarPage() {
             const isT = d===today
             const isAnim = animDay===d
             const hasCls = dayClasses(d).length > 0
+            const dLockStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+            const isLocked = lockedDates.has(dLockStr)
 
             return (
-              <div key={d} ref={el => cellRefs.current[d] = el} onClick={()=>handleDayClick(d)} style={{ height:52, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:isMon?'default':'pointer', borderRadius:12, opacity:isMon?0.3:1, position:'relative', background:isSel?'var(--ac2)':'transparent', border:isSel?'2px solid var(--ac)':'2px solid transparent' }}>
+              <div key={d} ref={el => cellRefs.current[d] = el} onClick={()=>handleDayClick(d)} style={{ height:52, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:isMon?'default':'pointer', borderRadius:12, opacity:isMon?0.3:(isLocked?0.6:1), position:'relative', background:isSel?'var(--ac2)':'transparent', border:isSel?'2px solid var(--ac)':'2px solid transparent' }}>
                 {isT && todayWeather && (
                   <div style={{ position:'absolute', top:-2, left:'50%', transform:'translateX(-50%)', fontSize:13, zIndex:1 }}>{todayWeather.icon}</div>
                 )}
+                {isLocked && <span style={{ position:'absolute', bottom:1, right:4, fontSize:10, zIndex:1 }} title="예약 잠금">🔒</span>}
                 {isB || isSel ? (
                   <div className={isAnim?'cat-anim':''} style={{ display:'flex', flexDirection:'column', alignItems:'center', lineHeight:1 }}>
                     <img src={getCatImage(d)} alt="" style={{ width:34, height:34, objectFit:'contain' }}/>
@@ -885,6 +898,7 @@ export default function CalendarPage() {
           </div>
         )}
 
+        {!selLocked && (
         <div onClick={()=>router.push(`/student/free?date=${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`)} style={{ background:'var(--surf)', borderRadius:14, padding:'14px 16px', marginBottom:12, display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid var(--g2)', cursor:'pointer' }}>
           <div style={{ flex:1 }}>
             <div style={{ fontSize:10, color:'var(--tm)', fontWeight:700, marginBottom:2 }}>🎨 자율창작</div>
@@ -893,10 +907,16 @@ export default function CalendarPage() {
           </div>
           <div style={{ fontSize:18, color:'var(--tm)' }}>›</div>
         </div>
+        )}
 
         <div style={{ fontSize:12, fontWeight:800, color:'var(--td)', marginBottom:10 }}>{month+1}월 {selectedDay}일 수업</div>
 
-        {dc.length === 0 ? (
+        {selLocked ? (
+          <div style={{ textAlign:'center', padding:'22px 20px', color:'var(--tmu)', fontSize:12, background:'var(--g1)', borderRadius:14, border:'1.5px solid var(--g2)' }}>
+            <div style={{ fontSize:20, marginBottom:6 }}>🔒</div>
+            이 날은 예약이 닫혀 있어요
+          </div>
+        ) : dc.length === 0 ? (
           <div style={{ textAlign:'center', padding:20, color:'var(--tmu)', fontSize:12 }}>이날은 수업이 없어요 🐾</div>
         ) : (
           <>

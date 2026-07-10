@@ -7,6 +7,7 @@ import AdminNav from '../../../components/AdminNav'
 import { NavIcon } from '../../../components/NavIcons'
 import { HEADER_BG, PRIMARY, T, OK, WARN, BAD } from '../../../lib/adminTheme'
 import { sortCoursesByCategory } from '../../../lib/courseSort'
+import { fetchLockedDates } from '../../../lib/lockedDates'
 
 const DAYS = ['일','월','화','수','목','금','토']
 const CATS = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', free:'자율창작', meeting:'모임' }
@@ -402,6 +403,7 @@ export default function AdminSchedulePage() {
   const [user, setUser] = useState(null)
   const [courses, setCourses] = useState([])
   const [bookings, setBookings] = useState([])
+  const [lockedDates, setLockedDates] = useState(new Set())
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editCourse, setEditCourse] = useState(null)
@@ -440,7 +442,19 @@ const todayStr = `${todayY}-${String(todayM+1).padStart(2,'0')}-${String(todayD)
       .select('*, users(name)')
       .order('class_date')
     setBookings(b || [])
+    setLockedDates(await fetchLockedDates())
     setLoading(false)
+  }
+
+  // 특정 날짜 예약 잠금/해제 — 스케줄은 건드리지 않고 그 위에 얹는 필터. 해제 시 원래 수업 그대로 복구.
+  async function toggleLock(dateStr) {
+    if (lockedDates.has(dateStr)) {
+      await supabase.from('locked_dates').delete().eq('date', dateStr)
+    } else {
+      const { error } = await supabase.from('locked_dates').insert({ date: dateStr, created_by: user?.id })
+      if (error) { alert('잠금 실패: ' + error.message + '\n\nlocked_dates 테이블이 없으면 migration-locked-dates.sql을 먼저 실행해 주세요.'); return }
+    }
+    setLockedDates(await fetchLockedDates())
   }
 
   async function toggleCourse(id, active) {
@@ -518,6 +532,8 @@ const myCourses = sortCoursesByCategory(courses.filter(c => c.category === 'meet
   const firstDow = new Date(year, month, 1).getDay()
   const selCourses = getCoursesForDay(selDay)
   const selDateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selDay).padStart(2,'0')}`
+  const selLocked = lockedDates.has(selDateStr)
+  const selDayBookingCount = bookings.filter(b => b.class_date === selDateStr).length
 
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh' }}>
@@ -605,11 +621,14 @@ const myCourses = sortCoursesByCategory(courses.filter(c => c.category === 'meet
                 const isSel = d===selDay
                 const isT = d===today
                 const dayCourses = getCoursesForDay(d)
+                const dLockStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+                const isLocked = lockedDates.has(dLockStr)
                 return (
                   <div key={d} onClick={() => !isMon && setSelDay(d)}
                     style={{ height:52, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-start',
-                      paddingTop:4, cursor:isMon?'default':'pointer', borderRadius:10, opacity:isMon?0.3:1, position:'relative',
+                      paddingTop:4, cursor:isMon?'default':'pointer', borderRadius:10, opacity:isMon?0.3:(isLocked?0.6:1), position:'relative',
                       background:isSel?OK.soft:'transparent', border:isSel?`1.5px solid ${OK.main}`:'1.5px solid transparent' }}>
+                    {isLocked && <span style={{ position:'absolute', bottom:1, right:3, fontSize:10, zIndex:1 }} title="예약 잠금">🔒</span>}
                     {isT && todayWeather && (
   <div style={{ position:'absolute', top:-2, left:'50%', transform:'translateX(-50%)', fontSize:13, zIndex:1 }}>
     {todayWeather.icon}
@@ -638,10 +657,28 @@ const myCourses = sortCoursesByCategory(courses.filter(c => c.category === 'meet
               })}
             </div>
 
-            {/* 선택한 날 수업 */}
-            <div style={{ fontSize:12, fontWeight:800, color:'var(--td)', marginBottom:10 }}>
-              {month+1}월 {selDay}일 ({DAYS[new Date(year,month,selDay).getDay()]}) 수업
+            {/* 선택한 날 수업 + 예약 잠금 토글 */}
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginBottom:10 }}>
+              <div style={{ fontSize:12, fontWeight:800, color:'var(--td)' }}>
+                {month+1}월 {selDay}일 ({DAYS[new Date(year,month,selDay).getDay()]}) 수업
+              </div>
+              <button
+                onClick={() => {
+                  if (!selLocked && selDayBookingCount > 0 &&
+                    !confirm(`이 날 이미 ${selDayBookingCount}건 예약돼 있어요.\n잠그면 새 예약만 막히고 기존 예약은 유지됩니다.\n계속할까요?`)) return
+                  toggleLock(selDateStr)
+                }}
+                style={{ display:'inline-flex', alignItems:'center', gap:5, flexShrink:0, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontSize:11, fontWeight:800,
+                  padding:'6px 11px', borderRadius:10, border:'none',
+                  background: selLocked ? BAD.soft : 'var(--g1)', color: selLocked ? BAD.tx : 'var(--g5)' }}>
+                {selLocked ? '🔒 예약 잠금 해제' : '🔓 이 날 예약 잠금'}
+              </button>
             </div>
+            {selLocked && (
+              <div style={{ fontSize:11, fontWeight:700, color: BAD.tx, background: BAD.soft, borderRadius:10, padding:'9px 12px', marginBottom:10 }}>
+                🔒 이 날은 예약이 잠겼어요 — 학생 예약 불가 (개설 수업은 그대로 보존, 해제하면 복구)
+              </div>
+            )}
 
             {/* 자율창작 예약 현황 */}
             {(() => {
