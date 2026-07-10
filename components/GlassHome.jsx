@@ -51,7 +51,7 @@ function NavItem({ active, label, onClick, children }) {
 export default function GlassHome(props) {
   const {
     user, ticket, nextBooking, pendingBooking, notices = [], weather, heroSub, unread = 0,
-    stripDates = [], selDate, todayStr, bookedDates = new Set(),
+    stripDates = [], selDate, todayStr, bookedDates = new Set(), stripRef,
     coursesOn = () => [], schedulesFor = () => [], myBookingFor = () => null, seatCount = () => 0, bookingBusy,
     onDate = () => {}, onQuickBook = () => {}, onCancel = () => {}, onAsk = () => {}, go = () => {},
   } = props
@@ -121,8 +121,8 @@ export default function GlassHome(props) {
           </div>
         </div>
 
-        {/* DATE STRIP */}
-        <div className="no-scrollbar" style={{ display: 'flex', gap: 9, marginTop: 18, overflowX: 'auto' }}>
+        {/* DATE STRIP — stripRef에 부모의 드래그 관성 스크롤이 붙는다 */}
+        <div ref={stripRef} className="no-scrollbar" style={{ display: 'flex', gap: 9, marginTop: 18, overflowX: 'auto', cursor: 'grab', touchAction: 'pan-x' }}>
           {stripDates.map(d => {
             const ds = fmt(d)
             const isSel = selDate === ds

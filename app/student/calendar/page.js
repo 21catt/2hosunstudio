@@ -869,7 +869,7 @@ export default function CalendarPage() {
 
 
         {!user ? null : (
-        <div style={{ background:'var(--g1)', borderRadius:14, padding:'10px 14px', marginBottom:12, display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid var(--g2)' }}>
+        <div className="g-glass" style={{ background:'var(--g1)', borderRadius:14, padding:'10px 14px', marginBottom:12, display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid var(--g2)' }}>
           <div style={{ flex:1 }}>
             <div style={{ fontSize:10, color:'var(--tm)', fontWeight:700 }}>내 수강권</div>
             <div style={{ fontSize:13, fontWeight:800, color:'var(--td)', marginBottom:4 }}>
@@ -904,7 +904,7 @@ export default function CalendarPage() {
         )}
 
         {!selLocked && (
-        <div onClick={()=>router.push(`/student/free?date=${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`)} style={{ background:'var(--surf)', borderRadius:14, padding:'14px 16px', marginBottom:12, display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid var(--g2)', cursor:'pointer' }}>
+        <div className="g-glass" onClick={()=>router.push(`/student/free?date=${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`)} style={{ background:'var(--surf)', borderRadius:14, padding:'14px 16px', marginBottom:12, display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid var(--g2)', cursor:'pointer' }}>
           <div style={{ flex:1 }}>
             <div style={{ fontSize:10, color:'var(--tm)', fontWeight:700, marginBottom:2 }}>🎨 자율창작</div>
             <div style={{ fontSize:13, fontWeight:800, color:'var(--td)', marginBottom:2 }}>1시간만, 자유롭게</div>
@@ -946,7 +946,7 @@ export default function CalendarPage() {
             )}
 
             {cats.length === 1 && cats[0] === 'free' && (
-              <div onClick={()=>router.push(`/student/free?date=${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`)} style={{ padding:'14px 16px', background:'var(--surf)', borderRadius:14, border:'1.5px solid var(--g2)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+              <div className="g-glass" onClick={()=>router.push(`/student/free?date=${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`)} style={{ padding:'14px 16px', background:'var(--surf)', borderRadius:14, border:'1.5px solid var(--g2)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                 <div>
                   <div style={{ fontSize:13, fontWeight:800, color:'var(--td)' }}>🎨 자율창작 예약하러 가기</div>
                   <div style={{ fontSize:10, color:'var(--tm)', marginTop:2 }}>자리와 시간을 직접 선택해요</div>
@@ -968,7 +968,7 @@ export default function CalendarPage() {
                   const isOpen = selCourse?.id === c.id
                   const daySchedules = getSchedulesForDay(c, selectedDay)
                   return (
-                    <div key={c.id} style={{ borderRadius:14, marginBottom:8, overflow:'hidden', border:`1px solid ${isOpen?ACCENT:'rgba(0,0,0,0.08)'}`, background:isOpen?ACCENT_BG:CARD }}>
+                    <div key={c.id} className={isOpen ? '' : 'g-glass'} style={{ borderRadius:14, marginBottom:8, overflow:'hidden', border:`1px solid ${isOpen?ACCENT:'rgba(0,0,0,0.08)'}`, background:isOpen?ACCENT_BG:CARD }}>
                       <div onClick={() => { if (isOpen) { setSelCourse(null); setSelSchedule(null) } else { setSelCourse(c); setSelSchedule(null) } }}
                         style={{ padding:'12px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', cursor:'pointer' }}>
                         <div>

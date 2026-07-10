@@ -386,7 +386,7 @@ export default function LoungePage() {
                 const time = (p.created_at || '').split('T')[1]?.slice(0,5) || ''
 
                 const bubble = (
-                  <div className={isNew ? 'bub-in' : ''}
+                  <div className={`${isNew ? 'bub-in' : ''} ${isMine ? '' : 'g-glass'}`.trim()}
                     onClick={role === 'admin' ? () => togglePin(p) : undefined}
                     title={role === 'admin' ? (p.pinned_at ? '눌러서 홈 공지 해제' : '눌러서 홈 공지로 지정') : undefined}
                     style={isMine
@@ -538,7 +538,7 @@ export default function LoungePage() {
 
       {/* 카톡식 입력바 — 현재 카테고리로 바로 전송 (비로그인은 로그인 안내) */}
       {!user ? (
-        <div style={{ position:'fixed', bottom:66, left:'50%', transform:'translateX(-50%)', width:'100%', maxWidth:390, background:'#fff', borderTop:'2px solid rgb(var(--ac-rgb) / 0.15)', zIndex:90, boxSizing:'border-box', padding:'10px 14px', display:'flex', alignItems:'center', gap:10 }}>
+        <div className="g-glass-bar" style={{ position:'fixed', bottom:66, left:'50%', transform:'translateX(-50%)', width:'100%', maxWidth:390, background:'#fff', borderTop:'2px solid rgb(var(--ac-rgb) / 0.15)', zIndex:90, boxSizing:'border-box', padding:'10px 14px', display:'flex', alignItems:'center', gap:10 }}>
           <span style={{ flex:1, fontSize:12, fontWeight:700, color:'var(--tm)', minWidth:0 }}>로그인하면 글·공감·댓글을 남길 수 있어요 🐾</span>
           <button onClick={()=>router.push('/login')}
             style={{ flexShrink:0, padding:'9px 16px', background:'var(--ac)', color:'#fff', border:'none', borderRadius:18, fontSize:12, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif', boxShadow:'2px 2px 0 rgb(var(--ac-rgb) / 0.3)' }}>
@@ -546,7 +546,7 @@ export default function LoungePage() {
           </button>
         </div>
       ) : (
-      <div style={{ position:'fixed', bottom:66, left:'50%', transform:'translateX(-50%)', width:'100%', maxWidth:390, background:'#fff', borderTop:'2px solid rgb(var(--ac-rgb) / 0.15)', zIndex:90, boxSizing:'border-box' }}>
+      <div className="g-glass-bar" style={{ position:'fixed', bottom:66, left:'50%', transform:'translateX(-50%)', width:'100%', maxWidth:390, background:'#fff', borderTop:'2px solid rgb(var(--ac-rgb) / 0.15)', zIndex:90, boxSizing:'border-box' }}>
         {composePreviews.length > 0 && (
           <div className="no-scrollbar" style={{ display:'flex', gap:7, padding:'10px 12px 0', overflowX:'auto' }}>
             {composePreviews.map((url, i) => (

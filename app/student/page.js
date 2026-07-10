@@ -82,7 +82,7 @@ export default function StudentHomePage() {
     if (!el) return
     const idx = stripDates.findIndex(d => fmtDate(d) === todayStr)
     if (idx > 1) el.scrollLeft = (idx - 1) * (CELL_W + CELL_GAP)
-  }, [loading])
+  }, [loading, activeTheme])
 
   // 마우스 드래그 → 관성 스크롤 (터치는 네이티브 모멘텀 사용)
   useEffect(() => {
@@ -128,7 +128,7 @@ export default function StudentHomePage() {
       window.removeEventListener('pointerup', onUp)
       if (raf) cancelAnimationFrame(raf)
     }
-  }, [loading])
+  }, [loading, activeTheme])
 
   async function loadData(userId) {
     if (userId) {
@@ -296,7 +296,7 @@ export default function StudentHomePage() {
         <GlassHome
           user={user} ticket={ticket} nextBooking={nextBooking} pendingBooking={pendingBooking}
           notices={notices} weather={weather} heroSub={heroSub} unread={unread}
-          stripDates={stripDates} selDate={selDate} todayStr={todayStr} bookedDates={bookedDates}
+          stripDates={stripDates} selDate={selDate} todayStr={todayStr} bookedDates={bookedDates} stripRef={stripRef}
           coursesOn={coursesOn} schedulesFor={schedulesFor} myBookingFor={myBookingFor}
           seatCount={seatCount} bookingBusy={bookingBusy}
           onDate={goDate} onQuickBook={quickBook} onCancel={askCancel} onAsk={openAsk}

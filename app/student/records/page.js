@@ -482,7 +482,7 @@ function RecordsInner() {
       </div>
 
       {/* 카톡식 입력바 — 바로 쓰고 ➤, 📷은 즉시 사진 선택 */}
-      <div style={{ position:'fixed', bottom:66, left:'50%', transform:'translateX(-50%)', width:'100%', maxWidth:390, background:'#fff', borderTop:`2px solid rgb(var(--ac-rgb) / 0.15)`, zIndex:90, boxSizing:'border-box' }}>
+      <div className="g-glass-bar" style={{ position:'fixed', bottom:66, left:'50%', transform:'translateX(-50%)', width:'100%', maxWidth:390, background:'#fff', borderTop:`2px solid rgb(var(--ac-rgb) / 0.15)`, zIndex:90, boxSizing:'border-box' }}>
 
         {/* 컨텍스트 칩(커리큘럼에서 넘어온 날짜·수업) + 라운지 공유 토글 */}
         <div className="no-scrollbar" style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 12px 0', overflowX:'auto' }}>

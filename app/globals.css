@@ -478,3 +478,16 @@ body {
   backdrop-filter: blur(22px);
   border-top: 1px solid rgba(51,64,44,0.08);
 }
+/* 인라인 배경(흰색/단색) 카드용 유리 유틸 — fresh가 아니면 무효과.
+   배경만 덮고 border는 유지(악센트 테두리 말풍선 보존). */
+[data-theme='fresh'] .g-glass {
+  background: linear-gradient(150deg, rgba(255,255,255,0.72), rgba(255,255,255,0.5)) !important;
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+/* 하단 고정 입력바용 — 하단탭과 같은 톤의 진한 유리 */
+[data-theme='fresh'] .g-glass-bar {
+  background: rgba(240,246,248,0.86) !important;
+  -webkit-backdrop-filter: blur(22px);
+  backdrop-filter: blur(22px);
+}
