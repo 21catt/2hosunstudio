@@ -10,6 +10,8 @@ import { FARM_CATS, getSavedFarmCat, saveFarmCatLocal, isValidFarmCat, getSavedH
 import { PIXEL_CATS_BY_UNLOCK, pixelCatImg, catUnlocked, catUnlockLabel, getSavedProfileCat, saveProfileCatLocal, isValidPixelCat } from '../../../lib/pixelCats'
 import { registerPush } from '../../../lib/pushNotify'
 import LoadingCat from '../../../components/LoadingCat'
+import GlassBg from '../../../components/GlassBg'
+import { useFreshTheme } from '../../../lib/useFreshTheme'
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -109,10 +111,13 @@ export default function SettingsPage() {
     if (user?.id) await supabase.from('user_prefs').upsert({ user_id: user.id, profile_cat: key })
   }
 
+  const fresh = useFreshTheme()
+
   if (loading) return <LoadingCat />
 
   return (
     <>
+      {fresh && <GlassBg />}
       <div className="p-header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <NavIcon name="user" color="var(--ac)" size={20} />
@@ -120,7 +125,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div style={{ background:'#fff', padding:'8px 16px 90px' }}>
+      <div style={{ background: fresh ? 'transparent' : '#fff', padding:'8px 16px 90px' }}>
 
         {user ? (
           <div className="p-card" style={{ padding:'14px 16px', display:'flex', alignItems:'center', gap:12, marginBottom:16 }}>

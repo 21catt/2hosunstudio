@@ -6,6 +6,8 @@ import StudentNav from '../../components/StudentNav'
 import AdminNav from '../../components/AdminNav'
 import { NavIcon } from '../../components/NavIcons'
 import LoadingCat from '../../components/LoadingCat'
+import GlassBg from '../../components/GlassBg'
+import { useFreshTheme } from '../../lib/useFreshTheme'
 import { pixelCatImg, DEFAULT_PROFILE_CAT, getSavedProfileCat } from '../../lib/pixelCats'
 
 // 카톡형 라운지 — 누구나 하단 입력바에서 바로 쓰고 보내는 단체 채팅 스타일.
@@ -293,12 +295,15 @@ export default function LoungePage() {
     else groups.push({ date, items: [p] })
   }
 
+  const fresh = useFreshTheme()
+
   if (loading) return <LoadingCat />
 
   const DOW = ['일','월','화','수','목','금','토']
 
   return (
     <>
+      {fresh && <GlassBg />}
       <style>{`
         /* Squash & Stretch — 빠르게 길쭉하게 솟았다(stretch), 납작하게 눌리고(squash), 잔잔한 감쇠 진동으로 정지 */
         @keyframes bubIn {
@@ -335,7 +340,7 @@ export default function LoungePage() {
         </div>
       </div>
 
-      <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'16px 12px 176px', minHeight:'80vh' }}>
+      <div style={{ background: fresh ? 'transparent' : '#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'16px 12px 176px', minHeight:'80vh' }}>
         {/* 카테고리 칩 — 보낼 때도 이 카테고리로 올라간다 */}
         <div className="no-scrollbar" style={{ display:'flex', gap:7, marginBottom:14, overflowX:'auto', paddingBottom:2 }}>
           {TAGS.map((t,i) => {

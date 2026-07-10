@@ -442,3 +442,37 @@ body {
   font-size: 10px;
   font-weight: 700;
 }
+
+/* ── 싱그러운(fresh) 여름 글래스 스킨 — 전역 표면/하단탭을 유리로. 홈은 GlassHome 별도. ── */
+[data-theme='fresh'] body { background: #dfeaf2; }
+[data-theme='fresh'] .p-header { background: transparent; }
+[data-theme='fresh'] .p-card,
+[data-theme='fresh'] .p-tile {
+  background: linear-gradient(150deg, rgba(255,255,255,0.72), rgba(255,255,255,0.5));
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(51,64,44,0.13);
+}
+[data-theme='fresh'] .p-hero {
+  background: linear-gradient(150deg, rgba(190,220,240,0.6), rgba(210,220,175,0.46) 55%, rgba(160,175,110,0.38));
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(51,64,44,0.14);
+}
+[data-theme='fresh'] .p-chip {
+  background: rgba(255,255,255,0.55);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border-color: rgba(51,64,44,0.22);
+}
+[data-theme='fresh'] .p-chip--fill {
+  background: linear-gradient(135deg, #6f9fc9, #4f7fae);
+  border-color: transparent;
+  color: #fff;
+}
+[data-theme='fresh'] .bottom-nav {
+  background: rgba(240,246,248,0.82);
+  -webkit-backdrop-filter: blur(22px);
+  backdrop-filter: blur(22px);
+  border-top: 1px solid rgba(51,64,44,0.08);
+}

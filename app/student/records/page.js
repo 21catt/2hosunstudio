@@ -6,6 +6,8 @@ import StudentNav from '../../../components/StudentNav'
 import { NavIcon } from '../../../components/NavIcons'
 import ProfileHeaderIcon from '../../../components/ProfileHeaderIcon'
 import LoadingCat from '../../../components/LoadingCat'
+import GlassBg from '../../../components/GlassBg'
+import { useFreshTheme } from '../../../lib/useFreshTheme'
 import PalettePlanner from '../../../components/PalettePlanner'
 import { pixelCatImg, DEFAULT_PROFILE_CAT, isValidPixelCat, getSavedProfileCat } from '../../../lib/pixelCats'
 
@@ -299,6 +301,8 @@ function RecordsInner() {
     setRecords(prev => prev.filter(r => r.id !== id))
   }
 
+  const fresh = useFreshTheme()
+
   if (loading) return <LoadingCat />
 
   const groups = []
@@ -310,6 +314,7 @@ function RecordsInner() {
 
   return (
     <>
+      {fresh && <GlassBg />}
       <style>{`
         /* Squash & Stretch — 빠르게 길쭉하게 솟았다(stretch), 납작하게 눌리고(squash), 잔잔한 감쇠 진동으로 정지 */
         @keyframes bubIn {
@@ -350,7 +355,7 @@ function RecordsInner() {
         </div>
       </div>
 
-      <div style={{ background:'#fff', padding:'12px 12px 170px', minHeight:'80vh' }}>
+      <div style={{ background: fresh ? 'transparent' : '#fff', padding:'12px 12px 170px', minHeight:'80vh' }}>
 
         {records.length === 0 && (
           <div style={{ textAlign:'center', padding:'48px 0', color:'var(--tmu)', fontSize:13, lineHeight:1.9 }}>
