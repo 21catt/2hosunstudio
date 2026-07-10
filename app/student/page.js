@@ -6,7 +6,7 @@ import StudentNav from '../../components/StudentNav'
 import { NavIcon } from '../../components/NavIcons'
 import { useTodayWeather, WeatherGlyph } from '../../components/WeatherBar'
 import { LogoMark, HeroDeco, DotPatch } from '../../components/Deco'
-import { applyTheme, isValidTheme, getSavedTheme } from '../../lib/theme'
+import { applyTheme, isValidTheme, getSavedTheme, themeInWindow } from '../../lib/theme'
 import GlassHome from '../../components/GlassHome'
 import { bookClass, requestBookingApproval, hasValidTicket, cancelBooking } from '../../lib/booking'
 import { sendPushToAdmins } from '../../lib/pushNotify'
@@ -34,6 +34,7 @@ export default function StudentHomePage() {
   const [unread, setUnread] = useState(0)
   const [loading, setLoading] = useState(true)
   const [activeTheme, setActiveTheme] = useState('ultra') // 실제 적용 중인 테마(기간 반영) — 'fresh'면 글래스 홈
+  const [freshPromo, setFreshPromo] = useState(false) // 여름 한정 스킨 안내 팝업
   const [classes, setClasses] = useState([])
   const [lockedDates, setLockedDates] = useState(new Set())
   const [allBookings, setAllBookings] = useState([])
@@ -73,7 +74,28 @@ export default function StudentHomePage() {
   }, [])
 
   // 최초: 저장된 테마(기간 반영)로 글래스 홈 여부 결정 — 로그인 전/데이터 로드 전에도 반영
-  useEffect(() => { setActiveTheme(getSavedTheme()) }, [])
+  useEffect(() => {
+    setActiveTheme(getSavedTheme())
+    // 여름 한정 스킨 안내 — 기간 내 + 아직 fresh 아님 + "다시 보지 않기" 안 누름
+    try {
+      if (themeInWindow('fresh') && getSavedTheme() !== 'fresh' && !localStorage.getItem('2hs_fresh_promo_hide')) {
+        setFreshPromo(true)
+      }
+    } catch {}
+  }, [])
+
+  // 팝업 "지금 적용해보기" — 즉시 글래스 스킨 적용 + 계정 저장(로그인 시)
+  function applyFreshNow() {
+    setActiveTheme(applyTheme('fresh'))
+    try { localStorage.setItem('2hs_fresh_promo_hide', '1') } catch {}
+    setFreshPromo(false)
+    if (user?.id) supabase.from('user_prefs').upsert({ user_id: user.id, theme: 'fresh' }).then(() => {})
+  }
+
+  function hideFreshPromo(forever) {
+    if (forever) { try { localStorage.setItem('2hs_fresh_promo_hide', '1') } catch {} }
+    setFreshPromo(false)
+  }
 
   // 오늘 셀이 보이도록 스트립 초기 스크롤
   useEffect(() => {
@@ -528,6 +550,35 @@ export default function StudentHomePage() {
         )}
       </div>
       </>
+      )}
+
+      {/* 여름 한정 싱그러운 스킨 안내 팝업 — 기간 내 1회성(다시 보지 않기 지원) */}
+      {freshPromo && activeTheme !== 'fresh' && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(27,28,40,0.45)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:120, padding:24 }}>
+          <div className="pop-in" style={{ background:'#fff', borderRadius:22, padding:'0 0 16px', width:'100%', maxWidth:320, overflow:'hidden', boxShadow:'0 12px 40px rgba(0,0,0,0.25)' }}>
+            <div style={{ height:96, position:'relative', background:'#dfeaf2', overflow:'hidden' }}>
+              <div style={{ position:'absolute', top:-30, left:-20, width:140, height:140, borderRadius:'50%', background:'radial-gradient(circle, rgba(148,198,232,0.9), transparent 65%)' }}/>
+              <div style={{ position:'absolute', bottom:-45, right:-15, width:150, height:150, borderRadius:'50%', background:'radial-gradient(circle, rgba(130,150,60,0.55), transparent 65%)' }}/>
+              <div style={{ position:'absolute', left:'50%', top:'50%', transform:'translate(-50%,-50%)', background:'linear-gradient(150deg, rgba(255,255,255,0.85), rgba(255,255,255,0.55))', border:'1px solid rgba(255,255,255,0.85)', borderRadius:14, padding:'10px 18px', fontSize:14, fontWeight:800, color:'#33402c', whiteSpace:'nowrap' }}>☀️ 싱그러운</div>
+            </div>
+            <div style={{ padding:'15px 18px 0' }}>
+              <div style={{ fontSize:15, fontWeight:800, color:'var(--td)', marginBottom:6 }}>여름 한정 스킨이 열렸어요</div>
+              <div style={{ fontSize:12, color:'var(--tm)', lineHeight:1.65, marginBottom:14 }}>
+                <b>8월 말까지 누구나 무료!</b> 시원한 배경과 유리 카드로 앱 전체가 바뀌어요. 설정에서 언제든 되돌릴 수 있어요 🐾
+              </div>
+              <button onClick={applyFreshNow}
+                style={{ width:'100%', padding:'12px', background:'#7f9227', color:'#fff', border:'none', borderRadius:12, fontSize:13, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                지금 적용해보기
+              </button>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:10 }}>
+                <button onClick={()=>hideFreshPromo(true)}
+                  style={{ background:'none', border:'none', fontSize:11, color:'var(--tmu)', cursor:'pointer', fontFamily:'Nunito,sans-serif', textDecoration:'underline', textUnderlineOffset:2, padding:0 }}>다시 보지 않기</button>
+                <button onClick={()=>hideFreshPromo(false)}
+                  style={{ background:'none', border:'none', fontSize:12, fontWeight:700, color:'var(--tm)', cursor:'pointer', fontFamily:'Nunito,sans-serif', padding:'4px 6px' }}>나중에</button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {cancelModal && (
