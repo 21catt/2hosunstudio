@@ -84,11 +84,9 @@ export default function PaletteFab() {
           style={{ pointerEvents:'auto', width:46, height:46, borderRadius:14, border:'none', cursor:'pointer', background:'#EDBA3B', display:'flex', alignItems:'center', justifyContent:'center',
             boxShadow:'0 8px 20px -5px rgba(237,186,59,0.5), 0 2px 6px rgba(0,0,0,0.28)', padding:0,
             opacity: tuck ? 0.62 : 1, transform: tuck ? 'translateX(38px) scale(0.9)' : 'none' }}>
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 21a9 9 0 0 1 0 -18a9 8 0 0 1 9 8a4.5 4 0 0 1 -4.5 4h-2.5a2 2 0 0 0 -1 3.75a1.3 1.3 0 0 1 -1 2.25"/>
-            <circle cx="7.5" cy="10.5" r="1" fill="#fff" stroke="none"/>
-            <circle cx="12" cy="7.5" r="1" fill="#fff" stroke="none"/>
-            <circle cx="16.5" cy="10.5" r="1" fill="#fff" stroke="none"/>
+          <svg width="27" height="27" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path fill="#fff" fillRule="evenodd" clipRule="evenodd"
+              d="M12 2.4C6.1 2.4 1.6 6.5 1.6 11.7C1.6 16.1 5.1 19.7 9.5 19.7C10.7 19.7 11.4 18.9 11.4 17.9C11.4 17.4 11.2 17 11 16.7C10.8 16.4 10.7 16.1 10.7 15.7C10.7 15 11.3 14.4 12 14.4L14.3 14.4C18.2 14.4 21.4 11.4 21.4 7.7C21.4 4.3 17.3 2.4 12 2.4ZM6.4 9.6A1.4 1.4 0 1 1 6.4 12.4A1.4 1.4 0 1 1 6.4 9.6ZM9.1 5.5A1.4 1.4 0 1 1 9.1 8.3A1.4 1.4 0 1 1 9.1 5.5ZM14.3 5.3A1.4 1.4 0 1 1 14.3 8.1A1.4 1.4 0 1 1 14.3 5.3ZM17.4 8.6A1.4 1.4 0 1 1 17.4 11.4A1.4 1.4 0 1 1 17.4 8.6Z"/>
           </svg>
         </button>
       </div>
