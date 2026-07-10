@@ -6,6 +6,8 @@ import StudentNav from '../../../components/StudentNav'
 import { sendPushToAdmins } from '../../../lib/pushNotify'
 import { notifyAllAdmins } from '../../../lib/adminNotify'
 import { fetchLockedDates } from '../../../lib/lockedDates'
+import GlassBg from '../../../components/GlassBg'
+import { useFreshTheme } from '../../../lib/useFreshTheme'
 
 
 const DEPOSIT = { bank: '국민은행', account: '392801-04-209666', holder: '양승민 (2호선스튜디오)' }
@@ -220,6 +222,8 @@ function FreeInner() {
     })
   }
 
+  const fresh = useFreshTheme()
+
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh' }}>
       <div style={{ fontSize:32 }}>🎨</div>
@@ -240,6 +244,7 @@ function FreeInner() {
 
   return (
     <>
+      {fresh && <GlassBg />}
       {depositModal && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', zIndex:1100, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
           <div style={{ background:'#fff', borderRadius:20, padding:'22px 20px', maxWidth:340, width:'100%' }}>
@@ -296,7 +301,7 @@ function FreeInner() {
         </div>
       </div>
 
-      <div style={{ background:'#fff', padding:'8px 14px 100px' }}>
+      <div style={{ background: fresh ? 'transparent' : '#fff', padding:'8px 14px 100px' }}>
 
         <div style={{ marginBottom:14 }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>

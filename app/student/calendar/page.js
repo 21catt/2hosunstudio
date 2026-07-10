@@ -14,6 +14,8 @@ import { notifyAllAdmins } from '../../../lib/adminNotify'
 import { applyTheme, isValidTheme } from '../../../lib/theme'
 import MoodIndicator from '../../../components/MoodIndicator'
 import LoadingCat from '../../../components/LoadingCat'
+import GlassBg from '../../../components/GlassBg'
+import { useFreshTheme } from '../../../lib/useFreshTheme'
 
 const CAT_ICON = { drawing:'pencil', painting:'palette', sculpture:'box', free:'photo', meeting:'users' }
 const CAT_NAME = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', free:'자율창작', meeting:'모임' }
@@ -594,10 +596,13 @@ export default function CalendarPage() {
   })()
   const showQuickBook = habitSlots.length > 0
 
+  const fresh = useFreshTheme()
+
   if (loading) return <LoadingCat />
 
   return (
     <>
+      {fresh && <GlassBg />}
       <style>{`
         @keyframes spark { 0% { transform: translate(0,0) scale(1.2); opacity:1; } 100% { transform: translate(var(--tx),var(--ty)) scale(0); opacity:0; } }
         @keyframes catPop { 0% { transform: scale(0) rotate(-15deg); opacity:0; } 55% { transform: scale(1.28) rotate(6deg); opacity:1; } 100% { transform: scale(1) rotate(0deg); opacity:1; } }
@@ -741,7 +746,7 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      <div style={{ background:'#fff', padding:'8px 14px 0' }}>
+      <div style={{ background: fresh ? 'transparent' : '#fff', padding:'8px 14px 0' }}>
 
         {user && (() => {
           if (upcomingBookings.length > 0) {

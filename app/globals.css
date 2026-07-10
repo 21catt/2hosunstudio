@@ -445,6 +445,8 @@ body {
 
 /* ── 싱그러운(fresh) 여름 글래스 스킨 — 전역 표면/하단탭을 유리로. 홈은 GlassHome 별도. ── */
 [data-theme='fresh'] body { background: #dfeaf2; }
+/* app-shell 흰 배경이 GlassBg 블롭(z-index:-1)을 가리므로 투명화 */
+[data-theme='fresh'] .app-shell { background: transparent; }
 [data-theme='fresh'] .p-header { background: transparent; }
 [data-theme='fresh'] .p-card,
 [data-theme='fresh'] .p-tile {
