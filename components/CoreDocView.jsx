@@ -127,7 +127,7 @@ export default function CoreDocView({ doc, sample = false, onCta }) {
             <span style={{ fontFamily:MONO, fontSize:12, letterSpacing:2, color:C.ink }}>아래로 따라가 보세요</span>
           </div>
           {d.hero.image && (
-            <img src={d.hero.image} alt="" style={{ position:'absolute', top:-6, right:0, width:96, height:96, imageRendering:'pixelated', animation:'cdFloaty 4s ease-in-out infinite' }}/>
+            <img src={d.hero.image} alt="" style={{ position:'absolute', top:-6, right:0, width:48, height:48, imageRendering:'pixelated', animation:'cdFloaty 4s ease-in-out infinite' }}/>
           )}
         </div>
       </section>
