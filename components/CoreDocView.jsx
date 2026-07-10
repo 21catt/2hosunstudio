@@ -153,8 +153,8 @@ export default function CoreDocView({ doc, sample = false, onCta }) {
       {d.approaches.length > 0 && (
         <section style={{ padding:'48px 22px 20px' }}>
           <div style={{ textAlign:'center', marginBottom:28 }}>
-            <span style={{ fontFamily:MONO, fontSize:11, letterSpacing:4, fontWeight:700, color:C.mut }}>세 가지 접근</span>
-            <h2 style={{ fontSize:30, fontWeight:800, letterSpacing:-1, margin:'12px 0 0' }}>무엇을 다루나</h2>
+            <span style={{ fontFamily:MONO, fontSize:11, letterSpacing:4, fontWeight:700, color:C.mut }}>{d.sections.approaches.eyebrow}</span>
+            <h2 style={{ fontSize:30, fontWeight:800, letterSpacing:-1, margin:'12px 0 0' }}>{d.sections.approaches.title}</h2>
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
             {d.approaches.map((a, i) => (
@@ -167,8 +167,8 @@ export default function CoreDocView({ doc, sample = false, onCta }) {
       {/* MODULE CHIPS */}
       {d.chips.length > 0 && (
         <section style={{ padding:'40px 22px 16px', textAlign:'center' }}>
-          <span style={{ fontFamily:MONO, fontSize:11, letterSpacing:4, fontWeight:700, color:C.mut }}>네 개의 모듈</span>
-          <h2 style={{ fontSize:32, fontWeight:800, letterSpacing:-1, margin:'12px 0 20px' }}>여덟 주의 흐름</h2>
+          <span style={{ fontFamily:MONO, fontSize:11, letterSpacing:4, fontWeight:700, color:C.mut }}>{d.sections.chips.eyebrow}</span>
+          <h2 style={{ fontSize:32, fontWeight:800, letterSpacing:-1, margin:'12px 0 20px' }}>{d.sections.chips.title}</h2>
           <div style={{ display:'flex', flexWrap:'wrap', gap:'8px 6px', justifyContent:'center', alignItems:'center', fontFamily:MONO }}>
             {d.chips.map((c, i) => (
               <span key={i} style={{ display:'inline-flex', gap:6, alignItems:'center' }}>
@@ -189,6 +189,29 @@ export default function CoreDocView({ doc, sample = false, onCta }) {
                 <div style={{ position:'absolute', top:-4, left:14, width:46, height:46, background:C.yellow, border:`3px solid ${C.blue}`, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:PIX, fontWeight:700, fontSize:14, color:C.blue, zIndex:2 }}>{m.num}</div>
                 <div style={{ paddingLeft:0, marginTop:22 }}>
                   <ModuleCard m={m} C={C} onZoom={() => setZoom({ type:'module', item:m })}/>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* OUTCOMES — 과정을 마치면 (모듈 뒤) */}
+      {d.outcomes.length > 0 && (
+        <section style={{ padding:'44px 22px 24px' }}>
+          <div style={{ textAlign:'center', marginBottom:26 }}>
+            <span style={{ fontFamily:MONO, fontSize:11, letterSpacing:4, fontWeight:700, color:C.mut }}>{d.sections.outcomes.eyebrow}</span>
+            <h2 style={{ fontSize:30, fontWeight:800, letterSpacing:-1, margin:'12px 0 0' }}>{d.sections.outcomes.title}</h2>
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            {d.outcomes.map((o, i) => (
+              <div key={i} style={{ background:'#fff', border:`2px solid ${C.sand}`, borderRadius:18, padding:'18px 20px', boxShadow:'0 10px 26px rgba(27,28,70,.07)' }}>
+                <div style={{ display:'flex', gap:11, alignItems:'baseline' }}>
+                  <span style={{ color:C.green, fontSize:17, fontWeight:800, flexShrink:0, lineHeight:1 }}>↳</span>
+                  <div style={{ minWidth:0 }}>
+                    <h3 style={{ fontSize:17.5, fontWeight:800, margin:'0 0 6px', color:C.dark, lineHeight:1.3 }}>{o.title}</h3>
+                    {o.desc && <p style={{ fontSize:14, lineHeight:1.65, color:C.body, margin:0 }}>{o.desc}</p>}
+                  </div>
                 </div>
               </div>
             ))}

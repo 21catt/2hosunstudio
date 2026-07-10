@@ -1,6 +1,6 @@
 'use client'
 import { useState, useRef } from 'react'
-import { DEFAULT_CORE_DOC, normalizeDoc, CORE_PALETTES } from '../lib/coreDoc'
+import { CORE_DOC_SAMPLES, normalizeDoc, CORE_PALETTES } from '../lib/coreDoc'
 import CoreDocView from './CoreDocView'
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
@@ -140,13 +140,17 @@ export default function CoreDocEditor({ initialDoc, onUploadImage, onSave, savin
   }
   const edit = fn => { setD(prev => { const next = fn(structuredClone(prev)); return next }); setDirty(true) }
 
-  const loadSample = () => { setD(withMids(DEFAULT_CORE_DOC)); setDirty(true) }
+  const loadSample = (doc) => { setD(withMids(doc)); setDirty(true) }
 
   return (
     <div>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
-        <div style={{ fontSize:12, fontWeight:800, color:ACT }}>리치 핵심내용 (인물화형)</div>
-        <button onClick={loadSample} style={addBtn}>인물화 샘플 불러오기</button>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, flexWrap:'wrap', marginBottom:10 }}>
+        <div style={{ fontSize:12, fontWeight:800, color:ACT }}>리치 핵심내용</div>
+        <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+          {CORE_DOC_SAMPLES.map(s => (
+            <button key={s.key} onClick={() => loadSample(s.doc)} style={addBtn}>{s.label} 불러오기</button>
+          ))}
+        </div>
       </div>
 
       <Section title="색상 테마">
@@ -208,6 +212,10 @@ export default function CoreDocEditor({ initialDoc, onUploadImage, onSave, savin
       </Section>
 
       <Section title="무엇을 다루나 (접근)">
+        <div style={{ display:'flex', gap:8 }}>
+          <div style={{ flex:1 }}><Field label="섹션 라벨" value={d.sections.approaches.eyebrow} onChange={v => edit(x => { x.sections.approaches.eyebrow = v; return x })}/></div>
+          <div style={{ flex:1 }}><Field label="섹션 제목" value={d.sections.approaches.title} onChange={v => edit(x => { x.sections.approaches.title = v; return x })}/></div>
+        </div>
         {d.approaches.map((a, i) => (
           <div key={i} style={{ border:`1px solid ${BR}`, borderRadius:10, padding:'10px', marginBottom:8, background:'var(--bg)' }}>
             <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
@@ -227,6 +235,10 @@ export default function CoreDocEditor({ initialDoc, onUploadImage, onSave, savin
       </Section>
 
       <Section title="모듈 흐름(칩)">
+        <div style={{ display:'flex', gap:8 }}>
+          <div style={{ flex:1 }}><Field label="섹션 라벨" value={d.sections.chips.eyebrow} onChange={v => edit(x => { x.sections.chips.eyebrow = v; return x })}/></div>
+          <div style={{ flex:1 }}><Field label="섹션 제목" value={d.sections.chips.title} onChange={v => edit(x => { x.sections.chips.title = v; return x })}/></div>
+        </div>
         <Area label="칩 (줄바꿈으로 구분)" rows={2}
           value={d.chips.join('\n')} onChange={v => edit(x => { x.chips = v.split('\n'); return x })}/>
       </Section>
@@ -243,6 +255,24 @@ export default function CoreDocEditor({ initialDoc, onUploadImage, onSave, savin
           </SortableContext>
         </DndContext>
         <button onClick={() => edit(x => { x.modules.push({ num:'', cat:'', title:'', en:'', desc:'', painters:[], bullets:[], image:'', _id: nextMid() }); return x })} style={addBtn}>+ 모듈 추가</button>
+      </Section>
+
+      <Section title="과정을 마치면 (성과)">
+        <div style={{ display:'flex', gap:8 }}>
+          <div style={{ flex:1 }}><Field label="섹션 라벨" value={d.sections.outcomes.eyebrow} onChange={v => edit(x => { x.sections.outcomes.eyebrow = v; return x })}/></div>
+          <div style={{ flex:1 }}><Field label="섹션 제목" value={d.sections.outcomes.title} onChange={v => edit(x => { x.sections.outcomes.title = v; return x })}/></div>
+        </div>
+        {d.outcomes.map((o, i) => (
+          <div key={i} style={{ border:`1px solid ${BR}`, borderRadius:10, padding:'10px', marginBottom:8, background:'var(--bg)' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+              <span style={{ fontSize:10, fontWeight:700, color:'var(--tmu)' }}>성과 {i+1}</span>
+              <button onClick={() => edit(x => { x.outcomes.splice(i,1); return x })} style={miniBtn}>삭제</button>
+            </div>
+            <Field label="제목" value={o.title} onChange={v => edit(x => { x.outcomes[i].title = v; return x })}/>
+            <Area label="설명" value={o.desc} onChange={v => edit(x => { x.outcomes[i].desc = v; return x })} rows={2}/>
+          </div>
+        ))}
+        <button onClick={() => edit(x => { x.outcomes.push({ title:'', desc:'' }); return x })} style={addBtn}>+ 성과 추가</button>
       </Section>
 
       <Section title="CTA(하단)">
