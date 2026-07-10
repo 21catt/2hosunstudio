@@ -6,7 +6,8 @@ import StudentNav from '../../components/StudentNav'
 import { NavIcon } from '../../components/NavIcons'
 import { useTodayWeather, WeatherGlyph } from '../../components/WeatherBar'
 import { LogoMark, HeroDeco, DotPatch } from '../../components/Deco'
-import { applyTheme, isValidTheme } from '../../lib/theme'
+import { applyTheme, isValidTheme, getSavedTheme } from '../../lib/theme'
+import GlassHome from '../../components/GlassHome'
 import { bookClass, requestBookingApproval, hasValidTicket, cancelBooking } from '../../lib/booking'
 import { sendPushToAdmins } from '../../lib/pushNotify'
 import { sendKakaoToAdmins } from '../../lib/kakaoNotify'
@@ -32,6 +33,7 @@ export default function StudentHomePage() {
   const [pendingBooking, setPendingBooking] = useState(null)
   const [unread, setUnread] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [activeTheme, setActiveTheme] = useState('ultra') // 실제 적용 중인 테마(기간 반영) — 'fresh'면 글래스 홈
   const [classes, setClasses] = useState([])
   const [lockedDates, setLockedDates] = useState(new Set())
   const [allBookings, setAllBookings] = useState([])
@@ -69,6 +71,9 @@ export default function StudentHomePage() {
       loadData(data.user?.id || null)
     })
   }, [])
+
+  // 최초: 저장된 테마(기간 반영)로 글래스 홈 여부 결정 — 로그인 전/데이터 로드 전에도 반영
+  useEffect(() => { setActiveTheme(getSavedTheme()) }, [])
 
   // 오늘 셀이 보이도록 스트립 초기 스크롤
   useEffect(() => {
@@ -139,7 +144,7 @@ export default function StudentHomePage() {
       const { count } = await supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('is_read', false)
       setUnread(count || 0)
       const { data: pref } = await supabase.from('user_prefs').select('*').eq('user_id', userId).single()
-      if (isValidTheme(pref?.theme)) applyTheme(pref.theme)
+      if (isValidTheme(pref?.theme)) setActiveTheme(applyTheme(pref.theme))
     }
     // 공개 데이터: 수업(운영 요일·기간) + 정원 계산용 전체 예약
     const { data: c } = await supabase.from('class_courses').select('*, class_schedules(*), class_exceptions(*)').eq('is_active', true)
@@ -287,6 +292,18 @@ export default function StudentHomePage() {
 
   return (
     <>
+      {activeTheme === 'fresh' ? (
+        <GlassHome
+          user={user} ticket={ticket} nextBooking={nextBooking} pendingBooking={pendingBooking}
+          notices={notices} weather={weather} heroSub={heroSub} unread={unread}
+          stripDates={stripDates} selDate={selDate} todayStr={todayStr} bookedDates={bookedDates}
+          coursesOn={coursesOn} schedulesFor={schedulesFor} myBookingFor={myBookingFor}
+          seatCount={seatCount} bookingBusy={bookingBusy}
+          onDate={goDate} onQuickBook={quickBook} onCancel={askCancel} onAsk={openAsk}
+          go={(href) => router.push(href)}
+        />
+      ) : (
+      <>
       <div className="p-header">
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
           <LogoMark />
@@ -510,6 +527,8 @@ export default function StudentHomePage() {
           </div>
         )}
       </div>
+      </>
+      )}
 
       {cancelModal && (
         <div onClick={()=>{ if (!cancelBusy) setCancelModal(null) }}
@@ -640,7 +659,7 @@ export default function StudentHomePage() {
         </div>
       )}
 
-      <StudentNav active="home" />
+      {activeTheme !== 'fresh' && <StudentNav active="home" />}
     </>
   )
 }

@@ -5,7 +5,7 @@ import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
 import { NavIcon } from '../../../components/NavIcons'
 import MoodIndicator from '../../../components/MoodIndicator'
-import { THEMES, applyTheme, getSavedTheme, isValidTheme, themeUnlocked, themeUnlockLabel } from '../../../lib/theme'
+import { THEMES, applyTheme, getSavedTheme, isValidTheme, themeUnlocked, themeUnlockLabel, themeSeasonLabel } from '../../../lib/theme'
 import { FARM_CATS, getSavedFarmCat, saveFarmCatLocal, isValidFarmCat, getSavedHarvest, saveHarvestLocal, farmCatUnlocked, farmCatUnlockLabel } from '../../../lib/farmCats'
 import { PIXEL_CATS_BY_UNLOCK, pixelCatImg, catUnlocked, catUnlockLabel, getSavedProfileCat, saveProfileCatLocal, isValidPixelCat } from '../../../lib/pixelCats'
 import { registerPush } from '../../../lib/pushNotify'
@@ -206,6 +206,9 @@ export default function SettingsPage() {
                 <span style={{ width:16, height:16, borderRadius:'50%', background:t.a2, marginLeft:-14, flexShrink:0, border:'2px solid #fff', opacity: locked ? 0.3 : 1 }} />
                 {t.a3 && <span style={{ width:16, height:16, borderRadius:'50%', background:t.a3, marginLeft:-14, flexShrink:0, border:'2px solid #fff', opacity: locked ? 0.3 : 1 }} />}
                 <span style={{ fontSize:12, fontWeight: on?800:600, color: on?'var(--acTx)':'var(--td)', opacity: locked ? 0.4 : 1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.name}</span>
+                {!locked && themeSeasonLabel(t.key) && (
+                  <span style={{ marginLeft:'auto', fontSize:9, fontWeight:800, color:'var(--acTx)', background:'var(--acBg)', border:'1px solid rgb(var(--ac-rgb) / 0.35)', borderRadius:8, padding:'2px 7px', flexShrink:0, whiteSpace:'nowrap' }}>☀️ {themeSeasonLabel(t.key)}</span>
+                )}
                 {locked && (
                   <span style={{ marginLeft:'auto', fontSize:9, fontWeight:800, color:'var(--tm)', flexShrink:0 }}>
                     🔒 {themeUnlockLabel(t.key, unit)}
