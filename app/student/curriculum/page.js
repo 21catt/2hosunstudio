@@ -336,6 +336,20 @@ function CurriculumInner() {
   const [browseLoading, setBrowseLoading] = useState(false)
   const [expandedCourse, setExpandedCourse] = useState(null)
   const [expandedCore, setExpandedCore] = useState(null) // 핵심 내용 탭 아코디언 (한 번에 하나)
+  const coreCardRefs = useRef({})   // 핵심내용 탭 수업 카드
+  const browseCardRefs = useRef({}) // 커리큘럼 탭 수업 카드
+
+  // 아코디언을 새로 펼치면 그 카드 머리로 스크롤 — 위 카드가 접히며 스크롤이 새 카드 하단에 떨어지는 문제 방지
+  useEffect(() => {
+    if (!expandedCore) return
+    const el = coreCardRefs.current[expandedCore]
+    if (el) window.scrollTo({ top: Math.max(0, el.getBoundingClientRect().top + window.scrollY - 10), behavior: 'auto' })
+  }, [expandedCore])
+  useEffect(() => {
+    if (!expandedCourse || tab !== 'browse') return
+    const el = browseCardRefs.current[expandedCourse]
+    if (el) window.scrollTo({ top: Math.max(0, el.getBoundingClientRect().top + window.scrollY - 10), behavior: 'auto' })
+  }, [expandedCourse, tab])
 
   const today = new Date()
   const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`
@@ -711,7 +725,7 @@ function CurriculumInner() {
                     const emptyCore = !savedRich && !course.coreContent && course.coreImages.length === 0
                     const richDoc = savedRich ? course.coreDoc : (emptyCore ? DEFAULT_CORE_DOC : null)
                     return (
-                      <div key={course.name} style={{ borderRadius:14, marginBottom:8, border:`1.5px solid ${isOpen ? ACCENT : BORDER}`, background: isOpen ? '#fff' : CARD, overflow:'hidden', transition:'border-color 0.15s' }}>
+                      <div key={course.name} ref={el => { if (el) coreCardRefs.current[key] = el }} style={{ borderRadius:14, marginBottom:8, border:`1.5px solid ${isOpen ? ACCENT : BORDER}`, background: isOpen ? '#fff' : CARD, overflow:'hidden', transition:'border-color 0.15s' }}>
                         {/* 헤더 — 클릭해서 펼치고 접기 */}
                         <div onClick={() => setExpandedCore(isOpen ? null : key)}
                           style={{ padding:'13px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', cursor:'pointer', gap:8 }}>
@@ -806,7 +820,7 @@ function CurriculumInner() {
                     const key = `${group.category}__${course.name}`
                     const isOpen = expandedCourse === key
                     return (
-                      <div key={course.name} style={{ borderRadius:14, marginBottom:8, border:`1.5px solid ${isOpen ? ACCENT : BORDER}`, background: isOpen ? ACCENT_BG : CARD, overflow:'hidden' }}>
+                      <div key={course.name} ref={el => { if (el) browseCardRefs.current[key] = el }} style={{ borderRadius:14, marginBottom:8, border:`1.5px solid ${isOpen ? ACCENT : BORDER}`, background: isOpen ? ACCENT_BG : CARD, overflow:'hidden' }}>
                         <div onClick={() => setExpandedCourse(isOpen ? null : key)}
                           style={{ padding:'12px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', cursor:'pointer' }}>
                           <div style={{ flex:1, minWidth:0 }}>
