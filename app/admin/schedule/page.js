@@ -475,6 +475,9 @@ const todayStr = `${todayY}-${String(todayM+1).padStart(2,'0')}-${String(todayD)
   await supabase.from('class_schedules').delete().eq('course_id', courseId)
   await supabase.from('class_exceptions').delete().eq('course_id', courseId)
   await supabase.from('class_courses').delete().eq('id', courseId)
+  // 같은 이름의 다른 수업이 없으면 커리큘럼(회차)도 함께 삭제 — 학생 커리큘럼에 유령 수업 방지
+  const { count: remain } = await supabase.from('class_courses').select('id', { count: 'exact', head: true }).eq('name', courseName)
+  if (!remain) await supabase.from('course_curriculum').delete().eq('course_name', courseName)
   setExpanded(null)
   loadData()
 }

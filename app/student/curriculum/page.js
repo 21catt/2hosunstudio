@@ -494,7 +494,8 @@ function CurriculumInner() {
     const groupMap = {}
     for (const [name, courseSteps] of Object.entries(stepsByName)) {
       const info = courseByName[name]
-      const cat = info?.category || 'other'
+      if (!info) continue // 삭제·비활성 수업의 잔여 커리큘럼은 표시하지 않음 (유령 수업 방지)
+      const cat = info.category || 'other'
       if (!groupMap[cat]) groupMap[cat] = []
       groupMap[cat].push({ name, steps: courseSteps, teacher: info?.teacher || null, coreContent: info?.core_content || null, coreImages: Array.isArray(info?.core_images) ? info.core_images : [], coreDoc: info?.core_doc || null, isEnrolled: enrolledSet.has(name) })
     }
