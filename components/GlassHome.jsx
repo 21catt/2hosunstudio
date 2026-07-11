@@ -264,8 +264,8 @@ export default function GlassHome(props) {
         <NavItem label="기록" onClick={() => go('/student/records')}>
           <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><rect x="6" y="4" width="12" height="17" rx="2" /><path d="M9 4V3h6v1" strokeLinejoin="round" /><path d="M9 9h6M9 13h6M9 17h4" strokeLinecap="round" /></svg>
         </NavItem>
-        <NavItem label="냥발" onClick={() => go('/student/paw')}>
-          <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="8" cy="9" r="1.6" /><circle cx="12" cy="7" r="1.6" /><circle cx="16" cy="9" r="1.6" /><path d="M12 12c-3 0-5 2-5 4.5C7 18 9 19 12 19s5-1 5-2.5C17 14 15 12 12 12Z" strokeLinejoin="round" /></svg>
+        <NavItem label="냥밭" onClick={() => go('/student/farm')}>
+          <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M12 21v-8" strokeLinecap="round" /><path d="M12 13c0-3-2-5-5-5 0 3 2 5 5 5ZM12 13c0-3.5 2.5-6 6-6 0 3.5-2.5 6-6 6Z" strokeLinejoin="round" /><path d="M5 21h14" strokeLinecap="round" /></svg>
         </NavItem>
         <NavItem label="라운지" onClick={() => go('/lounge')}>
           <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M5 6h14v10H9l-4 3Z" strokeLinejoin="round" /></svg>
