@@ -490,11 +490,13 @@ function CurriculumInner() {
       supabase.from('class_courses').select('*').eq('is_active', true),
     ])
 
+    // 이름은 trim 기준으로 매칭 — 끝 공백이 붙은 옛 이름("색채 기초 ")의 회차도 현재 수업과 이어진다
     const stepsByName = {}
     for (const row of (currRows || [])) {
-      if (!row.course_name) continue
-      if (!stepsByName[row.course_name]) stepsByName[row.course_name] = []
-      stepsByName[row.course_name].push(row)
+      const nm = (row.course_name || '').trim()
+      if (!nm) continue
+      if (!stepsByName[nm]) stepsByName[nm] = []
+      stepsByName[nm].push(row)
     }
     for (const name in stepsByName) {
       stepsByName[name].sort((a, b) => a.step_order - b.step_order)
@@ -502,16 +504,21 @@ function CurriculumInner() {
 
     const courseByName = {}
     for (const c of (courseRows || [])) {
-      if (c.name) courseByName[c.name] = c
+      const nm = (c.name || '').trim()
+      if (nm) courseByName[nm] = c
     }
 
+    // 활성 수업 기준으로 순회 — 삭제·비활성 수업의 잔여 회차는 자동 배제(유령 방지),
+    // 회차가 없어도 핵심내용이 있으면 목록에 표시(핵심내용만 먼저 등록한 새 수업 대응)
     const groupMap = {}
-    for (const [name, courseSteps] of Object.entries(stepsByName)) {
-      const info = courseByName[name]
-      if (!info) continue // 삭제·비활성 수업의 잔여 커리큘럼은 표시하지 않음 (유령 수업 방지)
+    for (const [name, info] of Object.entries(courseByName)) {
+      const courseSteps = stepsByName[name] || []
+      const coreImages = Array.isArray(info?.core_images) ? info.core_images : []
+      const hasCore = hasRichDoc(info?.core_doc) || !!info?.core_content || coreImages.length > 0
+      if (courseSteps.length === 0 && !hasCore) continue // 회차도 핵심내용도 없는 수업(회의 등)은 표시 안 함
       const cat = info.category || 'other'
       if (!groupMap[cat]) groupMap[cat] = []
-      groupMap[cat].push({ name, steps: courseSteps, teacher: info?.teacher || null, coreContent: info?.core_content || null, coreImages: Array.isArray(info?.core_images) ? info.core_images : [], coreDoc: info?.core_doc || null, isEnrolled: enrolledSet.has(name) })
+      groupMap[cat].push({ name, steps: courseSteps, teacher: info?.teacher || null, coreContent: info?.core_content || null, coreImages, coreDoc: info?.core_doc || null, isEnrolled: enrolledSet.has(name) })
     }
     for (const cat in groupMap) {
       groupMap[cat].sort((a, b) => a.name.localeCompare(b.name))

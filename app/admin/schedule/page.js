@@ -147,18 +147,26 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
   function removeException(i) { setExceptions(prev => prev.filter((_,idx) => idx!==i)) }
 
   async function handleSave() {
-    if (!name||selectedDays.length===0||!selectedDays.some(d => daySlots[d]?.some(s=>s.selected))) {
+    const trimmedName = (name || '').trim()
+    if (!trimmedName||selectedDays.length===0||!selectedDays.some(d => daySlots[d]?.some(s=>s.selected))) {
       alert('수업 이름, 요일, 시간을 선택해 주세요'); return
     }
     setSaving(true)
     const courseData = {
-      name, category:cat, max_count:maxCount, price: cat === 'meeting' ? 0 : price,
+      name: trimmedName, category:cat, max_count:maxCount, price: cat === 'meeting' ? 0 : price,
       is_unlimited:isUnlimited, start_date:startDate||null, end_date:endDate||null
     }
     const todayStr = new Date().toISOString().split('T')[0]
     let courseId = initial?.id
 
     try {
+      // 같은 이름(공백 변종 포함)의 다른 수업이 있으면 차단 — 이름 중복은 커리큘럼·핵심내용이 뒤섞이는 원인
+      const { data: allNames } = await supabase.from('class_courses').select('id, name')
+      const dup = (allNames || []).some(r => r.id !== courseId && (r.name || '').trim() === trimmedName)
+      if (dup) {
+        alert(`"${trimmedName}" 이름의 수업이 이미 있어요.\n기존 수업을 수정하거나 다른 이름을 사용해 주세요.`)
+        return
+      }
       if (courseId) {
         // 1. 수업 정보 업데이트
         await supabase.from('class_courses').update(courseData).eq('id', courseId)
