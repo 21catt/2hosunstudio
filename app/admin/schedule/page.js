@@ -8,6 +8,9 @@ import { NavIcon } from '../../../components/NavIcons'
 import { HEADER_BG, PRIMARY, T, OK, WARN, BAD } from '../../../lib/adminTheme'
 import { sortCoursesByCategory } from '../../../lib/courseSort'
 import { fetchLockedDates } from '../../../lib/lockedDates'
+import { notifyAllAdmins } from '../../../lib/adminNotify'
+import { sendPushToAdmins } from '../../../lib/pushNotify'
+import { sendKakaoToAdmins } from '../../../lib/kakaoNotify'
 
 const DAYS = ['일','월','화','수','목','금','토']
 const CATS = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', free:'자율창작', meeting:'모임' }
@@ -412,6 +415,10 @@ export default function AdminSchedulePage() {
   const [courses, setCourses] = useState([])
   const [bookings, setBookings] = useState([])
   const [lockedDates, setLockedDates] = useState(new Set())
+  const [members, setMembers] = useState([])          // 대신 예약용 회원 목록
+  const [bookForSlot, setBookForSlot] = useState(null) // { course, schedule, dateStr } — 대신 예약 모달
+  const [memberSearch, setMemberSearch] = useState('')
+  const [bookBusy, setBookBusy] = useState(false)
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editCourse, setEditCourse] = useState(null)
@@ -451,7 +458,42 @@ const todayStr = `${todayY}-${String(todayM+1).padStart(2,'0')}-${String(todayD)
       .order('class_date')
     setBookings(b || [])
     setLockedDates(await fetchLockedDates())
+    const { data: mem } = await supabase.from('users').select('id, name, phone').eq('role', 'student').order('name')
+    setMembers(mem || [])
     setLoading(false)
+  }
+
+  // 관리자 대신 예약 — 선택한 회원을 해당 수업/시간/날짜로 예약. 전체 관리자에게 알림.
+  async function adminBookForMember(member) {
+    if (!bookForSlot || bookBusy) return
+    const { course, schedule, dateStr } = bookForSlot
+    setBookBusy(true)
+    try {
+      const slot = `${schedule.start_time}~${schedule.end_time}`
+      // 중복 예약 방지
+      const dup = bookings.some(b => b.user_id === member.id && b.course_id === course.id && b.class_date === dateStr && b.class_time === slot)
+      if (dup) { alert(`${member.name}님은 이미 이 수업에 예약돼 있어요.`); return }
+      const { data: nb, error } = await supabase.from('bookings').insert({
+        user_id: member.id, course_id: course.id, schedule_id: schedule.id,
+        class_name: course.name, class_date: dateStr, class_time: slot,
+        teacher: course.teacher, status: 'booked',
+      }).select().single()
+      if (error) { alert('예약 실패: ' + error.message); return }
+      // 일반수업이면 회원 수강권 1회 차감(잔여 있는 수강권이 있을 때만)
+      if (course.category !== 'free' && course.category !== 'meeting') {
+        const { data: tix } = await supabase.from('tickets').select('*').eq('user_id', member.id)
+        const t = (tix || []).find(x => x.remain > 0)
+        if (t) await supabase.from('tickets').update({ remain: t.remain - 1 }).eq('id', t.id)
+      }
+      const msg = `${member.name || '회원'}님 ${course.name} ${dateStr} ${schedule.start_time} 예약 (관리자 대신 예약)`
+      await notifyAllAdmins({ type: 'booking_created', title: '새 예약 (대신)', body: msg, related_id: nb?.id })
+      sendPushToAdmins('🐾 새 예약 (대신)', msg)
+      sendKakaoToAdmins('🐾 새 예약 (대신)', msg)
+      setBookForSlot(null); setMemberSearch('')
+      await loadData()
+    } finally {
+      setBookBusy(false)
+    }
   }
 
   // 특정 날짜 예약 잠금/해제 — 스케줄은 건드리지 않고 그 위에 얹는 필터. 해제 시 원래 수업 그대로 복구.
@@ -799,6 +841,10 @@ const myCourses = sortCoursesByCategory(courses.filter(c => c.category === 'meet
                                 </button>
                               </div>
                             ))}
+                            <button onClick={() => { setMemberSearch(''); setBookForSlot({ course: c, schedule: s, dateStr: selDateStr }) }}
+                              style={{ width:'100%', marginTop:6, fontSize:10.5, fontWeight:800, padding:'7px', borderRadius:8, border:`1px dashed ${OK.main}`, background:OK.soft, color:OK.tx, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                              + 회원 대신 예약
+                            </button>
                           </div>
                         )
                       })}
@@ -907,6 +953,39 @@ const myCourses = sortCoursesByCategory(courses.filter(c => c.category === 'meet
           </>
         )}
       </div>
+
+      {/* 회원 대신 예약 — 회원 선택 모달 */}
+      {bookForSlot && (
+        <div onClick={() => { if (!bookBusy) setBookForSlot(null) }}
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:1000, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background:'#fff', borderRadius:'22px 22px 0 0', width:'100%', maxWidth:430, maxHeight:'82vh', display:'flex', flexDirection:'column', boxSizing:'border-box' }}>
+            <div style={{ padding:'16px 16px 10px', borderBottom:'1px solid var(--g1)' }}>
+              <div style={{ fontSize:14, fontWeight:800, color:'var(--td)' }}>회원 대신 예약</div>
+              <div style={{ fontSize:11, color:'var(--tmu)', marginTop:3 }}>
+                {bookForSlot.course.name} · {month+1}/{selDay} {bookForSlot.schedule.start_time}~{bookForSlot.schedule.end_time}
+              </div>
+              <input value={memberSearch} onChange={e => setMemberSearch(e.target.value)} placeholder="회원 이름 검색"
+                style={{ width:'100%', marginTop:10, padding:'9px 11px', borderRadius:10, border:'1.5px solid var(--g2)', fontSize:13, fontFamily:'Nunito,sans-serif', boxSizing:'border-box', outline:'none' }}/>
+            </div>
+            <div style={{ overflowY:'auto', padding:'6px 10px 20px' }}>
+              {members.filter(m => !memberSearch.trim() || (m.name || '').includes(memberSearch.trim())).length === 0 ? (
+                <div style={{ textAlign:'center', padding:24, color:'var(--tmu)', fontSize:12 }}>회원이 없어요</div>
+              ) : members.filter(m => !memberSearch.trim() || (m.name || '').includes(memberSearch.trim())).map(m => (
+                <button key={m.id} disabled={bookBusy} onClick={() => adminBookForMember(m)}
+                  style={{ width:'100%', textAlign:'left', display:'flex', alignItems:'center', gap:10, padding:'11px 12px', borderRadius:12, border:'none', background:'transparent', cursor:'pointer', fontFamily:'Nunito,sans-serif', opacity:bookBusy?0.5:1 }}>
+                  <span style={{ width:30, height:30, borderRadius:'50%', background:'var(--g2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:800, color:'var(--g5)', flexShrink:0 }}>{m.name?.[0] || '?'}</span>
+                  <span style={{ flex:1, minWidth:0 }}>
+                    <span style={{ display:'block', fontSize:13, fontWeight:700, color:'var(--td)' }}>{m.name || '이름 없음'}</span>
+                    {m.phone && <span style={{ display:'block', fontSize:10.5, color:'var(--tmu)' }}>{m.phone}</span>}
+                  </span>
+                  <span style={{ fontSize:11, fontWeight:800, color:OK.tx, flexShrink:0 }}>예약 →</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <AdminNav active="schedule" />
     </>
