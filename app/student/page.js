@@ -336,11 +336,11 @@ export default function StudentHomePage() {
             <button onClick={()=>router.push('/login')} className="p-chip p-chip--sm">로그인 / 가입</button>
           )}
           {user && (
-            <div onClick={()=>router.push(`/profile/${user.id}`)} style={{ cursor:'pointer', display:'flex' }} title="내 프로필">
+            <div className="tap" onClick={()=>router.push(`/profile/${user.id}`)} style={{ cursor:'pointer', display:'flex' }} title="내 프로필">
               <NavIcon name="profile" color="var(--ac)" size={22} />
             </div>
           )}
-          <div onClick={()=>router.push('/student/notification')} style={{ position:'relative', cursor:'pointer', display:'flex' }} title="알림">
+          <div className="tap" onClick={()=>router.push('/student/notification')} style={{ position:'relative', cursor:'pointer', display:'flex' }} title="알림">
             <NavIcon name="bell" color="var(--ac)" size={22} />
             {unread > 0 && (
               <span style={{ position:'absolute', top:-5, right:-7, background:'#e24b4a', color:'#fff', fontSize:9, fontWeight:800, minWidth:15, height:15, borderRadius:8, display:'flex', alignItems:'center', justifyContent:'center', padding:'0 4px', lineHeight:1, fontFamily:'Nunito,sans-serif', border:'1.5px solid #fff' }}>
@@ -615,7 +615,7 @@ export default function StudentHomePage() {
                 <div style={{ fontSize:15.5, fontWeight:900, color:'var(--td)' }}>무엇이 궁금하냥? 🐾</div>
                 <div style={{ fontSize:11, color:'var(--tmu)', fontWeight:700, marginTop:1 }}>수업 시작 전 자주 묻는 것들을 모았어요</div>
               </div>
-              <button onClick={() => setAskOpen(false)}
+              <button className="tap" onClick={() => setAskOpen(false)}
                 style={{ width:30, height:30, borderRadius:'50%', border:'2px solid var(--g1)', background:'#fff', color:'var(--tmu)', fontWeight:900, fontSize:13, cursor:'pointer', flexShrink:0, padding:0 }}>✕</button>
             </div>
 

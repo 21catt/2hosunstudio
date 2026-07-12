@@ -41,7 +41,7 @@ function Tile({ bg, label, onClick, children }) {
 
 function NavItem({ active, label, onClick, children }) {
   return (
-    <div onClick={onClick} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, cursor: 'pointer', color: active ? T.accent : T.navMute }}>
+    <div onClick={onClick} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '2px 0', cursor: 'pointer', color: active ? T.accent : T.navMute }}>
       {children}
       <span style={{ fontSize: 10.5, fontWeight: active ? 700 : 600 }}>{label}</span>
     </div>
@@ -75,10 +75,12 @@ export default function GlassHome(props) {
           <span style={{ fontSize: 19, fontWeight: 800, letterSpacing: '-0.4px' }}>2호선 스튜디오</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, color: T.sub }}>
-          <svg onClick={() => user && go(`/profile/${user.id}`)} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={{ cursor: 'pointer' }}>
-            <circle cx="12" cy="8" r="3.4" /><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6" strokeLinecap="round" />
-          </svg>
-          <div onClick={() => go('/student/notification')} style={{ position: 'relative', cursor: 'pointer', display: 'flex' }}>
+          <span className="tap" onClick={() => user && go(`/profile/${user.id}`)} style={{ display: 'flex', cursor: 'pointer' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <circle cx="12" cy="8" r="3.4" /><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6" strokeLinecap="round" />
+            </svg>
+          </span>
+          <div className="tap" onClick={() => go('/student/notification')} style={{ position: 'relative', cursor: 'pointer', display: 'flex' }}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
               <path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6Z" strokeLinejoin="round" /><path d="M10 19a2 2 0 0 0 4 0" strokeLinecap="round" />
             </svg>
