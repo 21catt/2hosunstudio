@@ -58,6 +58,15 @@ export default function AdminNotificationPage() {
     const { data: booking } = await supabase.from('bookings').select('*').eq('id', notif.related_id).single()
     if (!booking) { alert('예약을 찾을 수 없어요'); setProcessing(null); return }
 
+    // 이미 다른 관리자가 확정했으면 알림만 정리하고 종료 (중복 처리 방지)
+    if (booking.status === 'confirmed') {
+      await supabase.from('notifications')
+        .update({ type: 'meeting_confirmed_admin', title: '✓ 모임 참여권 확정 완료' })
+        .eq('related_id', notif.related_id).eq('type', notif.type)
+      alert('이미 다른 관리자가 확정했어요. 확정 완료로 정리했어요.')
+      setProcessing(null); loadData(user.id); return
+    }
+
     // 해당 학생의 pending 모임권 정보 가져오기
 const { data: pendingMt } = await supabase.from('meeting_tickets')
   .select('*')
@@ -85,11 +94,11 @@ await supabase.from('notifications').insert({
   body: `입금이 확인되어 모임 참여권 ${pendingMt?.total || ''}회가 부여되었습니다 🐾`
 })
 
-    // 강사 알림 - 확정 처리 완료로 type 변경
+    // 전체 관리자 알림을 확정 완료로 (내 것만이 아니라 같은 예약의 모든 관리자 복사본)
 await supabase.from('notifications')
   .update({ type: 'meeting_confirmed_admin', title: '✓ 모임 참여권 확정 완료' })
-  .eq('id', notif.id)
-    
+  .eq('related_id', notif.related_id).eq('type', notif.type)
+
     setProcessing(null)
     loadData(user.id)
   }
@@ -124,8 +133,8 @@ await supabase.from('notifications')
 
     await supabase.from('notifications')
   .update({ type: 'meeting_cancelled_admin', title: '✗ 모임 신청 취소됨' })
-  .eq('id', notif.id)
-    
+  .eq('related_id', notif.related_id).eq('type', notif.type)
+
     setProcessing(null)
     loadData(user.id)
   }
@@ -157,6 +166,16 @@ await supabase.from('notifications')
       const sch = (schedules || []).find(s => s.start_time === start && (s.day_of_week === dow || s.specific_date === date))
         || (schedules || []).find(s => s.start_time === start)
 
+      // 이미 다른 관리자가 확정했는지 확인 (중복 예약 방지)
+      const { data: exist } = await supabase.from('bookings').select('id')
+        .eq('user_id', reqUser.id).eq('course_id', c.id).eq('class_date', date).eq('class_time', time).limit(1)
+      if (exist && exist.length) {
+        await supabase.from('notifications').update({ type: 'booking_confirmed_admin', title: '✓ 예약 확정 완료' })
+          .eq('type', 'booking_request').eq('body', notif.body)
+        alert('이미 다른 관리자가 확정한 요청이에요. 확정 완료로 정리했어요.')
+        loadData(user.id); return
+      }
+
       // 예약 생성 (수강권 없이 계약금 확정 예약)
       const { error } = await supabase.from('bookings').insert({
         user_id: reqUser.id, course_id: c.id, schedule_id: sch?.id || null,
@@ -165,12 +184,13 @@ await supabase.from('notifications')
       })
       if (error) { alert('예약 생성에 실패했어요: ' + error.message); return }
 
-      // 학생 알림 + 이 알림 처리완료 표시
+      // 학생 알림 + 같은 요청의 모든 관리자 알림을 확정 완료로 (booking_request는 related_id 없어 본문으로 매칭)
       await supabase.from('notifications').insert({
         user_id: reqUser.id, type: 'booking_confirmed', title: '예약 확정 🎉',
         body: `계약금 입금이 확인되어 ${c.name} ${date} ${start} 예약이 확정됐어요! 🐾`
       })
-      await supabase.from('notifications').update({ type: 'booking_confirmed_admin', title: '✓ 예약 확정 완료' }).eq('id', notif.id)
+      await supabase.from('notifications').update({ type: 'booking_confirmed_admin', title: '✓ 예약 확정 완료' })
+        .eq('type', 'booking_request').eq('body', notif.body)
       loadData(user.id)
     } finally {
       setProcessing(null)
@@ -181,7 +201,8 @@ await supabase.from('notifications')
   async function dismissRequest(notif) {
     if (!confirm('이 예약 요청을 무시할까요? (예약이 생성되지 않아요)')) return
     setProcessing(notif.id)
-    await supabase.from('notifications').update({ type: 'booking_request_dismissed', title: '요청 무시됨' }).eq('id', notif.id)
+    await supabase.from('notifications').update({ type: 'booking_request_dismissed', title: '요청 무시됨' })
+      .eq('type', 'booking_request').eq('body', notif.body)
     setProcessing(null)
     loadData(user.id)
   }
