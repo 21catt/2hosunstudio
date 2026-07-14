@@ -71,19 +71,27 @@ export default function AdminAttendancePage() {
     const next = !b.attended
     setToggling(prev => ({ ...prev, [b.id]: true }))
     const update = { attended: next, attended_at: next ? new Date().toISOString() : null }
-    await supabase.from('bookings').update(update).eq('id', b.id)
+    // 저장 성공을 확인해야 냥밭 작물 성장(출석 개수 기반)이 확실히 반영된다.
+    const { error } = await supabase.from('bookings').update(update).eq('id', b.id)
+    setToggling(prev => { const n = { ...prev }; delete n[b.id]; return n })
+    if (error) { alert('출석 저장에 실패했어요. 다시 시도해 주세요.\n' + (error.message || '')); return }
     if (next) notifyAttendance(b)
     setBookings(prev => prev.map(x => x.id === b.id ? { ...x, ...update } : x))
-    setToggling(prev => { const n = { ...prev }; delete n[b.id]; return n })
   }
 
   async function markAllAttended(grp) {
     const pending = grp.filter(b => !b.attended)
     if (!pending.length) return
     const now = new Date().toISOString()
-    await Promise.all(pending.map(b =>
+    const results = await Promise.all(pending.map(b =>
       supabase.from('bookings').update({ attended: true, attended_at: now }).eq('id', b.id)
     ))
+    const failed = results.filter(r => r.error)
+    if (failed.length) {
+      alert(`출석 저장에 ${failed.length}건 실패했어요. 다시 시도해 주세요.\n` + (failed[0].error?.message || ''))
+      await load(selectedDate) // 실제 저장 상태로 되돌림
+      return
+    }
     pending.forEach(b => notifyAttendance(b))
     setBookings(prev => prev.map(b =>
       pending.some(p => p.id === b.id) ? { ...b, attended: true, attended_at: now } : b
