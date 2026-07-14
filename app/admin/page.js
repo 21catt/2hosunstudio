@@ -36,7 +36,7 @@ export default function AdminHomePage() {
 
   async function loadData(adminId) {
     const [{ data: tb }, { count: pc }, { count: rc }, { count: uc }, { count: mc }] = await Promise.all([
-      supabase.from('bookings').select('id, class_name, class_time, attended, status').eq('class_date', todayStr).neq('status', 'cancelled'),
+      supabase.from('bookings').select('id, class_name, class_time, attended, status, users(name)').eq('class_date', todayStr).neq('status', 'cancelled'),
       supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'booked').eq('confirmed', false),
       supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'cancelled').eq('refund_status', 'required'),
       supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', adminId).eq('is_read', false),
@@ -57,14 +57,18 @@ export default function AdminHomePage() {
     else alert('알림 허용을 눌러주세요.')
   }
 
-  // 오늘 수업: 시간+수업명으로 그룹
-  const groupMap = new Map()
+  // 오늘 수업: 시간대별로 묶고, 그 안에서 수업명별 학생 목록
+  const timeMap = new Map()
   for (const b of todayBookings) {
-    const key = `${b.class_time || ''}||${b.class_name || ''}`
-    if (!groupMap.has(key)) groupMap.set(key, { class_name: b.class_name, class_time: b.class_time, items: [] })
-    groupMap.get(key).items.push(b)
+    const t = b.class_time || ''
+    if (!timeMap.has(t)) timeMap.set(t, { class_time: t, items: [], classes: new Map() })
+    const g = timeMap.get(t)
+    g.items.push(b)
+    const cn = b.class_name || '기타'
+    if (!g.classes.has(cn)) g.classes.set(cn, [])
+    g.classes.get(cn).push(b)
   }
-  const todayGroups = [...groupMap.values()].sort((a, b) => (a.class_time || '').localeCompare(b.class_time || ''))
+  const todayGroups = [...timeMap.values()].sort((a, b) => (a.class_time || '').localeCompare(b.class_time || ''))
   const attendedCnt = todayBookings.filter(b => b.attended).length
   const paymentBadge = pendingCnt + refundCnt
 
@@ -176,16 +180,21 @@ export default function AdminHomePage() {
           </div>
         ) : todayGroups.map(g => {
           const done = g.items.filter(b => b.attended).length
-          const allDone = done === g.items.length
+          const allDone = g.items.length > 0 && done === g.items.length
           return (
-            <div key={`${g.class_time}||${g.class_name}`} onClick={() => router.push('/admin/attendance')}
-              style={{ display: 'flex', alignItems: 'center', gap: 11, background: '#fff', border: '0.5px solid rgba(0,0,0,0.08)', borderRadius: 14, padding: '11px 13px', marginBottom: 7, cursor: 'pointer' }}>
+            <div key={g.class_time} onClick={() => router.push('/admin/attendance')}
+              style={{ display: 'flex', alignItems: 'flex-start', gap: 11, background: '#fff', border: '0.5px solid rgba(0,0,0,0.08)', borderRadius: 14, padding: '11px 13px', marginBottom: 7, cursor: 'pointer' }}>
               <div style={{ fontSize: 11, fontWeight: 800, color: OK.tx, background: OK.soft, borderRadius: 9, padding: '5px 9px', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
                 {(g.class_time || '').split('~')[0] || '-'}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12.5, fontWeight: 800, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.class_name}</div>
-                <div style={{ fontSize: 10, color: T.mut, marginTop: 1 }}>{g.class_time}</div>
+                <div style={{ fontSize: 10, color: T.mut, marginBottom: 3 }}>{g.class_time}</div>
+                {[...g.classes.entries()].map(([cn, list]) => (
+                  <div key={cn} style={{ marginBottom: 2, lineHeight: 1.45 }}>
+                    <span style={{ fontSize: 12.5, fontWeight: 800, color: T.text }}>{cn}</span>
+                    <span style={{ fontSize: 11, color: T.mut }}> · {list.map(b => b.users?.name || '학생').join(', ')}</span>
+                  </div>
+                ))}
               </div>
               <span style={{ fontSize: 11, fontWeight: 800, flexShrink: 0, color: allDone ? OK.tx : T.mut }}>
                 출석 {done}/{g.items.length}
