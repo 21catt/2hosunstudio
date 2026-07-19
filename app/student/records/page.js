@@ -406,15 +406,29 @@ function RecordsInner() {
                               const url = signedUrls[p.storage_path]
                               return (
                                 <div key={p.id} className={isNew ? 'thumb-in' : ''}
-                                  onClick={() => { if (!url) return; const photos = recordPhotos(r); setViewer({ photos, idx: Math.max(0, photos.indexOf(url)), recordId: r.id }); setViewerText('') }}
-                                  style={{ position:'relative', width:92, height:92, borderRadius:18, overflow:'hidden', border:`3px solid ${ACCENT}`, boxShadow:'3px 3px 0 rgb(var(--ac-rgb) / 0.22)', background:ACCENT_BG, flexShrink:0, cursor: url ? 'pointer' : 'default', animationDelay:`${i * 70}ms` }}>
+                                  title={p.palette ? '탭하면 이 색으로 컬러휠 열기' : undefined}
+                                  onClick={() => {
+                                    // 색 계획 카드는 탭하면 저장된 색으로 컬러휠 복원, 일반 사진은 뷰어
+                                    if (p.palette) { setPlannerInit(p.palette); setPlannerOpen(true); return }
+                                    if (!url) return
+                                    const photos = recordPhotos(r); setViewer({ photos, idx: Math.max(0, photos.indexOf(url)), recordId: r.id }); setViewerText('')
+                                  }}
+                                  style={{ position:'relative', width:92, height:92, borderRadius:18, overflow:'hidden', border:`3px solid ${ACCENT}`, boxShadow:'3px 3px 0 rgb(var(--ac-rgb) / 0.22)', background:ACCENT_BG, flexShrink:0, cursor: (url || p.palette) ? 'pointer' : 'default', animationDelay:`${i * 70}ms` }}>
                                   {url
                                     ? <img src={url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}/>
                                     : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24 }}>📷</div>
                                   }
                                   {p.palette && (
-                                    <button onClick={e => { e.stopPropagation(); setPlannerInit(p.palette); setPlannerOpen(true) }} title="색 계획 편집"
-                                      style={{ position:'absolute', top:4, left:4, width:24, height:24, borderRadius:8, border:'none', background:'rgba(11,11,14,0.72)', color:'#fff', fontSize:12, lineHeight:1, cursor:'pointer', padding:0, display:'flex', alignItems:'center', justifyContent:'center' }}>🎨</button>
+                                    <>
+                                      {/* 색 계획 카드 표식 (탭 = 컬러휠 복원) */}
+                                      <span style={{ position:'absolute', top:4, left:4, height:20, borderRadius:8, background:'rgba(11,11,14,0.72)', color:'#fff', fontSize:10, fontWeight:800, lineHeight:1, padding:'0 6px', display:'flex', alignItems:'center', gap:3, pointerEvents:'none' }}>🎨 색</span>
+                                      {/* 원본 크게 보기 (보조 경로) */}
+                                      {url && (
+                                        <button onClick={e => { e.stopPropagation(); const photos = recordPhotos(r); setViewer({ photos, idx: Math.max(0, photos.indexOf(url)), recordId: r.id }); setViewerText('') }}
+                                          title="사진 크게 보기"
+                                          style={{ position:'absolute', top:4, right:4, width:24, height:24, borderRadius:8, border:'none', background:'rgba(11,11,14,0.72)', color:'#fff', fontSize:11, lineHeight:1, cursor:'pointer', padding:0, display:'flex', alignItems:'center', justifyContent:'center' }}>🔍</button>
+                                      )}
+                                    </>
                                   )}
                                 </div>
                               )
