@@ -1,4 +1,5 @@
 'use client'
+import DailyColorCard from './DailyColorCard'
 // 싱그러운(fresh) 테마 전용 글래스모피즘 홈 — 2026 여름 한정 스킨.
 // data/핸들러는 app/student/page.js에서 props로 받는다. 모달·PaletteFab은 부모/전역이 렌더.
 
@@ -225,6 +226,9 @@ export default function GlassHome(props) {
             </div>
           </div>
         )}
+
+        {/* 오늘의 색 (공지 위) */}
+        <div style={{ marginTop: 16 }}><DailyColorCard glass /></div>
 
         {/* NOTICES */}
         {notices.length > 0 && (

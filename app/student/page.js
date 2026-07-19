@@ -8,6 +8,7 @@ import { useTodayWeather, WeatherGlyph } from '../../components/WeatherBar'
 import { LogoMark, HeroDeco, DotPatch } from '../../components/Deco'
 import { applyTheme, isValidTheme, getSavedTheme, themeInWindow } from '../../lib/theme'
 import GlassHome from '../../components/GlassHome'
+import DailyColorCard from '../../components/DailyColorCard'
 import { bookClass, requestBookingApproval, hasValidTicket, cancelBooking } from '../../lib/booking'
 import { sendPushToAdmins } from '../../lib/pushNotify'
 import { sendKakaoToAdmins } from '../../lib/kakaoNotify'
@@ -511,6 +512,9 @@ export default function StudentHomePage() {
             <span style={{ fontSize:10, color:'var(--tmu)', flexShrink:0 }}>만료 {ticket.expires_at}</span>
           </div>
         )}
+
+        {/* 오늘의 색 — 매일 순차로 바뀌는 배색 추천 (공지 위) */}
+        <div style={{ marginBottom:12 }}><DailyColorCard /></div>
 
         {/* 스튜디오 공지 — 라운지에서 관리자가 공지 지정한 글 (최대 2개) */}
         {notices.length > 0 && (

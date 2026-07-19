@@ -17,6 +17,14 @@ export default function PaletteFab() {
   const [saving, setSaving] = useState(false)
   const [tuck, setTuck] = useState(false)
   const [toast, setToast] = useState('')
+  const [initial, setInitial] = useState(null) // 오늘의 색 등 외부에서 지정한 시작 팔레트
+
+  // 홈 "오늘의 색" 카드 → 그 색으로 삼색 도구 열기 (저장은 아래 handleSave 경로 그대로)
+  useEffect(() => {
+    const onOpen = e => { setInitial(e.detail || null); setOpen(true) }
+    window.addEventListener('open-palette', onOpen)
+    return () => window.removeEventListener('open-palette', onOpen)
+  }, [])
 
   useEffect(() => {
     let mounted = true
@@ -80,7 +88,7 @@ export default function PaletteFab() {
       `}</style>
 
       <div style={{ position:'fixed', bottom:78, left:'50%', transform:'translateX(-50%)', width:'100%', maxWidth:390, zIndex:90, pointerEvents:'none', display:'flex', justifyContent:'flex-end', padding:'0 16px', boxSizing:'border-box' }}>
-        <button className="pf-btn" onClick={() => setOpen(true)} aria-label="색 계획 열기"
+        <button className="pf-btn" onClick={() => { setInitial(null); setOpen(true) }} aria-label="색 계획 열기"
           style={{ pointerEvents:'auto', width:46, height:46, borderRadius:14, border:'none', cursor:'pointer', background:'#EDBA3B', display:'flex', alignItems:'center', justifyContent:'center',
             boxShadow:'0 8px 20px -5px rgba(237,186,59,0.5), 0 2px 6px rgba(0,0,0,0.28)', padding:0,
             opacity: tuck ? 0.62 : 1, transform: tuck ? 'translateX(38px) scale(0.9)' : 'none' }}>
@@ -97,7 +105,7 @@ export default function PaletteFab() {
         </div>
       )}
 
-      {open && <PalettePlanner role={role} saving={saving} locked={!isMember} onSignup={() => { setOpen(false); router.push('/signup') }} onClose={() => setOpen(false)} onSave={handleSave} />}
+      {open && <PalettePlanner initial={initial} role={role} saving={saving} locked={!isMember} onSignup={() => { setOpen(false); setInitial(null); router.push('/signup') }} onClose={() => { setOpen(false); setInitial(null) }} onSave={handleSave} />}
     </>
   )
 }
