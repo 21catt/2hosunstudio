@@ -487,7 +487,7 @@ export default function StudentHomePage() {
         {upcomingOneday.length > 0 && (
           <div style={{ marginBottom:14 }}>
             <div style={{ display:'flex', alignItems:'center', gap:6, margin:'0 2px 8px' }}>
-              <span style={{ fontSize:12, fontWeight:800, color:'var(--td)' }}>🎨 원데이 클래스</span>
+              <span style={{ fontSize:12, fontWeight:800, color:'var(--td)', display:'flex', alignItems:'center', gap:5 }}><NavIcon name="palette" color="#AD1457" size={14} />원데이 클래스</span>
               <span style={{ fontSize:9.5, fontWeight:800, background:'#FCE4EC', color:'#AD1457', borderRadius:10, padding:'2px 8px', border:'1px solid #f6c7d6' }}>하루만 열려요</span>
             </div>
             {upcomingOneday.map(({ course, date, schedules }) => {

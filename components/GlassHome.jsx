@@ -192,14 +192,20 @@ export default function GlassHome(props) {
         {upcomingOneday.length > 0 && (
           <div style={{ marginTop: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 2px 10px' }}>
-              <span style={{ fontSize: 15, fontWeight: 800 }}>🎨 원데이 클래스</span>
+              <span style={{ fontSize: 15, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#AD1457" strokeWidth="1.7">
+                  <path d="M12 3a9 9 0 0 0 0 18c1.6 0 1.9-1.2 1.2-2.1-.8-1 .1-2.4 1.3-2.4H17a4 4 0 0 0 4-4c0-5-4-9.5-9-9.5Z" strokeLinejoin="round" />
+                  <circle cx="8" cy="11" r="1.1" fill="#AD1457" stroke="none" /><circle cx="12" cy="8" r="1.1" fill="#AD1457" stroke="none" /><circle cx="16" cy="11" r="1.1" fill="#AD1457" stroke="none" />
+                </svg>
+                원데이 클래스
+              </span>
               <span style={{ fontSize: 10.5, fontWeight: 800, color: '#AD1457', background: 'rgba(173,20,87,0.12)', border: '1px solid rgba(173,20,87,0.3)', borderRadius: 10, padding: '2px 9px' }}>하루만 열려요</span>
             </div>
             {upcomingOneday.map(({ course, date, schedules }) => {
               const d = new Date(date + 'T00:00:00')
               const tLabel = schedules.length > 1 ? `${schedules[0].start_time} 외 ${schedules.length - 1}` : `${schedules[0].start_time}~${schedules[0].end_time}`
               return (
-                <div key={course.id} onClick={() => go(`/student/calendar?date=${date}`)} style={{ marginBottom: 8, borderRadius: 18, padding: '12px 14px', background: T.glass, ...glassBlur, border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+                <div key={course.id} onClick={() => go(`/student/calendar?date=${date}`)} style={{ marginBottom: 8, borderRadius: 18, padding: '12px 14px', background: 'rgba(255,255,255,0.3)', ...glassBlur, backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: `1px solid rgba(255,255,255,0.85)`, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
                   <div style={{ width: 44, height: 44, borderRadius: 14, background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(173,20,87,0.3)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0, lineHeight: 1 }}>
                     <span style={{ fontSize: 9, fontWeight: 800, color: '#AD1457' }}>{d.getMonth() + 1}월</span>
                     <span style={{ fontSize: 17, fontWeight: 900, color: '#AD1457', marginTop: 1 }}>{d.getDate()}</span>
