@@ -823,32 +823,6 @@ export default function CalendarPage() {
               </div>
             )
           }
-          if (habitSlots.length > 0) {
-            return (
-              <div style={{ marginBottom:16, background:CARD, borderRadius:14, padding:'10px 14px', border:`1.5px solid ${BORDER}`, display:'flex', alignItems:'center', gap:8 }}>
-                <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', flexShrink:0 }}>또 듣기</div>
-                <div style={{ display:'flex', gap:6, flex:1, overflow:'hidden' }}>
-                  {habitSlots.map(slot => {
-                    const nd = new Date(slot.next.dateStr + 'T00:00:00')
-                    const dow = ['일','월','화','수','목','금','토'][nd.getDay()]
-                    const mmdd = `${String(nd.getMonth()+1).padStart(2,'0')}/${String(nd.getDate()).padStart(2,'0')}`
-                    const disabled = !ticket || ticket.remain <= 0 || slot.isFull
-                    return (
-                      <button key={`${slot.course.id}-${slot.schedule.id}`}
-                        onClick={() => !disabled && handleQuickBook(slot.course, slot.schedule, slot.next.dateStr)}
-                        style={{ padding:'5px 10px', borderRadius:20, background:disabled?'var(--g1)':ACCENT_BG, color:disabled?'var(--tmu)':ACCENT_TEXT, border:`1.5px solid ${disabled?BORDER:ACCENT+'55'}`, fontSize:11, fontWeight:600, cursor:disabled?'default':'pointer', fontFamily:'Nunito,sans-serif', flexShrink:0 }}>
-                        {slot.course.name.length <= 4 ? slot.course.name : slot.course.name.slice(0,4)+'…'} {dow} · {mmdd}
-                      </button>
-                    )
-                  })}
-                </div>
-                <button onClick={() => { setSheetSlot(habitSlots[0]); setSheetOpen(true) }}
-                  style={{ flexShrink:0, padding:'4px 8px', borderRadius:20, background:'transparent', color:'var(--tmu)', border:`1px solid ${BORDER}`, fontSize:12, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
-                  ⋯
-                </button>
-              </div>
-            )
-          }
           return (
             <div style={{ marginBottom:16, background:CARD, borderRadius:14, padding:'10px 14px', border:`1.5px solid ${BORDER}`, display:'flex', alignItems:'center', cursor:'pointer' }}
               onClick={() => { setYear(todayY); setMonth(todayM); setSelectedDay(todayD) }}>
