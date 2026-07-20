@@ -17,10 +17,10 @@ import LoadingCat from '../../../components/LoadingCat'
 import GlassBg from '../../../components/GlassBg'
 import { useFreshTheme } from '../../../lib/useFreshTheme'
 
-const CAT_ICON = { drawing:'pencil', painting:'palette', sculpture:'box', free:'photo', meeting:'users' }
-const CAT_NAME = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', free:'자율창작', meeting:'모임' }
+const CAT_ICON = { drawing:'pencil', painting:'palette', sculpture:'box', oneday:'calendar', free:'photo', meeting:'users' }
+const CAT_NAME = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', oneday:'원데이', free:'자율창작', meeting:'모임' }
 const CAT_COLOR = { drawing:'#e8f5e0', painting:'#EDE7F6', sculpture:'#FFF3E0', free:'#E3F2FD', meeting:'#FFF8E1' }
-const CAT_TEXT = { drawing:'var(--g5)', painting:'#4A148C', sculpture:'#E65100', free:'#0D47A1', meeting:'#F57F17' }
+const CAT_TEXT = { drawing:'var(--g5)', painting:'#4A148C', sculpture:'#E65100', oneday:'#AD1457', free:'#0D47A1', meeting:'#F57F17' }
 
 const DEPOSIT = { bank: '국민은행', account: '392801-04-209666', holder: '양승민 (2호선스튜디오)' }
 
@@ -221,7 +221,7 @@ export default function CalendarPage() {
   // 한 수업 예약이 같은 시간의 다른 수업 자리도 차감한다. (자율창작·모임은 별도라 제외)
   function sharedSlotCountByDate(dateStr, startTime, endTime) {
     const slot = `${startTime}~${endTime}`
-    const excluded = new Set(classes.filter(c => c.category === 'free' || c.category === 'meeting').map(c => c.id))
+    const excluded = new Set(classes.filter(c => c.category === 'free' || c.category === 'meeting' || c.category === 'oneday').map(c => c.id))
     return allBookings.filter(b => b.class_date === dateStr && b.class_time === slot && !excluded.has(b.course_id)).length
   }
   function sharedSlotCount(day, startTime, endTime) {
@@ -234,7 +234,7 @@ export default function CalendarPage() {
     const cls = dayClasses(day)
     if (!cls.length) return null
     for (const c of cls) {
-      if (c.category === 'free' || c.category === 'meeting') return 'open'
+      if (c.category === 'free' || c.category === 'meeting' || c.category === 'oneday') return 'open'
       for (const s of getSchedulesForDay(c, day)) {
         if (sharedSlotCount(day, s.start_time, s.end_time) < (c.max_count || 999)) return 'open'
       }
@@ -310,7 +310,7 @@ export default function CalendarPage() {
   async function execBook(course, schedule, dateStr) {
     // 예약 직전 같은 시간대 실시간 확인 — 다른 수업 포함 5자리가 이미 찼으면 막음
     const slot = `${schedule.start_time}~${schedule.end_time}`
-    const excluded = new Set(classes.filter(c => c.category === 'free' || c.category === 'meeting').map(c => c.id))
+    const excluded = new Set(classes.filter(c => c.category === 'free' || c.category === 'meeting' || c.category === 'oneday').map(c => c.id))
     const { data: live } = await supabase.from('bookings').select('course_id, class_time').eq('status', 'booked').eq('class_date', dateStr)
     const taken = (live || []).filter(b => b.class_time === slot && !excluded.has(b.course_id)).length
     if (taken >= (course.max_count || 999)) {
@@ -355,6 +355,29 @@ export default function CalendarPage() {
     alert('예약 요청이 접수됐어요! 강사님이 확인 후 연락드릴게요 🐾')
   }
 
+  // 원데이 신청 — 수강권 불필요, 계약금 입금 대기(confirmed:false)로 예약 생성 후 관리자 알림
+  async function bookOneday(course, schedule, dateStr) {
+    const slot = `${schedule.start_time}~${schedule.end_time}`
+    const excluded = new Set(classes.filter(c => c.category === 'free' || c.category === 'meeting' || c.category === 'oneday').map(c => c.id))
+    const { data: live } = await supabase.from('bookings').select('course_id, class_time').eq('status', 'booked').eq('class_date', dateStr)
+    const taken = (live || []).filter(b => b.class_time === slot && b.course_id === course.id).length
+    if (taken >= (course.max_count || 999)) { alert('자리가 방금 마감됐어요 🐾'); setSelSchedule(null); loadData(user.id); return }
+    const { data: nb } = await supabase.from('bookings').insert({
+      user_id: user.id, course_id: course.id, schedule_id: schedule.id,
+      class_name: course.name, class_date: dateStr, class_time: slot,
+      teacher: course.teacher, status: 'booked', confirmed: false, amount: course.price || 0,
+    }).select().single()
+    const { data: profile } = await supabase.from('users').select('name, phone').eq('id', user.id).single()
+    const nm = profile?.name || profileName || '학생'
+    const msg = `${nm}님이 원데이 "${course.name}" ${dateStr} ${schedule.start_time} 신청. 금액 ${(course.price || 0).toLocaleString()}원. 입금 확인 후 확정 필요. 연락처 ${profile?.phone || '미등록'}`
+    await notifyAllAdmins({ type: 'meeting_pending', title: '원데이 신청 (입금 대기)', body: msg, related_id: nb?.id })
+    sendPushToAdmins('🎨 원데이 신청', msg)
+    sendKakaoToAdmins('🎨 원데이 신청', msg)
+    setSelCat(null); setSelCourse(null); setSelSchedule(null)
+    alert('원데이 신청 완료! 계약금 입금 확인 후 확정됩니다 🐾')
+    loadData(user.id)
+  }
+
   async function handleBook() {
     if (!user) { router.push('/signup'); return }
     if (!selCourse || !selSchedule) return
@@ -370,6 +393,12 @@ export default function CalendarPage() {
       }
 
       setPaymentModal({ course: selCourse, schedule: selSchedule })
+      return
+    }
+
+    // 원데이: 수강권 없이 계약금 입금 신청 → confirmed:false 로 예약 생성(관리자 입금 페이지에서 확정)
+    if (selCourse.category === 'oneday') {
+      await bookOneday(selCourse, selSchedule, `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`)
       return
     }
 
@@ -1014,7 +1043,10 @@ export default function CalendarPage() {
                           ) : daySchedules.map(s => {
                             const booked = isBooked(c.id, s.id, selectedDay)
                             const booking = getBooking(c.id, s.id, selectedDay)
-                            const cnt = sharedSlotCount(selectedDay, s.start_time, s.end_time) // 같은 시간대 전체 수업 합산(5자리 공유)
+                            // 원데이는 독립 좌석(수업별), 정규 수업은 같은 시간대 5자리 공유
+                            const cnt = c.category === 'oneday'
+                              ? allBookings.filter(b => b.course_id === c.id && b.class_date === `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}` && b.class_time === `${s.start_time}~${s.end_time}`).length
+                              : sharedSlotCount(selectedDay, s.start_time, s.end_time)
                             const remain = c.max_count - cnt
                             const full = remain <= 0 && !booked
                             const isSel = selSchedule?.id === s.id
@@ -1059,9 +1091,11 @@ export default function CalendarPage() {
                       style={{ pointerEvents:'auto', width:'100%', padding:'15px 20px', background:ACCENT, color:'#fff', border:'none', borderRadius:14, fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif', boxShadow:'0 8px 22px -6px rgba(0,0,0,0.35)' }}>
                       {!user
                         ? '가입하고 예약하기'
-                        : (selCourse?.category === 'meeting' || hasValidTicket())
-                          ? `${selCourse?.name} ${selSchedule?.start_time}~${selSchedule?.end_time} 예약하기`
-                          : '예약 요청하기 (수강권 확인 필요)'}
+                        : selCourse?.category === 'oneday'
+                          ? `원데이 신청 · ${(selCourse?.price || 0).toLocaleString()}원 (계약금 입금)`
+                          : (selCourse?.category === 'meeting' || hasValidTicket())
+                            ? `${selCourse?.name} ${selSchedule?.start_time}~${selSchedule?.end_time} 예약하기`
+                            : '예약 요청하기 (수강권 확인 필요)'}
                     </button>
                   </div>
                 </>

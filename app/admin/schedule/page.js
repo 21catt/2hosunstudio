@@ -13,10 +13,10 @@ import { sendPushToAdmins } from '../../../lib/pushNotify'
 import { sendKakaoToAdmins } from '../../../lib/kakaoNotify'
 
 const DAYS = ['일','월','화','수','목','금','토']
-const CATS = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', free:'자율창작', meeting:'모임' }
-const CAT_ICON = { drawing:'pencil', painting:'palette', sculpture:'box', free:'photo', meeting:'users' }
-const CAT_COLORS = { drawing:'#e8f5e0', painting:'#EDE7F6', sculpture:'#FFF3E0', free:'#E3F2FD', meeting:'#FFF8E1' }
-const CAT_TEXT = { drawing:'var(--g5)', painting:'#4A148C', sculpture:'#E65100', free:'#0D47A1', meeting:'#F57F17' }
+const CATS = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', oneday:'원데이', free:'자율창작', meeting:'모임' }
+const CAT_ICON = { drawing:'pencil', painting:'palette', sculpture:'box', oneday:'calendar', free:'photo', meeting:'users' }
+const CAT_COLORS = { drawing:'#e8f5e0', painting:'#EDE7F6', sculpture:'#FFF3E0', oneday:'#FCE4EC', free:'#E3F2FD', meeting:'#FFF8E1' }
+const CAT_TEXT = { drawing:'var(--g5)', painting:'#4A148C', sculpture:'#E65100', oneday:'#AD1457', free:'#0D47A1', meeting:'#F57F17' }
 // 자유 입력 시간 정규화 — "1030"·"10:30"·"9:5" 등을 "10:30"/"09:05"로. 실패 시 null.
 function parseTime(v) {
   const s = String(v || '').trim().replace(/[.;]/g, ':')
@@ -272,7 +272,7 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
           {Object.entries(CATS).map(([k,v]) => {
             const on = cat === k
             return (
-              <div key={k} onClick={()=>setCat(k)}
+              <div key={k} onClick={()=>{ setCat(k); if (k==='oneday') setIsUnlimited(false) }}
                 style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 12px', borderRadius:20, cursor:'pointer',
                   background: on ? OK.soft : T.fieldBg, border:`1px solid ${on ? OK.main : 'rgba(0,0,0,0.08)'}` }}>
                 <NavIcon name={CAT_ICON[k]||'palette'} color={on ? OK.tx : '#4a5a4e'} size={16} />
@@ -281,6 +281,11 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
             )
           })}
         </div>
+        {cat === 'oneday' && (
+          <div style={{ fontSize:10.5, color:'var(--tm)', marginTop:8, lineHeight:1.6, background:'#FCE4EC', border:'1px solid #f6c7d6', borderRadius:10, padding:'8px 10px' }}>
+            원데이 = 하루만 열리는 수업. 아래 <b>운영 기간 시작·종료를 같은 날짜</b>로, <b>운영 요일은 그 날짜의 요일</b>로 선택하고 시간·금액을 넣어주세요. 수강권 없이 <b>계약금 입금</b>으로 신청돼요.
+          </div>
+        )}
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr', gap:10 }}>
         <div className="field"><label>정원 (최대 {cat === 'meeting' ? 15 : 10}명)</label>

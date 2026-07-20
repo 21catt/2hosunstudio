@@ -15,8 +15,8 @@ const ACCENT_TEXT = 'var(--acTx)'
 const CARD = 'var(--card)'
 const BORDER = 'var(--line)'
 
-const CAT_LABEL = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', free:'자율창작', meeting:'모임' }
-const CAT_ORDER = ['drawing', 'painting', 'sculpture', 'free', 'meeting']
+const CAT_LABEL = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', oneday:'원데이', free:'자율창작', meeting:'모임' }
+const CAT_ORDER = ['drawing', 'painting', 'sculpture', 'oneday', 'free', 'meeting']
 
 // ─────────────────────────────────────────────
 // Record bottom sheet

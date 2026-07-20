@@ -224,7 +224,7 @@ export default function StudentHomePage() {
   // 같은 날짜+시간대의 모든 일반수업 예약 합산 — 5개 수업이 물리 5자리를 공유(자율창작·모임 제외)
   function seatCount(c, s, ds) {
     const slot = `${s.start_time}~${s.end_time}`
-    const excluded = new Set(classes.filter(x => x.category === 'free' || x.category === 'meeting').map(x => x.id))
+    const excluded = new Set(classes.filter(x => x.category === 'free' || x.category === 'meeting' || x.category === 'oneday').map(x => x.id))
     return allBookings.filter(b => b.class_date === ds && b.class_time === slot && !excluded.has(b.course_id)).length
   }
 
@@ -240,7 +240,7 @@ export default function StudentHomePage() {
       const ds = fmtDate(d)
       if (ds < todayStr) continue
       for (const c of coursesOn(ds)) {
-        if (c.category === 'free' || c.category === 'meeting') continue
+        if (c.category === 'free' || c.category === 'meeting' || c.category === 'oneday') continue
         for (const s of schedulesFor(c, ds)) {
           if (myBookingFor(c, s, ds)) continue
           const remain = (c.max_count || 0) - seatCount(c, s, ds)
@@ -258,7 +258,7 @@ export default function StudentHomePage() {
 
   async function quickBook(c, s, ds) {
     if (!user) { router.push('/signup'); return }
-    if (c.category === 'meeting') { router.push(`/student/calendar?date=${ds}`); return }
+    if (c.category === 'meeting' || c.category === 'oneday') { router.push(`/student/calendar?date=${ds}`); return }
     const key = `${c.id}-${s.id}-${ds}`
     setBookingBusy(key)
     try {
