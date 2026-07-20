@@ -231,6 +231,15 @@ export default function StudentHomePage() {
     return myBookings.find(b => b.course_id === c.id && b.schedule_id === s.id && b.class_date === ds)
   }
 
+  // 원데이(하루만 열리는 특별 수업) — 다가오는 것만 가까운 순으로 홈에 노출 (3b)
+  // 개설 규칙상 start_date === end_date(그 하루), class_schedules가 그날의 시간대.
+  const upcomingOneday = classes
+    .filter(c => c.category === 'oneday' && c.start_date && c.start_date >= todayStr && !lockedDates.has(c.start_date))
+    .map(c => ({ course: c, date: c.start_date, schedules: schedulesFor(c, c.start_date) }))
+    .filter(x => x.schedules.length > 0)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.schedules[0].start_time.localeCompare(b.schedules[0].start_time))
+    .slice(0, 3)
+
 
   async function quickBook(c, s, ds) {
     if (!user) { router.push('/signup'); return }
@@ -322,7 +331,7 @@ export default function StudentHomePage() {
           notices={notices} weather={weather} heroSub={heroSub} unread={unread}
           stripDates={stripDates} selDate={selDate} todayStr={todayStr} bookedDates={bookedDates} stripRef={stripRef}
           coursesOn={coursesOn} schedulesFor={schedulesFor} myBookingFor={myBookingFor}
-          seatCount={seatCount} bookingBusy={bookingBusy}
+          seatCount={seatCount} bookingBusy={bookingBusy} upcomingOneday={upcomingOneday}
           onDate={goDate} onQuickBook={quickBook} onCancel={askCancel} onAsk={openAsk}
           go={(href) => router.push(href)}
         />
@@ -473,6 +482,37 @@ export default function StudentHomePage() {
             </div>
           )
         })()}
+
+        {/* 원데이 클래스 — 하루만 열리는 특별 수업, 다가오는 것만 노출 (3b) */}
+        {upcomingOneday.length > 0 && (
+          <div style={{ marginBottom:14 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:6, margin:'0 2px 8px' }}>
+              <span style={{ fontSize:12, fontWeight:800, color:'var(--td)' }}>🎨 원데이 클래스</span>
+              <span style={{ fontSize:9.5, fontWeight:800, background:'#FCE4EC', color:'#AD1457', borderRadius:10, padding:'2px 8px', border:'1px solid #f6c7d6' }}>하루만 열려요</span>
+            </div>
+            {upcomingOneday.map(({ course, date, schedules }) => {
+              const d = new Date(date + 'T00:00:00')
+              const dowName = ['일','월','화','수','목','금','토'][d.getDay()]
+              const tLabel = schedules.length > 1 ? `${schedules[0].start_time} 외 ${schedules.length - 1}` : `${schedules[0].start_time}~${schedules[0].end_time}`
+              return (
+                <div key={course.id} onClick={()=>router.push(`/student/calendar?date=${date}`)}
+                  style={{ display:'flex', alignItems:'center', gap:11, padding:'11px 13px', marginBottom:8, cursor:'pointer', background:'#FCE4EC', border:'2px solid #f6c7d6', borderRadius:16 }}>
+                  <div style={{ width:42, height:42, borderRadius:12, background:'#fff', border:'1.5px solid #f6c7d6', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', flexShrink:0, lineHeight:1 }}>
+                    <span style={{ fontSize:8.5, fontWeight:800, color:'#AD1457' }}>{d.getMonth() + 1}월</span>
+                    <span style={{ fontSize:16, fontWeight:900, color:'#AD1457', marginTop:1 }}>{d.getDate()}</span>
+                  </div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:13, fontWeight:800, color:'var(--td)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{course.name}</div>
+                    <div style={{ fontSize:10.5, color:'var(--tm)', marginTop:2, fontWeight:600 }}>
+                      {dowName}요일 · {tLabel}{course.price ? ` · ${Number(course.price).toLocaleString()}원` : ''}
+                    </div>
+                  </div>
+                  <span style={{ flexShrink:0, fontSize:11, fontWeight:800, color:'#fff', background:'#AD1457', borderRadius:20, padding:'6px 12px' }}>신청 →</span>
+                </div>
+              )
+            })}
+          </div>
+        )}
 
         <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:14 }}>
           {[
