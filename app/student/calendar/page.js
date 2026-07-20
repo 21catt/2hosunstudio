@@ -948,18 +948,41 @@ export default function CalendarPage() {
           <div style={{ textAlign:'center', padding:20, color:'var(--tmu)', fontSize:12 }}>이날은 수업이 없어요 🐾</div>
         ) : (
           <>
+            {!(cats.length === 1 && cats[0] === 'free') && (() => {
+              // 예약 단계 표시 — 종류 → 수업 → 시간 (지금 어디인지 한눈에)
+              const steps = [{ n:'종류', done:!!selCat }, { n:'수업', done:!!selCourse }, { n:'시간', done:!!selSchedule }]
+              const dot = (st, i) => {
+                const active = !st.done && steps.slice(0, i).every(x => x.done)
+                return (
+                  <div style={{ display:'flex', alignItems:'center', gap:5 }}>
+                    <span style={{ width:20, height:20, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, boxSizing:'border-box', background: st.done?ACCENT:active?ACCENT_BG:'var(--g1)', color: st.done?'#fff':active?ACCENT_TEXT:'var(--tmu)', border: active && !st.done ? `1.5px solid ${ACCENT}` : 'none' }}>{st.done ? '✓' : i + 1}</span>
+                    <span style={{ fontSize:11, fontWeight:700, color: st.done || active ? ACCENT_TEXT : 'var(--tmu)' }}>{st.n}</span>
+                  </div>
+                )
+              }
+              return (
+                <div className="slide-up" style={{ display:'flex', alignItems:'center', gap:6, margin:'0 2px 14px' }}>
+                  {dot(steps[0], 0)}
+                  <span style={{ flex:1, height:2, borderRadius:2, background: steps[0].done ? ACCENT : 'var(--g2)' }} />
+                  {dot(steps[1], 1)}
+                  <span style={{ flex:1, height:2, borderRadius:2, background: steps[1].done ? ACCENT : 'var(--g2)' }} />
+                  {dot(steps[2], 2)}
+                </div>
+              )
+            })()}
+
             {cats.length > 1 && (
               <div className="slide-up" style={{ marginBottom:12 }}>
-                <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>수업 종류 선택</div>
-                <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>수업 종류</div>
+                <div style={{ display:'flex', gap:7 }}>
                   {cats.map(cat => {
                     const on = selCat === cat
                     return (
                       <div key={cat} onClick={() => {
                         if (cat === 'free') { router.push(`/student/free?date=${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`); return }
                         setSelCat(cat); setSelCourse(null); setSelSchedule(null)
-                      }} style={{ display:'flex', alignItems:'center', gap:7, padding:'8px 14px', borderRadius:20, cursor:'pointer', background: on ? ACCENT_BG : CARD, border:`1px solid ${on ? ACCENT : 'rgba(0,0,0,0.08)'}` }}>
-                        <NavIcon name={CAT_ICON[cat] || 'palette'} color={on ? ACCENT_TEXT : '#4a5a4e'} size={17} />
+                      }} style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:5, padding:'9px 8px', borderRadius:20, cursor:'pointer', background: on ? ACCENT_BG : CARD, border:`1.5px solid ${on ? ACCENT : 'rgba(0,0,0,0.08)'}` }}>
+                        <NavIcon name={CAT_ICON[cat] || 'palette'} color={on ? ACCENT_TEXT : '#4a5a4e'} size={16} />
                         <span style={{ fontSize:12, fontWeight: on ? 800 : 600, color: on ? ACCENT_TEXT : 'var(--td)' }}>{CAT_NAME[cat]}</span>
                       </div>
                     )
@@ -1024,23 +1047,40 @@ export default function CalendarPage() {
                             const remain = c.max_count - cnt
                             const full = remain <= 0 && !booked
                             const isSel = selSchedule?.id === s.id
+                            const hh = parseInt(s.start_time.slice(0, 2), 10)
+                            const tod = hh < 12 ? '오전' : hh < 17 ? '오후' : '저녁'
+                            const segs = Math.min(c.max_count || 5, 5)
+                            const litN = Math.max(0, Math.min(segs, remain))
+                            const meterOn = remain <= 1 ? '#ba7517' : '#63991f'
                             return (
                               <div key={s.id}
                                 onClick={() => { if (!full && !booked) setSelSchedule(isSel ? null : s) }}
-                                style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 12px', borderRadius:11, marginBottom:6, background:booked?'#E8F5E0':'#fff', border:`1px solid ${booked?'#a8d9a0':isSel?ACCENT:'rgba(0,0,0,0.08)'}`, cursor:full||booked?'default':'pointer', opacity:full?0.45:1 }}>
+                                style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'11px 13px', borderRadius:13, marginBottom:7, background:booked?'#E8F5E0':isSel?'#f2f8ea':'#fff', border:`${isSel?2:1}px solid ${booked?'#a8d9a0':isSel?ACCENT:'rgba(0,0,0,0.08)'}`, cursor:full||booked?'default':'pointer', opacity:full?0.5:1 }}>
                                 <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                                  <div style={{ width:18, height:18, borderRadius:'50%', flexShrink:0, background:booked?'#6db870':isSel?ACCENT:'transparent', border:`2px solid ${booked?'#6db870':isSel?ACCENT:BORDER}`, display:'flex', alignItems:'center', justifyContent:'center' }}>
-                                    {(booked||isSel) && <svg width="9" height="7" viewBox="0 0 9 7"><polyline points="1,3.5 3,6 8,1" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                                  <div style={{ width:20, height:20, borderRadius:'50%', flexShrink:0, boxSizing:'border-box', background:booked?'#6db870':isSel?ACCENT:'transparent', border:`2px solid ${booked?'#6db870':isSel?ACCENT:BORDER}`, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                                    {(booked||isSel) && <svg width="10" height="8" viewBox="0 0 9 7"><polyline points="1,3.5 3,6 8,1" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                                   </div>
-                                  <span style={{ fontSize:13, fontWeight:500, color:isSel?ACCENT_TEXT:'var(--td)' }}>{s.start_time}~{s.end_time}</span>
+                                  <div>
+                                    <div style={{ fontSize:14, fontWeight:600, color:isSel?ACCENT_TEXT:'var(--td)' }}>{s.start_time}~{s.end_time}</div>
+                                    <div style={{ fontSize:10.5, color:'var(--tmu)', marginTop:1 }}>{tod}</div>
+                                  </div>
                                 </div>
                                 <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                                  <span style={{ fontSize:11, fontWeight:700, color:booked?'#6db870':full?'#9b9b8a':remain<=1?'#c0392b':'#3b6d11' }}>
-                                    {booked ? (booking?.attended === true ? '출석' : '예약됨') : full ? '마감' : remain<=1 ? '마감 임박 · 1자리' : `${remain}자리 남음`}
-                                  </span>
+                                  <div style={{ textAlign:'right' }}>
+                                    {!booked && (
+                                      <div style={{ display:'flex', gap:2, justifyContent:'flex-end', marginBottom:3 }}>
+                                        {Array.from({ length: segs }).map((_, k) => (
+                                          <span key={k} style={{ width:8, height:6, borderRadius:2, background: k < litN ? meterOn : (full ? 'var(--g2)' : '#dfe6d5') }} />
+                                        ))}
+                                      </div>
+                                    )}
+                                    <div style={{ fontSize:11, fontWeight:700, color:booked?'#6db870':full?'#9b9b8a':remain<=1?'#c0392b':'#3b6d11' }}>
+                                      {booked ? (booking?.attended === true ? '출석' : '예약됨') : full ? '마감' : remain<=1 ? '마감 임박 · 1자리' : `${remain}자리 남음`}
+                                    </div>
+                                  </div>
                                   {booked && canCancel(booking) && (
                                     <button onClick={e=>{e.stopPropagation();handleCancel(booking)}}
-                                      style={{ fontSize:10, padding:'3px 8px', borderRadius:20, background:'rgba(255,255,255,0.8)', color:'var(--tm)', border:`1px solid ${BORDER}`, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:500 }}>
+                                      style={{ fontSize:10, padding:'4px 9px', borderRadius:20, background:'rgba(255,255,255,0.85)', color:'var(--tm)', border:`1px solid ${BORDER}`, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:500, flexShrink:0 }}>
                                       취소
                                     </button>
                                   )}

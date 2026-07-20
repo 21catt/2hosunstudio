@@ -535,8 +535,9 @@ export default function StudentHomePage() {
         )}
 
         {/* 원데이 클래스 — 수강권 밑. 클릭 시 신청 방법 안내 팝업(날짜→원데이→시간) (3b) */}
+        {/* 위·아래 여백으로 수강권↔원데이, 원데이↔오늘의색 사이를 띄움 */}
         {upcomingOneday.length > 0 && (
-          <div style={{ marginBottom:12 }}>
+          <div style={{ marginTop:24, marginBottom:24 }}>
             <div style={{ display:'flex', alignItems:'center', gap:6, margin:'0 2px 8px' }}>
               <span style={{ fontSize:12, fontWeight:800, color:'var(--td)', display:'flex', alignItems:'center', gap:5 }}><NavIcon name="palette" color="#AD1457" size={14} />원데이 클래스</span>
               <span style={{ fontSize:9.5, fontWeight:800, background:'#FCE4EC', color:'#AD1457', borderRadius:10, padding:'2px 8px', border:'1px solid #f6c7d6' }}>하루만 열려요</span>

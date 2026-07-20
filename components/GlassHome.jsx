@@ -231,7 +231,7 @@ export default function GlassHome(props) {
 
         {/* 원데이 클래스 — 수강권 밑. 클릭 시 부모가 신청 안내 팝업 오픈 (3b) */}
         {upcomingOneday.length > 0 && (
-          <div style={{ marginTop: 16 }}>
+          <div style={{ marginTop: 24 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 2px 10px' }}>
               <span style={{ fontSize: 15, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#AD1457" strokeWidth="1.7">
@@ -263,7 +263,7 @@ export default function GlassHome(props) {
         )}
 
         {/* 오늘의 색 (수평 전체폭) */}
-        <div style={{ marginTop: 16 }}><DailyColorCard glass /></div>
+        <div style={{ marginTop: 24 }}><DailyColorCard glass /></div>
 
         {/* NOTICES */}
         {notices.length > 0 && (
