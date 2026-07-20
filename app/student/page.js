@@ -231,14 +231,22 @@ export default function StudentHomePage() {
     return myBookings.find(b => b.course_id === c.id && b.schedule_id === s.id && b.class_date === ds)
   }
 
-  // 원데이(하루만 열리는 특별 수업) — 다가오는 것만 가까운 순으로 홈에 노출 (3b)
-  // 개설 규칙상 start_date === end_date(그 하루), class_schedules가 그날의 시간대.
-  const upcomingOneday = classes
-    .filter(c => c.category === 'oneday' && c.start_date && c.start_date >= todayStr && !lockedDates.has(c.start_date))
-    .map(c => ({ course: c, date: c.start_date, schedules: schedulesFor(c, c.start_date) }))
-    .filter(x => x.schedules.length > 0)
-    .sort((a, b) => a.date.localeCompare(b.date) || a.schedules[0].start_time.localeCompare(b.schedules[0].start_time))
-    .slice(0, 3)
+  // 원데이 수업 — 각 원데이의 "다가오는 가장 가까운 열리는 날"을 찾아 홈에 노출 (3b)
+  // 단일일(start=end 지정)·상시(무기한·요일만) 둘 다 지원 — 날짜 스트립과 같은 coursesOn 규칙 재사용.
+  const upcomingOneday = (() => {
+    const seen = {}
+    for (let i = 0; i < 60; i++) {
+      const dt = new Date(now); dt.setDate(now.getDate() + i)
+      const ds = fmtDate(dt)
+      for (const c of coursesOn(ds)) {
+        if (c.category === 'oneday' && !seen[c.id]) seen[c.id] = { course: c, date: ds, schedules: schedulesFor(c, ds) }
+      }
+    }
+    return Object.values(seen)
+      .filter(x => x.schedules.length > 0)
+      .sort((a, b) => a.date.localeCompare(b.date) || a.schedules[0].start_time.localeCompare(b.schedules[0].start_time))
+      .slice(0, 3)
+  })()
 
 
   async function quickBook(c, s, ds) {
