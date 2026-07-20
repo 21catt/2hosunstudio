@@ -1,6 +1,5 @@
 'use client'
 import DailyColorCard from './DailyColorCard'
-import QuickBookCard from './QuickBookCard'
 // 싱그러운(fresh) 테마 전용 글래스모피즘 홈 — 2026 여름 한정 스킨.
 // data/핸들러는 app/student/page.js에서 props로 받는다. 모달·PaletteFab은 부모/전역이 렌더.
 
@@ -53,7 +52,7 @@ function NavItem({ active, label, onClick, children }) {
 export default function GlassHome(props) {
   const {
     user, ticket, nextBooking, pendingBooking, notices = [], weather, heroSub, unread = 0,
-    stripDates = [], selDate, todayStr, bookedDates = new Set(), stripRef, quickSlots = [],
+    stripDates = [], selDate, todayStr, bookedDates = new Set(), stripRef,
     coursesOn = () => [], schedulesFor = () => [], myBookingFor = () => null, seatCount = () => 0, bookingBusy,
     onDate = () => {}, onQuickBook = () => {}, onCancel = () => {}, onAsk = () => {}, go = () => {},
   } = props
@@ -125,13 +124,9 @@ export default function GlassHome(props) {
           </div>
         </div>
 
-        {/* 바로 예약 */}
-        {user && quickSlots.length > 0 && (
-          <div style={{ marginTop: 16 }}><QuickBookCard slots={quickSlots} onBook={onQuickBook} busyKey={bookingBusy} go={go} glass /></div>
-        )}
-
         {/* DATE STRIP — stripRef에 부모의 드래그 관성 스크롤이 붙는다 */}
-        <div ref={stripRef} className="no-scrollbar" style={{ display: 'flex', gap: 9, marginTop: 18, overflowX: 'auto', cursor: 'grab', touchAction: 'pan-x' }}>
+        <div style={{ fontSize: 11, color: 'rgba(51,64,44,0.55)', fontWeight: 700, margin: '18px 2px 6px' }}>날짜를 터치해서 예약하기</div>
+        <div ref={stripRef} className="no-scrollbar" style={{ display: 'flex', gap: 9, overflowX: 'auto', cursor: 'grab', touchAction: 'pan-x' }}>
           {stripDates.map(d => {
             const ds = fmt(d)
             const isSel = selDate === ds
@@ -233,8 +228,8 @@ export default function GlassHome(props) {
           </div>
         )}
 
-        {/* 오늘의 색 (공지 위) */}
-        <div style={{ marginTop: 16 }}><DailyColorCard glass /></div>
+        {/* 오늘의 색 (정사각형·우측 정렬) */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}><DailyColorCard glass square /></div>
 
         {/* NOTICES */}
         {notices.length > 0 && (

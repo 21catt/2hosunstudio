@@ -4,7 +4,7 @@
 // (저장은 PaletteFab의 기존 저장 경로를 그대로 타서 색 계획 카드로 기록에 남는다)
 import { getDailyColor, toPlannerInitial } from '../lib/dailyColors'
 
-export default function DailyColorCard({ glass = false }) {
+export default function DailyColorCard({ glass = false, square = false }) {
   const item = getDailyColor()
   if (!item) return null
 
@@ -22,6 +22,25 @@ export default function DailyColorCard({ glass = false }) {
   const btn = glass
     ? { background: 'linear-gradient(135deg,#b7c24a,#96a52e)', color: '#2c330a', border: 'none' }
     : { background: 'var(--ac)', color: '#fff', border: 'none' }
+
+  // 정사각형 컴팩트 변형 — 우측 정렬 배치용. 스와치 + 짧은 제목 + 열기 버튼만.
+  if (square) {
+    return (
+      <div style={{ ...wrap, width: 172, aspectRatio: '1 / 1', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', padding: glass ? 14 : 13 }}>
+        <div style={{ fontSize: 11.5, fontWeight: 800, color: titleColor, marginBottom: 8 }}>🎨 오늘의 색</div>
+        <div style={{ display: 'flex', gap: 4, marginBottom: 9 }}>
+          {item.colors.map(([name, hex]) => (
+            <div key={hex + name} style={{ flex: 1, height: 34, borderRadius: 7, background: hex, border: '1px solid rgba(0,0,0,0.06)' }} title={name} />
+          ))}
+        </div>
+        <div style={{ fontSize: 11.5, fontWeight: 800, color: titleColor, lineHeight: 1.35, marginBottom: 'auto', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{item.title}</div>
+        <button onClick={openWheel}
+          style={{ ...btn, width: '100%', padding: '8px', borderRadius: 10, fontSize: 11.5, fontWeight: 800, cursor: 'pointer', fontFamily: 'Nunito,sans-serif', marginTop: 8 }}>
+          컬러휠 열기 →
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div style={wrap}>
