@@ -229,6 +229,19 @@ export default function CalendarPage() {
     return sharedSlotCountByDate(dateStr, startTime, endTime)
   }
 
+  // 달력 셀 예약 신호: 'open'(여유 슬롯 있음) | 'full'(다 참) | null(수업 없음)
+  function dayAvailability(day) {
+    const cls = dayClasses(day)
+    if (!cls.length) return null
+    for (const c of cls) {
+      if (c.category === 'free' || c.category === 'meeting') return 'open'
+      for (const s of getSchedulesForDay(c, day)) {
+        if (sharedSlotCount(day, s.start_time, s.end_time) < (c.max_count || 999)) return 'open'
+      }
+    }
+    return 'full'
+  }
+
   function getBooking(courseId, scheduleId, day) {
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`
     return bookings.find(b => b.course_id === courseId && b.schedule_id === scheduleId && b.class_date === dateStr)
@@ -852,6 +865,13 @@ export default function CalendarPage() {
                   <div style={{ position:'absolute', top:-2, left:'50%', transform:'translateX(-50%)', fontSize:13, zIndex:1 }}>{todayWeather.icon}</div>
                 )}
                 {isLocked && <span style={{ position:'absolute', bottom:1, right:4, fontSize:10, zIndex:1 }} title="예약 잠금">🔒</span>}
+                {(() => {
+                  if (isMon || isLocked || dLockStr < todayStr) return null
+                  const av = dayAvailability(d)
+                  if (!av) return null
+                  return <span style={{ position:'absolute', bottom:4, left:'50%', transform:'translateX(-50%)', width:5, height:5, borderRadius:'50%', zIndex:1,
+                    background: av === 'open' ? '#3b6d11' : 'transparent', border: av === 'open' ? 'none' : '1.5px solid #c9b9a0', boxSizing:'border-box' }} title={av === 'open' ? '예약 가능' : '마감'} />
+                })()}
                 {isB || isSel ? (
                   <div className={isAnim?'cat-anim':''} style={{ display:'flex', flexDirection:'column', alignItems:'center', lineHeight:1 }}>
                     <img src={getCatImage(d)} alt="" style={{ width:34, height:34, objectFit:'contain' }}/>
@@ -1009,8 +1029,8 @@ export default function CalendarPage() {
                                   <span style={{ fontSize:13, fontWeight:500, color:isSel?ACCENT_TEXT:'var(--td)' }}>{s.start_time}~{s.end_time}</span>
                                 </div>
                                 <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                                  <span style={{ fontSize:11, fontWeight:500, color:full?'#c0392b':booked?'#6db870':isSel?ACCENT_TEXT:'var(--tmu)' }}>
-                                    {booked ? (booking?.attended === true ? '출석' : '예약됨') : full ? '마감' : `${remain}자리 남음`}
+                                  <span style={{ fontSize:11, fontWeight:700, color:booked?'#6db870':full?'#9b9b8a':remain<=1?'#c0392b':'#3b6d11' }}>
+                                    {booked ? (booking?.attended === true ? '출석' : '예약됨') : full ? '마감' : remain<=1 ? '마감 임박 · 1자리' : `${remain}자리 남음`}
                                   </span>
                                   {booked && canCancel(booking) && (
                                     <button onClick={e=>{e.stopPropagation();handleCancel(booking)}}
@@ -1031,20 +1051,25 @@ export default function CalendarPage() {
             )}
 
             {selSchedule && !isBooked(selCourse?.id, selSchedule?.id, selectedDay) && (
-              <div className="slide-up" style={{ marginBottom:14 }}>
-                {isBookable(selectedDay) ? (
-                  <button onClick={handleBook}
-                    style={{ width:'100%', padding:'15px 20px', background:ACCENT, color:'#fff', border:'none', borderRadius:14, fontSize:14, fontWeight:600, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
-                    {!user
-                      ? '가입하고 예약하기'
-                      : (selCourse?.category === 'meeting' || hasValidTicket())
-                        ? `${selCourse?.name} ${selSchedule?.start_time}~${selSchedule?.end_time} 예약하기`
-                        : '예약 요청하기 (수강권 확인 필요)'}
-                  </button>
-                ) : (
+              isBookable(selectedDay) ? (
+                <>
+                  <div style={{ height:78 }} />
+                  <div style={{ position:'fixed', left:'50%', transform:'translateX(-50%)', bottom:64, width:'100%', maxWidth:390, padding:'8px 14px', boxSizing:'border-box', zIndex:80, pointerEvents:'none' }}>
+                    <button onClick={handleBook}
+                      style={{ pointerEvents:'auto', width:'100%', padding:'15px 20px', background:ACCENT, color:'#fff', border:'none', borderRadius:14, fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif', boxShadow:'0 8px 22px -6px rgba(0,0,0,0.35)' }}>
+                      {!user
+                        ? '가입하고 예약하기'
+                        : (selCourse?.category === 'meeting' || hasValidTicket())
+                          ? `${selCourse?.name} ${selSchedule?.start_time}~${selSchedule?.end_time} 예약하기`
+                          : '예약 요청하기 (수강권 확인 필요)'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="slide-up" style={{ marginBottom:14 }}>
                   <div style={{ padding:'14px', background:CARD, borderRadius:14, textAlign:'center', color:'var(--tmu)', fontSize:12, fontWeight:500 }}>{monthDiff() < 0 ? '지난 날짜는 예약할 수 없어요' : '예약은 다음 달까지만 가능해요'}</div>
-                )}
-              </div>
+                </div>
+              )
             )}
           </>
         )}
