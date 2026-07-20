@@ -45,6 +45,7 @@ export default function StudentHomePage() {
   const [bookingBusy, setBookingBusy] = useState(null)
   const [cancelModal, setCancelModal] = useState(null) // { booking, label } — 취소 확인 다이얼로그
   const [cancelBusy, setCancelBusy] = useState(false)
+  const [onedayGuide, setOnedayGuide] = useState(null) // 원데이 카드 클릭 → 신청 방법 안내(날짜→원데이→시간). 대상 날짜 문자열
   // 수업 문의 팝업 — 안내 3가지 + 기타 문의(관리자 알림으로 전달)
   const [askOpen, setAskOpen] = useState(false)
   const [inqName, setInqName] = useState('')
@@ -339,7 +340,7 @@ export default function StudentHomePage() {
           notices={notices} weather={weather} heroSub={heroSub} unread={unread}
           stripDates={stripDates} selDate={selDate} todayStr={todayStr} bookedDates={bookedDates} stripRef={stripRef}
           coursesOn={coursesOn} schedulesFor={schedulesFor} myBookingFor={myBookingFor}
-          seatCount={seatCount} bookingBusy={bookingBusy} upcomingOneday={upcomingOneday}
+          seatCount={seatCount} bookingBusy={bookingBusy} upcomingOneday={upcomingOneday} onOneday={setOnedayGuide}
           onDate={goDate} onQuickBook={quickBook} onCancel={askCancel} onAsk={openAsk}
           go={(href) => router.push(href)}
         />
@@ -491,37 +492,6 @@ export default function StudentHomePage() {
           )
         })()}
 
-        {/* 원데이 클래스 — 하루만 열리는 특별 수업, 다가오는 것만 노출 (3b) */}
-        {upcomingOneday.length > 0 && (
-          <div style={{ marginBottom:14 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:6, margin:'0 2px 8px' }}>
-              <span style={{ fontSize:12, fontWeight:800, color:'var(--td)', display:'flex', alignItems:'center', gap:5 }}><NavIcon name="palette" color="#AD1457" size={14} />원데이 클래스</span>
-              <span style={{ fontSize:9.5, fontWeight:800, background:'#FCE4EC', color:'#AD1457', borderRadius:10, padding:'2px 8px', border:'1px solid #f6c7d6' }}>하루만 열려요</span>
-            </div>
-            {upcomingOneday.map(({ course, date, schedules }) => {
-              const d = new Date(date + 'T00:00:00')
-              const dowName = ['일','월','화','수','목','금','토'][d.getDay()]
-              const tLabel = schedules.length > 1 ? `${schedules[0].start_time} 외 ${schedules.length - 1}` : `${schedules[0].start_time}~${schedules[0].end_time}`
-              return (
-                <div key={course.id} onClick={()=>router.push(`/student/calendar?date=${date}`)}
-                  style={{ display:'flex', alignItems:'center', gap:11, padding:'11px 13px', marginBottom:8, cursor:'pointer', background:'#FCE4EC', border:'2px solid #f6c7d6', borderRadius:16 }}>
-                  <div style={{ width:42, height:42, borderRadius:12, background:'#fff', border:'1.5px solid #f6c7d6', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', flexShrink:0, lineHeight:1 }}>
-                    <span style={{ fontSize:8.5, fontWeight:800, color:'#AD1457' }}>{d.getMonth() + 1}월</span>
-                    <span style={{ fontSize:16, fontWeight:900, color:'#AD1457', marginTop:1 }}>{d.getDate()}</span>
-                  </div>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:13, fontWeight:800, color:'var(--td)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{course.name}</div>
-                    <div style={{ fontSize:10.5, color:'var(--tm)', marginTop:2, fontWeight:600 }}>
-                      {dowName}요일 · {tLabel}{course.price ? ` · ${Number(course.price).toLocaleString()}원` : ''}
-                    </div>
-                  </div>
-                  <span style={{ flexShrink:0, fontSize:11, fontWeight:800, color:'#fff', background:'#AD1457', borderRadius:20, padding:'6px 12px' }}>신청 →</span>
-                </div>
-              )
-            })}
-          </div>
-        )}
-
         <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:14 }}>
           {[
             { label:'커리큘럼', icon:'book', href:'/student/curriculum?tab=core' },
@@ -564,8 +534,39 @@ export default function StudentHomePage() {
           </div>
         )}
 
-        {/* 오늘의 색 — 매일 순차로 바뀌는 배색 추천 (정사각형·우측 정렬) */}
-        <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:12 }}><DailyColorCard square /></div>
+        {/* 원데이 클래스 — 수강권 밑. 클릭 시 신청 방법 안내 팝업(날짜→원데이→시간) (3b) */}
+        {upcomingOneday.length > 0 && (
+          <div style={{ marginBottom:12 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:6, margin:'0 2px 8px' }}>
+              <span style={{ fontSize:12, fontWeight:800, color:'var(--td)', display:'flex', alignItems:'center', gap:5 }}><NavIcon name="palette" color="#AD1457" size={14} />원데이 클래스</span>
+              <span style={{ fontSize:9.5, fontWeight:800, background:'#FCE4EC', color:'#AD1457', borderRadius:10, padding:'2px 8px', border:'1px solid #f6c7d6' }}>하루만 열려요</span>
+            </div>
+            {upcomingOneday.map(({ course, date, schedules }) => {
+              const d = new Date(date + 'T00:00:00')
+              const dowName = ['일','월','화','수','목','금','토'][d.getDay()]
+              const tLabel = schedules.length > 1 ? `${schedules[0].start_time} 외 ${schedules.length - 1}` : `${schedules[0].start_time}~${schedules[0].end_time}`
+              return (
+                <div key={course.id} onClick={()=>setOnedayGuide(date)}
+                  style={{ display:'flex', alignItems:'center', gap:11, padding:'11px 13px', marginBottom:8, cursor:'pointer', background:'#FCE4EC', border:'2px solid #f6c7d6', borderRadius:16 }}>
+                  <div style={{ width:42, height:42, borderRadius:12, background:'#fff', border:'1.5px solid #f6c7d6', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', flexShrink:0, lineHeight:1 }}>
+                    <span style={{ fontSize:8.5, fontWeight:800, color:'#AD1457' }}>{d.getMonth() + 1}월</span>
+                    <span style={{ fontSize:16, fontWeight:900, color:'#AD1457', marginTop:1 }}>{d.getDate()}</span>
+                  </div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:13, fontWeight:800, color:'var(--td)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{course.name}</div>
+                    <div style={{ fontSize:10.5, color:'var(--tm)', marginTop:2, fontWeight:600 }}>
+                      {dowName}요일 · {tLabel}{course.price ? ` · ${Number(course.price).toLocaleString()}원` : ''}
+                    </div>
+                  </div>
+                  <span style={{ flexShrink:0, fontSize:11, fontWeight:800, color:'#fff', background:'#AD1457', borderRadius:20, padding:'6px 12px' }}>신청 →</span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* 오늘의 색 — 매일 순차로 바뀌는 배색 추천 (수평 전체폭) */}
+        <div style={{ marginBottom:12 }}><DailyColorCard /></div>
 
         {/* 스튜디오 공지 — 라운지에서 관리자가 공지 지정한 글 (최대 2개) */}
         {notices.length > 0 && (
@@ -631,6 +632,42 @@ export default function StudentHomePage() {
                 <button onClick={()=>hideFreshPromo(false)}
                   style={{ background:'none', border:'none', fontSize:12, fontWeight:700, color:'var(--tm)', cursor:'pointer', fontFamily:'Nunito,sans-serif', padding:'4px 6px' }}>나중에</button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 원데이 신청 방법 안내 — 카드 클릭 시. 날짜→원데이→시간 순서, '캘린더에서 신청'으로 이동 */}
+      {onedayGuide && (
+        <div onClick={()=>setOnedayGuide(null)}
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100, padding:24 }}>
+          <div onClick={e=>e.stopPropagation()} className="pop-in"
+            style={{ background:'#fff', borderRadius:20, padding:'20px 20px 18px', width:'100%', maxWidth:330, boxShadow:'0 12px 40px rgba(0,0,0,0.22)' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom:4 }}>
+              <NavIcon name="palette" color="#AD1457" size={18} />
+              <span style={{ fontSize:15.5, fontWeight:900, color:'var(--td)' }}>원데이 신청 방법</span>
+            </div>
+            <div style={{ fontSize:11.5, color:'var(--tm)', fontWeight:700, marginBottom:14 }}>수강권 없이 계약금 입금으로 신청해요 🐾</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:16 }}>
+              {[
+                ['날짜 선택', '달력에서 원하는 날짜를 눌러요'],
+                ['원데이 선택', "'수업 종류'에서 원데이를 눌러요"],
+                ['시간 선택', '원하는 시간을 누르면 신청 완료 🎉'],
+              ].map(([t, desc], i) => (
+                <div key={i} style={{ display:'flex', gap:10, alignItems:'flex-start', background:'#FCE4EC', border:'1px solid #f6c7d6', borderRadius:12, padding:'9px 11px' }}>
+                  <span style={{ flexShrink:0, width:20, height:20, borderRadius:'50%', background:'#AD1457', color:'#fff', fontSize:11, fontWeight:900, display:'flex', alignItems:'center', justifyContent:'center', marginTop:1 }}>{i + 1}</span>
+                  <div style={{ minWidth:0 }}>
+                    <div style={{ fontSize:12.5, fontWeight:800, color:'var(--td)' }}>{t}</div>
+                    <div style={{ fontSize:11, color:'var(--tm)', fontWeight:600, marginTop:1 }}>{desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={()=>setOnedayGuide(null)}
+                style={{ flex:1, padding:'11px', background:'var(--g1)', color:'var(--g5)', border:'none', borderRadius:12, fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>닫기</button>
+              <button onClick={()=>{ const dt = onedayGuide; setOnedayGuide(null); router.push(`/student/calendar?date=${dt}`) }}
+                style={{ flex:1.6, padding:'11px', background:'#AD1457', color:'#fff', border:'none', borderRadius:12, fontSize:13, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>캘린더에서 신청 →</button>
             </div>
           </div>
         </div>
