@@ -1,5 +1,6 @@
 'use client'
 import DailyColorCard from './DailyColorCard'
+import QuickBookCard from './QuickBookCard'
 // 싱그러운(fresh) 테마 전용 글래스모피즘 홈 — 2026 여름 한정 스킨.
 // data/핸들러는 app/student/page.js에서 props로 받는다. 모달·PaletteFab은 부모/전역이 렌더.
 
@@ -52,7 +53,7 @@ function NavItem({ active, label, onClick, children }) {
 export default function GlassHome(props) {
   const {
     user, ticket, nextBooking, pendingBooking, notices = [], weather, heroSub, unread = 0,
-    stripDates = [], selDate, todayStr, bookedDates = new Set(), stripRef,
+    stripDates = [], selDate, todayStr, bookedDates = new Set(), stripRef, quickSlots = [],
     coursesOn = () => [], schedulesFor = () => [], myBookingFor = () => null, seatCount = () => 0, bookingBusy,
     onDate = () => {}, onQuickBook = () => {}, onCancel = () => {}, onAsk = () => {}, go = () => {},
   } = props
@@ -123,6 +124,11 @@ export default function GlassHome(props) {
             </button>
           </div>
         </div>
+
+        {/* 바로 예약 */}
+        {user && quickSlots.length > 0 && (
+          <div style={{ marginTop: 16 }}><QuickBookCard slots={quickSlots} onBook={onQuickBook} busyKey={bookingBusy} go={go} glass /></div>
+        )}
 
         {/* DATE STRIP — stripRef에 부모의 드래그 관성 스크롤이 붙는다 */}
         <div ref={stripRef} className="no-scrollbar" style={{ display: 'flex', gap: 9, marginTop: 18, overflowX: 'auto', cursor: 'grab', touchAction: 'pan-x' }}>

@@ -9,6 +9,7 @@ import { LogoMark, HeroDeco, DotPatch } from '../../components/Deco'
 import { applyTheme, isValidTheme, getSavedTheme, themeInWindow } from '../../lib/theme'
 import GlassHome from '../../components/GlassHome'
 import DailyColorCard from '../../components/DailyColorCard'
+import QuickBookCard from '../../components/QuickBookCard'
 import { bookClass, requestBookingApproval, hasValidTicket, cancelBooking } from '../../lib/booking'
 import { sendPushToAdmins } from '../../lib/pushNotify'
 import { sendKakaoToAdmins } from '../../lib/kakaoNotify'
@@ -231,6 +232,30 @@ export default function StudentHomePage() {
     return myBookings.find(b => b.course_id === c.id && b.schedule_id === s.id && b.class_date === ds)
   }
 
+  // 바로 예약: 가장 빠른 예약 가능 슬롯(정규 수업, 미예약·여유 있는 것) 최대 3개
+  const DOWK = ['일', '월', '화', '수', '목', '금', '토']
+  function nextOpenSlots(max = 3) {
+    const out = []
+    for (const d of stripDates) {
+      const ds = fmtDate(d)
+      if (ds < todayStr) continue
+      for (const c of coursesOn(ds)) {
+        if (c.category === 'free' || c.category === 'meeting') continue
+        for (const s of schedulesFor(c, ds)) {
+          if (myBookingFor(c, s, ds)) continue
+          const remain = (c.max_count || 0) - seatCount(c, s, ds)
+          if (remain <= 0) continue
+          const label = d.getTime() === new Date(todayStr + 'T00:00:00').getTime()
+            ? `오늘 ${s.start_time}` : `${d.getMonth() + 1}/${d.getDate()} ${DOWK[d.getDay()]} ${s.start_time}`
+          out.push({ c, s, ds, remain, when: label })
+          if (out.length >= max) return out
+        }
+      }
+    }
+    return out
+  }
+  const quickSlots = nextOpenSlots(3)
+
   async function quickBook(c, s, ds) {
     if (!user) { router.push('/signup'); return }
     if (c.category === 'meeting') { router.push(`/student/calendar?date=${ds}`); return }
@@ -321,7 +346,7 @@ export default function StudentHomePage() {
           notices={notices} weather={weather} heroSub={heroSub} unread={unread}
           stripDates={stripDates} selDate={selDate} todayStr={todayStr} bookedDates={bookedDates} stripRef={stripRef}
           coursesOn={coursesOn} schedulesFor={schedulesFor} myBookingFor={myBookingFor}
-          seatCount={seatCount} bookingBusy={bookingBusy}
+          seatCount={seatCount} bookingBusy={bookingBusy} quickSlots={quickSlots}
           onDate={goDate} onQuickBook={quickBook} onCancel={askCancel} onAsk={openAsk}
           go={(href) => router.push(href)}
         />
@@ -386,6 +411,12 @@ export default function StudentHomePage() {
             </div>
           </div>
         </div>
+
+        {user && quickSlots.length > 0 && (
+          <div style={{ marginBottom:14 }}>
+            <QuickBookCard slots={quickSlots} onBook={quickBook} busyKey={bookingBusy} go={router.push} />
+          </div>
+        )}
 
         <div ref={stripRef} className="no-scrollbar" style={{ display:'flex', gap:CELL_GAP, overflowX:'auto', marginBottom:14, paddingBottom:2, cursor:'grab', touchAction:'pan-x' }}>
           {stripDates.map(d => {
