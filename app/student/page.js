@@ -6,6 +6,7 @@ import StudentNav from '../../components/StudentNav'
 import { NavIcon } from '../../components/NavIcons'
 import { useTodayWeather, WeatherGlyph } from '../../components/WeatherBar'
 import { LogoMark, HeroDeco, DotPatch } from '../../components/Deco'
+import HeroWeatherFX from '../../components/HeroWeatherFX'
 import { applyTheme, isValidTheme, getSavedTheme, themeInWindow } from '../../lib/theme'
 import GlassHome from '../../components/GlassHome'
 import { bookClass, requestBookingApproval, hasValidTicket, cancelBooking } from '../../lib/booking'
@@ -372,9 +373,10 @@ export default function StudentHomePage() {
 
       <div style={{ background:'#fff', padding:'8px 16px 90px' }}>
 
-        <div className="p-hero" style={{ marginBottom:14 }}>
+        <div className="p-hero" style={{ marginBottom:14, position:'relative' }}>
           <HeroDeco />
-          <div style={{ padding:'14px 16px 16px', position:'relative' }}>
+          <HeroWeatherFX code={weather?.code} />
+          <div style={{ padding:'14px 16px 16px', position:'relative', zIndex:1 }}>
             {weather && (
               <div style={{ position:'absolute', top:14, right:16, display:'flex', alignItems:'center', gap:5, color:'var(--acTx)' }}>
                 <WeatherGlyph code={weather.code} size={20} />

@@ -380,6 +380,22 @@ body {
   overflow: hidden;
 }
 
+/* 홈 히어로 날씨 인터랙션 (components/HeroWeatherFX.jsx) — 배경 위에 테마색(--ac/--ac2)이 살짝 겹침 */
+.hwfx-tint { position:absolute; inset:0; background:linear-gradient(155deg, var(--ac), var(--ac2)); opacity:.17; pointer-events:none; }
+.hwfx-sunglow, .hwfx-sun, .hwfx-rays, .hwfx-clouds, .hwfx-haze { position:absolute; pointer-events:none; }
+.hwfx-sunglow { top:-70px; right:-56px; width:250px; height:250px; border-radius:50%; background:radial-gradient(circle, rgba(255,234,170,.6), transparent 62%); filter:blur(13px); animation:hwfx-glow 5s ease-in-out infinite; }
+.hwfx-rays { top:-140px; right:-130px; width:360px; height:360px; border-radius:50%; background:repeating-conic-gradient(from 0deg, rgba(255,236,160,.38) 0deg 5deg, rgba(255,236,160,0) 5deg 19deg); -webkit-mask:radial-gradient(circle at 50% 50%, rgba(0,0,0,.95) 6%, rgba(0,0,0,.4) 32%, transparent 60%); mask:radial-gradient(circle at 50% 50%, rgba(0,0,0,.95) 6%, rgba(0,0,0,.4) 32%, transparent 60%); filter:blur(2px); animation:hwfx-rayspin 24s linear infinite, hwfx-rayflick 3s ease-in-out infinite; }
+.hwfx-sun { top:-30px; right:-18px; width:150px; height:150px; border-radius:50%; background:radial-gradient(circle at 50% 50%, rgba(255,249,224,1), rgba(255,226,152,.78) 26%, rgba(255,208,116,.32) 46%, transparent 68%); filter:blur(3px); animation:hwfx-sunpulse 4s ease-in-out infinite; }
+.hwfx-clouds { inset:0; }
+.hwfx-cloud { position:absolute; border-radius:50%; background:radial-gradient(ellipse at 50% 50%, rgba(255,255,255,.92), rgba(244,247,251,.44) 55%, transparent 72%); filter:blur(5px); animation:hwfx-drift linear infinite; }
+.hwfx-haze { inset:0; background:radial-gradient(125% 95% at 50% 38%, transparent 54%, rgba(255,255,255,.4) 100%); }
+@keyframes hwfx-glow { 0%,100%{ opacity:.4; transform:scale(1); } 50%{ opacity:.9; transform:scale(1.06); } }
+@keyframes hwfx-rayspin { to { transform:rotate(360deg); } }
+@keyframes hwfx-rayflick { 0%,100%{ opacity:.45; } 50%{ opacity:.9; } }
+@keyframes hwfx-sunpulse { 0%,100%{ transform:scale(1); filter:blur(3px); } 50%{ transform:scale(1.12); filter:blur(5px); } }
+@keyframes hwfx-drift { from { transform:translateX(-45%); } to { transform:translateX(145%); } }
+@media (prefers-reduced-motion: reduce) { .hwfx-sun, .hwfx-sunglow, .hwfx-rays, .hwfx-cloud { animation:none !important; } }
+
 /* 아웃라인 카드 */
 .p-card {
   background: var(--surf);

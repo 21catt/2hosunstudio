@@ -1,4 +1,5 @@
 'use client'
+import HeroWeatherFX from './HeroWeatherFX'
 // 싱그러운(fresh) 테마 전용 글래스모피즘 홈 — 2026 여름 한정 스킨.
 // data/핸들러는 app/student/page.js에서 props로 받는다. 모달·PaletteFab은 부모/전역이 렌더.
 
@@ -94,11 +95,12 @@ export default function GlassHome(props) {
 
         {/* HERO */}
         <div style={{ position: 'relative', borderRadius: 30, padding: '22px', overflow: 'hidden', background: T.heroGrad, ...glassBlur, backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: `1px solid ${T.border}`, boxShadow: '0 20px 50px -20px rgba(0,0,0,0.35)' }}>
-          <svg width="150" height="72" viewBox="0 0 150 72" style={{ position: 'absolute', top: 16, right: 18, opacity: 0.95 }}>
+          <HeroWeatherFX code={weather?.code} />
+          <svg width="150" height="72" viewBox="0 0 150 72" style={{ position: 'absolute', top: 16, right: 18, opacity: 0.95, zIndex: 1 }}>
             <path d="M8 40 L44 20 L82 34 L112 14 L140 30" stroke={T.constStroke} strokeWidth="1.5" fill="none" />
             {[[8, 40, 5], [44, 20, 7], [82, 34, 4], [112, 14, 6], [140, 30, 4.5]].map((c, i) => <circle key={i} cx={c[0]} cy={c[1]} r={c[2]} fill={T.constFill} />)}
           </svg>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginTop: 44 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginTop: 44, position: 'relative', zIndex: 1 }}>
             <div>
               <div style={{ fontSize: 25, fontWeight: 800, letterSpacing: '-0.6px', lineHeight: 1.2 }}>
                 {user && nextBooking ? <>이번 주<br />수업 예약</> : <>수업 예약,<br />여기서 시작</>}
@@ -114,7 +116,7 @@ export default function GlassHome(props) {
               </div>
             )}
           </div>
-          <div style={{ display: 'flex', gap: 9, marginTop: 20 }}>
+          <div style={{ display: 'flex', gap: 9, marginTop: 20, position: 'relative', zIndex: 1 }}>
             <button onClick={() => go('/student/curriculum?tab=core')} style={{ flex: 1, padding: '13px 0', borderRadius: 15, border: `1px solid ${T.ghostBorder}`, background: T.ghostBg, color: T.text, fontSize: 13, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>{user ? '자세히' : '커리큘럼'}</button>
             <button onClick={() => go(user ? '/student/calendar' : '/signup')} style={{ flex: 1.2, padding: '13px 0', borderRadius: 15, border: 'none', background: T.primaryGrad, color: '#fff', fontSize: 13, fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer', boxShadow: T.primaryShadow }}>예약하기</button>
             <button onClick={onAsk} style={{ flex: 1.3, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '13px 0', borderRadius: 15, border: 'none', background: T.accentGrad, color: T.accentText, fontSize: 13, fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer', boxShadow: T.accentShadow }}>
