@@ -140,28 +140,33 @@ export default function CalendarPage() {
   }, [classes])
 
   async function loadData(userId) {
+    const today = new Date().toISOString().split('T')[0]
+    // 초기 로딩 쿼리 전부 병렬 발사 — 서로 독립이라 순차 대기를 1회 왕복으로 단축
+    const [t, b, ab, profile, pref, mt, c, locked, cur] = await Promise.all([
+      userId ? supabase.from('tickets').select('*').eq('user_id', userId).single() : Promise.resolve({ data: null }),
+      userId ? supabase.from('bookings').select('*').eq('user_id', userId).neq('status', 'cancelled') : Promise.resolve({ data: [] }),
+      userId ? supabase.from('bookings').select('course_id, schedule_id, class_date, class_time').eq('status', 'booked') : Promise.resolve({ data: [] }),
+      userId ? supabase.from('users').select('name').eq('id', userId).single() : Promise.resolve({ data: null }),
+      userId ? supabase.from('user_prefs').select('*').eq('user_id', userId).single() : Promise.resolve({ data: null }),
+      userId ? supabase.from('meeting_tickets').select('*').eq('user_id', userId).eq('status', 'confirmed').gt('remain', 0).gte('expires_at', today) : Promise.resolve({ data: [] }),
+      // 공개 데이터: 로그인 여부와 무관하게 수업/스케줄/예외 로드 (관리자 예외·운영기간 반영)
+      supabase.from('class_courses').select('*, class_schedules(*), class_exceptions(*)').eq('is_active', true),
+      fetchLockedDates(),
+      supabase.from('course_curriculum').select('course_name'),
+    ])
     if (userId) {
-      const { data: t } = await supabase.from('tickets').select('*').eq('user_id', userId).single()
-      setTicket(t)
-      const { data: b } = await supabase.from('bookings').select('*').eq('user_id', userId).neq('status', 'cancelled')
-      setBookings(b || [])
-      const { data: ab } = await supabase.from('bookings').select('course_id, schedule_id, class_date, class_time').eq('status', 'booked')
-      setAllBookings(ab || [])
-      const { data: profile } = await supabase.from('users').select('name').eq('id', userId).single()
-      setProfileName(profile?.name || '')
-      const { data: pref } = await supabase.from('user_prefs').select('*').eq('user_id', userId).single()
-      setMoodStyle(pref?.mood_style || 'cup')
+      setTicket(t.data)
+      setBookings(b.data || [])
+      setAllBookings(ab.data || [])
+      setProfileName(profile.data?.name || '')
+      setMoodStyle(pref.data?.mood_style || 'cup')
       // 계정에 저장된 테마가 있으면 기기 저장값보다 우선 (기기 간 동기화)
-      if (isValidTheme(pref?.theme)) applyTheme(pref.theme)
-      const { data: mt } = await supabase.from('meeting_tickets').select('*').eq('user_id', userId).eq('status', 'confirmed').gt('remain', 0).gte('expires_at', new Date().toISOString().split('T')[0])
-      setMeetingTickets(mt || [])
+      if (isValidTheme(pref.data?.theme)) applyTheme(pref.data.theme)
+      setMeetingTickets(mt.data || [])
     }
-    // 공개 데이터: 로그인 여부와 무관하게 수업/스케줄/예외 로드 (관리자 예외·운영기간 반영)
-    const { data: c } = await supabase.from('class_courses').select('*, class_schedules(*), class_exceptions(*)').eq('is_active', true)
-    setClasses(c || [])
-    setLockedDates(await fetchLockedDates())
-    const { data: cur } = await supabase.from('course_curriculum').select('course_name')
-    setCurriculumNames(new Set((cur || []).map(r => r.course_name).filter(Boolean)))
+    setClasses(c.data || [])
+    setLockedDates(locked)
+    setCurriculumNames(new Set((cur.data || []).map(r => r.course_name).filter(Boolean)))
     setLoading(false)
   }
 

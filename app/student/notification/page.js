@@ -26,26 +26,16 @@ export default function StudentNotificationPage() {
 
   async function loadData(userId) {
     const today = new Date().toISOString().split('T')[0]
-    // 예약 현황 (오늘 이후)
-    const { data: b } = await supabase
-      .from('bookings')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('status', 'booked')
-      .gte('class_date', today)
-      .order('class_date', { ascending: true })
-    setBookings(b || [])
-    // 수업 종료 현황 (오늘 이전)
-    const { data: d } = await supabase
-      .from('bookings')
-      .select('*')
-      .eq('user_id', userId)
-      .lt('class_date', today)
-      .order('class_date', { ascending: false })
-    setDoneClasses(d || [])
-    // 3주 지난 알림은 자동 삭제 (내 알림만)
     const cutoff = new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString()
-    await supabase.from('notifications').delete().eq('user_id', userId).lt('created_at', cutoff)
+    // 예약(예정)·수업 종료(과거)·3주 지난 알림 삭제를 병렬 발사 — 서로 독립. 알림 목록은 삭제 완료 후 조회
+    const [{ data: b }, { data: d }] = await Promise.all([
+      supabase.from('bookings').select('*').eq('user_id', userId).eq('status', 'booked').gte('class_date', today).order('class_date', { ascending: true }),
+      supabase.from('bookings').select('*').eq('user_id', userId).lt('class_date', today).order('class_date', { ascending: false }),
+      // 3주 지난 알림은 자동 삭제 (내 알림만)
+      supabase.from('notifications').delete().eq('user_id', userId).lt('created_at', cutoff),
+    ])
+    setBookings(b || [])
+    setDoneClasses(d || [])
 
     const { data: n } = await supabase
       .from('notifications')
@@ -54,12 +44,13 @@ export default function StudentNotificationPage() {
       .order('created_at', { ascending: false })
       .limit(50)
     setNotifs(n || [])
+    setLoading(false)
 
+    // 읽음 처리는 렌더 이후 백그라운드로 — 초기 로딩을 막지 않음(뱃지는 다음 로드에 반영)
     const unread = (n || []).filter(x => !x.is_read).map(x => x.id)
     if (unread.length > 0) {
-      await supabase.from('notifications').update({ is_read: true }).in('id', unread)
+      supabase.from('notifications').update({ is_read: true }).in('id', unread).then(() => {})
     }
-    setLoading(false)
   }
 
   async function handleCancel(booking) {

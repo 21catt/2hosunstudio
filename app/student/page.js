@@ -155,34 +155,38 @@ export default function StudentHomePage() {
   }, [loading, activeTheme])
 
   async function loadData(userId) {
+    // 초기 로딩 쿼리 전부 병렬 발사 — 서로 독립이라 순차 대기(8회 왕복)를 1회 왕복으로 단축
+    const [t, b, notif, pref, c, locked, ab, pin] = await Promise.all([
+      userId ? supabase.from('tickets').select('*').eq('user_id', userId).single() : Promise.resolve({ data: null }),
+      userId ? supabase.from('bookings').select('*').eq('user_id', userId).neq('status', 'cancelled') : Promise.resolve({ data: [] }),
+      userId ? supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('is_read', false) : Promise.resolve({ count: 0 }),
+      userId ? supabase.from('user_prefs').select('*').eq('user_id', userId).single() : Promise.resolve({ data: null }),
+      supabase.from('class_courses').select('*, class_schedules(*), class_exceptions(*)').eq('is_active', true),
+      fetchLockedDates(),
+      supabase.from('bookings').select('course_id, schedule_id, class_date, class_time').eq('status', 'booked'),
+      // 홈 하단 공지 — 라운지에서 관리자가 공지 지정한 글. 컬럼(pinned_at)이 아직 없으면 조용히 숨김
+      supabase.from('posts')
+        .select('id, title, content, author_name, created_at, pinned_at, images, image_url')
+        .not('pinned_at', 'is', null)
+        .order('pinned_at', { ascending: false })
+        .limit(2),
+    ])
     if (userId) {
-      const { data: t } = await supabase.from('tickets').select('*').eq('user_id', userId).single()
-      setTicket(t)
-      const { data: b } = await supabase.from('bookings').select('*').eq('user_id', userId).neq('status', 'cancelled')
-      setMyBookings(b || [])
-      const upcoming = (b || [])
+      setTicket(t.data)
+      const bl = b.data || []
+      setMyBookings(bl)
+      const upcoming = bl
         .filter(x => x.class_date >= todayStr)
         .sort((x, y) => (x.class_date + (x.class_time || '')).localeCompare(y.class_date + (y.class_time || '')))
       setNextBooking(upcoming.find(x => x.confirmed !== false) || null)
       setPendingBooking(upcoming.find(x => x.confirmed === false) || null)
-      const { count } = await supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('is_read', false)
-      setUnread(count || 0)
-      const { data: pref } = await supabase.from('user_prefs').select('*').eq('user_id', userId).single()
-      if (isValidTheme(pref?.theme)) setActiveTheme(applyTheme(pref.theme))
+      setUnread(notif.count || 0)
+      if (isValidTheme(pref.data?.theme)) setActiveTheme(applyTheme(pref.data.theme))
     }
-    // 공개 데이터: 수업(운영 요일·기간) + 정원 계산용 전체 예약
-    const { data: c } = await supabase.from('class_courses').select('*, class_schedules(*), class_exceptions(*)').eq('is_active', true)
-    setClasses(c || [])
-    setLockedDates(await fetchLockedDates())
-    const { data: ab } = await supabase.from('bookings').select('course_id, schedule_id, class_date, class_time').eq('status', 'booked')
-    setAllBookings(ab || [])
-    // 홈 하단 공지 — 라운지에서 관리자가 공지 지정한 글. 컬럼(pinned_at)이 아직 없으면 조용히 숨김
-    const { data: pin } = await supabase.from('posts')
-      .select('id, title, content, author_name, created_at, pinned_at, images, image_url')
-      .not('pinned_at', 'is', null)
-      .order('pinned_at', { ascending: false })
-      .limit(2)
-    setNotices(pin || [])
+    setClasses(c.data || [])
+    setLockedDates(locked)
+    setAllBookings(ab.data || [])
+    setNotices(pin.data || [])
     setLoading(false)
   }
 

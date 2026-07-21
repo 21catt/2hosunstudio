@@ -381,17 +381,13 @@ function CurriculumInner() {
   }, [])
 
   async function loadInitial(userId) {
-    const { data: currRows } = await supabase
-      .from('course_curriculum')
-      .select('course_name')
+    // 커리큘럼 목록 + 내 예약을 병렬 로드 — 서로 독립(빈 커리큘럼이면 예약 결과는 버림)
+    const [{ data: currRows }, { data: bks }] = await Promise.all([
+      supabase.from('course_curriculum').select('course_name'),
+      supabase.from('bookings').select('class_name, class_date').eq('user_id', userId).order('class_date', { ascending: false }),
+    ])
     const currNameSet = new Set((currRows || []).map(r => r.course_name).filter(Boolean))
     if (currNameSet.size === 0) { setLoading(false); return }
-
-    const { data: bks } = await supabase
-      .from('bookings')
-      .select('class_name, class_date')
-      .eq('user_id', userId)
-      .order('class_date', { ascending: false })
 
     const seen = new Set()
     const enrolledNames = []

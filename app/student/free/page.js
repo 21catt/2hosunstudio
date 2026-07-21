@@ -90,24 +90,21 @@ function FreeInner() {
   }, [])
 
   async function loadData() {
-    const { data: sp } = await supabase.from('seat_photos').select('*').order('sort_order', { ascending: true })
+    // 초기 로딩 쿼리 병렬 발사 — 서로 독립이라 순차 대기 제거
+    const [{ data: sp }, { data: ab }, locked, { data: courses }] = await Promise.all([
+      supabase.from('seat_photos').select('*').order('sort_order', { ascending: true }),
+      supabase.from('bookings').select('class_date, class_time, seat').eq('status', 'booked'),
+      fetchLockedDates(),
+      supabase.from('class_courses').select('*').eq('category', 'free').eq('is_active', true).limit(1),
+    ])
     const grouped = {}
     ;(sp || []).forEach(p => {
       if (!grouped[p.seat_id]) grouped[p.seat_id] = []
       grouped[p.seat_id].push(p)
     })
     setSeatPhotos(grouped)
-
-    const { data: ab } = await supabase.from('bookings').select('class_date, class_time, seat').eq('status', 'booked')
     setAllBookings(ab || [])
-    setLockedDates(await fetchLockedDates())
-
-    const { data: courses } = await supabase
-      .from('class_courses')
-      .select('*')
-      .eq('category', 'free')
-      .eq('is_active', true)
-      .limit(1)
+    setLockedDates(locked)
     setFreeCourse(courses?.[0] || null)
 
     setLoading(false)

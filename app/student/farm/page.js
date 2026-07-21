@@ -214,18 +214,20 @@ export default function FarmPage() {
   }, [loading])
 
   async function loadData(userId) {
-    const { data: b } = await supabase
-      .from('bookings').select('*').eq('user_id', userId)
-      .neq('status', 'cancelled')
-      .order('class_date', { ascending: false })
+    // 초기 로딩 쿼리 병렬 발사 — 서로 독립이라 순차 대기 제거
+    const [{ data: b }, { data: pref }, { data: tk }] = await Promise.all([
+      supabase.from('bookings').select('*').eq('user_id', userId)
+        .neq('status', 'cancelled')
+        .order('class_date', { ascending: false }),
+      supabase.from('user_prefs').select('*').eq('user_id', userId).single(),
+      supabase.from('tickets').select('*').eq('user_id', userId).limit(1),
+    ])
     const h = b || []
     setHistory(h)
-    const { data: pref } = await supabase.from('user_prefs').select('*').eq('user_id', userId).single()
     if (isValidFarmCat(pref?.farm_cat)) setFarmCat(pref.farm_cat)
     if (Number.isFinite(pref?.harvest_count) && pref.harvest_count >= 0) { setHarvest(pref.harvest_count); saveHarvestLocal(pref.harvest_count); harvestRef.current = pref.harvest_count }
 
     // 수강권 유효성 → 잡초 기능 on/off
-    const { data: tk } = await supabase.from('tickets').select('*').eq('user_id', userId).limit(1)
     const t = tk?.[0]
     const valid = !!(t && t.remain > 0 && (!t.expires_at || t.expires_at >= todayStr))
     setTicketValid(valid); ticketValidRef.current = valid

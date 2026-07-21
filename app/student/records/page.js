@@ -92,24 +92,21 @@ function RecordsInner() {
     const recs = data || []
     setRecords(recs)
 
-    // 프로필 고양이 로드 — 강사(피드백 작성자) + 나 자신(내 기록 말풍선용)
+    // 프로필 고양이(강사+나) + 사진 라이트박스 댓글을 한 번에 병렬 로드 — 모두 recs에만 의존
     const tIds = [...new Set(recs.flatMap(r => (r.class_record_feedback || []).map(f => f.teacher_id)).filter(Boolean))]
     const prefIds = [...new Set([userId, ...tIds])]
-    const [{ data: prefs }, { data: usrs }] = await Promise.all([
+    const recIds = recs.map(r => r.id)
+    const [{ data: prefs }, { data: usrs }, { data: cs }] = await Promise.all([
       supabase.from('user_prefs').select('user_id, profile_cat').in('user_id', prefIds),
       tIds.length ? supabase.from('users').select('id, name').in('id', tIds) : Promise.resolve({ data: [] }),
+      // 사진 라이트박스 댓글 (테이블 없으면 조용히 빈 값)
+      recIds.length ? supabase.from('record_comments').select('*').in('record_id', recIds).order('created_at', { ascending: true }) : Promise.resolve({ data: [] }),
     ])
     const cm = {}; (prefs || []).forEach(p => { cm[p.user_id] = p.profile_cat })
     const nm = {}; (usrs || []).forEach(u => { nm[u.id] = u.name })
     setCatMap(cm); setNameMap(nm)
-
-    // 사진 라이트박스 댓글 로드 (테이블 없으면 조용히 빈 값)
-    const recIds = recs.map(r => r.id)
-    if (recIds.length) {
-      const { data: cs } = await supabase.from('record_comments').select('*').in('record_id', recIds).order('created_at', { ascending: true })
-      const rc = {}; (cs || []).forEach(c => { (rc[c.record_id] = rc[c.record_id] || []).push(c) })
-      setRecordComments(rc)
-    }
+    const rc = {}; (cs || []).forEach(c => { (rc[c.record_id] = rc[c.record_id] || []).push(c) })
+    setRecordComments(rc)
 
     setLoading(false)
     loadAllPhotos(recs)
