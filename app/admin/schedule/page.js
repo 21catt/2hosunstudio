@@ -560,7 +560,8 @@ function changeMonth(delta) {
   setExpanded(null)
 }
 // 카테고리 순(드로잉→페인팅→조소→자율창작→모임) — 달력 하단 목록·목록 뷰 모두 이 순서
-const myCourses = sortCoursesByCategory(courses.filter(c => c.category === 'meeting' || adminCats.includes(c.category)))
+// 원데이는 특정 강사 배정 과목이 아니라 스튜디오 공통 → 모임처럼 항상 관리 목록에 포함
+const myCourses = sortCoursesByCategory(courses.filter(c => c.category === 'meeting' || c.category === 'oneday' || adminCats.includes(c.category)))
 
   // 특정 날짜에 열리는 수업
   function getCoursesForDay(day) {

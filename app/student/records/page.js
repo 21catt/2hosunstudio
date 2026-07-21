@@ -9,6 +9,7 @@ import LoadingCat from '../../../components/LoadingCat'
 import GlassBg from '../../../components/GlassBg'
 import { useFreshTheme } from '../../../lib/useFreshTheme'
 import PalettePlanner from '../../../components/PalettePlanner'
+import DailyColorCard from '../../../components/DailyColorCard'
 import { pixelCatImg, DEFAULT_PROFILE_CAT, isValidPixelCat, getSavedProfileCat } from '../../../lib/pixelCats'
 
 // 카톡형 채팅 로그 — 하단 입력바에서 바로 쓰고 보내면 말풍선이 튕기며 등장한다.
@@ -356,6 +357,11 @@ function RecordsInner() {
       </div>
 
       <div style={{ background: fresh ? 'transparent' : '#fff', padding:'12px 12px 170px', minHeight:'80vh' }}>
+
+        {/* 오늘의 색 — 좌측 상단 정사각형 */}
+        <div style={{ display:'flex', justifyContent:'flex-start', marginBottom:14 }}>
+          <DailyColorCard glass={fresh} square />
+        </div>
 
         {records.length === 0 && (
           <div style={{ textAlign:'center', padding:'48px 0', color:'var(--tmu)', fontSize:13, lineHeight:1.9 }}>
