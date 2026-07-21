@@ -293,6 +293,14 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
         </div>
       </div>
 
+      {cat === 'oneday' && (
+        <div className="field" style={{ marginBottom:14 }}>
+          <label>가격 (계약금)</label>
+          <input type="number" value={price || ''} min={0} step={1000} onChange={e=>setPrice(Number(e.target.value))} placeholder="예: 35000"/>
+          <div style={{ fontSize:10, color:'var(--tmu)', marginTop:4 }}>학생이 신청할 때 이 금액이 계약금 입금 안내로 표시돼요.</div>
+        </div>
+      )}
+
       <div style={{ marginBottom:14 }}>
         <div style={{ fontSize:11, fontWeight:700, color:'var(--tm)', marginBottom:8 }}>운영 요일</div>
         <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>

@@ -80,6 +80,7 @@ export default function CalendarPage() {
   const [selCat, setSelCat] = useState(null)
   const [selCourse, setSelCourse] = useState(null)
   const [selSchedule, setSelSchedule] = useState(null)
+  const [onedayInfoOpen, setOnedayInfoOpen] = useState(true) // 원데이 신청 시 가격·입금 안내 토글(기본 펼침)
   const [paymentModal, setPaymentModal] = useState(null)
   const [selectedCount, setSelectedCount] = useState(1)
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -1093,6 +1094,34 @@ export default function CalendarPage() {
                     </div>
                   )
                 })}
+              </div>
+            )}
+
+            {selCourse?.category === 'oneday' && selSchedule && (
+              <div className="slide-up" style={{ marginBottom:14, borderRadius:14, border:'1.5px solid #f6c7d6', background:'#FCE4EC', overflow:'hidden' }}>
+                <div onClick={() => setOnedayInfoOpen(o => !o)} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'11px 14px', cursor:'pointer' }}>
+                  <span style={{ display:'flex', alignItems:'center', gap:6, fontSize:12.5, fontWeight:800, color:'#AD1457' }}>
+                    <NavIcon name="calendar" color="#AD1457" size={15} /> 가격 · 입금 안내
+                  </span>
+                  <span style={{ display:'flex', alignItems:'center', gap:8 }}>
+                    <span style={{ fontSize:13, fontWeight:800, color:'#AD1457' }}>{(selCourse.price || 0).toLocaleString()}원</span>
+                    <span style={{ fontSize:13, color:'#AD1457', transform:onedayInfoOpen?'rotate(180deg)':'none', transition:'transform 0.2s', display:'inline-block' }}>▾</span>
+                  </span>
+                </div>
+                {onedayInfoOpen && (
+                  <div style={{ padding:'2px 14px 12px' }}>
+                    <div style={{ fontSize:11, color:'var(--tm)', fontWeight:600, marginBottom:8, lineHeight:1.6 }}>
+                      수강권 없이 <b style={{ color:'#AD1457' }}>계약금 입금</b>으로 신청해요. 아래 계좌로 <b>입금자명</b>을 넣어 보내주세요.
+                    </div>
+                    <div style={{ background:'#fff', borderRadius:10, border:'1px solid #f6c7d6', padding:'9px 11px', marginBottom:8 }}>
+                      <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:3 }}>입금 계좌</div>
+                      <div style={{ fontSize:12.5, fontWeight:800, color:'var(--td)', lineHeight:1.5 }}>{DEPOSIT.bank} {DEPOSIT.account}<br/>예금주 {DEPOSIT.holder}</div>
+                    </div>
+                    <div style={{ fontSize:10.5, color:'var(--tmu)', fontWeight:600, lineHeight:1.6 }}>
+                      · 24시간 내 미입금 시 자동 취소돼요.<br/>· 입금 확인 후 예약이 확정됩니다.
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
