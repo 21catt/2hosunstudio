@@ -10,6 +10,7 @@ import { LogoMark, HeroDeco } from '../../components/Deco'
 import HeroWeatherFX from '../../components/HeroWeatherFX'
 import { useTodayWeather, WeatherGlyph } from '../../components/WeatherBar'
 import LoadingCat from '../../components/LoadingCat'
+import GlassAdminHome from '../../components/GlassAdminHome'
 
 const DOW = ['일', '월', '화', '수', '목', '금', '토']
 
@@ -98,7 +99,31 @@ export default function AdminHomePage() {
   if (loading) return <LoadingCat />
 
   const isFresh = activeTheme === 'fresh'
-  // 헤더 아이콘 칩 공통 스타일
+
+  // fresh(싱그러운) = 학생 홈처럼 전용 글래스 스킨 컴포넌트로 렌더(깊은 그림자·글래스 카드·글래스 네비)
+  if (isFresh) {
+    const glassGroups = todayGroups.map(g => ({
+      time: g.class_time,
+      start: (g.class_time || '').split('~')[0] || '-',
+      done: g.items.filter(b => b.attended).length,
+      total: g.items.length,
+      classes: [...g.classes.entries()].map(([cn, list]) => ({ cn, names: list.map(b => b.users?.name || '학생').join(', ') })),
+    }))
+    return (
+      <GlassAdminHome
+        now={now} weather={weather} todayCount={todayBookings.length} attendedCnt={attendedCnt} memberCnt={memberCnt}
+        todayGroups={glassGroups} menus={MENUS} paymentBadge={paymentBadge} pendingCnt={pendingCnt} refundCnt={refundCnt} unread={unread}
+        pushEnabled={pushEnabled}
+        onEnablePush={handleEnablePush}
+        onKakao={() => window.location.href = '/api/kakao/login'}
+        onSettings={() => router.push('/admin/settings')}
+        onLogout={() => supabase.auth.signOut().then(() => router.push('/login'))}
+        go={(href) => router.push(href)}
+      />
+    )
+  }
+
+  // 헤더 아이콘 칩 공통 스타일 (기본 테마)
   const chip = (fill) => ({
     width: 32, height: 32, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
     cursor: 'pointer', flexShrink: 0, background: fill ? 'var(--ac)' : 'var(--surf)',
@@ -107,15 +132,7 @@ export default function AdminHomePage() {
   })
 
   return (
-    <div style={{ position: 'relative', minHeight: '100vh', background: isFresh ? '#dfeaf2' : '#fff', overflow: isFresh ? 'hidden' : 'visible' }}>
-      {/* 여름 글래스 스킨용 앰비언트 블롭 */}
-      {isFresh && (
-        <>
-          <div style={{ position: 'absolute', top: -60, left: -40, width: 320, height: 320, borderRadius: '50%', background: 'radial-gradient(circle, rgba(148,198,232,0.7), transparent 65%)', filter: 'blur(20px)', pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', bottom: 60, right: -70, width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(circle, rgba(130,150,60,0.45), transparent 65%)', filter: 'blur(22px)', pointerEvents: 'none' }} />
-        </>
-      )}
-
+    <div style={{ position: 'relative', minHeight: '100vh', background: '#fff' }}>
       {/* 헤더 */}
       <div className="p-header" style={{ position: 'relative', zIndex: 2 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
