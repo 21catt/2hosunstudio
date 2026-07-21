@@ -4,13 +4,15 @@
 // (저장은 PaletteFab의 기존 저장 경로를 그대로 타서 색 계획 카드로 기록에 남는다)
 import { getDailyColor, toPlannerInitial } from '../lib/dailyColors'
 
-export default function DailyColorCard({ glass = false, square = false }) {
+export default function DailyColorCard({ glass = false, square = false, onOpen = null }) {
   const item = getDailyColor()
   if (!item) return null
 
   function openWheel() {
     const initial = toPlannerInitial(item)
     if (!initial) return
+    // onOpen 제공 시(예: 기록 페이지 — 전역 PaletteFab이 숨겨진 화면) 로컬 플래너 직접 오픈, 아니면 전역 이벤트
+    if (onOpen) { onOpen(initial); return }
     window.dispatchEvent(new CustomEvent('open-palette', { detail: initial }))
   }
 

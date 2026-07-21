@@ -358,9 +358,9 @@ function RecordsInner() {
 
       <div style={{ background: fresh ? 'transparent' : '#fff', padding:'12px 12px 170px', minHeight:'80vh' }}>
 
-        {/* 오늘의 색 — 좌측 상단 정사각형 */}
+        {/* 오늘의 색 — 좌측 상단 정사각형. 이 화면은 PaletteFab이 숨겨져(HIDE 목록) 로컬 플래너로 직접 오픈 */}
         <div style={{ display:'flex', justifyContent:'flex-start', marginBottom:14 }}>
-          <DailyColorCard glass={fresh} square />
+          <DailyColorCard glass={fresh} square onOpen={(init) => { setPlannerInit(init); setPlannerOpen(true) }} />
         </div>
 
         {records.length === 0 && (
