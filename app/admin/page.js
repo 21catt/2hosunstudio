@@ -5,15 +5,22 @@ import { supabase } from '../../lib/supabase'
 import AdminNav from '../../components/AdminNav'
 import { NavIcon } from '../../components/NavIcons'
 import { registerPush } from '../../lib/pushNotify'
-import { HEADER_BG, PRIMARY, T, OK, WARN, BAD } from '../../lib/adminTheme'
+import { applyTheme, getSavedTheme, isValidTheme } from '../../lib/theme'
+import { LogoMark, HeroDeco } from '../../components/Deco'
+import HeroWeatherFX from '../../components/HeroWeatherFX'
+import { useTodayWeather, WeatherGlyph } from '../../components/WeatherBar'
+import LoadingCat from '../../components/LoadingCat'
 
 const DOW = ['일', '월', '화', '수', '목', '금', '토']
 
-// 관리자 홈 — 수강생 홈처럼 오늘 현황 요약 + 전체 메뉴 바로가기 타일
+// 관리자 홈 — 학생 홈과 같은 디자인 언어(p-header·p-hero·p-tile·p-card + --ac 강조색).
+// 8색 테마·여름 글래스 스킨(fresh)을 그대로 따라간다.
 export default function AdminHomePage() {
   const router = useRouter()
+  const weather = useTodayWeather()
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [activeTheme, setActiveTheme] = useState('ultra')
   const [pushEnabled, setPushEnabled] = useState(false)
   const [todayBookings, setTodayBookings] = useState([])
   const [pendingCnt, setPendingCnt] = useState(0)   // 입금 대기
@@ -25,6 +32,8 @@ export default function AdminHomePage() {
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 
   useEffect(() => {
+    // 저장된 테마 즉시 적용(로그인 전에도 반영) — 이후 계정 pref로 동기화
+    setActiveTheme(applyTheme(getSavedTheme()))
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) { router.push('/login'); return }
       if (data.user.user_metadata?.role !== 'admin') { router.push('/student'); return }
@@ -35,18 +44,21 @@ export default function AdminHomePage() {
   }, [])
 
   async function loadData(adminId) {
-    const [{ data: tb }, { count: pc }, { count: rc }, { count: uc }, { count: mc }] = await Promise.all([
+    const [{ data: tb }, { count: pc }, { count: rc }, { count: uc }, { count: mc }, { data: pref }] = await Promise.all([
       supabase.from('bookings').select('id, class_name, class_time, attended, status, users(name)').eq('class_date', todayStr).neq('status', 'cancelled'),
       supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'booked').eq('confirmed', false),
       supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'cancelled').eq('refund_status', 'required'),
       supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', adminId).eq('is_read', false),
       supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'student'),
+      supabase.from('user_prefs').select('theme').eq('user_id', adminId).single(),
     ])
     setTodayBookings(tb || [])
     setPendingCnt(pc || 0)
     setRefundCnt(rc || 0)
     setUnread(uc || 0)
     setMemberCnt(mc || 0)
+    // 계정에 저장된 테마가 있으면 기기 저장값보다 우선 (기기 간 동기화)
+    if (isValidTheme(pref?.theme)) setActiveTheme(applyTheme(pref.theme))
     setLoading(false)
   }
 
@@ -83,69 +95,88 @@ export default function AdminHomePage() {
     { label: '라운지', icon: 'chat', href: '/lounge' },
   ]
 
-  if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-      <div style={{ fontSize: 32 }}>🐱</div>
-    </div>
-  )
+  if (loading) return <LoadingCat />
+
+  const isFresh = activeTheme === 'fresh'
+  // 헤더 아이콘 칩 공통 스타일
+  const chip = (fill) => ({
+    width: 32, height: 32, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
+    cursor: 'pointer', flexShrink: 0, background: fill ? 'var(--ac)' : 'var(--surf)',
+    border: `1.5px solid ${fill ? 'var(--ac)' : 'rgb(var(--ac-rgb) / 0.28)'}`,
+    color: fill ? '#fff' : 'var(--ac)',
+  })
 
   return (
-    <>
-      {/* Header */}
-      <div className="header" style={{ background: HEADER_BG }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <NavIcon name="home" color="#fff" size={20} />
-          <span className="header-title">관리자 홈</span>
+    <div style={{ position: 'relative', minHeight: '100vh', background: isFresh ? '#dfeaf2' : '#fff', overflow: isFresh ? 'hidden' : 'visible' }}>
+      {/* 여름 글래스 스킨용 앰비언트 블롭 */}
+      {isFresh && (
+        <>
+          <div style={{ position: 'absolute', top: -60, left: -40, width: 320, height: 320, borderRadius: '50%', background: 'radial-gradient(circle, rgba(148,198,232,0.7), transparent 65%)', filter: 'blur(20px)', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', bottom: 60, right: -70, width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(circle, rgba(130,150,60,0.45), transparent 65%)', filter: 'blur(22px)', pointerEvents: 'none' }} />
+        </>
+      )}
+
+      {/* 헤더 */}
+      <div className="p-header" style={{ position: 'relative', zIndex: 2 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <LogoMark />
+          <span className="p-title">관리자 홈</span>
         </div>
-        <div style={{ display: 'flex', gap: 5 }}>
-          <button onClick={handleEnablePush}
-            style={{ background: pushEnabled ? 'rgba(255,255,255,0.32)' : 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 10, padding: '5px 10px', color: '#fff', fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>
-            {pushEnabled ? '🔔 알림ON' : '🔕 알림설정'}
-          </button>
-          <button onClick={() => window.location.href = '/api/kakao/login'}
-            style={{ background: 'rgba(255,232,120,0.26)', border: 'none', borderRadius: 10, padding: '5px 10px', color: '#fff', fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>
-            💬 카톡연동
-          </button>
-          <button onClick={() => router.push('/admin/settings')} title="개인 설정"
-            style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 10, padding: '5px 9px', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', lineHeight: 1 }}>
-            ⚙️
-          </button>
-          <button onClick={() => supabase.auth.signOut().then(() => router.push('/login'))}
-            style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 10, padding: '5px 10px', color: '#fff', fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>
-            로그아웃
-          </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div className="tap" onClick={handleEnablePush} title={pushEnabled ? '예약 알림 켜짐' : '예약 알림 설정'} style={chip(pushEnabled)}>
+            <NavIcon name="bell" color={pushEnabled ? '#fff' : 'var(--ac)'} size={17} />
+          </div>
+          <div className="tap" onClick={() => window.location.href = '/api/kakao/login'} title="카카오톡 연동" style={chip(false)}>
+            <NavIcon name="chat" color="var(--ac)" size={17} />
+          </div>
+          <div className="tap" onClick={() => router.push('/admin/settings')} title="개인 설정" style={chip(false)}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+          </div>
+          <div className="tap" onClick={() => supabase.auth.signOut().then(() => router.push('/login'))} title="로그아웃" style={chip(false)}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+          </div>
         </div>
       </div>
 
-      <div style={{ background: '#fff', borderRadius: '24px 24px 0 0', marginTop: -8, padding: '16px 14px 90px', minHeight: '80vh' }}>
+      <div style={{ position: 'relative', zIndex: 1, padding: '8px 14px 90px' }}>
 
-        {/* 오늘 요약 */}
-        <div style={{ background: OK.soft, border: '1.5px solid rgb(var(--ac-rgb) / 0.3)', borderRadius: 16, padding: '14px 15px', marginBottom: 14 }}>
-          <div style={{ fontSize: 15, fontWeight: 800, color: T.text, letterSpacing: '-0.3px' }}>
-            {now.getMonth() + 1}월 {now.getDate()}일 ({DOW[now.getDay()]}) 오늘
-          </div>
-          <div style={{ fontSize: 11.5, color: T.mut, fontWeight: 600, margin: '4px 0 11px' }}>
-            예약 {todayBookings.length}명 · 출석 {attendedCnt}명 · 회원 {memberCnt}명
-          </div>
-          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-            <button onClick={() => router.push('/admin/attendance')}
-              style={{ padding: '8px 15px', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 12, fontSize: 11.5, fontWeight: 800, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
-              출석 체크하기
-            </button>
-            <button onClick={() => router.push('/admin/schedule')}
-              style={{ padding: '8px 15px', background: '#fff', color: OK.tx, border: '1.5px solid rgb(var(--ac-rgb) / 0.4)', borderRadius: 12, fontSize: 11.5, fontWeight: 800, cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
-              수업 현황 보기
-            </button>
+        {/* 오늘 요약 — 히어로 카드 */}
+        <div className="p-hero" style={{ marginBottom: 14, position: 'relative' }}>
+          <HeroDeco />
+          <HeroWeatherFX code={weather?.code} />
+          <div style={{ padding: '14px 16px 16px', position: 'relative', zIndex: 1 }}>
+            {weather && (
+              <div style={{ position: 'absolute', top: 14, right: 16, display: 'flex', alignItems: 'center', gap: 5, color: 'var(--acTx)' }}>
+                <WeatherGlyph code={weather.code} size={20} />
+                <span style={{ fontSize: 12.5, fontWeight: 800 }}>{weather.temp}°</span>
+              </div>
+            )}
+            <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--td)', letterSpacing: '-0.3px' }}>
+              {now.getMonth() + 1}월 {now.getDate()}일 ({DOW[now.getDay()]}) · 오늘
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--tm)', fontWeight: 600, margin: '4px 0 12px' }}>
+              예약 {todayBookings.length}명 · 출석 {attendedCnt}명 · 회원 {memberCnt}명 🐾
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button className="p-chip p-chip--fill" onClick={() => router.push('/admin/attendance')}>출석 체크하기</button>
+              <button className="p-chip" onClick={() => router.push('/admin/schedule')}>수업 현황</button>
+            </div>
           </div>
         </div>
 
         {/* 메뉴 타일 — 회원·수업현황·출석·입금·알림·자리사진·커리큘럼·라운지 */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 14 }}>
           {MENUS.map(m => (
-            <div key={m.label} onClick={() => router.push(m.href)}
-              style={{ position: 'relative', border: '1.5px solid var(--ac)', borderRadius: 12, background: 'var(--surf)', textAlign: 'center', cursor: 'pointer', padding: '12px 4px 10px' }}>
+            <div key={m.label} className="p-tile" style={{ position: 'relative', padding: '12px 4px 10px' }} onClick={() => router.push(m.href)}>
               <NavIcon name={m.icon} color="var(--ac)" size={20} />
-              <div style={{ fontSize: 11, fontWeight: 700, marginTop: 4, color: T.text }}>{m.label}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, marginTop: 4, color: 'var(--td)' }}>{m.label}</div>
               {m.badge > 0 && (
                 <span style={{ position: 'absolute', top: 6, right: 8, background: '#e24b4a', color: '#fff', fontSize: 9, fontWeight: 800, minWidth: 16, height: 16, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px', lineHeight: 1, fontFamily: 'Nunito,sans-serif' }}>
                   {m.badge > 99 ? '99+' : m.badge}
@@ -158,45 +189,45 @@ export default function AdminHomePage() {
         {/* 입금·환불 처리 대기 */}
         {paymentBadge > 0 && (
           <div onClick={() => router.push('/admin/payment')}
-            style={{ display: 'flex', alignItems: 'center', gap: 11, background: WARN.soft, border: `1.5px solid ${WARN.main}`, borderRadius: 14, padding: '12px 14px', marginBottom: 14, cursor: 'pointer' }}>
-            <NavIcon name="card" color={WARN.tx} size={20} />
+            style={{ display: 'flex', alignItems: 'center', gap: 11, background: '#fef3e2', border: '2px solid #e8a33d', borderRadius: 16, padding: '12px 14px', marginBottom: 14, cursor: 'pointer' }}>
+            <NavIcon name="card" color="#8a5a12" size={20} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12.5, fontWeight: 800, color: WARN.tx }}>
+              <div style={{ fontSize: 12.5, fontWeight: 800, color: '#8a5a12' }}>
                 {pendingCnt > 0 && `입금 대기 ${pendingCnt}건`}
                 {pendingCnt > 0 && refundCnt > 0 && ' · '}
                 {refundCnt > 0 && `환불 필요 ${refundCnt}건`}
               </div>
-              <div style={{ fontSize: 10.5, color: WARN.tx, opacity: 0.8, fontWeight: 600, marginTop: 1 }}>눌러서 바로 처리하기</div>
+              <div style={{ fontSize: 10.5, color: '#a0741f', fontWeight: 700, marginTop: 1 }}>눌러서 바로 처리하기</div>
             </div>
-            <span style={{ fontSize: 16, color: WARN.tx }}>›</span>
+            <span style={{ fontSize: 17, color: '#8a5a12' }}>›</span>
           </div>
         )}
 
         {/* 오늘 수업 목록 */}
-        <div style={{ fontSize: 12, fontWeight: 800, color: T.text, margin: '0 2px 9px' }}>오늘 수업</div>
+        <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--td)', margin: '0 2px 9px' }}>오늘 수업</div>
         {todayGroups.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '22px 0', color: T.mut, fontSize: 12, border: '1.5px dashed var(--g2)', borderRadius: 12 }}>
+          <div style={{ textAlign: 'center', padding: '22px 0', color: 'var(--tmu)', fontSize: 12, border: '1.5px dashed var(--g2)', borderRadius: 16 }}>
             오늘은 예약된 수업이 없어요 🐾
           </div>
         ) : todayGroups.map(g => {
           const done = g.items.filter(b => b.attended).length
           const allDone = g.items.length > 0 && done === g.items.length
           return (
-            <div key={g.class_time} onClick={() => router.push('/admin/attendance')}
-              style={{ display: 'flex', alignItems: 'flex-start', gap: 11, background: '#fff', border: '0.5px solid rgba(0,0,0,0.08)', borderRadius: 14, padding: '11px 13px', marginBottom: 7, cursor: 'pointer' }}>
-              <div style={{ fontSize: 11, fontWeight: 800, color: OK.tx, background: OK.soft, borderRadius: 9, padding: '5px 9px', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
+            <div key={g.class_time} className="p-card" onClick={() => router.push('/admin/attendance')}
+              style={{ display: 'flex', alignItems: 'flex-start', gap: 11, padding: '11px 13px', marginBottom: 8, cursor: 'pointer' }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--acTx)', background: 'var(--acBg)', borderRadius: 9, padding: '5px 9px', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
                 {(g.class_time || '').split('~')[0] || '-'}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 10, color: T.mut, marginBottom: 3 }}>{g.class_time}</div>
+                <div style={{ fontSize: 10, color: 'var(--tmu)', marginBottom: 3 }}>{g.class_time}</div>
                 {[...g.classes.entries()].map(([cn, list]) => (
                   <div key={cn} style={{ marginBottom: 2, lineHeight: 1.45 }}>
-                    <span style={{ fontSize: 12.5, fontWeight: 800, color: T.text }}>{cn}</span>
-                    <span style={{ fontSize: 11, color: T.mut }}> · {list.map(b => b.users?.name || '학생').join(', ')}</span>
+                    <span style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--td)' }}>{cn}</span>
+                    <span style={{ fontSize: 11, color: 'var(--tm)' }}> · {list.map(b => b.users?.name || '학생').join(', ')}</span>
                   </div>
                 ))}
               </div>
-              <span style={{ fontSize: 11, fontWeight: 800, flexShrink: 0, color: allDone ? OK.tx : T.mut }}>
+              <span style={{ fontSize: 11, fontWeight: 800, flexShrink: 0, color: allDone ? '#2b7a3f' : 'var(--tmu)' }}>
                 출석 {done}/{g.items.length}
               </span>
             </div>
@@ -205,6 +236,6 @@ export default function AdminHomePage() {
       </div>
 
       <AdminNav active="home" />
-    </>
+    </div>
   )
 }
