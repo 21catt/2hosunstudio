@@ -753,7 +753,7 @@ function CurriculumInner() {
                               onCta={() => { setExpandedCourse(key); handleTabSwitch('browse') }}/>
                             <div style={{ display:'flex', gap:6, padding:'14px 14px 4px', flexWrap:'wrap' }}>
                               <button
-                                onClick={() => router.push(`/student?course=${encodeURIComponent(course.name)}`)}
+                                onClick={() => router.push(`/student/calendar?course=${encodeURIComponent(course.name)}`)}
                                 style={{ fontSize:11, padding:'7px 15px', borderRadius:20, background:ACCENT, color:'#fff', border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>
                                 이 수업 예약하기 →
                               </button>
@@ -781,7 +781,7 @@ function CurriculumInner() {
                             )}
                             <div style={{ display:'flex', gap:6, marginTop:12, flexWrap:'wrap' }}>
                               <button
-                                onClick={() => router.push(`/student?course=${encodeURIComponent(course.name)}`)}
+                                onClick={() => router.push(`/student/calendar?course=${encodeURIComponent(course.name)}`)}
                                 style={{ fontSize:11, padding:'7px 15px', borderRadius:20, background:ACCENT, color:'#fff', border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>
                                 이 수업 예약하기 →
                               </button>
@@ -844,7 +844,7 @@ function CurriculumInner() {
                           <div style={{ borderTop:`1px solid rgb(var(--ac-rgb) / 0.16)`, padding:'12px 14px 14px' }}>
                             <div style={{ display:'flex', gap:6, marginBottom:12, flexWrap:'wrap' }}>
                               <button
-                                onClick={() => router.push(`/student?course=${encodeURIComponent(course.name)}`)}
+                                onClick={() => router.push(`/student/calendar?course=${encodeURIComponent(course.name)}`)}
                                 style={{ fontSize:11, padding:'6px 14px', borderRadius:20, background:ACCENT, color:'#fff', border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>
                                 이 수업 예약하기 →
                               </button>
