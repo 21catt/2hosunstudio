@@ -12,8 +12,8 @@ import PalettePlanner from '../../../components/PalettePlanner'
 import DailyColorCard from '../../../components/DailyColorCard'
 import { pixelCatImg, DEFAULT_PROFILE_CAT, isValidPixelCat, getSavedProfileCat } from '../../../lib/pixelCats'
 
-// 카톡형 채팅 로그 — 하단 입력바에서 바로 쓰고 보내면 말풍선이 튕기며 등장한다.
-// 사진은 📷 아이콘 → 바로 선택, 날짜는 오늘(커리큘럼에서 넘어오면 그 날짜·수업 칩 표시).
+// 날짜 중심 기록 — 월 달력에서 날짜를 고르면 그날의 기록(사진·메모·강사 피드백)이 다이어리처럼 펼쳐진다.
+// 하단 입력바로 '선택한 날짜'에 바로 기록. 사진 라이트박스·색 계획·라운지 공유는 그대로.
 const ACCENT = 'var(--ac)'
 const ACCENT_BG = 'var(--acBg)'
 const ACCENT_TEXT = 'var(--acTx)'
@@ -42,14 +42,15 @@ function RecordsInner() {
   const now = new Date()
   const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`
 
-  // 커리큘럼 '기록 남기기'에서 넘어온 날짜·수업 컨텍스트 (칩으로 표시, 해제 가능)
+  // 커리큘럼 '기록 남기기'에서 넘어온 날짜·수업 컨텍스트. ctx.date = 선택(=기록 대상) 날짜
   const qDate = searchParams.get('date')
   const qClass = searchParams.get('class')
   const validDate = /^\d{4}-\d{2}-\d{2}$/.test(qDate || '') ? qDate : todayStr
   const [ctx, setCtx] = useState({ date: validDate, cls: qClass || '' })
-  const hasCtx = ctx.date !== todayStr || !!ctx.cls
+  // 달력에 표시 중인 연·월(m: 0-based). 진입 날짜의 달로 시작.
+  const [calYM, setCalYM] = useState(() => ({ y: +validDate.slice(0, 4), m: +validDate.slice(5, 7) - 1 }))
 
-  // 카톡식 입력바
+  // 하단 입력바
   const [composeText, setComposeText] = useState('')
   const [composeFiles, setComposeFiles] = useState([])
   const [composePreviews, setComposePreviews] = useState([])
@@ -76,12 +77,6 @@ function RecordsInner() {
       loadRecords(data.user.id)
     })
   }, [])
-
-  useEffect(() => {
-    if (loading) return
-    // 채팅처럼 최신(맨 아래)으로 스크롤
-    setTimeout(() => window.scrollTo({ top: document.body.scrollHeight }), 120)
-  }, [loading])
 
   async function loadRecords(userId) {
     const { data } = await supabase
@@ -112,7 +107,6 @@ function RecordsInner() {
     loadAllPhotos(recs)
   }
 
-  // 기록의 사진들을 서명 URL 배열로 (아직 로딩 안 된 건 제외)
   function recordPhotos(r) {
     return (r.class_record_photos || []).map(p => signedUrls[p.storage_path]).filter(Boolean)
   }
@@ -187,7 +181,7 @@ function RecordsInner() {
     setComposePreviews(prev => prev.filter((_, idx) => idx !== i))
   }
 
-  // 전송 — 낙관적으로 바로 말풍선 등장(튕기는 인터랙션), 사진은 로컬 미리보기로 즉시 표시
+  // 전송 — 선택한 날짜(ctx.date)에 기록 저장, 사진은 로컬 미리보기로 즉시 표시
   async function handleSend() {
     const text = composeText.trim()
     if (!user || sending || (!text && composeFiles.length === 0)) return
@@ -253,7 +247,6 @@ function RecordsInner() {
       }
       setComposeText('')
       setComposeFiles([]); setComposePreviews([]) // objectURL은 표시에 쓰므로 revoke하지 않음
-      setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior:'smooth' }), 60)
     } finally {
       setSending(false)
     }
@@ -285,7 +278,6 @@ function RecordsInner() {
       setSignedUrls(prev => ({ ...prev, [path]: URL.createObjectURL(blob) }))
       setLastAddedId(rec.id)
       setPlannerOpen(false); setPlannerInit(null)
-      setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 80)
     } catch {
       alert('색 계획 저장에 실패했어요 🐾')
     } finally {
@@ -303,28 +295,24 @@ function RecordsInner() {
 
   if (loading) return <LoadingCat />
 
-  const groups = []
-  for (const r of records) {
-    const last = groups[groups.length - 1]
-    if (last && last.date === r.class_date) last.items.push(r)
-    else groups.push({ date: r.class_date, items: [r] })
-  }
+  // 달력 셀 계산 + 기록 있는 날 표시
+  const selDate = ctx.date
+  const selD = new Date(selDate + 'T00:00:00')
+  const recordDates = new Set(records.map(r => r.class_date))
+  const firstDow = new Date(calYM.y, calYM.m, 1).getDay()
+  const daysInMonth = new Date(calYM.y, calYM.m + 1, 0).getDate()
+  const calCells = []
+  for (let i = 0; i < firstDow; i++) calCells.push(null)
+  for (let d = 1; d <= daysInMonth; d++) calCells.push(d)
+  const cellYmd = (d) => `${calYM.y}-${String(calYM.m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+  const shiftMonth = (delta) => setCalYM(({ y, m }) => { const t = m + delta; return { y: y + Math.floor(t / 12), m: ((t % 12) + 12) % 12 } })
+  const dayRecords = records.filter(r => r.class_date === selDate)
+  const arrowBtn = { width:28, height:28, borderRadius:9, border:'1.5px solid var(--g2)', background:'var(--surf)', color:'var(--ac)', fontSize:15, cursor:'pointer', lineHeight:1, padding:0 }
 
   return (
     <>
       {fresh && <GlassBg />}
       <style>{`
-        /* Squash & Stretch — 빠르게 길쭉하게 솟았다(stretch), 납작하게 눌리고(squash), 잔잔한 감쇠 진동으로 정지 */
-        @keyframes bubIn {
-          0%   { opacity:0; transform: translateY(26px) scale(0.5, 0.72); }
-          36%  { opacity:1; transform: translateY(-7px) scale(1.13, 0.9); }
-          54%  { transform: translateY(3px)  scale(0.94, 1.07); }
-          70%  { transform: translateY(-1.5px) scale(1.045, 0.975); }
-          83%  { transform: translateY(0.5px) scale(0.985, 1.012); }
-          93%  { transform: translateY(0) scale(1.006, 0.996); }
-          100% { opacity:1; transform: translateY(0) scale(1, 1); }
-        }
-        .bub-in { animation: bubIn 0.74s cubic-bezier(0.22, 1, 0.36, 1) both; transform-origin: 100% 100%; }
         @keyframes thumbIn {
           0%   { opacity:0; transform: scale(0.3, 0.45) rotate(-8deg); }
           42%  { opacity:1; transform: scale(1.15, 0.88) rotate(3deg); }
@@ -336,7 +324,7 @@ function RecordsInner() {
         .thumb-in { animation: thumbIn 0.62s cubic-bezier(0.22, 1, 0.36, 1) both; }
         .press { transition: transform 0.12s cubic-bezier(0.34,1.56,0.64,1); }
         .press:active { transform: scale(0.84); }
-        @media (prefers-reduced-motion: reduce) { .bub-in, .thumb-in { animation: none } .press:active { transform:none } }
+        @media (prefers-reduced-motion: reduce) { .thumb-in { animation: none } .press:active { transform:none } }
         .viewer-input::placeholder { color: rgba(255,255,255,0.55); }
       `}</style>
 
@@ -353,157 +341,167 @@ function RecordsInner() {
         </div>
       </div>
 
-      <div style={{ background: fresh ? 'transparent' : '#fff', padding:'12px 12px 170px', minHeight:'80vh' }}>
+      <div style={{ background: fresh ? 'transparent' : '#fff', padding:'12px 12px 150px', minHeight:'80vh' }}>
 
         {/* 오늘의 색 — 좌측 상단 정사각형. sticky로 스크롤해도 항상 보이게 상단 고정.
-            래퍼를 카드 크기(fit-content)로 잡아 카드만 고정되고 나머지 영역의 기록은 정상 스크롤·클릭.
             이 화면은 PaletteFab이 숨겨져(HIDE 목록) 로컬 플래너로 직접 오픈 */}
         <div style={{ position:'sticky', top:8, zIndex:20, width:'fit-content', marginBottom:14 }}>
           <DailyColorCard glass={fresh} square onOpen={(init) => { setPlannerInit(init); setPlannerOpen(true) }} />
         </div>
 
-        {records.length === 0 && (
-          <div style={{ textAlign:'center', padding:'48px 0', color:'var(--tmu)', fontSize:13, lineHeight:1.9 }}>
-            아직 기록이 없어요 🐾<br/>
-            <span style={{ fontSize:11 }}>아래 입력창에 바로 써서 남겨보세요</span>
+        {/* 월 달력 — 날짜에 기록. 기록 있는 날 점 표시, 날짜 눌러 그날 다이어리 열기 */}
+        <div className="p-card" style={{ padding:'13px 13px 11px', marginBottom:14 }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+            <span style={{ fontSize:14, fontWeight:800, color:'var(--td)' }}>{calYM.y}년 {calYM.m + 1}월</span>
+            <div style={{ display:'flex', gap:5 }}>
+              <button className="press" onClick={() => shiftMonth(-1)} style={arrowBtn}>‹</button>
+              <button className="press" onClick={() => shiftMonth(1)} style={arrowBtn}>›</button>
+            </div>
           </div>
-        )}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:2, textAlign:'center', fontSize:9.5, fontWeight:800, color:'var(--tmu)', marginBottom:4 }}>
+            {DOW.map(d => <span key={d}>{d}</span>)}
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:2, textAlign:'center' }}>
+            {calCells.map((d, i) => {
+              if (d == null) return <span key={`e${i}`} />
+              const ds = cellYmd(d)
+              const isSel = ds === selDate
+              const isToday = ds === todayStr
+              const has = recordDates.has(ds)
+              return (
+                <button key={ds} onClick={() => setCtx({ date: ds, cls: '' })}
+                  style={{ position:'relative', padding:'6px 0', border:'none', background: isSel ? ACCENT : 'transparent', borderRadius:9, cursor:'pointer', fontFamily:'Nunito,sans-serif',
+                    fontSize:12, fontWeight: (isSel || isToday) ? 800 : 600, color: isSel ? '#fff' : 'var(--td)' }}>
+                  {isToday && !isSel && <span style={{ position:'absolute', inset:2, border:`1.5px solid ${ACCENT}`, borderRadius:8, pointerEvents:'none' }} />}
+                  <span style={{ position:'relative' }}>{d}</span>
+                  {has && !isSel && <span style={{ position:'absolute', bottom:3, left:'50%', transform:'translateX(-50%)', width:4, height:4, borderRadius:'50%', background:ACCENT }} />}
+                </button>
+              )
+            })}
+          </div>
+          <div style={{ display:'flex', alignItems:'center', gap:5, marginTop:9, paddingTop:8, borderTop:'1px solid var(--g1)', fontSize:10, fontWeight:700, color:'var(--tmu)' }}>
+            <span style={{ width:5, height:5, borderRadius:'50%', background:ACCENT, display:'inline-block' }} /> 기록이 있는 날 · 날짜를 눌러 그날 기록을 봐요
+          </div>
+        </div>
 
-        {groups.map(g => {
-          const d = new Date(g.date + 'T00:00:00')
+        {/* 선택한 날짜 헤더 */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', margin:'0 2px 10px' }}>
+          <span style={{ fontSize:13.5, fontWeight:800, color:'var(--td)' }}>{selD.getMonth() + 1}월 {selD.getDate()}일 ({DOW[selD.getDay()]})</span>
+          <span style={{ fontSize:10.5, fontWeight:700, color:'var(--tmu)' }}>{dayRecords.length}개 기록</span>
+        </div>
+
+        {/* 선택한 날짜의 다이어리 */}
+        {dayRecords.length === 0 ? (
+          <div style={{ textAlign:'center', padding:'34px 0', color:'var(--tmu)', fontSize:12.5, border:'1.5px dashed var(--g2)', borderRadius:16, lineHeight:1.9 }}>
+            이 날은 기록이 없어요 🐾<br/>
+            <span style={{ fontSize:11 }}>아래 입력창에 이 날짜 기록을 남겨보세요</span>
+          </div>
+        ) : dayRecords.map(r => {
+          const isNew = r.id === lastAddedId
           return (
-            <div key={g.date}>
-              <div style={{ display:'flex', justifyContent:'center', margin:'10px 0 14px' }}>
-                <span style={{ fontSize:10.5, fontWeight:800, color:ACCENT_TEXT, background:'rgb(var(--ac-rgb) / 0.1)', padding:'5px 14px', borderRadius:20 }}>
-                  {d.getMonth()+1}월 {d.getDate()}일 ({DOW[d.getDay()]})
-                </span>
+            <div key={r.id} className="p-card" style={{ padding:'13px', marginBottom:12 }}>
+              {/* 상단: 수업명 배지 + 삭제 */}
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:(r.note || r.class_record_photos?.length) ? 10 : 0 }}>
+                {r.class_name
+                  ? <span style={{ fontSize:11, fontWeight:800, color:ACCENT_TEXT, background:ACCENT_BG, border:`2px solid rgb(var(--ac-rgb) / 0.35)`, borderRadius:20, padding:'3px 11px' }}>🎨 {r.class_name}</span>
+                  : <span style={{ fontSize:11.5, fontWeight:800, color:'var(--tmu)' }}>수업 기록</span>}
+                <button onClick={() => handleDelete(r.id)} title="기록 삭제"
+                  style={{ width:24, height:24, borderRadius:'50%', border:'2px solid var(--g2)', background:'var(--surf)', color:'var(--tmu)', fontSize:11, lineHeight:1, cursor:'pointer', flexShrink:0, padding:0 }}>✕</button>
               </div>
 
-              {g.items.map(r => {
-                const isNew = r.id === lastAddedId
-                return (
-                  <div key={r.id} style={{ marginBottom:16 }}>
-                    {/* 내 기록 — 오른쪽 말풍선 + 내 프로필 고양이 */}
-                    <div style={{ display:'flex', justifyContent:'flex-end', gap:8, alignItems:'flex-end', marginBottom:6 }}>
-                      <div style={{ maxWidth:'78%', display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6 }}>
-                        {r.class_name && (
-                          <span className={isNew ? 'bub-in' : ''} style={{ fontSize:10, fontWeight:800, color:ACCENT_TEXT, background:ACCENT_BG, border:`2px solid rgb(var(--ac-rgb) / 0.35)`, borderRadius:20, padding:'3px 10px' }}>
-                            🎨 {r.class_name}
-                          </span>
-                        )}
-                        {(r.note || !r.class_record_photos?.length) && (
-                          <div style={{ display:'flex', alignItems:'flex-end', gap:6 }}>
-                            <button onClick={() => handleDelete(r.id)} title="기록 삭제"
-                              style={{ width:22, height:22, borderRadius:'50%', border:`2px solid ${BORDER}`, background:'#fff', color:'var(--tl)', fontSize:11, lineHeight:1, cursor:'pointer', flexShrink:0, padding:0 }}>✕</button>
-                            <div className={isNew ? 'bub-in' : ''}
-                              style={{ background:ACCENT, color:'#fff', fontSize:13.5, fontWeight:600, lineHeight:1.6, padding:'12px 15px', borderRadius:'24px 24px 8px 24px', boxShadow:'3px 3px 0 rgb(var(--ac-rgb) / 0.22)', whiteSpace:'pre-wrap', wordBreak:'break-word' }}>
-                              {r.note || (r.class_name ? `${r.class_name} 수업 기록` : '수업 기록')}
-                            </div>
-                          </div>
-                        )}
-                        {r.class_record_photos?.length > 0 && (
-                          <div style={{ display:'flex', gap:6, flexWrap:'wrap', justifyContent:'flex-end', alignItems:'flex-end' }}>
-                            {!r.note && (
-                              <button onClick={() => handleDelete(r.id)} title="기록 삭제"
-                                style={{ width:22, height:22, borderRadius:'50%', border:`2px solid ${BORDER}`, background:'#fff', color:'var(--tl)', fontSize:11, lineHeight:1, cursor:'pointer', flexShrink:0, padding:0, marginRight:2 }}>✕</button>
+              {/* 사진 그리드 */}
+              {r.class_record_photos?.length > 0 && (
+                <div style={{ display:'flex', gap:7, flexWrap:'wrap', marginBottom: r.note ? 11 : 0 }}>
+                  {r.class_record_photos.map((p, i) => {
+                    const url = signedUrls[p.storage_path]
+                    return (
+                      <div key={p.id} className={isNew ? 'thumb-in' : ''}
+                        title={p.palette ? '탭하면 이 색으로 컬러휠 열기' : undefined}
+                        onClick={() => {
+                          if (p.palette) { setPlannerInit(p.palette); setPlannerOpen(true); return }
+                          if (!url) return
+                          const photos = recordPhotos(r); setViewer({ photos, idx: Math.max(0, photos.indexOf(url)), recordId: r.id }); setViewerText('')
+                        }}
+                        style={{ position:'relative', width:92, height:92, borderRadius:18, overflow:'hidden', border:`3px solid ${ACCENT}`, boxShadow:'3px 3px 0 rgb(var(--ac-rgb) / 0.22)', background:ACCENT_BG, flexShrink:0, cursor: (url || p.palette) ? 'pointer' : 'default', animationDelay:`${i * 70}ms` }}>
+                        {url
+                          ? <img src={url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}/>
+                          : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24 }}>📷</div>
+                        }
+                        {p.palette && (
+                          <>
+                            {/* 색 계획 카드 표식 (탭 = 컬러휠 복원) */}
+                            <span style={{ position:'absolute', top:4, left:4, height:20, borderRadius:8, background:'rgba(11,11,14,0.72)', color:'#fff', fontSize:10, fontWeight:800, lineHeight:1, padding:'0 6px', display:'flex', alignItems:'center', gap:3, pointerEvents:'none' }}>🎨 색</span>
+                            {url && (
+                              <button onClick={e => { e.stopPropagation(); const photos = recordPhotos(r); setViewer({ photos, idx: Math.max(0, photos.indexOf(url)), recordId: r.id }); setViewerText('') }}
+                                title="사진 크게 보기"
+                                style={{ position:'absolute', top:4, right:4, width:24, height:24, borderRadius:8, border:'none', background:'rgba(11,11,14,0.72)', color:'#fff', fontSize:11, lineHeight:1, cursor:'pointer', padding:0, display:'flex', alignItems:'center', justifyContent:'center' }}>🔍</button>
                             )}
-                            {r.class_record_photos.map((p, i) => {
-                              const url = signedUrls[p.storage_path]
-                              return (
-                                <div key={p.id} className={isNew ? 'thumb-in' : ''}
-                                  title={p.palette ? '탭하면 이 색으로 컬러휠 열기' : undefined}
-                                  onClick={() => {
-                                    // 색 계획 카드는 탭하면 저장된 색으로 컬러휠 복원, 일반 사진은 뷰어
-                                    if (p.palette) { setPlannerInit(p.palette); setPlannerOpen(true); return }
-                                    if (!url) return
-                                    const photos = recordPhotos(r); setViewer({ photos, idx: Math.max(0, photos.indexOf(url)), recordId: r.id }); setViewerText('')
-                                  }}
-                                  style={{ position:'relative', width:92, height:92, borderRadius:18, overflow:'hidden', border:`3px solid ${ACCENT}`, boxShadow:'3px 3px 0 rgb(var(--ac-rgb) / 0.22)', background:ACCENT_BG, flexShrink:0, cursor: (url || p.palette) ? 'pointer' : 'default', animationDelay:`${i * 70}ms` }}>
-                                  {url
-                                    ? <img src={url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}/>
-                                    : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24 }}>📷</div>
-                                  }
-                                  {p.palette && (
-                                    <>
-                                      {/* 색 계획 카드 표식 (탭 = 컬러휠 복원) */}
-                                      <span style={{ position:'absolute', top:4, left:4, height:20, borderRadius:8, background:'rgba(11,11,14,0.72)', color:'#fff', fontSize:10, fontWeight:800, lineHeight:1, padding:'0 6px', display:'flex', alignItems:'center', gap:3, pointerEvents:'none' }}>🎨 색</span>
-                                      {/* 원본 크게 보기 (보조 경로) */}
-                                      {url && (
-                                        <button onClick={e => { e.stopPropagation(); const photos = recordPhotos(r); setViewer({ photos, idx: Math.max(0, photos.indexOf(url)), recordId: r.id }); setViewerText('') }}
-                                          title="사진 크게 보기"
-                                          style={{ position:'absolute', top:4, right:4, width:24, height:24, borderRadius:8, border:'none', background:'rgba(11,11,14,0.72)', color:'#fff', fontSize:11, lineHeight:1, cursor:'pointer', padding:0, display:'flex', alignItems:'center', justifyContent:'center' }}>🔍</button>
-                                      )}
-                                    </>
-                                  )}
-                                </div>
-                              )
-                            })}
-                          </div>
+                          </>
                         )}
                       </div>
-                      {catFace(catMap, user.id)}
-                    </div>
+                    )
+                  })}
+                </div>
+              )}
 
-                    {/* 강사 피드백 — 왼쪽 말풍선 + 프로필 고양이 */}
-                    {(r.class_record_feedback || []).map(fb => (
-                      <div key={fb.id} style={{ display:'flex', gap:8, alignItems:'flex-end', marginBottom:6 }}>
-                        {catFace(catMap, fb.teacher_id)}
-                        <div style={{ maxWidth:'76%', display:'flex', flexDirection:'column', gap:3 }}>
-                          <span style={{ fontSize:10.5, fontWeight:800, color:'var(--tmu)', marginLeft:4 }}>
-                            {nameMap[fb.teacher_id] ? `${nameMap[fb.teacher_id]} 쌤` : '선생님'}
-                          </span>
-                          <div style={{ background:'var(--ac2)', color:'var(--td)', border:`3px solid ${ACCENT}`, fontSize:13.5, fontWeight:600, lineHeight:1.6, padding:'11px 14px', borderRadius:'24px 24px 24px 8px', boxShadow:'3px 3px 0 rgb(var(--ac-rgb) / 0.25)', whiteSpace:'pre-wrap', wordBreak:'break-word' }}>
-                            <span style={{ display:'inline-block', fontSize:9, fontWeight:900, letterSpacing:0.5, background:ACCENT, color:'#fff', padding:'2px 8px', borderRadius:9, marginBottom:5 }}>강사 피드백</span>
-                            <div>{fb.body}</div>
+              {/* 메모 */}
+              {r.note && (
+                <div style={{ fontSize:13, fontWeight:600, color:'var(--td)', lineHeight:1.65, whiteSpace:'pre-wrap', wordBreak:'break-word' }}>{r.note}</div>
+              )}
+
+              {/* 강사 피드백 */}
+              {(r.class_record_feedback || []).map(fb => (
+                <div key={fb.id} style={{ marginTop:11, background:'var(--acBg)', border:`2px solid ${ACCENT}`, borderRadius:14, padding:'11px 13px' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:6 }}>
+                    {catFace(catMap, fb.teacher_id, 24)}
+                    <span style={{ fontSize:9, fontWeight:900, letterSpacing:0.5, background:ACCENT, color:'#fff', padding:'2px 8px', borderRadius:9 }}>강사 피드백</span>
+                    <span style={{ fontSize:10.5, fontWeight:800, color:'var(--tmu)' }}>{nameMap[fb.teacher_id] ? `${nameMap[fb.teacher_id]} 쌤` : '선생님'}</span>
+                  </div>
+                  <div style={{ fontSize:13, fontWeight:600, color:'var(--td)', lineHeight:1.6, whiteSpace:'pre-wrap', wordBreak:'break-word' }}>{fb.body}</div>
+                </div>
+              ))}
+
+              {/* 사진 댓글 스레드 (강사 ↔ 나) — 대화가 있으면 표시 + 이어서 답글 */}
+              {(recordComments[r.id] || []).length > 0 && (
+                <div style={{ marginTop:11, display:'flex', flexDirection:'column', gap:6 }}>
+                  {(recordComments[r.id] || []).map(c => {
+                    const mine = c.user_id === user?.id
+                    const catKey = isValidPixelCat(c.author_cat) ? c.author_cat : DEFAULT_PROFILE_CAT
+                    return (
+                      <div key={c.id} style={{ display:'flex', gap:6, alignItems:'flex-end', flexDirection: mine ? 'row-reverse' : 'row' }}>
+                        <div style={{ width:26, height:26, flexShrink:0, borderRadius:'50%', background:ACCENT_BG, border:`2px solid ${ACCENT}`, display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden' }}>
+                          <img src={pixelCatImg(catKey)} alt="" width={17} height={17} style={{ imageRendering:'pixelated', display:'block' }}/>
+                        </div>
+                        <div style={{ maxWidth:'72%', display:'flex', flexDirection:'column', alignItems: mine ? 'flex-end' : 'flex-start', gap:2 }}>
+                          {!mine && <span style={{ fontSize:9.5, fontWeight:800, color:'var(--tmu)', marginLeft:4 }}>{c.author_name} 쌤</span>}
+                          <div style={{ background: mine ? ACCENT : 'var(--surf)', color: mine ? '#fff' : 'var(--td)', border: mine ? 'none' : `2px solid rgb(var(--ac-rgb) / 0.3)`, fontSize:12, fontWeight:600, lineHeight:1.5, padding:'7px 11px', borderRadius: mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px', whiteSpace:'pre-wrap', wordBreak:'break-word' }}>
+                            {c.content}
                           </div>
                         </div>
                       </div>
-                    ))}
-
-                    {/* 사진 댓글 스레드 (강사 ↔ 나) — 대화가 있으면 표시 + 이어서 답글 */}
-                    {(recordComments[r.id] || []).length > 0 && (
-                      <div style={{ marginTop:2, display:'flex', flexDirection:'column', gap:6 }}>
-                        {(recordComments[r.id] || []).map(c => {
-                          const mine = c.user_id === user?.id
-                          const catKey = isValidPixelCat(c.author_cat) ? c.author_cat : DEFAULT_PROFILE_CAT
-                          return (
-                            <div key={c.id} style={{ display:'flex', gap:6, alignItems:'flex-end', flexDirection: mine ? 'row-reverse' : 'row' }}>
-                              <div style={{ width:26, height:26, flexShrink:0, borderRadius:'50%', background:ACCENT_BG, border:`2px solid ${ACCENT}`, display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden' }}>
-                                <img src={pixelCatImg(catKey)} alt="" width={17} height={17} style={{ imageRendering:'pixelated', display:'block' }}/>
-                              </div>
-                              <div style={{ maxWidth:'72%', display:'flex', flexDirection:'column', alignItems: mine ? 'flex-end' : 'flex-start', gap:2 }}>
-                                {!mine && <span style={{ fontSize:9.5, fontWeight:800, color:'var(--tmu)', marginLeft:4 }}>{c.author_name} 쌤</span>}
-                                <div style={{ background: mine ? ACCENT : 'var(--surf)', color: mine ? '#fff' : 'var(--td)', border: mine ? 'none' : `2px solid rgb(var(--ac-rgb) / 0.3)`, fontSize:12, fontWeight:600, lineHeight:1.5, padding:'7px 11px', borderRadius: mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px', whiteSpace:'pre-wrap', wordBreak:'break-word' }}>
-                                  {c.content}
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        })}
-                        <div style={{ display:'flex', gap:6, alignItems:'center', marginTop:2 }}>
-                          <input value={rcInput[r.id] || ''} onChange={e => setRcInput(prev => ({ ...prev, [r.id]: e.target.value }))}
-                            onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) sendInlineComment(r.id) }}
-                            placeholder="답글 남기기…"
-                            style={{ flex:1, minWidth:0, height:34, background:'var(--bg)', border:`2px solid rgb(var(--ac-rgb) / 0.25)`, borderRadius:18, padding:'0 12px', fontSize:12, color:'var(--td)', fontWeight:600, fontFamily:'Nunito,sans-serif', outline:'none', boxSizing:'border-box' }}/>
-                          <button onClick={() => sendInlineComment(r.id)} disabled={rcSending[r.id] || !(rcInput[r.id]?.trim())}
-                            style={{ width:34, height:34, flexShrink:0, borderRadius:'50%', border:'none', color:'#fff', fontSize:12, cursor:'pointer', padding:0, display:'flex', alignItems:'center', justifyContent:'center', background: rcInput[r.id]?.trim() ? ACCENT : 'rgb(var(--ac-rgb) / 0.35)' }}>
-                            {rcSending[r.id] ? '…' : '➤'}
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                    )
+                  })}
+                  <div style={{ display:'flex', gap:6, alignItems:'center', marginTop:2 }}>
+                    <input value={rcInput[r.id] || ''} onChange={e => setRcInput(prev => ({ ...prev, [r.id]: e.target.value }))}
+                      onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) sendInlineComment(r.id) }}
+                      placeholder="답글 남기기…"
+                      style={{ flex:1, minWidth:0, height:34, background:'var(--bg)', border:`2px solid rgb(var(--ac-rgb) / 0.25)`, borderRadius:18, padding:'0 12px', fontSize:12, color:'var(--td)', fontWeight:600, fontFamily:'Nunito,sans-serif', outline:'none', boxSizing:'border-box' }}/>
+                    <button onClick={() => sendInlineComment(r.id)} disabled={rcSending[r.id] || !(rcInput[r.id]?.trim())}
+                      style={{ width:34, height:34, flexShrink:0, borderRadius:'50%', border:'none', color:'#fff', fontSize:12, cursor:'pointer', padding:0, display:'flex', alignItems:'center', justifyContent:'center', background: rcInput[r.id]?.trim() ? ACCENT : 'rgb(var(--ac-rgb) / 0.35)' }}>
+                      {rcSending[r.id] ? '…' : '➤'}
+                    </button>
                   </div>
-                )
-              })}
+                </div>
+              )}
             </div>
           )
         })}
       </div>
 
-      {/* 카톡식 입력바 — 바로 쓰고 ➤, 📷은 즉시 사진 선택 */}
+      {/* 하단 입력바 — 선택한 날짜에 바로 기록. 📷 사진, 🎨 색 계획 */}
       <div className="g-glass-bar" style={{ position:'fixed', bottom:66, left:'50%', transform:'translateX(-50%)', width:'100%', maxWidth:390, background:'#fff', borderTop:`2px solid rgb(var(--ac-rgb) / 0.15)`, zIndex:90, boxSizing:'border-box' }}>
 
-        {/* 컨텍스트 칩(커리큘럼에서 넘어온 날짜·수업) + 라운지 공유 토글 */}
+        {/* 대상 날짜 칩 + 라운지 공유 토글 */}
         <div className="no-scrollbar" style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 12px 0', overflowX:'auto' }}>
           <span onClick={() => setShareLounge(v => !v)} className="press"
             style={{ flexShrink:0, fontSize:10.5, fontWeight:800, cursor:'pointer', borderRadius:20, padding:'4px 11px', display:'flex', alignItems:'center', gap:5,
@@ -513,12 +511,9 @@ function RecordsInner() {
               boxShadow: shareLounge ? '2px 2px 0 rgb(var(--ac-rgb) / 0.25)' : 'none', transition:'all 0.15s' }}>
             💬 라운지 공유 {shareLounge ? 'ON' : 'OFF'}
           </span>
-          {hasCtx && (
-            <span style={{ flexShrink:0, fontSize:10.5, fontWeight:800, color:ACCENT_TEXT, background:ACCENT_BG, border:`2px solid rgb(var(--ac-rgb) / 0.35)`, borderRadius:20, padding:'4px 11px', display:'flex', alignItems:'center', gap:6 }}>
-              📌 {ctx.date.slice(5).replace('-','/')}{ctx.cls ? ` · ${ctx.cls}` : ''} 기록으로 남겨요
-              <span onClick={() => setCtx({ date: todayStr, cls: '' })} style={{ cursor:'pointer', fontWeight:900 }}>✕</span>
-            </span>
-          )}
+          <span style={{ flexShrink:0, fontSize:10.5, fontWeight:800, color:ACCENT_TEXT, background:ACCENT_BG, border:`2px solid rgb(var(--ac-rgb) / 0.35)`, borderRadius:20, padding:'4px 11px', display:'flex', alignItems:'center', gap:6 }}>
+            📌 {selD.getMonth()+1}월 {selD.getDate()}일에 기록{ctx.cls ? ` · ${ctx.cls}` : ''}
+          </span>
         </div>
 
         {/* 선택한 사진 미리보기 */}
@@ -546,7 +541,7 @@ function RecordsInner() {
           </button>
           <input value={composeText} onChange={e => setComposeText(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleSend() }}
-            placeholder="오늘 기록 남기기…"
+            placeholder={selDate === todayStr ? '오늘 기록 남기기…' : `${selD.getMonth()+1}월 ${selD.getDate()}일 기록 남기기…`}
             style={{ flex:1, height:42, background:ACCENT_BG, border:`3px solid ${ACCENT}`, borderRadius:24, padding:'0 16px', fontSize:13, color:'var(--td)', fontWeight:600, fontFamily:'Nunito,sans-serif', outline:'none', boxSizing:'border-box', minWidth:0 }}/>
           <button className="press" onClick={handleSend} disabled={sending || (!composeText.trim() && composeFiles.length === 0)}
             style={{ width:42, height:42, flexShrink:0, borderRadius:'50%', border:`3px solid ${ACCENT}`, color:'#fff', fontSize:15, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', padding:0,
