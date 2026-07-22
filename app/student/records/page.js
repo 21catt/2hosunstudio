@@ -55,6 +55,9 @@ function RecordsInner() {
   const [composePreviews, setComposePreviews] = useState([])
   const [sending, setSending] = useState(false)
   const [lastAddedId, setLastAddedId] = useState(null)
+  const [editingId, setEditingId] = useState(null)   // 내용(메모) 수정 중인 기록 id
+  const [editText, setEditText] = useState('')
+  const [editSaving, setEditSaving] = useState(false)
   const [shareLounge, setShareLounge] = useState(true) // 라운지 '수업' 카테고리로도 공유
   // 사진 확대 라이트박스 + 댓글 (라운지와 동일 UX)
   const [viewer, setViewer] = useState(null)        // { photos:[url], idx, recordId }
@@ -290,6 +293,20 @@ function RecordsInner() {
     setRecords(prev => prev.filter(r => r.id !== id))
   }
 
+  // 기록 내용(메모) 수정 저장 — 본인 기록만
+  async function handleEditSave(r) {
+    if (editSaving) return
+    const note = editText.trim()
+    setEditSaving(true)
+    try {
+      await supabase.from('class_records').update({ note: note || null }).eq('id', r.id)
+      setRecords(prev => prev.map(x => x.id === r.id ? { ...x, note: note || null } : x))
+      setEditingId(null)
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
   const fresh = useFreshTheme()
 
   if (loading) return <LoadingCat />
@@ -394,12 +411,16 @@ function RecordsInner() {
           return (
             <div key={r.id} className="p-card" style={{ padding:'13px', marginBottom:12 }}>
               {/* 상단: 수업명 배지 + 삭제 */}
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:(r.note || r.class_record_photos?.length) ? 10 : 0 }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:(r.note || r.class_record_photos?.length || editingId === r.id) ? 10 : 0 }}>
                 {r.class_name
                   ? <span style={{ fontSize:11, fontWeight:800, color:ACCENT_TEXT, background:ACCENT_BG, border:`2px solid rgb(var(--ac-rgb) / 0.35)`, borderRadius:20, padding:'3px 11px' }}>🎨 {r.class_name}</span>
                   : <span style={{ fontSize:11.5, fontWeight:800, color:'var(--tmu)' }}>수업 기록</span>}
-                <button onClick={() => handleDelete(r.id)} title="기록 삭제"
-                  style={{ width:24, height:24, borderRadius:'50%', border:'2px solid var(--g2)', background:'var(--surf)', color:'var(--tmu)', fontSize:11, lineHeight:1, cursor:'pointer', flexShrink:0, padding:0 }}>✕</button>
+                <div style={{ display:'flex', gap:6, alignItems:'center', flexShrink:0 }}>
+                  <button onClick={() => { setEditingId(r.id); setEditText(r.note || '') }} title="기록 수정"
+                    style={{ width:24, height:24, borderRadius:'50%', border:'2px solid var(--g2)', background:'var(--surf)', color:'var(--tmu)', fontSize:11, lineHeight:1, cursor:'pointer', padding:0 }}>✏️</button>
+                  <button onClick={() => handleDelete(r.id)} title="기록 삭제"
+                    style={{ width:24, height:24, borderRadius:'50%', border:'2px solid var(--g2)', background:'var(--surf)', color:'var(--tmu)', fontSize:11, lineHeight:1, cursor:'pointer', padding:0 }}>✕</button>
+                </div>
               </div>
 
               {/* 사진 그리드 */}
@@ -437,9 +458,21 @@ function RecordsInner() {
                 </div>
               )}
 
-              {/* 메모 */}
-              {r.note && (
-                <div style={{ fontSize:13, fontWeight:600, color:'var(--td)', lineHeight:1.65, whiteSpace:'pre-wrap', wordBreak:'break-word' }}>{r.note}</div>
+              {/* 메모 — ✏️ 누르면 인라인 수정 */}
+              {editingId === r.id ? (
+                <div>
+                  <textarea value={editText} onChange={e => setEditText(e.target.value)} rows={3}
+                    placeholder="기록 내용을 적어주세요…"
+                    style={{ width:'100%', padding:'9px 11px', borderRadius:12, border:`2px solid rgb(var(--ac-rgb) / 0.35)`, background:ACCENT_BG, fontSize:13, fontWeight:600, color:'var(--td)', lineHeight:1.6, resize:'none', fontFamily:'Nunito,sans-serif', outline:'none', boxSizing:'border-box' }}/>
+                  <div style={{ display:'flex', gap:6, marginTop:6 }}>
+                    <button onClick={() => setEditingId(null)}
+                      style={{ flex:1, padding:'8px', background:'var(--g1)', color:'var(--tm)', border:'none', borderRadius:10, fontSize:12, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>취소</button>
+                    <button onClick={() => handleEditSave(r)} disabled={editSaving}
+                      style={{ flex:2, padding:'8px', background:ACCENT, color:'#fff', border:'none', borderRadius:10, fontSize:12, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif', opacity: editSaving ? 0.5 : 1 }}>{editSaving ? '저장 중…' : '저장'}</button>
+                  </div>
+                </div>
+              ) : (
+                r.note && <div style={{ fontSize:13, fontWeight:600, color:'var(--td)', lineHeight:1.65, whiteSpace:'pre-wrap', wordBreak:'break-word' }}>{r.note}</div>
               )}
 
               {/* 강사 피드백 */}
