@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef, useId } from 'react'
+import { useState, useEffect, useRef, useId, Fragment } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import { useTodayWeather } from '../../../components/WeatherBar'
@@ -62,6 +62,80 @@ function findNextOpenDate(course, lockedDates) {
   return null
 }
 
+// ── 주간 시간표 (캘린더 '주간' 보기) ─────────────────────────────
+// class_schedules(요일·시작/종료시간)로 요일(월~일) × 시작시간 격자를 만든다. 칸 클릭 = 그 수업 예약으로 이동.
+const TT_DAYS = ['월', '화', '수', '목', '금', '토', '일'] // 표시 순서(월=0 … 일=6)
+const TT_PALETTE = [
+  { bg: 'rgba(127,146,39,0.20)', bd: 'rgba(127,146,39,0.5)', tx: '#4a5a12' },
+  { bg: 'rgba(111,159,201,0.22)', bd: 'rgba(111,159,201,0.55)', tx: '#2c5578' },
+  { bg: 'rgba(150,165,46,0.20)', bd: 'rgba(150,165,46,0.5)', tx: '#566b1a' },
+  { bg: 'rgba(110,130,170,0.22)', bd: 'rgba(110,130,170,0.55)', tx: '#3a4a7a' },
+  { bg: 'rgba(120,90,160,0.18)', bd: 'rgba(120,90,160,0.45)', tx: '#5a3f7a' },
+]
+const TT_ONEDAY = { bg: 'rgba(173,20,87,0.13)', bd: 'rgba(173,20,87,0.32)', tx: '#AD1457' }
+function ttColor(name, category) {
+  if (category === 'oneday') return TT_ONEDAY
+  let h = 0
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0
+  return TT_PALETTE[h % TT_PALETTE.length]
+}
+function WeeklyTimetableView({ classes, onPick }) {
+  const byCell = {}
+  const times = new Set()
+  const seen = new Set()
+  for (const c of (classes || [])) {
+    for (const s of (c.class_schedules || [])) {
+      const idx = ((s.day_of_week ?? 0) + 6) % 7 // js dow(0=일) → 표시(월=0)
+      const dedupe = `${c.id}|${idx}|${s.start_time}|${s.end_time}`
+      if (seen.has(dedupe)) continue
+      seen.add(dedupe)
+      times.add(s.start_time)
+      const ck = `${idx}|${s.start_time}`
+      ;(byCell[ck] = byCell[ck] || []).push({ course: c, s })
+    }
+  }
+  const timeRows = [...times].sort()
+  if (timeRows.length === 0) {
+    return <div style={{ textAlign: 'center', padding: '34px 0', color: 'var(--tmu)', fontSize: 12.5, border: '1.5px dashed var(--g2)', borderRadius: 16, marginBottom: 12 }}>등록된 수업 시간표가 없어요 🐾</div>
+  }
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div className="no-scrollbar" style={{ overflowX: 'auto' }}>
+        <div style={{ minWidth: 520, display: 'grid', gridTemplateColumns: '38px repeat(7, 1fr)', gap: 4 }}>
+          <span />
+          {TT_DAYS.map((d, i) => (
+            <span key={d} style={{ textAlign: 'center', fontSize: 11, fontWeight: 800, color: i === 5 ? '#5070a0' : i === 6 ? '#b05050' : 'var(--tmu)', paddingBottom: 2 }}>{d}</span>
+          ))}
+          {timeRows.map(t => (
+            <Fragment key={t}>
+              <span style={{ fontSize: 9.5, color: 'var(--tmu)', alignSelf: 'center', textAlign: 'right', paddingRight: 3 }}>{(t || '').slice(0, 5)}</span>
+              {TT_DAYS.map((d, i) => {
+                const items = byCell[`${i}|${t}`] || []
+                if (items.length === 0) return <span key={i} style={{ minHeight: 50 }} />
+                return (
+                  <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    {items.map(({ course, s }) => {
+                      const col = ttColor(course.name || '', course.category)
+                      return (
+                        <button key={course.id + s.start_time} onClick={() => onPick(course)}
+                          style={{ textAlign: 'left', minHeight: 50, width: '100%', border: `1px solid ${col.bd}`, background: col.bg, borderRadius: 11, padding: '6px', cursor: 'pointer', fontFamily: 'Nunito,sans-serif', display: 'flex', flexDirection: 'column', justifyContent: 'center', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.35)' }}>
+                          <span style={{ fontSize: 10.5, fontWeight: 800, color: col.tx, lineHeight: 1.2, wordBreak: 'keep-all' }}>{course.name}</span>
+                          {course.teacher && <span style={{ fontSize: 8.5, color: col.tx, opacity: 0.75, marginTop: 1 }}>{course.teacher}</span>}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )
+              })}
+            </Fragment>
+          ))}
+        </div>
+      </div>
+      <div style={{ fontSize: 10.5, color: 'var(--tmu)', fontWeight: 700, textAlign: 'center', marginTop: 8 }}>칸을 누르면 그 수업 예약으로 이동해요 🐾</div>
+    </div>
+  )
+}
+
 export default function CalendarPage() {
   const router = useRouter()
   const todayWeather = useTodayWeather()
@@ -76,6 +150,7 @@ export default function CalendarPage() {
   const [pendingCourse, setPendingCourse] = useState(null)
   const deepLinkApplied = useRef(false)
   const [selectedDay, setSelectedDay] = useState(new Date().getDate())
+  const [viewMode, setViewMode] = useState('month') // 'month' 월 달력 | 'week' 주간 시간표
   const [animDay, setAnimDay] = useState(null)
   const [selCat, setSelCat] = useState(null)
   const [selCourse, setSelCourse] = useState(null)
@@ -644,6 +719,14 @@ export default function CalendarPage() {
   })()
   const showQuickBook = habitSlots.length > 0
 
+  // 주간 시간표에서 수업 칸 클릭 → 그 수업 다음 열리는 날짜로 이동 + 선택 후 월 보기로 전환(예약 흐름)
+  function openCourseFromTimetable(course) {
+    const d = findNextOpenDate(course, lockedDates)
+    if (d) { setYear(d.getFullYear()); setMonth(d.getMonth()); setSelectedDay(d.getDate()) }
+    setSelCat(course.category); setSelCourse(course); setSelSchedule(null)
+    setViewMode('month')
+  }
+
   const fresh = useFreshTheme()
 
   if (loading) return <LoadingCat />
@@ -837,6 +920,23 @@ export default function CalendarPage() {
           )
         })()}
 
+        {/* 월 / 주간 보기 토글 */}
+        <div style={{ display:'flex', justifyContent:'center', marginBottom:12 }}>
+          <div style={{ display:'inline-flex', background:'var(--g1)', borderRadius:20, padding:3, gap:2 }}>
+            {['month','week'].map(m => (
+              <button key={m} onClick={() => setViewMode(m)}
+                style={{ border:'none', cursor:'pointer', borderRadius:16, padding:'6px 18px', fontSize:12, fontWeight:800, fontFamily:'Nunito,sans-serif',
+                  background: viewMode===m ? 'var(--ac)' : 'transparent', color: viewMode===m ? '#fff' : 'var(--tmu)' }}>
+                {m==='month' ? '월' : '주간'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {viewMode === 'week' ? (
+          <WeeklyTimetableView classes={classes} onPick={openCourseFromTimetable} />
+        ) : (
+        <>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
           <button onClick={() => changeMonth(-1)} disabled={monthDiff() <= -3} style={{ background:'transparent', border:'none', cursor:'pointer', fontSize:20, color:'var(--g4)', padding:'4px 10px', opacity: monthDiff() <= -3 ? 0.3 : 1 }}>‹</button>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
@@ -895,6 +995,8 @@ export default function CalendarPage() {
             )
           })}
         </div>
+        </>
+        )}
 
 
         {!user ? null : (
