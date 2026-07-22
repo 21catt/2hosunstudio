@@ -355,8 +355,10 @@ function RecordsInner() {
 
       <div style={{ background: fresh ? 'transparent' : '#fff', padding:'12px 12px 170px', minHeight:'80vh' }}>
 
-        {/* 오늘의 색 — 좌측 상단 정사각형. 이 화면은 PaletteFab이 숨겨져(HIDE 목록) 로컬 플래너로 직접 오픈 */}
-        <div style={{ display:'flex', justifyContent:'flex-start', marginBottom:14 }}>
+        {/* 오늘의 색 — 좌측 상단 정사각형. sticky로 스크롤해도 항상 보이게 상단 고정.
+            래퍼를 카드 크기(fit-content)로 잡아 카드만 고정되고 나머지 영역의 기록은 정상 스크롤·클릭.
+            이 화면은 PaletteFab이 숨겨져(HIDE 목록) 로컬 플래너로 직접 오픈 */}
+        <div style={{ position:'sticky', top:8, zIndex:20, width:'fit-content', marginBottom:14 }}>
           <DailyColorCard glass={fresh} square onOpen={(init) => { setPlannerInit(init); setPlannerOpen(true) }} />
         </div>
 
