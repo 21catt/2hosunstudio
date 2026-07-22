@@ -18,6 +18,42 @@ const BORDER = 'var(--line)'
 const CAT_LABEL = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', oneday:'원데이', free:'자율창작', meeting:'모임' }
 const CAT_ORDER = ['drawing', 'painting', 'sculpture', 'oneday', 'free', 'meeting']
 
+// 해당 수업만의 미니 주간 시간표 — class_schedules(요일·시작시간)로 월~일 컬럼에 시간 표시
+function CourseWeeklyTimetable({ schedules }) {
+  const DAYS = ['월', '화', '수', '목', '금', '토', '일']
+  if (!schedules || schedules.length === 0) return null
+  const byDay = Array.from({ length: 7 }, () => [])
+  const seen = new Set()
+  for (const s of schedules) {
+    const idx = ((s.day_of_week ?? 0) + 6) % 7 // js dow(0=일) → 표시(월=0)
+    const k = `${idx}|${s.start_time}|${s.end_time}`
+    if (seen.has(k)) continue
+    seen.add(k)
+    byDay[idx].push(s)
+  }
+  byDay.forEach(a => a.sort((x, y) => (x.start_time || '').localeCompare(y.start_time || '')))
+  return (
+    <div style={{ marginTop: 12 }}>
+      <div style={{ fontSize: 10, fontWeight: 800, color: ACCENT, letterSpacing: 0.5, marginBottom: 6 }}>주간 시간표</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4 }}>
+        {DAYS.map((d, i) => {
+          const list = byDay[i]
+          const has = list.length > 0
+          return (
+            <div key={d} style={{ borderRadius: 10, padding: '6px 2px', minHeight: 50, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+              background: has ? ACCENT_BG : 'var(--g1)', border: has ? '1.5px solid rgb(var(--ac-rgb) / 0.4)' : '1px solid var(--g2)' }}>
+              <span style={{ fontSize: 10, fontWeight: 800, color: has ? ACCENT_TEXT : (i === 5 ? '#5070a0' : i === 6 ? '#b05050' : 'var(--tmu)') }}>{d}</span>
+              {has
+                ? list.map((s, k) => <span key={k} style={{ fontSize: 8.5, fontWeight: 700, color: ACCENT_TEXT, lineHeight: 1.25 }}>{(s.start_time || '').slice(0, 5)}</span>)
+                : <span style={{ fontSize: 11, color: 'var(--tmu)' }}>·</span>}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ─────────────────────────────────────────────
 // Record bottom sheet
 // ─────────────────────────────────────────────
@@ -483,7 +519,7 @@ function CurriculumInner() {
     const [{ data: currRows }, { data: courseRows }] = await Promise.all([
       supabase.from('course_curriculum').select('*').order('course_name').order('step_order'),
       // select('*') — core_content 컬럼이 아직 없어도 에러 없이 동작
-      supabase.from('class_courses').select('*').eq('is_active', true),
+      supabase.from('class_courses').select('*, class_schedules(*)').eq('is_active', true),
     ])
 
     // 이름은 trim 기준으로 매칭 — 끝 공백이 붙은 옛 이름("색채 기초 ")의 회차도 현재 수업과 이어진다
@@ -514,7 +550,7 @@ function CurriculumInner() {
       if (courseSteps.length === 0 && !hasCore) continue // 회차도 핵심내용도 없는 수업(회의 등)은 표시 안 함
       const cat = info.category || 'other'
       if (!groupMap[cat]) groupMap[cat] = []
-      groupMap[cat].push({ name, steps: courseSteps, teacher: info?.teacher || null, coreContent: info?.core_content || null, coreImages, coreDoc: info?.core_doc || null, isEnrolled: enrolledSet.has(name) })
+      groupMap[cat].push({ name, steps: courseSteps, teacher: info?.teacher || null, coreContent: info?.core_content || null, coreImages, coreDoc: info?.core_doc || null, schedules: info?.class_schedules || [], isEnrolled: enrolledSet.has(name) })
     }
     for (const cat in groupMap) {
       groupMap[cat].sort((a, b) => a.name.localeCompare(b.name))
@@ -763,6 +799,9 @@ function CurriculumInner() {
                                 회차 보기
                               </button>
                             </div>
+                            <div style={{ padding:'0 14px 14px' }}>
+                              <CourseWeeklyTimetable schedules={course.schedules} />
+                            </div>
                           </div>
                         )}
                         {isOpen && !richDoc && (
@@ -791,6 +830,7 @@ function CurriculumInner() {
                                 회차 보기
                               </button>
                             </div>
+                            <CourseWeeklyTimetable schedules={course.schedules} />
                           </div>
                         )}
                       </div>
