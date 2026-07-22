@@ -9,7 +9,6 @@ import LoadingCat from '../../../components/LoadingCat'
 import GlassBg from '../../../components/GlassBg'
 import { useFreshTheme } from '../../../lib/useFreshTheme'
 import PalettePlanner from '../../../components/PalettePlanner'
-import DailyColorCard from '../../../components/DailyColorCard'
 import { pixelCatImg, DEFAULT_PROFILE_CAT, isValidPixelCat, getSavedProfileCat } from '../../../lib/pixelCats'
 
 // 날짜 중심 기록 — 월 달력에서 날짜를 고르면 그날의 기록(사진·메모·강사 피드백)이 다이어리처럼 펼쳐진다.
@@ -342,12 +341,6 @@ function RecordsInner() {
       </div>
 
       <div style={{ background: fresh ? 'transparent' : '#fff', padding:'12px 12px 150px', minHeight:'80vh' }}>
-
-        {/* 오늘의 색 — 좌측 상단 정사각형. sticky로 스크롤해도 항상 보이게 상단 고정.
-            이 화면은 PaletteFab이 숨겨져(HIDE 목록) 로컬 플래너로 직접 오픈 */}
-        <div style={{ position:'sticky', top:8, zIndex:20, width:'fit-content', marginBottom:14 }}>
-          <DailyColorCard glass={fresh} square onOpen={(init) => { setPlannerInit(init); setPlannerOpen(true) }} />
-        </div>
 
         {/* 월 달력 — 날짜에 기록. 기록 있는 날 점 표시, 날짜 눌러 그날 다이어리 열기 */}
         <div className="p-card" style={{ padding:'13px 13px 11px', marginBottom:14 }}>
