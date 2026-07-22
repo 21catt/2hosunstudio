@@ -18,37 +18,42 @@ const BORDER = 'var(--line)'
 const CAT_LABEL = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', oneday:'원데이', free:'자율창작', meeting:'모임' }
 const CAT_ORDER = ['drawing', 'painting', 'sculpture', 'oneday', 'free', 'meeting']
 
-// 해당 수업만의 미니 주간 시간표 — class_schedules(요일·시작시간)로 월~일 컬럼에 시간 표시
+// 해당 수업만의 주간 시간표 — 수업이 있는 요일만 행으로(요일 배지 + 시작~종료 시간 칩)
+const DOW_KO = ['일', '월', '화', '수', '목', '금', '토']
 function CourseWeeklyTimetable({ schedules }) {
-  const DAYS = ['월', '화', '수', '목', '금', '토', '일']
   if (!schedules || schedules.length === 0) return null
-  const byDay = Array.from({ length: 7 }, () => [])
+  const byDow = {}
   const seen = new Set()
   for (const s of schedules) {
-    const idx = ((s.day_of_week ?? 0) + 6) % 7 // js dow(0=일) → 표시(월=0)
-    const k = `${idx}|${s.start_time}|${s.end_time}`
+    const dw = s.day_of_week ?? 0
+    const k = `${dw}|${s.start_time}|${s.end_time}`
     if (seen.has(k)) continue
     seen.add(k)
-    byDay[idx].push(s)
+    ;(byDow[dw] = byDow[dw] || []).push(s)
   }
-  byDay.forEach(a => a.sort((x, y) => (x.start_time || '').localeCompare(y.start_time || '')))
+  Object.values(byDow).forEach(a => a.sort((x, y) => (x.start_time || '').localeCompare(y.start_time || '')))
+  const order = [1, 2, 3, 4, 5, 6, 0].filter(d => byDow[d]?.length) // 월~일 순, 수업 있는 요일만
+  if (order.length === 0) return null
   return (
-    <div style={{ marginTop: 12 }}>
-      <div style={{ fontSize: 10, fontWeight: 800, color: ACCENT, letterSpacing: 0.5, marginBottom: 6 }}>주간 시간표</div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4 }}>
-        {DAYS.map((d, i) => {
-          const list = byDay[i]
-          const has = list.length > 0
-          return (
-            <div key={d} style={{ borderRadius: 10, padding: '6px 2px', minHeight: 50, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-              background: has ? ACCENT_BG : 'var(--g1)', border: has ? '1.5px solid rgb(var(--ac-rgb) / 0.4)' : '1px solid var(--g2)' }}>
-              <span style={{ fontSize: 10, fontWeight: 800, color: has ? ACCENT_TEXT : (i === 5 ? '#5070a0' : i === 6 ? '#b05050' : 'var(--tmu)') }}>{d}</span>
-              {has
-                ? list.map((s, k) => <span key={k} style={{ fontSize: 8.5, fontWeight: 700, color: ACCENT_TEXT, lineHeight: 1.25 }}>{(s.start_time || '').slice(0, 5)}</span>)
-                : <span style={{ fontSize: 11, color: 'var(--tmu)' }}>·</span>}
+    <div style={{ marginTop: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 8 }}>
+        <NavIcon name="calendar" color={ACCENT} size={13} />
+        <span style={{ fontSize: 11.5, fontWeight: 800, color: ACCENT_TEXT }}>주간 시간표</span>
+        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tmu)' }}>주 {order.length}일</span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {order.map(dw => (
+          <div key={dw} style={{ display: 'flex', alignItems: 'center', gap: 10, background: ACCENT_BG, border: '1.5px solid rgb(var(--ac-rgb) / 0.25)', borderRadius: 13, padding: '8px 11px' }}>
+            <span style={{ width: 28, height: 28, flexShrink: 0, borderRadius: '50%', background: ACCENT, color: '#fff', fontSize: 12, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{DOW_KO[dw]}</span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+              {byDow[dw].map((s, k) => (
+                <span key={k} style={{ fontSize: 11, fontWeight: 700, color: ACCENT_TEXT, background: 'var(--surf)', border: '1px solid rgb(var(--ac-rgb) / 0.22)', borderRadius: 8, padding: '3px 9px', fontVariantNumeric: 'tabular-nums' }}>
+                  {(s.start_time || '').slice(0, 5)}~{(s.end_time || '').slice(0, 5)}
+                </span>
+              ))}
             </div>
-          )
-        })}
+          </div>
+        ))}
       </div>
     </div>
   )

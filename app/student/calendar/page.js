@@ -912,12 +912,7 @@ export default function CalendarPage() {
               </div>
             )
           }
-          return (
-            <div style={{ marginBottom:16, background:CARD, borderRadius:14, padding:'10px 14px', border:`1.5px solid ${BORDER}`, display:'flex', alignItems:'center', cursor:'pointer' }}
-              onClick={() => { setYear(todayY); setMonth(todayM); setSelectedDay(todayD) }}>
-              <div style={{ fontSize:13, fontWeight:600, color:'var(--td)' }}>수업 예약하기 →</div>
-            </div>
-          )
+          return null
         })()}
 
         {/* 월 / 주간 보기 토글 */}
