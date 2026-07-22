@@ -501,12 +501,14 @@ export default function LoungePage() {
                         </span>
                       </div>
                     ) : (
-                      <div style={{ display:'flex', gap:8, alignItems:'flex-end' }}>
-                        <span onClick={() => goProfile(p.author_id)} style={{ cursor:'pointer', display:'flex' }} title={`${p.author_name} 프로필`}>
+                      <div style={{ display:'flex', gap:8, alignItems:'flex-start' }}>
+                        {/* 프로필 이미지 + 그 밑에 이름 (세로 스택) */}
+                        <div onClick={() => goProfile(p.author_id)} title={`${p.author_name} 프로필`}
+                          style={{ cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', gap:3, width:44, flexShrink:0 }}>
                           <CatAvatar catKey={p.author_cat || profileMap[p.author_id]} size={38} />
-                        </span>
+                          <span style={{ fontSize:9.5, fontWeight:800, color:'var(--acTx)', textAlign:'center', lineHeight:1.2, wordBreak:'keep-all' }}>{p.author_name}</span>
+                        </div>
                         <div style={{ maxWidth:'78%', display:'flex', flexDirection:'column', alignItems:'flex-start', gap:5 }}>
-                          <span onClick={() => goProfile(p.author_id)} style={{ fontSize:10.5, fontWeight:800, color:'var(--acTx)', marginLeft:4, cursor:'pointer', textDecoration:'underline', textUnderlineOffset:2, textDecorationColor:'rgb(var(--ac-rgb) / 0.4)' }}>{p.author_name}</span>
                           {isEditing ? editBox : (p.title || p.content) && bubble}
                           {thumbs}
                           {meta}
