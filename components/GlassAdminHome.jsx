@@ -205,6 +205,7 @@ export default function GlassAdminHome(props) {
         <NavItem label="회원" onClick={() => go('/admin/members')}><NavIcon name="users" color={T.navMute} size={22} /></NavItem>
         <NavItem label="수업현황" onClick={() => go('/admin/schedule')}><NavIcon name="calendar" color={T.navMute} size={22} /></NavItem>
         <NavItem label="출석" onClick={() => go('/admin/attendance')}><NavIcon name="check" color={T.navMute} size={22} /></NavItem>
+        <NavItem label="기록" onClick={() => go('/admin/records')}><NavIcon name="clipboard" color={T.navMute} size={22} /></NavItem>
         <NavItem label="알림" badge={unread} onClick={() => go('/admin/notification')}><NavIcon name="bell" color={T.navMute} size={22} /></NavItem>
         <NavItem label="라운지" onClick={() => go('/lounge')}><NavIcon name="chat" color={T.navMute} size={22} /></NavItem>
       </div>

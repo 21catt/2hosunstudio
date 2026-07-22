@@ -1,5 +1,6 @@
 'use client'
 import { useState, useMemo, useRef, useEffect, Fragment } from 'react'
+import { getDailyColor, toPlannerInitial } from '../lib/dailyColors'
 
 // PIGMENT — 3원색으로 색상휠(물감식 감산 기본)을 만들고, 먼셀 추천 대비 · 6:3:1 면적을 잡아
 // "색 계획 카드" PNG + palette JSON으로 기록에 저장하는 모달. (학생·참여작가 공용)
@@ -184,7 +185,9 @@ function drawCard(ctx,W,H,D,P,mood,ratioStr,domLabel,tintW){
   ctx.fillStyle=MUT;ctx.font='500 21px Pretendard, sans-serif';ctx.fillText(`면적 ${ratioStr} · 주체 ${domLabel} 기준`,44,954)
 }
 
-export default function PalettePlanner({ initial, role, saving, onClose, onSave, locked, onSignup }){
+export default function PalettePlanner({ initial: providedInitial, role, saving, onClose, onSave, locked, onSignup }){
+  // 시작 팔레트를 명시하지 않고 열면(피그먼트 팔레트 그냥 진입) '오늘의 색'을 추천 세팅으로 보여준다.
+  const initial = providedInitial ?? toPlannerInitial(getDailyColor())
   const [P,setP]=useState(()=> initial?.primaries?.length===3 ? initial.primaries.map(c=>({...c})) : DEF.map(c=>({...c})))
   const [act,setAct]=useState(0)
   const [mix,setMix]=useState(initial?.mix==='bright'?'bright':'sub')

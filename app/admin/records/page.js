@@ -104,11 +104,17 @@ export default function AdminRecordsPage() {
     loadPhotos(record)
   }
 
-  async function handleFeedbackSubmit(recordId) {
+  async function handleFeedbackSubmit(record) {
+    const recordId = record.id
     const body = (fbInputs[recordId] || '').trim()
     if (!body || !user) return
     setFbSubmitting(prev => ({ ...prev, [recordId]: true }))
     await supabase.from('class_record_feedback').insert({ record_id: recordId, teacher_id: user.id, body })
+    // 학생에게 알림 + 푸시 (기록 답글과 동일)
+    const label = record.class_name ? `${record.class_name} 기록` : '기록'
+    const nbody = `${user.user_metadata?.name || '강사'} 쌤이 ${label}에 피드백을 남겼어요: ${body.slice(0, 40)}`
+    await supabase.from('notifications').insert({ user_id: record.user_id, type: 'record_feedback', title: '📝 기록 피드백', body: nbody })
+    sendPushToUser(record.user_id, '📝 기록 피드백', nbody)
     setFbInputs(prev => ({ ...prev, [recordId]: '' }))
     setFbSubmitting(prev => ({ ...prev, [recordId]: false }))
     loadAll()
@@ -259,7 +265,7 @@ export default function AdminRecordsPage() {
                       rows={3} placeholder="피드백 입력..."
                       style={{ width:'100%', padding:'8px 10px', borderRadius:10, border:`1.5px solid ${BORDER}`, fontSize:12, resize:'none', fontFamily:'Nunito,sans-serif', marginBottom:6, boxSizing:'border-box' }}/>
                     <button
-                      onClick={() => handleFeedbackSubmit(r.id)}
+                      onClick={() => handleFeedbackSubmit(r)}
                       disabled={fbSubmitting[r.id] || !(fbInputs[r.id]?.trim())}
                       style={{ width:'100%', padding:'9px', background:ACCENT, color:'#fff', border:'none', borderRadius:10, fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'Nunito,sans-serif', opacity: fbSubmitting[r.id] || !(fbInputs[r.id]?.trim()) ? 0.45 : 1 }}>
                       {fbSubmitting[r.id] ? '저장 중...' : '피드백 저장'}

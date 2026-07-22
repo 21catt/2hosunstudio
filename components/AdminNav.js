@@ -29,6 +29,7 @@ export default function AdminNav({ active }) {
     { href:'/admin/members', label:'회원', icon:'users', key:'member' },
     { href:'/admin/schedule', label:'수업현황', icon:'calendar', key:'schedule' },
     { href:'/admin/attendance', label:'출석', icon:'check', key:'attendance' },
+    { href:'/admin/records', label:'기록', icon:'clipboard', key:'records' },
     { href:'/admin/notification', label:'알림', icon:'bell', key:'notification' },
     { href:'/lounge', label:'라운지', icon:'chat', key:'lounge' },
   ]

@@ -89,6 +89,7 @@ export default function AdminHomePage() {
     { label: '회원', icon: 'users', href: '/admin/members' },
     { label: '수업현황', icon: 'calendar', href: '/admin/schedule' },
     { label: '출석', icon: 'check', href: '/admin/attendance' },
+    { label: '기록', icon: 'clipboard', href: '/admin/records' },
     { label: '입금', icon: 'card', href: '/admin/payment', badge: paymentBadge },
     { label: '알림', icon: 'bell', href: '/admin/notification', badge: unread },
     { label: '자리사진', icon: 'photo', href: '/admin/seats' },
