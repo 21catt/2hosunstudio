@@ -9,6 +9,7 @@ import { FARM_CATS, getSavedFarmCat, isValidFarmCat, CROP_STAGES, cropImg, getSa
 import { WEED, weedImg, weedStage, tickWeeds } from '../../../lib/weeds'
 import LoadingCat from '../../../components/LoadingCat'
 import ColorMixGame from '../../../components/ColorMixGame'
+import ColorTetrisGame from '../../../components/ColorTetrisGame'
 
 // 테마별 픽셀 냥밭 환경 — ground는 이미지 하단 지면 픽셀 색과 동일(이음매 방지)
 const FARM_ENV = {
@@ -155,6 +156,7 @@ export default function FarmPage() {
   const [pileImgOk, setPileImgOk] = useState(true) // weed-pile.png 없으면 이모지 폴백
   const [, setTickN] = useState(0) // 성장 재렌더용
   const [gameOpen, setGameOpen] = useState(false) // 조색 게임 오버레이
+  const [tetrisOpen, setTetrisOpen] = useState(false) // 색채 테트리스 오버레이
   const weedRef = useRef(null)
   const ticketValidRef = useRef(false)
   const harvestRef = useRef(0)
@@ -523,11 +525,23 @@ export default function FarmPage() {
           {/* 미니게임 — 색감 훈련 */}
           <div style={{ fontSize:13, fontWeight:800, color:'var(--td)', marginBottom:10 }}>미니게임</div>
           <div onClick={() => setGameOpen(true)}
-            style={{ display:'flex', alignItems:'center', gap:12, background:'var(--acBg)', border:'2px solid rgb(var(--ac-rgb) / 0.3)', borderRadius:16, padding:'13px 14px', marginBottom:18, cursor:'pointer' }}>
+            style={{ display:'flex', alignItems:'center', gap:12, background:'var(--acBg)', border:'2px solid rgb(var(--ac-rgb) / 0.3)', borderRadius:16, padding:'13px 14px', marginBottom:8, cursor:'pointer' }}>
             <div style={{ width:44, height:44, borderRadius:13, background:'#fff', border:'1.5px solid rgb(var(--ac-rgb) / 0.3)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:22 }}>🎨</div>
             <div style={{ flex:1, minWidth:0 }}>
               <div style={{ fontSize:13.5, fontWeight:900, color:'var(--td)' }}>조색 게임</div>
               <div style={{ fontSize:10.5, color:'var(--tm)', fontWeight:600, marginTop:2 }}>목표색을 3원색으로 맞춰봐요 · 색감 훈련</div>
+            </div>
+            <span style={{ flexShrink:0, fontSize:11, fontWeight:800, color:'#fff', background:'var(--ac)', borderRadius:20, padding:'6px 13px' }}>플레이 →</span>
+          </div>
+
+          <div onClick={() => setTetrisOpen(true)}
+            style={{ display:'flex', alignItems:'center', gap:12, background:'var(--acBg)', border:'2px solid rgb(var(--ac-rgb) / 0.3)', borderRadius:16, padding:'13px 14px', marginBottom:18, cursor:'pointer' }}>
+            <div style={{ width:44, height:44, borderRadius:13, background:'#fff', border:'1.5px solid rgb(var(--ac-rgb) / 0.3)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+              <span style={{ width:22, height:22, borderRadius:6, background:'linear-gradient(135deg,#1D9E75 50%,#8a8a8a 50%)' }} />
+            </div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:13.5, fontWeight:900, color:'var(--td)' }}>색채 테트리스</div>
+              <div style={{ fontSize:10.5, color:'var(--tm)', fontWeight:600, marginTop:2 }}>색 밝기에 맞는 명도 블록을 맞물려요</div>
             </div>
             <span style={{ flexShrink:0, fontSize:11, fontWeight:800, color:'#fff', background:'var(--ac)', borderRadius:20, padding:'6px 13px' }}>플레이 →</span>
           </div>
@@ -571,6 +585,7 @@ export default function FarmPage() {
       )}
 
       <ColorMixGame open={gameOpen} onClose={() => setGameOpen(false)} />
+      <ColorTetrisGame open={tetrisOpen} onClose={() => setTetrisOpen(false)} />
 
       <StudentNav active="farm" role={user?.user_metadata?.role || undefined} />
     </>
