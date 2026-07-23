@@ -9,6 +9,7 @@ import LoadingCat from '../../../components/LoadingCat'
 import GlassBg from '../../../components/GlassBg'
 import { useFreshTheme } from '../../../lib/useFreshTheme'
 import PalettePlanner from '../../../components/PalettePlanner'
+import { compressImage } from '../../../lib/imageCompress'
 import { pixelCatImg, DEFAULT_PROFILE_CAT, isValidPixelCat, getSavedProfileCat } from '../../../lib/pixelCats'
 
 // 날짜 중심 기록 — 월 달력에서 날짜를 고르면 그날의 기록(사진·메모·강사 피드백)이 다이어리처럼 펼쳐진다.
@@ -195,11 +196,14 @@ function RecordsInner() {
         .select().single()
       if (!rec) throw new Error('insert failed')
 
+      // 업로드 전 사진 최적화(리사이즈·JPEG 재인코딩) — 원본 대용량 그대로 올리지 않음
+      const compressed = await Promise.all(composeFiles.map(f => compressImage(f)))
+
       const photoRows = []
       const urlByPath = {}
-      for (let i = 0; i < composeFiles.length; i++) {
-        const file = composeFiles[i]
-        const raw = file.name.split('.').pop().toLowerCase()
+      for (let i = 0; i < compressed.length; i++) {
+        const file = compressed[i]
+        const raw = (file.name.split('.').pop() || '').toLowerCase()
         const ext = /^[a-z0-9]{1,5}$/.test(raw) ? raw : 'jpg'
         const path = `${user.id}/${rec.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
         const { error: upErr } = await supabase.storage.from('class-records').upload(path, file)
@@ -220,8 +224,8 @@ function RecordsInner() {
       if (shareLounge) {
         try {
           const shareUrls = []
-          for (const file of composeFiles) {
-            const ext0 = file.name.split('.').pop().toLowerCase()
+          for (const file of compressed) {
+            const ext0 = (file.name.split('.').pop() || '').toLowerCase()
             const ext = /^[a-z0-9]{1,5}$/.test(ext0) ? ext0 : 'jpg'
             const lpath = `${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`
             const { error: lErr } = await supabase.storage.from('lounge-images').upload(lpath, file)

@@ -7,6 +7,7 @@ import { NavIcon } from '../../../components/NavIcons'
 import ProfileHeaderIcon from '../../../components/ProfileHeaderIcon'
 import LoadingCat from '../../../components/LoadingCat'
 import CoreDocView from '../../../components/CoreDocView'
+import { compressImage } from '../../../lib/imageCompress'
 import { hasRichDoc, DEFAULT_CORE_DOC } from '../../../lib/coreDoc'
 
 const ACCENT = 'var(--ac)'
@@ -200,16 +201,17 @@ function RecordSheet({ params, userId, onClose, onSaved }) {
       }
 
       const failed = []
-      for (const file of pendingFiles) {
+      for (const orig of pendingFiles) {
         try {
-          const raw = file.name.split('.').pop().toLowerCase()
+          const file = await compressImage(orig) // 업로드 전 최적화(원본 대용량 그대로 X)
+          const raw = (file.name.split('.').pop() || '').toLowerCase()
           const ext = /^[a-z0-9]{1,5}$/.test(raw) ? raw : 'jpg'
           const path = `${userId}/${recId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
           const { error: upErr } = await supabase.storage.from('class-records').upload(path, file)
-          if (upErr) { failed.push(file.name); continue }
+          if (upErr) { failed.push(orig.name); continue }
           await supabase.from('class_record_photos').insert({ record_id: recId, storage_path: path })
         } catch {
-          failed.push(file.name)
+          failed.push(orig.name)
         }
       }
 
