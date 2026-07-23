@@ -7,7 +7,8 @@ import { submitGameScore } from '../lib/gameScore'
 // 밝기는 3레벨(어두움·중간·밝음). 꼭대기까지 차면 게임 오버. 점수/최고점 localStorage.
 // 스킨 = 다크 네온(게임 모달 자체 스킨, 앱 8색 테마와 무관).
 
-const COLS = 6, ROWS = 11, CELL = 30, GAP = 2, SPAWN = 2
+const COLS = 8, ROWS = 13, CELL = 27, GAP = 2, SPAWN = 3
+const PAD = GAP + 3 // 보드 border+padding 오프셋(파티클 정렬용)
 const BEST_KEY = '2hs_colortetris_best'
 const GRAY = ['#5b5b5b', '#8f8f8f', '#d0d0d0'] // 명도(회색) 블록: 밝기 0·1·2
 // 색 블록 = 고정 밝기(판단 학습). 같은 색끼리 3매치, 회색은 같은 밝기 색에 닿으면 덩어리 제거.
@@ -38,6 +39,7 @@ export default function ColorTetrisGame({ open, onClose }) {
   const [score, setScore] = useState(0)
   const [over, setOver] = useState(false)
   const [best, setBest] = useState(0)
+  const [fx, setFx] = useState([]) // 블록 깨짐 파티클 버스트
 
   const spawn = useCallback(() => {
     const kind = Math.random() < 0.5 ? 'color' : 'value'
@@ -65,6 +67,7 @@ export default function ColorTetrisGame({ open, onClose }) {
   // 덩어리 제거 = (회색 1개 이상 + 색 1개 이상) 또는 (같은 색 3개 이상). 회색만 있는 덩어리는 안 사라짐.
   const resolve = useCallback(() => {
     let cleared = 0
+    const bursts = []
     while (true) {
       const B = boardRef.current
       const seen = Array.from({ length: ROWS }, () => Array(COLS).fill(false))
@@ -91,11 +94,15 @@ export default function ColorTetrisGame({ open, onClose }) {
         if ((grays > 0 && colors > 0) || colors >= 3) comp.forEach(([y, x]) => toClear.add(y * COLS + x))
       }
       if (toClear.size === 0) break
-      toClear.forEach(i => { B[Math.floor(i / COLS)][i % COLS] = null })
+      toClear.forEach(i => {
+        const r = Math.floor(i / COLS), c = i % COLS
+        if (B[r][c]) bursts.push({ r, c, color: B[r][c].color })
+        B[r][c] = null
+      })
       gravity()
       cleared += toClear.size
     }
-    return cleared
+    return { cleared, bursts }
   }, [gravity])
 
   const lockAndNext = useCallback(() => {
@@ -103,11 +110,14 @@ export default function ColorTetrisGame({ open, onClose }) {
     if (!f) { spawn(); return }
     boardRef.current[f.row][f.col] = { kind: f.kind, level: f.level, color: f.color }
     fallRef.current = null
-    const cells = resolve()
-    if (cells > 0) {
-      scoreRef.current += cells * 6
+    const { cleared, bursts } = resolve()
+    if (cleared > 0) {
+      scoreRef.current += cleared * 6
       setScore(scoreRef.current)
       speedRef.current = Math.max(240, 760 - Math.floor(scoreRef.current / 120) * 45)
+      const id = Date.now() + Math.random()
+      setFx(prev => [...prev, { id, cells: bursts.slice(0, 48) }])
+      setTimeout(() => setFx(prev => prev.filter(b => b.id !== id)), 520)
     }
     spawn()
   }, [resolve, spawn])
@@ -172,6 +182,11 @@ export default function ColorTetrisGame({ open, onClose }) {
       style={{ position: 'fixed', inset: 0, background: 'rgba(6,7,12,0.72)', zIndex: 1300, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
       <div onClick={e => e.stopPropagation()}
         style={{ background: U.bg, width: '100%', maxWidth: 400, borderRadius: '26px 26px 0 0', maxHeight: '94vh', overflowY: 'auto', boxSizing: 'border-box', boxShadow: '0 -20px 50px -20px rgba(0,0,0,0.6)' }}>
+        <style>{`
+          @keyframes ctPop { 0%{transform:scale(1);opacity:.95} 100%{transform:scale(1.7);opacity:0} }
+          @keyframes ctFlash { 0%{transform:scale(.55);opacity:.85} 100%{transform:scale(2.1);opacity:0} }
+          @keyframes ctShard { 0%{transform:translate(0,0) scale(1);opacity:1} 100%{transform:translate(var(--dx),var(--dy)) scale(.3);opacity:0} }
+        `}</style>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 16px 12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -196,6 +211,22 @@ export default function ColorTetrisGame({ open, onClose }) {
                 const isFall = f && f.row === r && f.col === c
                 const cell = isFall ? { color: f.color } : boardRef.current[r][c]
                 return <div key={`${r}-${c}`} style={{ width: CELL, height: CELL, borderRadius: 6, background: cell ? cell.color : U.empty, boxShadow: cell ? 'inset 0 2px 0 rgba(255,255,255,0.2), 0 1px 2px rgba(0,0,0,0.22)' : 'none' }} />
+              }))}
+            </div>
+
+            {/* 블록 깨짐 파티클 — 팡! 터지는 통쾌함 */}
+            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 5 }}>
+              {fx.flatMap(b => b.cells.map((cell, k) => {
+                const x = PAD + cell.c * (CELL + GAP), y = PAD + cell.r * (CELL + GAP)
+                return (
+                  <div key={`${b.id}-${k}`} style={{ position: 'absolute', left: x, top: y, width: CELL, height: CELL }}>
+                    <span style={{ position: 'absolute', inset: 0, borderRadius: 6, background: cell.color, animation: 'ctPop 0.42s ease-out forwards' }} />
+                    <span style={{ position: 'absolute', inset: -3, borderRadius: 8, border: '2px solid rgba(255,255,255,0.9)', animation: 'ctFlash 0.4s ease-out forwards' }} />
+                    {[[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([sx, sy], si) => (
+                      <span key={si} style={{ position: 'absolute', left: CELL / 2 - 3, top: CELL / 2 - 3, width: 6, height: 6, borderRadius: 2, background: cell.color, '--dx': `${sx * 22}px`, '--dy': `${sy * 22}px`, animation: 'ctShard 0.5s ease-out forwards' }} />
+                    ))}
+                  </div>
+                )
               }))}
             </div>
 
