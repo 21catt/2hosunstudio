@@ -16,11 +16,12 @@ const COLORS = [
   { hex: '#D21E2B', level: 1 }, { hex: '#1D9E75', level: 1 }, // 중간
   { hex: '#F3E01E', level: 2 }, { hex: '#F5A7C4', level: 2 }, // 밝음
 ]
+// 배경·보드 = 중성 회색(≈18% 그레이) — 색·명도가 가장 정확히 보이는 무채색 바탕
 const U = {
-  bg: '#13151d', panel: '#1b1e28', board: '#16181f', empty: '#23262f', line: '#262a37',
-  tx: '#f4f5fa', tx2: '#c9ccd6', mut: '#8a8f9e', faint: '#6b7080',
-  grad: 'linear-gradient(135deg,#A3E635,#22D3AA)', acc: '#A3E635', onAcc: '#0c1a12',
-  glow: '0 8px 20px -6px rgba(90,200,120,0.55)',
+  bg: '#6e6e6e', panel: '#7c7c7c', board: '#808080', empty: '#767676', line: 'rgba(0,0,0,0.2)',
+  tx: '#ffffff', tx2: '#efefef', mut: '#dadada', faint: '#c2c2c2',
+  grad: 'linear-gradient(135deg,#A3E635,#22D3AA)', acc: '#dcff7a', onAcc: '#243208',
+  glow: '0 8px 20px -6px rgba(90,200,120,0.5)',
 }
 const makeBoard = () => Array.from({ length: ROWS }, () => Array(COLS).fill(null))
 const rnd = n => Math.floor(Math.random() * n)
@@ -194,7 +195,7 @@ export default function ColorTetrisGame({ open, onClose }) {
               {Array.from({ length: ROWS }).map((_, r) => Array.from({ length: COLS }).map((__, c) => {
                 const isFall = f && f.row === r && f.col === c
                 const cell = isFall ? { color: f.color } : boardRef.current[r][c]
-                return <div key={`${r}-${c}`} style={{ width: CELL, height: CELL, borderRadius: 6, background: cell ? cell.color : U.empty, boxShadow: cell ? `inset 0 2px 0 rgba(255,255,255,0.22), 0 0 8px -2px ${cell.color}` : 'none' }} />
+                return <div key={`${r}-${c}`} style={{ width: CELL, height: CELL, borderRadius: 6, background: cell ? cell.color : U.empty, boxShadow: cell ? 'inset 0 2px 0 rgba(255,255,255,0.2), 0 1px 2px rgba(0,0,0,0.22)' : 'none' }} />
               }))}
             </div>
 

@@ -13,11 +13,12 @@ const PIGMENTS = [
 ]
 const ROUNDS = 5
 const BEST_KEY = '2hs_colormix_best'
+// 배경 = 중성 회색(≈18% 그레이) — 색이 가장 정확히 보이는 무채색 바탕
 const U = {
-  bg: '#13151d', panel: '#1b1e28', line: '#262a37', track: '#2a2d3a',
-  tx: '#f4f5fa', tx2: '#c9ccd6', mut: '#8a8f9e', faint: '#6b7080', dim: '#3a3d4a',
-  grad: 'linear-gradient(135deg,#A3E635,#22D3AA)', acc: '#A3E635', onAcc: '#0c1a12',
-  glow: '0 8px 20px -6px rgba(90,200,120,0.55)',
+  bg: '#6e6e6e', panel: '#7c7c7c', line: 'rgba(0,0,0,0.2)', track: 'rgba(0,0,0,0.25)',
+  tx: '#ffffff', tx2: '#efefef', mut: '#dadada', faint: '#c2c2c2', dim: 'rgba(255,255,255,0.32)',
+  grad: 'linear-gradient(135deg,#A3E635,#22D3AA)', acc: '#dcff7a', onAcc: '#243208',
+  glow: '0 8px 20px -6px rgba(90,200,120,0.5)',
 }
 
 function mix(a) { // a: {r,y,b} 0..1 → [R,G,B] 0..255 (곱셈식 감산)
@@ -140,11 +141,11 @@ export default function ColorMixGame({ open, onClose }) {
             <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
               <div style={{ flex: 1, textAlign: 'center' }}>
                 <div style={{ fontSize: 9, fontWeight: 800, color: U.faint, letterSpacing: 1, marginBottom: 5 }}>TARGET</div>
-                <div style={{ height: 80, borderRadius: 16, background: css(target), boxShadow: `0 0 22px -4px ${css(target)}`, border: '1px solid rgba(255,255,255,0.08)' }} />
+                <div style={{ height: 80, borderRadius: 16, background: css(target), boxShadow: '0 2px 6px rgba(0,0,0,0.22)', border: '1px solid rgba(0,0,0,0.12)' }} />
               </div>
               <div style={{ flex: 1, textAlign: 'center' }}>
                 <div style={{ fontSize: 9, fontWeight: 800, color: U.faint, letterSpacing: 1, marginBottom: 5 }}>YOURS</div>
-                <div style={{ height: 80, borderRadius: 16, background: css(mine), boxShadow: `0 0 22px -4px ${css(mine)}`, border: '1px solid rgba(255,255,255,0.08)', transition: 'background 0.15s, box-shadow 0.15s' }} />
+                <div style={{ height: 80, borderRadius: 16, background: css(mine), boxShadow: '0 2px 6px rgba(0,0,0,0.22)', border: '1px solid rgba(0,0,0,0.12)', transition: 'background 0.15s' }} />
               </div>
             </div>
 
@@ -161,7 +162,7 @@ export default function ColorMixGame({ open, onClose }) {
             <div style={{ background: U.panel, border: `1px solid ${U.line}`, borderRadius: 16, padding: '14px 13px', display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 14, opacity: phase === 'result' ? 0.6 : 1 }}>
               {PIGMENTS.map(p => (
                 <div key={p.key} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ width: 22, height: 22, borderRadius: '50%', background: p.hex, flexShrink: 0, boxShadow: `0 0 10px -1px ${p.hex}` }} />
+                  <span style={{ width: 22, height: 22, borderRadius: '50%', background: p.hex, flexShrink: 0, boxShadow: '0 1px 2px rgba(0,0,0,0.3)' }} />
                   <span style={{ width: 28, flexShrink: 0, fontSize: 11, fontWeight: 800, color: U.tx2 }}>{p.name}</span>
                   <input type="range" min="0" max="100" value={Math.round(amounts[p.key] * 100)} disabled={phase === 'result'}
                     onChange={e => setAmounts(a => ({ ...a, [p.key]: (+e.target.value) / 100 }))}
