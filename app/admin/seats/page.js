@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import AdminNav from '../../../components/AdminNav'
+import { compressImage } from '../../../lib/imageCompress'
 
 const SEATS = ['A', 'B', 'C', 'D', 'E']
 const SEAT_LABEL = { A:'A · 창가·자연광', B:'B · 창가·자연광', C:'C · 중앙', D:'D · 중앙', E:'E · 창가' }
@@ -58,8 +59,9 @@ export default function AdminSeatsPage() {
     let nextOrder = current.length > 0
       ? Math.max(...current.map(p => p.sort_order)) + 1
       : 0
-    for (const file of files) {
-      const ext = file.name.split('.').pop()
+    for (const orig of files) {
+      const file = await compressImage(orig) // 업로드 전 최적화(원본 대용량 그대로 X)
+      const ext = (file.name.split('.').pop() || 'jpg')
       const path = `${selSeat}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
       const { error: upErr } = await supabase.storage.from('seat-photos').upload(path, file)
       if (upErr) { alert('업로드 실패: ' + upErr.message); continue }

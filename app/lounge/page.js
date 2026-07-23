@@ -9,6 +9,7 @@ import LoadingCat from '../../components/LoadingCat'
 import GlassBg from '../../components/GlassBg'
 import { useFreshTheme } from '../../lib/useFreshTheme'
 import { pixelCatImg, DEFAULT_PROFILE_CAT, getSavedProfileCat } from '../../lib/pixelCats'
+import { compressImage } from '../../lib/imageCompress'
 
 // 카톡형 라운지 — 누구나 하단 입력바에서 바로 쓰고 보내는 단체 채팅 스타일.
 // 내 메시지는 오른쪽 테마색 말풍선, 다른 사람은 왼쪽(프로필 고양이 + 이름).
@@ -153,8 +154,9 @@ export default function LoungePage() {
       if (tag === 'notice' && role !== 'admin') tag = 'etc'
 
       const urls = []
-      for (const file of composeFiles) {
-        const ext = file.name.split('.').pop()
+      for (const orig of composeFiles) {
+        const file = await compressImage(orig) // 업로드 전 최적화(원본 대용량 그대로 X)
+        const ext = (file.name.split('.').pop() || 'jpg')
         const path = `${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`
         const { error } = await supabase.storage.from('lounge-images').upload(path, file)
         if (!error) {
