@@ -40,12 +40,20 @@ export default function ColorTetrisGame({ open, onClose }) {
   const [over, setOver] = useState(false)
   const [best, setBest] = useState(0)
   const [fx, setFx] = useState([]) // 블록 깨짐 파티클 버스트
+  const levelRef = useRef(1)
+  const [level, setLevel] = useState(1)
+  const [showIntro, setShowIntro] = useState(false) // 시작 전 규칙 안내
+  const [shaking, setShaking] = useState(false)      // 제거 시 보드 흔들림
+  const [scorePop, setScorePop] = useState(null)     // +점수 팝업
 
   const spawn = useCallback(() => {
+    // 난이도: 5레벨 미만 = 밝기 2단계(어두움·중간)·색 4종, 5레벨 이상 = 밝기 3단계·색 6종
+    const brightLevels = levelRef.current >= 5 ? 3 : 2
+    const pool = COLORS.filter(cd => cd.level < brightLevels)
     const kind = Math.random() < 0.5 ? 'color' : 'value'
     let level, color
-    if (kind === 'color') { const cd = COLORS[rnd(COLORS.length)]; level = cd.level; color = cd.hex }
-    else { level = rnd(3); color = GRAY[level] }
+    if (kind === 'color') { const cd = pool[rnd(pool.length)]; level = cd.level; color = cd.hex }
+    else { level = rnd(brightLevels); color = GRAY[level] }
     if (boardRef.current[0][SPAWN] != null) {
       overRef.current = true; setOver(true)
       setBest(b => { const nb = Math.max(b, scoreRef.current); try { localStorage.setItem(BEST_KEY, String(nb)) } catch {} return nb })
@@ -112,12 +120,18 @@ export default function ColorTetrisGame({ open, onClose }) {
     fallRef.current = null
     const { cleared, bursts } = resolve()
     if (cleared > 0) {
-      scoreRef.current += cleared * 6
+      const gained = cleared * 6
+      scoreRef.current += gained
       setScore(scoreRef.current)
-      speedRef.current = Math.max(240, 760 - Math.floor(scoreRef.current / 120) * 45)
+      // 레벨: 점수 120마다 +1. 레벨 오르면 속도 상승(난이도 점증)
+      const nl = 1 + Math.floor(scoreRef.current / 120)
+      if (nl !== levelRef.current) { levelRef.current = nl; setLevel(nl) }
+      speedRef.current = Math.max(230, 780 - (levelRef.current - 1) * 55)
       const id = Date.now() + Math.random()
       setFx(prev => [...prev, { id, cells: bursts.slice(0, 48) }])
-      setTimeout(() => setFx(prev => prev.filter(b => b.id !== id)), 520)
+      setTimeout(() => setFx(prev => prev.filter(b => b.id !== id)), 560)
+      setShaking(true); setTimeout(() => setShaking(false), 300)
+      setScorePop({ id, amount: gained }); setTimeout(() => setScorePop(p => (p && p.id === id ? null : p)), 700)
     }
     spawn()
   }, [resolve, spawn])
@@ -139,7 +153,8 @@ export default function ColorTetrisGame({ open, onClose }) {
     clearTimeout(timerRef.current)
     boardRef.current = makeBoard(); fallRef.current = null
     overRef.current = false; setOver(false)
-    scoreRef.current = 0; setScore(0); speedRef.current = 760
+    scoreRef.current = 0; setScore(0); speedRef.current = 780
+    levelRef.current = 1; setLevel(1); setShowIntro(false)
     spawn(); render()
     timerRef.current = setTimeout(loop, speedRef.current)
   }, [spawn, render, loop])
@@ -147,7 +162,12 @@ export default function ColorTetrisGame({ open, onClose }) {
   useEffect(() => {
     if (!open) { clearTimeout(timerRef.current); return }
     try { setBest(parseInt(localStorage.getItem(BEST_KEY) || '0', 10) || 0) } catch {}
-    startGame()
+    // 시작 전 규칙 안내 — 빈 보드 위에 인트로 표시, '시작하기' 누르면 startGame
+    clearTimeout(timerRef.current)
+    boardRef.current = makeBoard(); fallRef.current = null
+    overRef.current = false; setOver(false)
+    scoreRef.current = 0; setScore(0); levelRef.current = 1; setLevel(1)
+    setShowIntro(true); render()
     return () => clearTimeout(timerRef.current)
   }, [open]) // eslint-disable-line
 
@@ -183,15 +203,18 @@ export default function ColorTetrisGame({ open, onClose }) {
       <div onClick={e => e.stopPropagation()}
         style={{ background: U.bg, width: '100%', maxWidth: 400, borderRadius: '26px 26px 0 0', maxHeight: '94vh', overflowY: 'auto', boxSizing: 'border-box', boxShadow: '0 -20px 50px -20px rgba(0,0,0,0.6)' }}>
         <style>{`
-          @keyframes ctPop { 0%{transform:scale(1);opacity:.95} 100%{transform:scale(1.7);opacity:0} }
-          @keyframes ctFlash { 0%{transform:scale(.55);opacity:.85} 100%{transform:scale(2.1);opacity:0} }
-          @keyframes ctShard { 0%{transform:translate(0,0) scale(1);opacity:1} 100%{transform:translate(var(--dx),var(--dy)) scale(.3);opacity:0} }
+          @keyframes ctPop { 0%{transform:scale(1);opacity:1} 100%{transform:scale(1.95);opacity:0} }
+          @keyframes ctFlash { 0%{transform:scale(.5);opacity:.9} 100%{transform:scale(2.5);opacity:0} }
+          @keyframes ctShard { 0%{transform:translate(0,0) scale(1) rotate(0);opacity:1} 100%{transform:translate(var(--dx),var(--dy)) scale(.25) rotate(160deg);opacity:0} }
+          @keyframes ctShake { 0%,100%{transform:translate(0,0)} 20%{transform:translate(-3px,2px)} 40%{transform:translate(3px,-2px)} 60%{transform:translate(-2px,-2px)} 80%{transform:translate(2px,2px)} }
+          @keyframes ctScorePop { 0%{transform:translate(-50%,0) scale(.6);opacity:0} 25%{transform:translate(-50%,-8px) scale(1.2);opacity:1} 100%{transform:translate(-50%,-36px) scale(1);opacity:0} }
         `}</style>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 16px 12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ width: 22, height: 22, borderRadius: 6, background: 'linear-gradient(135deg,#1D9E75 50%,#8f8f8f 50%)' }} />
             <span style={{ fontSize: 16, fontWeight: 900, color: U.tx, letterSpacing: '-0.3px' }}>색채 테트리스</span>
+            <span style={{ fontSize: 10, fontWeight: 900, color: U.onAcc, background: U.acc, borderRadius: 20, padding: '2px 9px' }}>Lv.{level}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ textAlign: 'right' }}>
@@ -205,7 +228,7 @@ export default function ColorTetrisGame({ open, onClose }) {
 
         <div style={{ padding: '10px 16px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
 
-          <div style={{ position: 'relative' }}>
+          <div style={{ position: 'relative', animation: shaking ? 'ctShake 0.3s ease-in-out' : 'none' }}>
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(${COLS},${CELL}px)`, gap: GAP, background: U.board, padding: GAP + 2, borderRadius: 12, border: `1px solid ${U.line}` }}>
               {Array.from({ length: ROWS }).map((_, r) => Array.from({ length: COLS }).map((__, c) => {
                 const isFall = f && f.row === r && f.col === c
@@ -220,15 +243,41 @@ export default function ColorTetrisGame({ open, onClose }) {
                 const x = PAD + cell.c * (CELL + GAP), y = PAD + cell.r * (CELL + GAP)
                 return (
                   <div key={`${b.id}-${k}`} style={{ position: 'absolute', left: x, top: y, width: CELL, height: CELL }}>
-                    <span style={{ position: 'absolute', inset: 0, borderRadius: 6, background: cell.color, animation: 'ctPop 0.42s ease-out forwards' }} />
-                    <span style={{ position: 'absolute', inset: -3, borderRadius: 8, border: '2px solid rgba(255,255,255,0.9)', animation: 'ctFlash 0.4s ease-out forwards' }} />
-                    {[[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([sx, sy], si) => (
-                      <span key={si} style={{ position: 'absolute', left: CELL / 2 - 3, top: CELL / 2 - 3, width: 6, height: 6, borderRadius: 2, background: cell.color, '--dx': `${sx * 22}px`, '--dy': `${sy * 22}px`, animation: 'ctShard 0.5s ease-out forwards' }} />
+                    <span style={{ position: 'absolute', inset: 0, borderRadius: 6, background: cell.color, animation: 'ctPop 0.46s ease-out forwards' }} />
+                    <span style={{ position: 'absolute', inset: -4, borderRadius: 9, border: '2px solid rgba(255,255,255,0.95)', animation: 'ctFlash 0.44s ease-out forwards' }} />
+                    {[[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]].map(([sx, sy], si) => (
+                      <span key={si} style={{ position: 'absolute', left: CELL / 2 - 3, top: CELL / 2 - 3, width: 6, height: 6, borderRadius: 2, background: cell.color, '--dx': `${sx * 30}px`, '--dy': `${sy * 30}px`, animation: 'ctShard 0.55s ease-out forwards' }} />
                     ))}
                   </div>
                 )
               }))}
             </div>
+
+            {scorePop && (
+              <div key={scorePop.id} style={{ position: 'absolute', left: '50%', top: '34%', zIndex: 8, pointerEvents: 'none', fontSize: 22, fontWeight: 900, color: '#fff', textShadow: `0 0 10px ${U.acc}, 0 2px 4px rgba(0,0,0,0.5)`, animation: 'ctScorePop 0.7s ease-out forwards' }}>+{scorePop.amount}</div>
+            )}
+
+            {showIntro && (
+              <div style={{ position: 'absolute', inset: 0, background: 'rgba(15,16,22,0.93)', borderRadius: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '18px 14px', backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)', zIndex: 9, boxSizing: 'border-box' }}>
+                <div style={{ fontSize: 16, fontWeight: 900, color: '#fff' }}>🎯 규칙</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 11, alignSelf: 'stretch' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 700, color: '#eaeaea' }}>
+                    <span style={{ display: 'flex', gap: 2, flexShrink: 0 }}>{[0, 1, 2].map(i => <span key={i} style={{ width: 14, height: 14, borderRadius: 3, background: '#D21E2B' }} />)}</span>
+                    <span>같은 색 <b style={{ color: U.acc }}>3개</b> 이어지면 사라짐</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 700, color: '#eaeaea' }}>
+                    <span style={{ display: 'flex', gap: 2, flexShrink: 0 }}><span style={{ width: 14, height: 14, borderRadius: 3, background: '#1D9E75' }} /><span style={{ width: 14, height: 14, borderRadius: 3, background: '#8f8f8f', boxShadow: `0 0 0 1.5px ${U.acc}` }} /></span>
+                    <span>회색이 <b style={{ color: U.acc }}>같은 밝기</b> 색에 닿으면 덩어리 통째 사라짐</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 700, color: '#b8b8b8' }}>
+                    <span style={{ display: 'flex', gap: 2, flexShrink: 0 }}><span style={{ width: 14, height: 14, borderRadius: 3, background: '#8f8f8f' }} /><span style={{ width: 14, height: 14, borderRadius: 3, background: '#8f8f8f' }} /></span>
+                    <span>회색끼리는 안 사라져요</span>
+                  </div>
+                  <div style={{ fontSize: 10, color: '#9a9a9a', fontWeight: 700, lineHeight: 1.5 }}>레벨이 오르면 색·명도가 다양해지고 빨라져요 (5레벨↑)</div>
+                </div>
+                <button onClick={() => startGame()} style={{ marginTop: 4, padding: '12px 30px', background: U.grad, color: U.onAcc, border: 'none', borderRadius: 16, fontSize: 14, fontWeight: 900, cursor: 'pointer', fontFamily: 'Nunito,sans-serif', boxShadow: U.glow }}>시작하기 ▶</button>
+              </div>
+            )}
 
             {over && (
               <div style={{ position: 'absolute', inset: 0, background: 'rgba(15,16,22,0.9)', borderRadius: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)' }}>
