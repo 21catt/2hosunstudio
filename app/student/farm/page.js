@@ -157,6 +157,10 @@ export default function FarmPage() {
   const [, setTickN] = useState(0) // 성장 재렌더용
   const [gameOpen, setGameOpen] = useState(false) // 조색 게임 오버레이
   const [tetrisOpen, setTetrisOpen] = useState(false) // 색채 테트리스 오버레이
+  const [bests, setBests] = useState({ mix: 0, tetris: 0 }) // 게임 최고점(타일 표시)
+  useEffect(() => {
+    try { setBests({ mix: +(localStorage.getItem('2hs_colormix_best') || 0), tetris: +(localStorage.getItem('2hs_colortetris_best') || 0) }) } catch {}
+  }, [gameOpen, tetrisOpen])
   const weedRef = useRef(null)
   const ticketValidRef = useRef(false)
   const harvestRef = useRef(0)
@@ -524,26 +528,41 @@ export default function FarmPage() {
 
           {/* 미니게임 — 색감 훈련 */}
           <div style={{ fontSize:13, fontWeight:800, color:'var(--td)', marginBottom:10 }}>미니게임</div>
-          <div onClick={() => setGameOpen(true)}
-            style={{ display:'flex', alignItems:'center', gap:12, background:'var(--acBg)', border:'2px solid rgb(var(--ac-rgb) / 0.3)', borderRadius:16, padding:'13px 14px', marginBottom:8, cursor:'pointer' }}>
-            <div style={{ width:44, height:44, borderRadius:13, background:'#fff', border:'1.5px solid rgb(var(--ac-rgb) / 0.3)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:22 }}>🎨</div>
-            <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:13.5, fontWeight:900, color:'var(--td)' }}>조색 게임</div>
-              <div style={{ fontSize:10.5, color:'var(--tm)', fontWeight:600, marginTop:2 }}>목표색을 3원색으로 맞춰봐요 · 색감 훈련</div>
-            </div>
-            <span style={{ flexShrink:0, fontSize:11, fontWeight:800, color:'#fff', background:'var(--ac)', borderRadius:20, padding:'6px 13px' }}>플레이 →</span>
-          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:11, marginBottom:18 }}>
 
-          <div onClick={() => setTetrisOpen(true)}
-            style={{ display:'flex', alignItems:'center', gap:12, background:'var(--acBg)', border:'2px solid rgb(var(--ac-rgb) / 0.3)', borderRadius:16, padding:'13px 14px', marginBottom:18, cursor:'pointer' }}>
-            <div style={{ width:44, height:44, borderRadius:13, background:'#fff', border:'1.5px solid rgb(var(--ac-rgb) / 0.3)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-              <span style={{ width:22, height:22, borderRadius:6, background:'linear-gradient(135deg,#1D9E75 50%,#8a8a8a 50%)' }} />
+            {/* 조색 게임 — 정사각 게임 커버 */}
+            <div onClick={() => setGameOpen(true)}
+              style={{ position:'relative', aspectRatio:'1', borderRadius:20, overflow:'hidden', cursor:'pointer', background:'radial-gradient(130% 130% at 30% 15%, #1c2233, #0f1119)', border:'1px solid #262a37', boxShadow:'0 10px 24px -14px rgba(0,0,0,0.5)' }}>
+              <div style={{ position:'absolute', top:'30%', left:'50%', transform:'translate(-50%,-50%)', width:70, height:44 }}>
+                <span style={{ position:'absolute', left:0, top:6, width:34, height:34, borderRadius:'50%', background:'#D21E2B', boxShadow:'0 0 16px -2px #D21E2B' }} />
+                <span style={{ position:'absolute', left:18, top:0, width:34, height:34, borderRadius:'50%', background:'#F3E01E', boxShadow:'0 0 16px -2px #F3E01E' }} />
+                <span style={{ position:'absolute', left:36, top:6, width:34, height:34, borderRadius:'50%', background:'#185FA5', boxShadow:'0 0 16px -2px #185FA5' }} />
+              </div>
+              <div style={{ position:'absolute', left:0, right:0, bottom:0, padding:'22px 12px 12px', background:'linear-gradient(to top, rgba(15,16,22,0.96) 55%, transparent)' }}>
+                <div style={{ fontSize:14, fontWeight:900, color:'#f4f5fa' }}>조색 게임</div>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:5 }}>
+                  <span style={{ fontSize:10, fontWeight:800, color:'#8a8f9e' }}>{bests.mix > 0 ? `최고 ${bests.mix}` : '색 섞기'}</span>
+                  <span style={{ fontSize:10, fontWeight:900, color:'#0c1a12', background:'linear-gradient(135deg,#A3E635,#22D3AA)', borderRadius:20, padding:'3px 9px' }}>▶</span>
+                </div>
+              </div>
             </div>
-            <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:13.5, fontWeight:900, color:'var(--td)' }}>색채 테트리스</div>
-              <div style={{ fontSize:10.5, color:'var(--tm)', fontWeight:600, marginTop:2 }}>색 밝기에 맞는 명도 블록을 맞물려요</div>
+
+            {/* 색채 테트리스 — 정사각 게임 커버 */}
+            <div onClick={() => setTetrisOpen(true)}
+              style={{ position:'relative', aspectRatio:'1', borderRadius:20, overflow:'hidden', cursor:'pointer', background:'radial-gradient(130% 130% at 30% 15%, #1c2233, #0f1119)', border:'1px solid #262a37', boxShadow:'0 10px 24px -14px rgba(0,0,0,0.5)' }}>
+              <div style={{ position:'absolute', top:'30%', left:'50%', transform:'translate(-50%,-50%)', display:'grid', gridTemplateColumns:'repeat(2,22px)', gap:4 }}>
+                {['#D85A30','#8f8f8f','#1D9E75','#F3E01E'].map((c,i) => (
+                  <span key={i} style={{ width:22, height:22, borderRadius:6, background:c, boxShadow:`0 0 12px -3px ${c}`, boxSizing:'border-box', border: i===0||i===1 ? '2px solid #A3E635' : 'none' }} />
+                ))}
+              </div>
+              <div style={{ position:'absolute', left:0, right:0, bottom:0, padding:'22px 12px 12px', background:'linear-gradient(to top, rgba(15,16,22,0.96) 55%, transparent)' }}>
+                <div style={{ fontSize:14, fontWeight:900, color:'#f4f5fa' }}>색채 테트리스</div>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:5 }}>
+                  <span style={{ fontSize:10, fontWeight:800, color:'#8a8f9e' }}>{bests.tetris > 0 ? `최고 ${bests.tetris}` : '밝기 매칭'}</span>
+                  <span style={{ fontSize:10, fontWeight:900, color:'#0c1a12', background:'linear-gradient(135deg,#A3E635,#22D3AA)', borderRadius:20, padding:'3px 9px' }}>▶</span>
+                </div>
+              </div>
             </div>
-            <span style={{ flexShrink:0, fontSize:11, fontWeight:800, color:'#fff', background:'var(--ac)', borderRadius:20, padding:'6px 13px' }}>플레이 →</span>
           </div>
 
           {/* 최근 이력 */}
