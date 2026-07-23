@@ -8,6 +8,7 @@ import ProfileHeaderIcon from '../../../components/ProfileHeaderIcon'
 import { FARM_CATS, getSavedFarmCat, isValidFarmCat, CROP_STAGES, cropImg, getSavedHarvest, saveHarvestLocal } from '../../../lib/farmCats'
 import { WEED, weedImg, weedStage, tickWeeds } from '../../../lib/weeds'
 import LoadingCat from '../../../components/LoadingCat'
+import ColorMixGame from '../../../components/ColorMixGame'
 
 // 테마별 픽셀 냥밭 환경 — ground는 이미지 하단 지면 픽셀 색과 동일(이음매 방지)
 const FARM_ENV = {
@@ -153,6 +154,7 @@ export default function FarmPage() {
   const [pileBump, setPileBump] = useState(0)
   const [pileImgOk, setPileImgOk] = useState(true) // weed-pile.png 없으면 이모지 폴백
   const [, setTickN] = useState(0) // 성장 재렌더용
+  const [gameOpen, setGameOpen] = useState(false) // 조색 게임 오버레이
   const weedRef = useRef(null)
   const ticketValidRef = useRef(false)
   const harvestRef = useRef(0)
@@ -518,6 +520,18 @@ export default function FarmPage() {
             ))}
           </div>
 
+          {/* 미니게임 — 색감 훈련 */}
+          <div style={{ fontSize:13, fontWeight:800, color:'var(--td)', marginBottom:10 }}>미니게임</div>
+          <div onClick={() => setGameOpen(true)}
+            style={{ display:'flex', alignItems:'center', gap:12, background:'var(--acBg)', border:'2px solid rgb(var(--ac-rgb) / 0.3)', borderRadius:16, padding:'13px 14px', marginBottom:18, cursor:'pointer' }}>
+            <div style={{ width:44, height:44, borderRadius:13, background:'#fff', border:'1.5px solid rgb(var(--ac-rgb) / 0.3)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:22 }}>🎨</div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:13.5, fontWeight:900, color:'var(--td)' }}>조색 게임</div>
+              <div style={{ fontSize:10.5, color:'var(--tm)', fontWeight:600, marginTop:2 }}>목표색을 3원색으로 맞춰봐요 · 색감 훈련</div>
+            </div>
+            <span style={{ flexShrink:0, fontSize:11, fontWeight:800, color:'#fff', background:'var(--ac)', borderRadius:20, padding:'6px 13px' }}>플레이 →</span>
+          </div>
+
           {/* 최근 이력 */}
           <div style={{ fontSize:13, fontWeight:800, color:'var(--td)', marginBottom:10 }}>최근 이력</div>
           {history.slice(0,6).map(h => (
@@ -555,6 +569,8 @@ export default function FarmPage() {
           </div>
         </div>
       )}
+
+      <ColorMixGame open={gameOpen} onClose={() => setGameOpen(false)} />
 
       <StudentNav active="farm" role={user?.user_metadata?.role || undefined} />
     </>
