@@ -16,7 +16,8 @@ const ICONS = {
 export function useTodayWeather() {
   const [weather, setWeather] = useState(null)
   useEffect(() => {
-    fetch('https://api.open-meteo.com/v1/forecast?latitude=37.5665&longitude=126.9780&current=temperature_2m,weather_code&timezone=Asia/Seoul')
+    // 서울 신도림(2호선 스튜디오 위치) 좌표
+    fetch('https://api.open-meteo.com/v1/forecast?latitude=37.5088&longitude=126.8912&current=temperature_2m,weather_code&timezone=Asia/Seoul')
       .then(r => r.json())
       .then(d => setWeather(d.current))
       .catch(() => {})
