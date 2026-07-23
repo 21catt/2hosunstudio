@@ -9,11 +9,12 @@ import { submitGameScore } from '../lib/gameScore'
 
 const COLS = 6, ROWS = 11, CELL = 30, GAP = 2, SPAWN = 2
 const BEST_KEY = '2hs_colortetris_best'
-const GRAY = ['#5b5b5b', '#8f8f8f', '#d0d0d0'] // 밝기 0(어두움)·1(중간)·2(밝음) 명도 블록
-const HUES = [
-  ['#1E3A5F', '#0F5147', '#5C2B2B', '#3A2E6B'], // 어두운 색
-  ['#D21E2B', '#1D9E75', '#6A3B8F', '#D85A30'], // 중간 밝기 색
-  ['#F3E01E', '#F5A7C4', '#96C6E8', '#B0C043'], // 밝은 색
+const GRAY = ['#5b5b5b', '#8f8f8f', '#d0d0d0'] // 명도(회색) 블록: 밝기 0·1·2
+// 색 블록 = 고정 밝기(판단 학습). 같은 색끼리 3매치, 회색은 같은 밝기 색에 닿으면 덩어리 제거.
+const COLORS = [
+  { hex: '#185FA5', level: 0 }, { hex: '#6A3B8F', level: 0 }, // 어두움
+  { hex: '#D21E2B', level: 1 }, { hex: '#1D9E75', level: 1 }, // 중간
+  { hex: '#F3E01E', level: 2 }, { hex: '#F5A7C4', level: 2 }, // 밝음
 ]
 const U = {
   bg: '#13151d', panel: '#1b1e28', board: '#16181f', empty: '#23262f', line: '#262a37',
@@ -39,8 +40,9 @@ export default function ColorTetrisGame({ open, onClose }) {
 
   const spawn = useCallback(() => {
     const kind = Math.random() < 0.5 ? 'color' : 'value'
-    const level = rnd(3)
-    const color = kind === 'color' ? HUES[level][rnd(HUES[level].length)] : GRAY[level]
+    let level, color
+    if (kind === 'color') { const cd = COLORS[rnd(COLORS.length)]; level = cd.level; color = cd.hex }
+    else { level = rnd(3); color = GRAY[level] }
     if (boardRef.current[0][SPAWN] != null) {
       overRef.current = true; setOver(true)
       setBest(b => { const nb = Math.max(b, scoreRef.current); try { localStorage.setItem(BEST_KEY, String(nb)) } catch {} return nb })
@@ -58,20 +60,41 @@ export default function ColorTetrisGame({ open, onClose }) {
     }
   }, [])
 
+  // 연결 규칙: 같은 색끼리 / 색↔같은밝기 회색 은 이어짐. 회색↔회색 은 안 이어짐.
+  // 덩어리 제거 = (회색 1개 이상 + 색 1개 이상) 또는 (같은 색 3개 이상). 회색만 있는 덩어리는 안 사라짐.
   const resolve = useCallback(() => {
-    let pairs = 0
+    let cleared = 0
     while (true) {
-      const clear = new Set()
-      for (let c = 0; c < COLS; c++) for (let r = 0; r < ROWS - 1; r++) {
-        const a = boardRef.current[r][c], b = boardRef.current[r + 1][c]
-        if (a && b && a.level === b.level && a.kind !== b.kind) { clear.add(r * COLS + c); clear.add((r + 1) * COLS + c) }
+      const B = boardRef.current
+      const seen = Array.from({ length: ROWS }, () => Array(COLS).fill(false))
+      const toClear = new Set()
+      const link = (a, b) => {
+        if (a.kind === 'value' && b.kind === 'value') return false
+        if (a.kind === 'color' && b.kind === 'color') return a.color === b.color
+        const col = a.kind === 'color' ? a : b, val = a.kind === 'value' ? a : b
+        return col.level === val.level
       }
-      if (clear.size === 0) break
-      clear.forEach(i => { boardRef.current[Math.floor(i / COLS)][i % COLS] = null })
+      for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+        if (!B[r][c] || seen[r][c]) continue
+        const comp = []; const stack = [[r, c]]; seen[r][c] = true
+        while (stack.length) {
+          const [y, x] = stack.pop(); comp.push([y, x])
+          for (const [dy, dx] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const ny = y + dy, nx = x + dx
+            if (ny < 0 || ny >= ROWS || nx < 0 || nx >= COLS || seen[ny][nx] || !B[ny][nx]) continue
+            if (link(B[y][x], B[ny][nx])) { seen[ny][nx] = true; stack.push([ny, nx]) }
+          }
+        }
+        let colors = 0, grays = 0
+        for (const [y, x] of comp) { if (B[y][x].kind === 'color') colors++; else grays++ }
+        if ((grays > 0 && colors > 0) || colors >= 3) comp.forEach(([y, x]) => toClear.add(y * COLS + x))
+      }
+      if (toClear.size === 0) break
+      toClear.forEach(i => { B[Math.floor(i / COLS)][i % COLS] = null })
       gravity()
-      pairs += clear.size / 2
+      cleared += toClear.size
     }
-    return pairs
+    return cleared
   }, [gravity])
 
   const lockAndNext = useCallback(() => {
@@ -79,9 +102,9 @@ export default function ColorTetrisGame({ open, onClose }) {
     if (!f) { spawn(); return }
     boardRef.current[f.row][f.col] = { kind: f.kind, level: f.level, color: f.color }
     fallRef.current = null
-    const pairs = resolve()
-    if (pairs > 0) {
-      scoreRef.current += pairs * 10 + (pairs - 1) * 5
+    const cells = resolve()
+    if (cells > 0) {
+      scoreRef.current += cells * 6
       setScore(scoreRef.current)
       speedRef.current = Math.max(240, 760 - Math.floor(scoreRef.current / 120) * 45)
     }
@@ -192,12 +215,20 @@ export default function ColorTetrisGame({ open, onClose }) {
             <button onClick={() => moveH(1)} style={sideBtn} aria-label="오른쪽">▶</button>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 14, fontSize: 10, fontWeight: 800, color: U.tx2 }}>
-            <span style={{ width: 14, height: 14, borderRadius: 4, background: '#D85A30' }} /> +
-            <span style={{ width: 14, height: 14, borderRadius: 4, background: '#8f8f8f' }} /> = 같은 밝기 → 사라짐
-          </div>
-          <div style={{ fontSize: 10, color: U.faint, fontWeight: 700, textAlign: 'center', marginTop: 6, lineHeight: 1.5 }}>
-            색 블록의 밝기에 맞는 회색(명도) 블록을 위·아래로 맞물리세요
+          <div style={{ width: `${COLS * CELL + (COLS - 1) * GAP + 10}px`, maxWidth: '100%', marginTop: 14, background: U.panel, border: `1px solid ${U.line}`, borderRadius: 12, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontSize: 10.5, fontWeight: 900, color: U.tx }}>🎯 규칙</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 10, fontWeight: 700, color: U.tx2 }}>
+              <span style={{ display: 'flex', gap: 2, flexShrink: 0 }}>{[0, 1, 2].map(i => <span key={i} style={{ width: 13, height: 13, borderRadius: 3, background: '#D21E2B' }} />)}</span>
+              <span>같은 색 <b style={{ color: U.acc }}>3개</b> 이어지면 사라짐</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 10, fontWeight: 700, color: U.tx2 }}>
+              <span style={{ display: 'flex', gap: 2, flexShrink: 0 }}><span style={{ width: 13, height: 13, borderRadius: 3, background: '#1D9E75' }} /><span style={{ width: 13, height: 13, borderRadius: 3, background: '#8f8f8f', boxShadow: `0 0 0 1.5px ${U.acc}` }} /></span>
+              <span>회색이 <b style={{ color: U.acc }}>같은 밝기</b> 색에 닿으면 이어진 덩어리 통째로 사라짐</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 10, fontWeight: 700, color: U.mut }}>
+              <span style={{ display: 'flex', gap: 2, flexShrink: 0 }}><span style={{ width: 13, height: 13, borderRadius: 3, background: '#8f8f8f' }} /><span style={{ width: 13, height: 13, borderRadius: 3, background: '#8f8f8f' }} /></span>
+              <span>회색끼리는 안 사라져요</span>
+            </div>
           </div>
         </div>
       </div>
