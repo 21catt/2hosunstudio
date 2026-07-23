@@ -11,6 +11,7 @@ import LoadingCat from '../../../components/LoadingCat'
 import ColorMixGame from '../../../components/ColorMixGame'
 import ColorTetrisGame from '../../../components/ColorTetrisGame'
 import { topGameScores } from '../../../lib/gameScore'
+import { useTodayWeather } from '../../../components/WeatherBar'
 
 // 테마별 픽셀 냥밭 환경 — ground는 이미지 하단 지면 픽셀 색과 동일(이음매 방지)
 const FARM_ENV = {
@@ -166,6 +167,17 @@ export default function FarmPage() {
     Promise.all([topGameScores('colormix', 3), topGameScores('colortetris', 3)]).then(([m, t]) => { if (alive) setRanks({ mix: m, tetris: t }) })
     return () => { alive = false }
   }, [gameOpen, tetrisOpen])
+  const weather = useTodayWeather() // 홈과 동일 날씨 소스
+  const gamesRef = useRef(null)     // 미니게임 섹션 스크롤 타깃
+  // 오늘 실제 날씨가 비/눈이면 밭에도 은은하게 내림
+  useEffect(() => {
+    if (!weather) return
+    const c = weather.code
+    const precip = (c >= 51 && c <= 67) || (c >= 80 && c <= 82) || c >= 95 || (c >= 71 && c <= 77) || c === 85 || c === 86
+    if (!precip) return
+    const iv = setInterval(() => spawnFx('rain', { x: 10 + Math.random() * 80, y: 6 + Math.random() * 12 }), 4800)
+    return () => clearInterval(iv)
+  }, [weather]) // eslint-disable-line
   const weedRef = useRef(null)
   const ticketValidRef = useRef(false)
   const harvestRef = useRef(0)
@@ -471,31 +483,49 @@ export default function FarmPage() {
             )
           })}
 
-          {/* 잡초 — 수강권 있을 때만. 4단계부터 뽑을 수 있음(흔들림 표시) */}
+          {/* 잡초 — 수강권 있을 때만. 4단계부터 뽑을 수 있음. 큰 투명 히트영역으로 클릭 쉽게 */}
           {ticketValid && weeds.map(w => {
             const stage = weedStage(w, Date.now())
             const removable = stage >= WEED.REMOVABLE_STAGE
             const size = 26 + stage * 7
             return (
-              <img key={w.id} src={weedImg(stage)} alt="잡초"
-                onClick={removable ? () => removeWeed(w) : undefined}
-                title={removable ? '잡초 뽑기 ✂️' : '아직 못 뽑아요'}
-                className={removable ? 'weed-ready' : ''}
-                style={{ position:'absolute', left:`${w.x}%`, top:`${w.y}%`, width:size, transform:'translate(-50%,-100%)', imageRendering:'pixelated', zIndex:7,
-                  cursor: removable ? 'pointer' : 'default', pointerEvents: removable ? 'auto' : 'none',
-                  filter: removable ? 'drop-shadow(0 0 4px rgba(226,75,74,0.85))' : 'none' }} />
+              <div key={w.id}>
+                {removable && (
+                  <div onClick={() => removeWeed(w)} title="잡초 뽑기 ✂️"
+                    style={{ position:'absolute', left:`${w.x}%`, top:`${w.y}%`, width:Math.max(50, size + 26), height:size + 28, transform:'translate(-50%,-100%)', zIndex:12, cursor:'pointer' }} />
+                )}
+                <img src={weedImg(stage)} alt="잡초"
+                  className={removable ? 'weed-ready' : ''}
+                  style={{ position:'absolute', left:`${w.x}%`, top:`${w.y}%`, width:size, transform:'translate(-50%,-100%)', imageRendering:'pixelated', zIndex:7, pointerEvents:'none',
+                    filter: removable ? 'drop-shadow(0 0 4px rgba(226,75,74,0.85))' : 'none' }} />
+              </div>
             )
           })}
 
-          {/* 잡초더미 아이콘 + 제거 개수 (수강권 있을 때) */}
-          {ticketValid && (
-            <div style={{ position:'absolute', top:8, right:8, zIndex:26, display:'flex', flexDirection:'column', alignItems:'center', gap:1, background:'rgba(255,255,255,0.92)', border:'1.5px solid var(--g5)', borderRadius:12, padding:'6px 9px', boxShadow:'2px 2px 0 rgba(0,0,0,0.1)' }}>
-              {pileImgOk
-                ? <img key={pileBump} className="pile-bump" src="/farm/weed-pile.png" alt="잡초더미" width={30} height={30} onError={() => setPileImgOk(false)} style={{ imageRendering:'pixelated', display:'block' }}/>
-                : <span key={pileBump} className="pile-bump" style={{ fontSize:20, lineHeight:1 }}>🌿</span>}
-              <span style={{ fontSize:11, fontWeight:900, color:'var(--g5)', fontFamily:'Nunito,sans-serif', fontVariantNumeric:'tabular-nums' }}>{weedRemoved}/{WEED.REWARD_AT}</span>
+          {/* 좌상단 — 오늘 날씨(홈과 동일 소스) */}
+          {weather && (
+            <div style={{ position:'absolute', top:8, left:8, zIndex:26, display:'flex', alignItems:'center', gap:5, background:'rgba(255,255,255,0.92)', border:'1.5px solid var(--g5)', borderRadius:12, padding:'5px 10px', boxShadow:'2px 2px 0 rgba(0,0,0,0.1)', color:'var(--g5)' }}>
+              <span style={{ fontSize:16, lineHeight:1 }}>{weather.icon}</span>
+              <span style={{ fontSize:12, fontWeight:900, fontFamily:'Nunito,sans-serif' }}>{weather.temp}°</span>
             </div>
           )}
+
+          {/* 우상단 HUD — 잡초더미 아이콘 + 그 아래 미니게임 아이콘(순차) */}
+          <div style={{ position:'absolute', top:8, right:8, zIndex:26, display:'flex', flexDirection:'column', alignItems:'center', gap:8 }}>
+            {ticketValid && (
+              <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:1, background:'rgba(255,255,255,0.92)', border:'1.5px solid var(--g5)', borderRadius:12, padding:'6px 9px', boxShadow:'2px 2px 0 rgba(0,0,0,0.1)' }}>
+                {pileImgOk
+                  ? <img key={pileBump} className="pile-bump" src="/farm/weed-pile.png" alt="잡초더미" width={30} height={30} onError={() => setPileImgOk(false)} style={{ imageRendering:'pixelated', display:'block' }}/>
+                  : <span key={pileBump} className="pile-bump" style={{ fontSize:20, lineHeight:1 }}>🌿</span>}
+                <span style={{ fontSize:11, fontWeight:900, color:'var(--g5)', fontFamily:'Nunito,sans-serif', fontVariantNumeric:'tabular-nums' }}>{weedRemoved}/{WEED.REWARD_AT}</span>
+              </div>
+            )}
+            <div onClick={() => gamesRef.current?.scrollIntoView({ behavior:'smooth', block:'center' })} title="미니게임"
+              style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, background:'rgba(255,255,255,0.92)', border:'1.5px solid var(--g5)', borderRadius:12, padding:'6px 9px', boxShadow:'2px 2px 0 rgba(0,0,0,0.1)', cursor:'pointer' }}>
+              <span style={{ fontSize:20, lineHeight:1 }}>🎮</span>
+              <span style={{ fontSize:9.5, fontWeight:900, color:'var(--g5)', fontFamily:'Nunito,sans-serif' }}>게임</span>
+            </div>
+          </div>
 
         </div>
 
@@ -519,7 +549,7 @@ export default function FarmPage() {
           )}
 
           {/* 미니게임 — 색감 훈련 (잡초 밑) */}
-          <div style={{ fontSize:13, fontWeight:800, color:'var(--td)', marginBottom:10 }}>미니게임 <span style={{ fontSize:10, fontWeight:700, color:'var(--tmu)' }}>· 색감 훈련</span></div>
+          <div ref={gamesRef} style={{ fontSize:13, fontWeight:800, color:'var(--td)', marginBottom:10, scrollMarginTop:70 }}>미니게임 <span style={{ fontSize:10, fontWeight:700, color:'var(--tmu)' }}>· 색감 훈련</span></div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:11, marginBottom:11 }}>
 
             {/* 조색 게임 — 정사각 게임 커버 */}
