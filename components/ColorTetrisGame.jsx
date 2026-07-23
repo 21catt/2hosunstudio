@@ -1,5 +1,6 @@
 'use client'
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { submitGameScore } from '../lib/gameScore'
 
 // 색채 테트리스 — 색상 블록과 명도(회색) 블록이 번갈아 내려온다.
 // 색상 블록의 '밝기'에 맞는 명도 블록을 위·아래로 맞물리면(같은 밝기 레벨) 둘 다 사라진다.
@@ -43,6 +44,7 @@ export default function ColorTetrisGame({ open, onClose }) {
     if (boardRef.current[0][SPAWN] != null) {
       overRef.current = true; setOver(true)
       setBest(b => { const nb = Math.max(b, scoreRef.current); try { localStorage.setItem(BEST_KEY, String(nb)) } catch {} return nb })
+      submitGameScore('colortetris', scoreRef.current) // 리더보드 제출(본인 최고점만)
       return
     }
     fallRef.current = { col: SPAWN, row: 0, kind, level, color }

@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { submitGameScore } from '../lib/gameScore'
 
 // 조색 게임 — 목표색을 3원색(물감식 감산 혼합)으로 맞추는 미니게임. 냥밭 진입.
 // 근접도는 제출해야 공개(눈으로 판단 → 색감 훈련). 5라운드 총점, 최고점 localStorage 기록.
@@ -83,6 +84,7 @@ export default function ColorMixGame({ open, onClose }) {
     if (round >= ROUNDS) {
       const total = scores.reduce((s, v) => s + v, 0)
       if (total > best) { setBest(total); try { localStorage.setItem(BEST_KEY, String(total)) } catch {} }
+      submitGameScore('colormix', total) // 리더보드 제출(본인 최고점만)
       setPhase('done')
       return
     }

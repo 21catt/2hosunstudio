@@ -10,6 +10,7 @@ import { WEED, weedImg, weedStage, tickWeeds } from '../../../lib/weeds'
 import LoadingCat from '../../../components/LoadingCat'
 import ColorMixGame from '../../../components/ColorMixGame'
 import ColorTetrisGame from '../../../components/ColorTetrisGame'
+import { topGameScores } from '../../../lib/gameScore'
 
 // 테마별 픽셀 냥밭 환경 — ground는 이미지 하단 지면 픽셀 색과 동일(이음매 방지)
 const FARM_ENV = {
@@ -158,8 +159,12 @@ export default function FarmPage() {
   const [gameOpen, setGameOpen] = useState(false) // 조색 게임 오버레이
   const [tetrisOpen, setTetrisOpen] = useState(false) // 색채 테트리스 오버레이
   const [bests, setBests] = useState({ mix: 0, tetris: 0 }) // 게임 최고점(타일 표시)
+  const [ranks, setRanks] = useState({ mix: [], tetris: [] }) // 게임별 순위 1~3위
   useEffect(() => {
     try { setBests({ mix: +(localStorage.getItem('2hs_colormix_best') || 0), tetris: +(localStorage.getItem('2hs_colortetris_best') || 0) }) } catch {}
+    let alive = true
+    Promise.all([topGameScores('colormix', 3), topGameScores('colortetris', 3)]).then(([m, t]) => { if (alive) setRanks({ mix: m, tetris: t }) })
+    return () => { alive = false }
   }, [gameOpen, tetrisOpen])
   const weedRef = useRef(null)
   const ticketValidRef = useRef(false)
@@ -513,22 +518,9 @@ export default function FarmPage() {
             </div>
           )}
 
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, marginBottom:14 }}>
-            {[
-              { label:'총 출석', val:`${attended}회`, color:'var(--g4)' },
-              { label:'결석', val:`${absent}회`, color:'#c0392b' },
-              { label:'수확한 작물', val:`${harvest}개`, color:'#FF6B20' },
-            ].map(s => (
-              <div key={s.label} style={{ background:'var(--bg)', borderRadius:12, padding:'10px', textAlign:'center', border:'1.5px solid var(--g1)' }}>
-                <div style={{ fontSize:9, color:'var(--tmu)', fontWeight:700, marginBottom:3 }}>{s.label}</div>
-                <div style={{ fontSize:15, fontWeight:800, color:s.color }}>{s.val}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* 미니게임 — 색감 훈련 */}
-          <div style={{ fontSize:13, fontWeight:800, color:'var(--td)', marginBottom:10 }}>미니게임</div>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:11, marginBottom:18 }}>
+          {/* 미니게임 — 색감 훈련 (잡초 밑) */}
+          <div style={{ fontSize:13, fontWeight:800, color:'var(--td)', marginBottom:10 }}>미니게임 <span style={{ fontSize:10, fontWeight:700, color:'var(--tmu)' }}>· 색감 훈련</span></div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:11, marginBottom:11 }}>
 
             {/* 조색 게임 — 정사각 게임 커버 */}
             <div onClick={() => setGameOpen(true)}
@@ -563,6 +555,41 @@ export default function FarmPage() {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* 순위 — 게임별 1·2·3위(이름·점수) */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:11, marginBottom:18 }}>
+            {[{ key:'mix', title:'조색 게임', rows:ranks.mix }, { key:'tetris', title:'색채 테트리스', rows:ranks.tetris }].map(g => (
+              <div key={g.key} style={{ background:'var(--bg)', border:'1.5px solid var(--g1)', borderRadius:14, padding:'11px 12px' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:5, marginBottom:8 }}>
+                  <span style={{ fontSize:12 }}>🏆</span>
+                  <span style={{ fontSize:11, fontWeight:800, color:'var(--td)' }}>{g.title} 순위</span>
+                </div>
+                {[0,1,2].map(i => {
+                  const r = g.rows[i]
+                  return (
+                    <div key={i} style={{ display:'flex', alignItems:'center', gap:6, padding:'4px 0', borderBottom: i<2 ? '1px solid var(--g1)' : 'none' }}>
+                      <span style={{ fontSize:12, flexShrink:0 }}>{['🥇','🥈','🥉'][i]}</span>
+                      <span style={{ flex:1, minWidth:0, fontSize:11, fontWeight:700, color: r ? 'var(--td)' : 'var(--tmu)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r ? (r.name || '냥작가') : '-'}</span>
+                      <span style={{ fontSize:11, fontWeight:900, color: r ? 'var(--acTx)' : 'var(--tmu)', fontVariantNumeric:'tabular-nums' }}>{r ? r.score : ''}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, marginBottom:14 }}>
+            {[
+              { label:'총 출석', val:`${attended}회`, color:'var(--g4)' },
+              { label:'결석', val:`${absent}회`, color:'#c0392b' },
+              { label:'수확한 작물', val:`${harvest}개`, color:'#FF6B20' },
+            ].map(s => (
+              <div key={s.label} style={{ background:'var(--bg)', borderRadius:12, padding:'10px', textAlign:'center', border:'1.5px solid var(--g1)' }}>
+                <div style={{ fontSize:9, color:'var(--tmu)', fontWeight:700, marginBottom:3 }}>{s.label}</div>
+                <div style={{ fontSize:15, fontWeight:800, color:s.color }}>{s.val}</div>
+              </div>
+            ))}
           </div>
 
           {/* 최근 이력 */}
