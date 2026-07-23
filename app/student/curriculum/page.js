@@ -20,7 +20,7 @@ const CAT_ORDER = ['drawing', 'painting', 'sculpture', 'oneday', 'free', 'meetin
 
 // 해당 수업만의 주간 시간표 — 수업이 있는 요일만 행으로(요일 배지 + 시작~종료 시간 칩)
 const DOW_KO = ['일', '월', '화', '수', '목', '금', '토']
-function CourseWeeklyTimetable({ schedules }) {
+function CourseWeeklyTimetable({ schedules, onPickTime }) {
   if (!schedules || schedules.length === 0) return null
   const byDow = {}
   const seen = new Set()
@@ -36,10 +36,10 @@ function CourseWeeklyTimetable({ schedules }) {
   if (order.length === 0) return null
   return (
     <div style={{ marginTop: 14 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 8, flexWrap: 'wrap' }}>
         <NavIcon name="calendar" color={ACCENT} size={13} />
         <span style={{ fontSize: 11.5, fontWeight: 800, color: ACCENT_TEXT }}>주간 시간표</span>
-        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tmu)' }}>주 {order.length}일</span>
+        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tmu)' }}>주 {order.length}일 · 시간을 누르면 가장 가까운 날 예약으로 →</span>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {order.map(dw => (
@@ -47,9 +47,10 @@ function CourseWeeklyTimetable({ schedules }) {
             <span style={{ width: 28, height: 28, flexShrink: 0, borderRadius: '50%', background: ACCENT, color: '#fff', fontSize: 12, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{DOW_KO[dw]}</span>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
               {byDow[dw].map((s, k) => (
-                <span key={k} style={{ fontSize: 11, fontWeight: 700, color: ACCENT_TEXT, background: 'var(--surf)', border: '1px solid rgb(var(--ac-rgb) / 0.22)', borderRadius: 8, padding: '3px 9px', fontVariantNumeric: 'tabular-nums' }}>
+                <button key={k} onClick={() => onPickTime && onPickTime(dw, s.start_time)} title="이 시간으로 예약하러 가기"
+                  style={{ fontSize: 11, fontWeight: 700, color: ACCENT_TEXT, background: 'var(--surf)', border: '1px solid rgb(var(--ac-rgb) / 0.28)', borderRadius: 8, padding: '4px 10px', fontVariantNumeric: 'tabular-nums', cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
                   {(s.start_time || '').slice(0, 5)}~{(s.end_time || '').slice(0, 5)}
-                </span>
+                </button>
               ))}
             </div>
           </div>
@@ -805,7 +806,7 @@ function CurriculumInner() {
                               </button>
                             </div>
                             <div style={{ padding:'0 14px 14px' }}>
-                              <CourseWeeklyTimetable schedules={course.schedules} />
+                              <CourseWeeklyTimetable schedules={course.schedules} onPickTime={(dw, start) => router.push(`/student/calendar?course=${encodeURIComponent(course.name)}&dow=${dw}&start=${encodeURIComponent(start)}`)} />
                             </div>
                           </div>
                         )}
@@ -835,7 +836,7 @@ function CurriculumInner() {
                                 회차 보기
                               </button>
                             </div>
-                            <CourseWeeklyTimetable schedules={course.schedules} />
+                            <CourseWeeklyTimetable schedules={course.schedules} onPickTime={(dw, start) => router.push(`/student/calendar?course=${encodeURIComponent(course.name)}&dow=${dw}&start=${encodeURIComponent(start)}`)} />
                           </div>
                         )}
                       </div>

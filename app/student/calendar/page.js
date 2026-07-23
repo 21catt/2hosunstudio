@@ -43,12 +43,13 @@ function getCatImage(d) {
 }
 
 // 특정 수업이 다음으로 열리는 날짜 (커리큘럼 → 예약 딥링크용)
-function findNextOpenDate(course, lockedDates) {
+function findNextOpenDate(course, lockedDates, onlyDow = null) {
   const now = new Date()
   for (let i = 0; i < 70; i++) {
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i)
     const dow = d.getDay()
     if (dow === 1) continue
+    if (onlyDow != null && dow !== onlyDow) continue
     if (!course.class_schedules?.some(s => s.day_of_week === dow)) continue
     if (course.class_exceptions?.some(e => e.day_of_week === dow)) continue
     const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
@@ -148,6 +149,7 @@ export default function CalendarPage() {
   const [lockedDates, setLockedDates] = useState(new Set())
   const [curriculumNames, setCurriculumNames] = useState(new Set())
   const [pendingCourse, setPendingCourse] = useState(null)
+  const [pendingSlot, setPendingSlot] = useState(null) // 핵심내용 시간 클릭 딥링크 { dow, start }
   const deepLinkApplied = useRef(false)
   const [selectedDay, setSelectedDay] = useState(new Date().getDate())
   const [viewMode, setViewMode] = useState('month') // 'month' 월 달력 | 'week' 주간 시간표
@@ -182,10 +184,13 @@ export default function CalendarPage() {
     })
   }, [])
 
-  // 커리큘럼 '이 수업 예약하기' 딥링크 (?course=) → 해당 수업 다음 날짜로 이동 + 선택
+  // 커리큘럼 딥링크: ?course=(수업), ?dow=&start=(핵심내용 시간 클릭 → 그 요일·시간)
   useEffect(() => {
-    const p = new URLSearchParams(window.location.search).get('course')
+    const q = new URLSearchParams(window.location.search)
+    const p = q.get('course')
     if (p) setPendingCourse(p)
+    const dw = q.get('dow'), st = q.get('start')
+    if (dw != null && st) setPendingSlot({ dow: parseInt(dw, 10), start: st })
   }, [])
 
   // 홈 날짜 스트립 딥링크 (?date=YYYY-MM-DD)
@@ -202,10 +207,14 @@ export default function CalendarPage() {
     deepLinkApplied.current = true
     const course = classes.find(c => c.name === pendingCourse)
     if (!course) return
-    const d = findNextOpenDate(course, lockedDates)
+    // 시간 딥링크면 그 요일의 가장 가까운 날짜로, 아니면 다음 열리는 날짜로
+    const d = findNextOpenDate(course, lockedDates, pendingSlot ? pendingSlot.dow : null)
     if (!d) return
     setYear(d.getFullYear()); setMonth(d.getMonth()); setSelectedDay(d.getDate())
-    setSelCat(course.category); setSelCourse(course); setSelSchedule(null)
+    setSelCat(course.category); setSelCourse(course)
+    // 시간 딥링크면 해당 시간대까지 선택
+    const sch = pendingSlot ? (course.class_schedules || []).find(s => s.day_of_week === pendingSlot.dow && s.start_time === pendingSlot.start) : null
+    setSelSchedule(sch || null)
   }, [pendingCourse, classes])
 
   // 최초 로드: 딥링크가 없으면 오늘 날짜의 첫 수업 시간표까지 자동으로 펼침
