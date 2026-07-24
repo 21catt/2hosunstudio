@@ -40,6 +40,26 @@ const COLORS = [
   { hex: '#dd7a2c', level: 2, tier: 4, tag: '주황(미묘)' },
   { hex: '#cf3a2a', level: 1, tier: 4, tag: '빨강(미묘)' },
   { hex: '#f0c4d6', level: 4, tier: 4, tag: '분홍(미묘)' },
+  // 6단계 — 3차색(연두·청록·자홍)
+  { hex: '#7ba428', level: 2, tier: 5, tag: '연두' },
+  { hex: '#2a9d8f', level: 1, tier: 5, tag: '청록' },
+  { hex: '#b5359c', level: 1, tier: 5, tag: '자홍' },
+  // 7단계 — 같은 계열 색차(주황 3종째, 초록·하늘 미묘 쌍)
+  { hex: '#e07b2a', level: 2, tier: 6, tag: '주황(미묘2)' },
+  { hex: '#1a8f6a', level: 1, tier: 6, tag: '초록(미묘)' },
+  { hex: '#8ab6e6', level: 3, tier: 6, tag: '하늘(미묘)' },
+  // 8단계 — 탁색(회색 섞인 저채도 — 색인지 명도인지 헷갈림)
+  { hex: '#8a7d5a', level: 2, tier: 7, tag: '올리브' },
+  { hex: '#9a7a86', level: 2, tier: 7, tag: '더스티로즈' },
+  { hex: '#6b7a95', level: 2, tier: 7, tag: '슬레이트블루' },
+  // 9단계 — 밝은 파스텔 쌍둥이(밝은 톤 미세 구별)
+  { hex: '#f2c0d2', level: 3, tier: 8, tag: '분홍틴트(미묘)' },
+  { hex: '#c3e8d4', level: 4, tier: 8, tag: '민트(미묘)' },
+  { hex: '#f2e0ac', level: 4, tier: 8, tag: '크림(미묘)' },
+  // 10단계 — 어두운 딥톤 쌍둥이(어두운 톤 미세 구별)
+  { hex: '#5c1820', level: 0, tier: 9, tag: '마룬(미묘)' },
+  { hex: '#134a3a', level: 0, tier: 9, tag: '딥그린(미묘)' },
+  { hex: '#1d3d72', level: 0, tier: 9, tag: '네이비(미묘)' },
 ]
 
 // 단계 정의: goal = 이번 단계에서 제거할 블록 수, levels = 활성 밝기 버킷 수, note = 축하 안내.
@@ -49,6 +69,11 @@ const STAGES = [
   { goal: 20, levels: 4, note: '틴트(화이트 섞인 색), 명도 4단' },
   { goal: 24, levels: 5, note: '셰이드(블랙 섞인 딥톤), 명도 5단' },
   { goal: 28, levels: 5, note: '미묘하게만 다른 색 — 눈이 예민해져요' },
+  { goal: 32, levels: 5, note: '3차색 — 연두·청록·자홍 추가' },
+  { goal: 36, levels: 5, note: '주황만 3종 — 미세한 색차 구별' },
+  { goal: 40, levels: 5, note: '탁색(회색 섞인 색) — 채도가 낮아져요' },
+  { goal: 44, levels: 5, note: '파스텔 쌍둥이 색 — 밝은 톤 구별' },
+  { goal: 48, levels: 5, note: '딥톤 쌍둥이 색 — 어두운 톤 구별' },
 ]
 const stageConf = idx => STAGES[Math.min(idx, STAGES.length - 1)]
 const stageGoal = idx => {
@@ -56,7 +81,7 @@ const stageGoal = idx => {
   return idx < STAGES.length ? base : base + (idx - STAGES.length + 1) * 4
 }
 const stageLevels = idx => stageConf(idx).levels
-const stageSpeed = idx => Math.max(220, 780 - idx * 70)
+const stageSpeed = idx => Math.max(160, 760 - idx * 60) // 5단↑ 계속 빨라짐(약 10단에서 상한)
 // 이 단계까지 열린 색들(밝기 버킷 활성 범위 안). newTier = 이번 단계에 새로 등장한 것.
 const unlockedColors = idx => COLORS.filter(c => c.tier <= idx && c.level < stageLevels(idx))
 
@@ -451,9 +476,9 @@ function StageClearOverlay({ stage, score, onNext }) {
       <div style={{ fontSize: 17, fontWeight: 900, color: '#fff', letterSpacing: '-0.3px' }}>{cleared}단계 클리어!</div>
 
       {/* 축하 이미지 = 마스터한 색·명도 팔레트 */}
-      <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 12, padding: '9px 11px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+      <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 12, padding: '9px 11px', display: 'flex', flexDirection: 'column', gap: 6, maxWidth: 224 }}>
         {rows.map(row => (
-          <div key={row.lv} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <div key={row.lv} style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
             <span style={{ width: 16, height: 16, borderRadius: 4, background: row.gray, flexShrink: 0, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.25)' }} title="명도" />
             <span style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.2)', margin: '0 2px' }} />
             {row.colors.map((c, k) => (
