@@ -15,8 +15,8 @@ const S = {
   text: '#f3eef8', sub: 'rgba(243,238,248,0.66)', faint: 'rgba(243,238,248,0.5)', dim: 'rgba(243,238,248,0.34)',
   accent: '#e35ba6', accentText: '#ffe6f2', accentSoft: 'rgba(227,91,166,0.16)', accentRing: 'rgba(227,91,166,0.5)',
   // 첨부 이미지 카드 그라데이션 (섹션별) — 진한 명도 코어의 '위치'를 원본대로.
-  // Codex: 검정-마룬 코어가 중심(약간 우측), 가장자리로 갈수록 밝은 마젠타.
-  hero: 'radial-gradient(125% 135% at 60% 47%, #0f0409 0%, #330b22 19%, #6c1948 39%, #a62c72 60%, #cc4187 79%, #e876b0 100%)',
+  // Codex: 따뜻한 진한 플럼 코어(검정 아님) 중심 → 가장자리는 탁한(더스티) 라벤더-핑크.
+  hero: 'radial-gradient(116% 124% at 52% 46%, #2e0f22 0%, #431631 11%, #6a2650 25%, #93406c 40%, #b46293 57%, #cd87b2 76%, #d9a5ca 100%)',
   // Media: 좌하단 블루 글로우 → 우상단 진한 네이비.
   media: 'radial-gradient(140% 140% at 32% 82%, #3b50a3 0%, #26326e 42%, #172049 72%, #10163a 100%)',
   mediaSel: 'radial-gradient(140% 140% at 32% 82%, #5064c2 0%, #34428e 45%, #1e2a60 100%)',
@@ -99,12 +99,14 @@ export default function SpaceHome(props) {
       <div className="no-scrollbar" style={{ position: 'relative', zIndex: 4, padding: '4px 20px 120px' }}>
 
         {/* HERO — Codex 마젠타 라디얼 (블랙홀 중심 + 글로우 도트) */}
-        <div style={{ position: 'relative', borderRadius: 30, padding: '22px', overflow: 'hidden', background: S.hero, boxShadow: '0 22px 55px -20px rgba(184,58,124,0.6), inset 0 1px 0 rgba(255,255,255,0.12)' }}>
+        <div style={{ position: 'relative', borderRadius: 30, padding: '22px', overflow: 'hidden', background: S.hero, boxShadow: '0 22px 55px -20px rgba(150,64,108,0.55), inset 0 1px 0 rgba(255,255,255,0.14)' }}>
           <HeroWeatherFX code={weather?.code} />
-          {/* Codex 스타일 글로우 도트 라인 */}
-          <svg width="200" height="20" viewBox="0 0 200 20" style={{ position: 'absolute', top: 26, left: 18, opacity: 0.92, zIndex: 1 }}>
+          {/* Codex 스타일 글로우 도트 라인 — 왼쪽 두 개만 강한 글로우 */}
+          <svg width="200" height="20" viewBox="0 0 200 20" style={{ position: 'absolute', top: 26, left: 18, zIndex: 1 }}>
+            <circle cx="6" cy="10" r="6.5" fill="#fff" opacity="0.28" />
+            <circle cx="20" cy="10" r="6" fill="#fff" opacity="0.24" />
             {[6, 20, 42, 66, 92, 110, 128, 146, 164, 182].map((x, i) => (
-              <circle key={i} cx={x} cy="10" r={i < 2 ? 3 : 2.3} fill="#fff" opacity={i < 2 ? 0.98 : 0.55 - i * 0.035} />
+              <circle key={i} cx={x} cy="10" r={i < 2 ? 3.4 : 2.2} fill="#fff" opacity={i < 2 ? 1 : 0.82} />
             ))}
           </svg>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginTop: 44, position: 'relative', zIndex: 1 }}>

@@ -639,9 +639,9 @@ export default function StudentHomePage() {
       {spacePromo && activeTheme !== 'space' && (
         <div style={{ position:'fixed', inset:0, background:'rgba(8,5,14,0.55)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:120, padding:24 }}>
           <div className="pop-in" style={{ background:'#160f22', borderRadius:22, padding:'0 0 16px', width:'100%', maxWidth:320, overflow:'hidden', boxShadow:'0 18px 50px rgba(0,0,0,0.55)' }}>
-            <div style={{ height:104, position:'relative', background:'radial-gradient(125% 150% at 60% 50%, #0f0409 0%, #330b22 18%, #6c1948 38%, #a62c72 60%, #cc4187 80%, #e876b0 100%)', overflow:'hidden' }}>
-              <div style={{ position:'absolute', top:16, left:18, display:'flex', gap:8 }}>
-                {[0,1,2,3,4,5].map(i => <span key={i} style={{ width:i<2?7:5, height:i<2?7:5, borderRadius:'50%', background:'#fff', opacity:i<2?0.95:0.5-i*0.06, marginTop:i<2?0:1 }}/>)}
+            <div style={{ height:104, position:'relative', background:'radial-gradient(118% 140% at 52% 50%, #2e0f22 0%, #431631 11%, #6a2650 25%, #93406c 40%, #b46293 57%, #cd87b2 76%, #d9a5ca 100%)', overflow:'hidden' }}>
+              <div style={{ position:'absolute', top:18, left:18, display:'flex', gap:8, alignItems:'center' }}>
+                {[0,1,2,3,4,5,6].map(i => <span key={i} style={{ width:i<2?7:5, height:i<2?7:5, borderRadius:'50%', background:'#fff', opacity:i<2?1:0.82, boxShadow:i<2?'0 0 6px rgba(255,255,255,0.9)':'none' }}/>)}
               </div>
               <div style={{ position:'absolute', left:'50%', top:'54%', transform:'translate(-50%,-50%)', background:'rgba(255,255,255,0.14)', boxShadow:'inset 0 1px 0 rgba(255,255,255,0.25)', borderRadius:14, padding:'10px 18px', fontSize:14, fontWeight:800, color:'#fff', whiteSpace:'nowrap', backdropFilter:'blur(8px)', WebkitBackdropFilter:'blur(8px)' }}>🌌 울트라 스페이스</div>
             </div>
