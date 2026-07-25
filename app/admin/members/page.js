@@ -331,7 +331,6 @@ export default function AdminMembersPage() {
           const usedTotal  = grants.reduce((s, g) => s + (g.total || 0), 0)
           const innerPct   = ticket && ticket.total ? Math.max(0, Math.min(1, ticket.remain / ticket.total)) : 0
           const outerPct   = ticket ? Math.max(0, Math.min(1, getDaysLeft(ticket) / ticketDays)) : 0
-          const RI = 40, RO = 54, CI = 2 * Math.PI * RI, CO = 2 * Math.PI * RO
 
           const showHead = status !== lastStatus
           lastStatus = status
@@ -394,75 +393,94 @@ export default function AdminMembersPage() {
                 {isOpen && (
                   <div style={{ padding:'0 13px 15px' }}>
 
-                    {/* 원형휠(이중 링) + 첫 등록일 · 총 수강기간 · 일시정지 */}
-                    <div style={{ border:'0.5px solid rgba(0,0,0,0.08)', borderRadius:16, padding:'15px 14px 13px', marginBottom:10, background:'linear-gradient(180deg,#FCFDFB,#fff)' }}>
-                      {ticket ? (
-                        <div style={{ display:'flex', alignItems:'center', gap:15 }}>
-                          <div style={{ position:'relative', width:118, height:118, flexShrink:0 }}>
-                            <svg width={118} height={118} viewBox="0 0 118 118" style={{ transform:'rotate(-90deg)', filter: paused ? 'saturate(0.55)' : 'none' }}>
-                              <circle cx={59} cy={59} r={RO} fill="none" stroke="#ECEAE2" strokeWidth={7}/>
-                              <circle cx={59} cy={59} r={RI} fill="none" stroke="#EFEDE6" strokeWidth={10}/>
-                              <circle cx={59} cy={59} r={RO} fill="none" strokeWidth={7} strokeLinecap="round"
-                                stroke={paused ? '#5B7A99' : (getDaysLeft(ticket) <= 7 ? '#E08A1E' : 'var(--ac)')}
-                                strokeDasharray={CO} strokeDashoffset={CO * (1 - outerPct)}/>
-                              <circle cx={59} cy={59} r={RI} fill="none" strokeWidth={10} strokeLinecap="round"
-                                stroke="var(--ac)" strokeDasharray={CI} strokeDashoffset={CI * (1 - innerPct)}/>
-                            </svg>
-                            <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
-                              <div style={{ fontSize:26, fontWeight:900, color:'#1c2a24', lineHeight:1, letterSpacing:'-0.5px', fontVariantNumeric:'tabular-nums' }}>
-                                {ticket.remain}<span style={{ fontSize:12, color:'#a2aaa1' }}>/{ticket.total}</span>
-                              </div>
-                              <div style={{ fontSize:9, fontWeight:800, color:'var(--acTx)', marginTop:3 }}>잔여 횟수</div>
-                            </div>
-                            <div style={{ position:'absolute', top:2, left:'50%', transform:'translateX(-50%)', fontSize:9.5, fontWeight:900, borderRadius:999, padding:'2px 8px', whiteSpace:'nowrap',
-                              background: paused ? '#E9EFF5' : (getDaysLeft(ticket) <= 7 ? '#FAEFDD' : '#EAF3E4'),
-                              color: paused ? '#3E5B79' : (getDaysLeft(ticket) <= 7 ? '#A0580B' : 'var(--acTx)') }}>
-                              {paused ? '❚❚ 정지' : daysLeft <= 0 ? '만료' : `D-${daysLeft}`}
-                            </div>
+                    {/* 원형휠(이중 링, 가운데) + 스탯 타일 + 첫 등록일 + 일시정지 + 총 수강기간 */}
+                    {(() => {
+                      const attendedCount = (m.bookings || []).filter(b => b.attended === true).length
+                      const recentAtt = (m.bookings || []).filter(b => b.attended === true).map(b => b.class_date).filter(Boolean).sort().pop()
+                      const periodColor = paused ? '#5B7A99' : (getDaysLeft(ticket) <= 7 ? '#E08A1E' : 'var(--ac)')
+                      const RH = 64, rh = 48, CH = 2 * Math.PI * RH, ch = 2 * Math.PI * rh
+                      return (
+                        <div style={{ border:'0.5px solid rgba(0,0,0,0.08)', borderRadius:18, marginBottom:10, background:'linear-gradient(180deg,#FCFDFB,#fff)', overflow:'hidden' }}>
+                          <div style={{ display:'flex', alignItems:'center', gap:6, padding:'12px 14px 0' }}>
+                            <span style={{ fontSize:10, fontWeight:800, color:'var(--acTx)', background:'var(--acBg)', borderRadius:999, padding:'3px 10px' }}>🗓 첫 등록 {fmtDate(firstReg)}</span>
                           </div>
 
-                          <div style={{ flex:1, minWidth:0 }}>
-                            <div style={{ fontSize:15, fontWeight:900, color:'#1c2a24', letterSpacing:'-0.2px' }}>{ticket.type || '수강권'}</div>
-                            <div style={{ fontSize:10.5, fontWeight:700, color:'#a2aaa1', marginTop:2 }}>
-                              {paused ? '일시정지 중 · 만료일 멈춤' : daysLeft <= 0 ? '만료됨' : `만료 ${ticket.expires_at} · ${daysLeft}일`}
-                            </div>
-                            <div style={{ display:'flex', gap:14, marginTop:11 }}>
-                              <div>
-                                <div style={{ fontSize:9, fontWeight:800, color:'#a2aaa1' }}>첫 등록</div>
-                                <div style={{ fontSize:12, fontWeight:900, color:'#1c2a24', marginTop:2, fontVariantNumeric:'tabular-nums' }}>{fmtDate(firstReg)}</div>
+                          {ticket ? (
+                            <>
+                              <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'8px 14px 0' }}>
+                                <div style={{ position:'relative', width:150, height:150 }}>
+                                  <svg width={150} height={150} viewBox="0 0 150 150" style={{ transform:'rotate(-90deg)', filter: paused ? 'saturate(0.55)' : 'none' }}>
+                                    <circle cx={75} cy={75} r={RH} fill="none" stroke="#ECEAE2" strokeWidth={8}/>
+                                    <circle cx={75} cy={75} r={rh} fill="none" stroke="#EFEDE6" strokeWidth={12}/>
+                                    <circle cx={75} cy={75} r={RH} fill="none" strokeWidth={8} strokeLinecap="round" stroke={periodColor}
+                                      strokeDasharray={CH} strokeDashoffset={CH * (1 - outerPct)}/>
+                                    <circle cx={75} cy={75} r={rh} fill="none" strokeWidth={12} strokeLinecap="round" stroke="var(--ac)"
+                                      strokeDasharray={ch} strokeDashoffset={ch * (1 - innerPct)}/>
+                                  </svg>
+                                  <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
+                                    <div style={{ fontSize:34, fontWeight:900, color:'#1c2a24', lineHeight:1, letterSpacing:'-1px', fontVariantNumeric:'tabular-nums' }}>
+                                      {ticket.remain}<span style={{ fontSize:15, color:'#a2aaa1' }}>/{ticket.total}회</span>
+                                    </div>
+                                    <div style={{ fontSize:10, fontWeight:800, color:'var(--acTx)', marginTop:5 }}>잔여 횟수</div>
+                                  </div>
+                                  <div style={{ position:'absolute', top:4, left:'50%', transform:'translateX(-50%)', fontSize:10, fontWeight:900, borderRadius:999, padding:'3px 9px', whiteSpace:'nowrap',
+                                    background: paused ? '#E9EFF5' : (getDaysLeft(ticket) <= 7 ? '#FAEFDD' : '#EAF3E4'),
+                                    color: paused ? '#3E5B79' : (getDaysLeft(ticket) <= 7 ? '#A0580B' : 'var(--acTx)') }}>
+                                    {paused ? '❚❚ 정지' : daysLeft <= 0 ? '만료' : `D-${daysLeft}`}
+                                  </div>
+                                </div>
+                                <div style={{ fontSize:16, fontWeight:900, color:'#1c2a24', marginTop:12, letterSpacing:'-0.2px' }}>{ticket.type || '수강권'}</div>
+                                <div style={{ fontSize:10.5, fontWeight:700, color:'#a2aaa1', marginTop:2 }}>
+                                  {paused ? '일시정지 중 · 만료일 멈춤' : daysLeft <= 0 ? '만료됨' : `만료 ${ticket.expires_at}`}
+                                </div>
                               </div>
-                              <div>
-                                <div style={{ fontSize:9, fontWeight:800, color:'#a2aaa1' }}>총 수강기간</div>
-                                <div style={{ fontSize:12, fontWeight:900, color:'#1c2a24', marginTop:2, fontVariantNumeric:'tabular-nums' }}>{totalDays != null ? `${totalDays}일` : '—'}</div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div style={{ display:'flex', gap:14 }}>
-                          <div><div style={{ fontSize:9, fontWeight:800, color:'#a2aaa1' }}>첫 등록</div><div style={{ fontSize:12, fontWeight:900, color:'#1c2a24', marginTop:2 }}>{fmtDate(firstReg)}</div></div>
-                          <div><div style={{ fontSize:9, fontWeight:800, color:'#a2aaa1' }}>총 수강기간</div><div style={{ fontSize:12, fontWeight:900, color:'#1c2a24', marginTop:2 }}>{totalDays != null ? `${totalDays}일` : '—'}</div></div>
-                        </div>
-                      )}
 
-                      {/* 일시정지 컨트롤 */}
-                      {ticket && (
-                        <div style={{ display:'flex', alignItems:'center', gap:10, marginTop:13, paddingTop:12, borderTop:'0.5px solid rgba(0,0,0,0.07)' }}>
-                          <span style={{ width:30, height:30, borderRadius:9, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:900,
-                            background: paused ? '#E9EFF5' : '#F1F4F1', color: paused ? '#3E5B79' : '#8f978d' }}>{paused ? '❚❚' : '▶'}</span>
-                          <div style={{ flex:1, minWidth:0 }}>
-                            <div style={{ fontSize:11.5, fontWeight:900, color:'#1c2a24' }}>{paused ? '일시정지 중' : '수강 중'}</div>
-                            <div style={{ fontSize:9.5, fontWeight:700, color:'#a2aaa1', marginTop:1 }}>{paused ? '수강일이 멈춰 있어요' : '쉬어갈 때 누르면 만료일이 멈춰요'}</div>
+                              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, padding:'14px 14px 0' }}>
+                                <div style={{ background:'#F5F4EF', borderRadius:13, padding:'10px 6px', textAlign:'center' }}>
+                                  <div style={{ fontSize:9, fontWeight:800, color:'#a2aaa1' }}>잔여 기간</div>
+                                  <div style={{ fontSize:14, fontWeight:900, marginTop:3, color: paused ? '#3E5B79' : (daysLeft <= 7 ? '#A0580B' : '#1c2a24') }}>{paused ? '정지' : daysLeft <= 0 ? '만료' : `${daysLeft}일`}</div>
+                                </div>
+                                <div style={{ background:'#F5F4EF', borderRadius:13, padding:'10px 6px', textAlign:'center' }}>
+                                  <div style={{ fontSize:9, fontWeight:800, color:'#a2aaa1' }}>최근 출석</div>
+                                  <div style={{ fontSize:14, fontWeight:900, color:'#1c2a24', marginTop:3, fontVariantNumeric:'tabular-nums' }}>{recentAtt ? recentAtt.slice(5).replace('-', '.') : '—'}</div>
+                                </div>
+                                <div style={{ background:'#F5F4EF', borderRadius:13, padding:'10px 6px', textAlign:'center' }}>
+                                  <div style={{ fontSize:9, fontWeight:800, color:'#a2aaa1' }}>누적 출석</div>
+                                  <div style={{ fontSize:14, fontWeight:900, color:'#1c2a24', marginTop:3, fontVariantNumeric:'tabular-nums' }}>{attendedCount}회</div>
+                                </div>
+                              </div>
+                            </>
+                          ) : (
+                            <div style={{ padding:'10px 14px 0', fontSize:13, fontWeight:800, color:'#a2aaa1' }}>수강권 없음</div>
+                          )}
+
+                          <div style={{ margin:'13px 14px 14px', background:'#fff', border:'0.5px solid rgba(0,0,0,0.07)', borderRadius:13, padding:'12px 13px' }}>
+                            {ticket && (
+                              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                                <span style={{ width:32, height:32, borderRadius:9, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:900,
+                                  background: paused ? '#E9EFF5' : '#F1F4F1', color: paused ? '#3E5B79' : '#8f978d' }}>{paused ? '❚❚' : '▶'}</span>
+                                <div style={{ flex:1, minWidth:0 }}>
+                                  <div style={{ fontSize:12, fontWeight:900, color:'#1c2a24' }}>{paused ? '일시정지 중' : '수강 중'}</div>
+                                  <div style={{ fontSize:9.5, fontWeight:700, color:'#a2aaa1', marginTop:1 }}>{paused ? '수강일이 멈춰 있어요' : '쉬어갈 때 누르면 만료일이 멈춰요'}</div>
+                                </div>
+                                <button onClick={e => { e.stopPropagation(); paused ? resumeTicket(ticket, m) : pauseTicket(ticket) }}
+                                  disabled={pauseBusy === m.id}
+                                  style={{ padding:'8px 15px', border:'none', borderRadius:10, fontSize:11, fontWeight:900, cursor:'pointer', fontFamily:'Nunito,sans-serif', opacity: pauseBusy === m.id ? 0.6 : 1,
+                                    background: paused ? 'var(--ac)' : '#E9EFF5', color: paused ? '#fff' : '#3E5B79' }}>
+                                  {pauseBusy === m.id ? '처리 중…' : paused ? '재개하기' : '일시정지'}
+                                </button>
+                              </div>
+                            )}
+                            <div style={{ display:'flex', alignItems:'baseline', gap:6, marginTop: ticket ? 12 : 0, paddingTop: ticket ? 12 : 0, borderTop: ticket ? '0.5px solid rgba(0,0,0,0.07)' : 'none' }}>
+                              <span style={{ fontSize:9.5, fontWeight:800, color:'#a2aaa1', alignSelf:'center' }}>총 수강 기간</span>
+                              <span style={{ fontSize:19, fontWeight:900, color:'#1c2a24', letterSpacing:'-0.5px', fontVariantNumeric:'tabular-nums' }}>{totalDays != null ? totalDays : '—'}</span>
+                              <span style={{ fontSize:10.5, fontWeight:800, color:'#a2aaa1' }}>일</span>
+                              {(m.paused_days || 0) > 0 && <span style={{ fontSize:9, fontWeight:800, color:'#3E5B79', background:'#E9EFF5', borderRadius:7, padding:'2px 7px', marginLeft:'auto' }}>일시정지 {m.paused_days}일 제외</span>}
+                            </div>
                           </div>
-                          <button onClick={e => { e.stopPropagation(); paused ? resumeTicket(ticket, m) : pauseTicket(ticket) }}
-                            disabled={pauseBusy === m.id}
-                            style={{ padding:'8px 15px', border:'none', borderRadius:10, fontSize:11, fontWeight:900, cursor:'pointer', fontFamily:'Nunito,sans-serif', opacity: pauseBusy === m.id ? 0.6 : 1,
-                              background: paused ? 'var(--ac)' : '#E9EFF5', color: paused ? '#fff' : '#3E5B79' }}>
-                            {pauseBusy === m.id ? '처리 중…' : paused ? '재개하기' : '일시정지'}
-                          </button>
                         </div>
-                      )}
-                    </div>
+                      )
+                    })()}
 
                     {/* 지난 수강권 이력 — 접기/펼치기 */}
                     {grants.length > 0 && (() => {
