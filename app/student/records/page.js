@@ -154,7 +154,10 @@ function RecordsInner() {
   }
 
   async function loadAllPhotos(recs) {
-    const paths = recs.flatMap(r => (r.class_record_photos || []).map(p => p.storage_path))
+    const paths = recs.flatMap(r => [
+      ...(r.class_record_photos || []).map(p => p.storage_path),
+      ...(r.class_record_feedback || []).flatMap(fb => Array.isArray(fb.photos) ? fb.photos : []),
+    ]).filter(Boolean)
     if (!paths.length) return
     const { data: { session } } = await supabase.auth.getSession()
     const token = session?.access_token
@@ -487,7 +490,19 @@ function RecordsInner() {
                     <span style={{ fontSize:9, fontWeight:900, letterSpacing:0.5, background:ACCENT, color:'#fff', padding:'2px 8px', borderRadius:9 }}>강사 피드백</span>
                     <span style={{ fontSize:10.5, fontWeight:800, color:'var(--tmu)' }}>{nameMap[fb.teacher_id] ? `${nameMap[fb.teacher_id]} 쌤` : '선생님'}</span>
                   </div>
-                  <div style={{ fontSize:13, fontWeight:600, color:'var(--td)', lineHeight:1.6, whiteSpace:'pre-wrap', wordBreak:'break-word' }}>{fb.body}</div>
+                  {fb.body && <div style={{ fontSize:13, fontWeight:600, color:'var(--td)', lineHeight:1.6, whiteSpace:'pre-wrap', wordBreak:'break-word' }}>{fb.body}</div>}
+                  {Array.isArray(fb.photos) && fb.photos.length > 0 && (
+                    <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop: fb.body ? 8 : 0 }}>
+                      {fb.photos.map((path, pi) => (
+                        <div key={pi} onClick={() => { const urls = fb.photos.map(p => signedUrls[p]).filter(Boolean); if (urls.length) { setViewer({ photos: urls, idx: Math.max(0, urls.indexOf(signedUrls[path])), recordId: r.id }); setViewerText('') } }}
+                          style={{ width:88, height:88, borderRadius:10, background:'var(--surf)', overflow:'hidden', flexShrink:0, cursor: signedUrls[path] ? 'pointer' : 'default' }}>
+                          {signedUrls[path]
+                            ? <img src={signedUrls[path]} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>
+                            : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22 }}>📷</div>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
 
