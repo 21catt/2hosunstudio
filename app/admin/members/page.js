@@ -71,6 +71,7 @@ export default function AdminMembersPage() {
   const [detailTab, setDetailTab] = useState({}) // userId → 'history' | 'usage'
   const [pauseBusy, setPauseBusy] = useState(null) // 일시정지 처리 중 userId
   const [manageOpen, setManageOpen] = useState(null) // 관리 도구 펼친 userId
+  const [meetingOpen, setMeetingOpen] = useState(null) // 모임 참여권 펼친 userId
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -454,7 +455,7 @@ export default function AdminMembersPage() {
                             <div style={{ padding:'10px 14px 0', fontSize:13, fontWeight:800, color:'#a2aaa1' }}>수강권 없음</div>
                           )}
 
-                          <div style={{ margin:'13px 14px 14px', background:'#fff', border:'0.5px solid rgba(0,0,0,0.07)', borderRadius:13, padding:'12px 13px' }}>
+                          <div style={{ margin:'13px 14px 14px', background:'#FBFAF3', border:'0.5px solid rgba(0,0,0,0.06)', borderRadius:13, padding:'12px 13px' }}>
                             {ticket && (
                               <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                                 <span style={{ width:32, height:32, borderRadius:9, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:900,
@@ -572,8 +573,8 @@ export default function AdminMembersPage() {
                                             <div key={b.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 11px', background:'#fff', border:'0.5px solid rgba(0,0,0,0.07)', borderRadius:11 }}>
                                               <span style={{ width:7, height:7, borderRadius:'50%', background:st.dot, flexShrink:0 }}/>
                                               <div style={{ flex:1, minWidth:0 }}>
-                                                <div style={{ fontSize:12, fontWeight:800, color:'#1c2a24', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{b.class_name || '수업'}</div>
-                                                <div style={{ fontSize:10, color:'#a2aaa1', fontWeight:600, fontVariantNumeric:'tabular-nums' }}>{(b.class_date || '').slice(5).replace('-', '/')}{dow ? ` (${dow})` : ''}{b.class_time ? ` · ${b.class_time.split('~')[0]}` : ''}</div>
+                                                <div style={{ fontSize:12, fontWeight:800, color:'#1c2a24', fontVariantNumeric:'tabular-nums' }}>{(b.class_date || '').slice(5).replace('-', '/')}{dow ? ` (${dow})` : ''}{b.class_time ? ` · ${b.class_time.split('~')[0]}` : ''}</div>
+                                                <div style={{ fontSize:10.5, color:'#a2aaa1', fontWeight:700, marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{b.class_name || '수업'}</div>
                                               </div>
                                               <span style={{ fontSize:10, fontWeight:800, color:st.c, background:st.bg, borderRadius:8, padding:'3px 9px', flexShrink:0 }}>{st.t}</span>
                                             </div>
@@ -619,15 +620,6 @@ export default function AdminMembersPage() {
                             <div style={{ fontSize:13, fontWeight:800, color:'#a2aaa1' }}>수강권 없음</div>
                           )}
                         </div>
-                        {ticket && (
-                          <div style={{ display:'inline-flex', alignItems:'stretch', border:'1px solid rgba(0,0,0,0.12)', borderRadius:11, overflow:'hidden', flexShrink:0 }}>
-                            <button onClick={e => { e.stopPropagation(); adjustTicket(ticket.id, ticket.remain, -1) }}
-                              style={{ padding:'7px 14px', background:'transparent', border:'none', color:'#9B453D', fontSize:16, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>−</button>
-                            <span style={{ padding:'7px 12px', fontSize:13, fontWeight:800, color:'#1c2a24', borderLeft:'1px solid rgba(0,0,0,0.1)', borderRight:'1px solid rgba(0,0,0,0.1)', display:'flex', alignItems:'center', fontVariantNumeric:'tabular-nums' }}>{ticket.remain}</span>
-                            <button onClick={e => { e.stopPropagation(); adjustTicket(ticket.id, ticket.remain, 1) }}
-                              style={{ padding:'7px 14px', background:'transparent', border:'none', color:'var(--ac)', fontSize:16, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>+</button>
-                          </div>
-                        )}
                       </div>
 
                       {ticket && (
@@ -637,7 +629,18 @@ export default function AdminMembersPage() {
                       )}
 
                       <div style={{ borderTop:'0.5px solid rgba(0,0,0,0.07)', marginTop: ticket ? 13 : 10, paddingTop:12 }}>
-                        <div style={{ fontSize:9, fontWeight:700, color:'#a2aaa1', marginBottom:8, letterSpacing:'0.3px' }}>빠른 부여</div>
+                        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginBottom:8 }}>
+                          <span style={{ fontSize:9, fontWeight:700, color:'#a2aaa1', letterSpacing:'0.3px' }}>빠른 부여 · 회차 조정</span>
+                          {ticket && (
+                            <div style={{ display:'inline-flex', alignItems:'stretch', border:'1px solid rgba(0,0,0,0.12)', borderRadius:10, overflow:'hidden', flexShrink:0 }}>
+                              <button onClick={e => { e.stopPropagation(); adjustTicket(ticket.id, ticket.remain, -1) }}
+                                style={{ padding:'5px 12px', background:'transparent', border:'none', color:'#9B453D', fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>−</button>
+                              <span style={{ padding:'5px 11px', fontSize:12, fontWeight:800, color:'#1c2a24', borderLeft:'1px solid rgba(0,0,0,0.1)', borderRight:'1px solid rgba(0,0,0,0.1)', display:'flex', alignItems:'center', fontVariantNumeric:'tabular-nums' }}>{ticket.remain}</span>
+                              <button onClick={e => { e.stopPropagation(); adjustTicket(ticket.id, ticket.remain, 1) }}
+                                style={{ padding:'5px 12px', background:'transparent', border:'none', color:'var(--ac)', fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>+</button>
+                            </div>
+                          )}
+                        </div>
                         <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:10 }}>
                           {QUICK_PRESETS.map(([total, days, label]) => (
                             <button key={label}
@@ -687,9 +690,16 @@ export default function AdminMembersPage() {
 
                     {/* 모임 참여권 */}
                     <div style={{ background:'#FBFAF5', border:'0.5px solid rgba(0,0,0,0.07)', borderRadius:15, padding:14, marginBottom:10 }}>
-                      <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:10, fontWeight:700, color:'#B5650E', marginBottom:10 }}>
+                      <div onClick={e => { e.stopPropagation(); setMeetingOpen(meetingOpen === m.id ? null : m.id) }}
+                        style={{ display:'flex', alignItems:'center', gap:6, fontSize:10, fontWeight:700, color:'#B5650E', cursor:'pointer', marginBottom: meetingOpen === m.id ? 10 : 0 }}>
                         <span style={{ width:6, height:6, borderRadius:'50%', background:'#E8912A' }}/> 모임 참여권
+                        {(memberMeetingTickets[m.id]?.filter(mt => mt.remain > 0).length || 0) > 0 && (
+                          <span style={{ fontSize:9, fontWeight:800, color:'#B5650E', background:'#FBEFDD', borderRadius:8, padding:'2px 7px' }}>{memberMeetingTickets[m.id].filter(mt => mt.remain > 0).reduce((s, mt) => s + mt.remain, 0)}회</span>
+                        )}
+                        <span style={{ flex:1 }}/>
+                        <span style={{ fontSize:11, color:'#d3ab7a', transform: meetingOpen === m.id ? 'rotate(180deg)' : 'none', transition:'transform 0.15s' }}>▾</span>
                       </div>
+                      {meetingOpen === m.id && (<>
                       {memberMeetingTickets[m.id]?.filter(mt => mt.remain > 0).length > 0 ? (
                         memberMeetingTickets[m.id].filter(mt => mt.remain > 0).map(mt => (
                           <div key={mt.id} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:9 }}>
@@ -721,6 +731,7 @@ export default function AdminMembersPage() {
                           모임권 부여
                         </button>
                       </div>
+                      </>)}
                     </div>
 
                     {/* 냥 꾸미기 전체 해금 — 수확 횟수를 안 채워도 프로필냥·농부냥 전부 사용 가능 */}
