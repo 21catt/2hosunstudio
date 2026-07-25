@@ -66,11 +66,11 @@ export default function AdminMembersPage() {
   const [artists, setArtists] = useState([]) // 참여작가 (하단 별도 목록)
   const [harvestMap, setHarvestMap] = useState({}) // {userId: harvest_count}
   const [deleting, setDeleting] = useState(null) // 삭제 중인 userId
-  const [attOpen, setAttOpen] = useState(null)   // 참석기록 펼친 userId
   const [armed, setArmed] = useState(null)       // 삭제 확인(잠금해제)된 userId
   const [grantMap, setGrantMap] = useState({})   // userId → 수강권 발급 이력(최신순)
-  const [histOpen, setHistOpen] = useState(null) // 발급 이력 펼친 userId
+  const [detailTab, setDetailTab] = useState({}) // userId → 'history' | 'usage'
   const [pauseBusy, setPauseBusy] = useState(null) // 일시정지 처리 중 userId
+  const [manageOpen, setManageOpen] = useState(null) // 관리 도구 펼친 userId
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -482,48 +482,11 @@ export default function AdminMembersPage() {
                       )
                     })()}
 
-                    {/* 지난 수강권 이력 — 접기/펼치기 */}
-                    {grants.length > 0 && (() => {
-                      const histOn = histOpen === m.id
-                      return (
-                        <div style={{ marginBottom:10 }}>
-                          <div onClick={e => { e.stopPropagation(); setHistOpen(histOn ? null : m.id) }}
-                            style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', padding:'6px 2px' }}>
-                            <span style={{ fontSize:11, fontWeight:800, color:'#1c2a24' }}>수강권 발급 이력</span>
-                            <span style={{ fontSize:10, fontWeight:800, color:'var(--acTx)', background:'var(--acBg)', borderRadius:8, padding:'2px 7px' }}>{grants.length}회 · 누적 {usedTotal}회</span>
-                            <span style={{ flex:1 }}/>
-                            <span style={{ fontSize:11, color:'#bcc2ba', transform: histOn ? 'rotate(180deg)' : 'none', transition:'transform 0.15s' }}>▾</span>
-                          </div>
-                          {histOn && (
-                            <div style={{ display:'flex', flexDirection:'column', gap:6, marginTop:8 }}>
-                              {grants.map((g, gi) => {
-                                const gd = new Date(g.granted_at)
-                                const isCur = gi === 0
-                                return (
-                                  <div key={g.id || gi} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', background:'#fff', border:'0.5px solid rgba(0,0,0,0.07)', borderRadius:11 }}>
-                                    <span style={{ width:8, height:8, borderRadius:'50%', background: isCur ? 'var(--ac)' : '#c9cdc4', flexShrink:0 }}/>
-                                    <div style={{ flex:1, minWidth:0 }}>
-                                      <div style={{ fontSize:12, fontWeight:900, color:'#1c2a24' }}>{g.type || '수강권'} <span style={{ color:'#a2aaa1', fontWeight:800 }}>{g.total}회</span></div>
-                                      <div style={{ fontSize:10, color:'#a2aaa1', fontWeight:700, marginTop:2, fontVariantNumeric:'tabular-nums' }}>{fmtDate(gd)} 발급{g.days ? ` · ${g.days}일권` : ''}</div>
-                                    </div>
-                                    <span style={{ fontSize:9.5, fontWeight:900, borderRadius:8, padding:'3px 9px', flexShrink:0,
-                                      background: isCur ? 'var(--acBg)' : '#F1F0EB', color: isCur ? 'var(--acTx)' : '#a2aaa1' }}>
-                                      {isCur ? '사용중' : '완료'}
-                                    </span>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })()}
-
-                    {/* 수업 참석 기록 — 접기/펼치기 · 월별 묶음 · 요일 표시 */}
+                    {/* 탭: 수강권 이력 / 이용 내역 */}
                     {(() => {
+                      const tab = detailTab[m.id] || 'usage'
                       const recs = (m.bookings || []).filter(b => b.status !== 'cancelled')
                         .sort((a, b) => (b.class_date || '').localeCompare(a.class_date || '') || (b.class_time || '').localeCompare(a.class_time || ''))
-                      const attOpenOn = attOpen === m.id
                       const groups = []
                       for (const b of recs) {
                         const ym = (b.class_date || '').slice(0, 7)
@@ -532,57 +495,111 @@ export default function AdminMembersPage() {
                         g.items.push(b)
                       }
                       const DOW = ['일', '월', '화', '수', '목', '금', '토']
+                      const months = totalDays != null ? Math.max(1, Math.round(totalDays / 30)) : null
                       return (
-                        <div style={{ marginBottom:10 }}>
-                          <div onClick={e => { e.stopPropagation(); setAttOpen(attOpenOn ? null : m.id) }}
-                            style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', padding:'6px 2px' }}>
-                            <span style={{ fontSize:11, fontWeight:800, color:'#1c2a24' }}>수업 참석 기록</span>
-                            <span style={{ fontSize:10, fontWeight:700, color:'#a2aaa1' }}>{recs.length}</span>
-                            <span style={{ flex:1 }}/>
-                            <span style={{ fontSize:11, color:'#bcc2ba', transform: attOpenOn ? 'rotate(180deg)' : 'none', transition:'transform 0.15s' }}>▾</span>
+                        <div style={{ marginBottom:12 }}>
+                          <div style={{ display:'flex', background:'#F5F4EF', borderRadius:12, padding:3, marginBottom:10 }}>
+                            {[['history', '수강권 이력', grants.length], ['usage', '이용 내역', recs.length]].map(([key, label, cnt]) => {
+                              const on = tab === key
+                              return (
+                                <button key={key} onClick={e => { e.stopPropagation(); setDetailTab(prev => ({ ...prev, [m.id]: key })) }}
+                                  style={{ flex:1, textAlign:'center', fontSize:11.5, fontWeight:900, padding:'8px 4px', borderRadius:9, border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif',
+                                    background: on ? '#fff' : 'transparent', color: on ? 'var(--acTx)' : '#a2aaa1', boxShadow: on ? '0 1px 3px rgba(28,42,36,0.1)' : 'none' }}>
+                                  {label}{cnt ? ` ${cnt}` : ''}
+                                </button>
+                              )
+                            })}
                           </div>
-                          {attOpenOn && (recs.length === 0 ? (
-                            <div style={{ fontSize:11, color:'#a2aaa1', textAlign:'center', padding:'16px 0', background:'#F8F7F3', borderRadius:12 }}>예약 기록이 없어요 🐾</div>
+
+                          {tab === 'history' ? (
+                            grants.length === 0 ? (
+                              <div style={{ fontSize:11, color:'#a2aaa1', textAlign:'center', padding:'18px 0', background:'#F8F7F3', borderRadius:12 }}>발급 이력이 아직 없어요 🐾</div>
+                            ) : (
+                              <>
+                                <div style={{ display:'flex', gap:8, marginBottom:9 }}>
+                                  {[[`${grants.length}회`, '발급'], [`${usedTotal}회`, '누적 수업'], [months != null ? `${months}개월` : '—', '함께한 기간']].map(([v, k], i) => (
+                                    <div key={i} style={{ flex:1, background:'var(--acBg)', borderRadius:13, padding:'11px 6px', textAlign:'center' }}>
+                                      <div style={{ fontSize:16, fontWeight:900, color:'var(--acTx)', letterSpacing:'-0.4px' }}>{v}</div>
+                                      <div style={{ fontSize:9, fontWeight:800, color:'var(--acTx)', opacity:0.75, marginTop:2 }}>{k}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                                <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                                  {grants.map((g, gi) => {
+                                    const gd = new Date(g.granted_at)
+                                    const isCur = gi === 0
+                                    return (
+                                      <div key={g.id || gi} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', background:'#fff', border:'0.5px solid rgba(0,0,0,0.07)', borderRadius:11 }}>
+                                        <span style={{ width:8, height:8, borderRadius:'50%', background: isCur ? 'var(--ac)' : '#c9cdc4', flexShrink:0 }}/>
+                                        <div style={{ flex:1, minWidth:0 }}>
+                                          <div style={{ fontSize:12, fontWeight:900, color:'#1c2a24' }}>{g.type || '수강권'} <span style={{ color:'#a2aaa1', fontWeight:800 }}>{g.total}회</span></div>
+                                          <div style={{ fontSize:10, color:'#a2aaa1', fontWeight:700, marginTop:2, fontVariantNumeric:'tabular-nums' }}>{fmtDate(gd)} 발급{g.days ? ` · ${g.days}일권` : ''}</div>
+                                        </div>
+                                        <span style={{ fontSize:9.5, fontWeight:900, borderRadius:8, padding:'3px 9px', flexShrink:0,
+                                          background: isCur ? 'var(--acBg)' : '#F1F0EB', color: isCur ? 'var(--acTx)' : '#a2aaa1' }}>
+                                          {isCur ? '사용중' : '완료'}
+                                        </span>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              </>
+                            )
                           ) : (
-                            <div className="no-scrollbar" style={{ display:'flex', flexDirection:'column', gap:12, maxHeight:320, overflowY:'auto', marginTop:8 }}>
-                              {groups.map(g => {
-                                const [gy, gm] = g.ym.split('-')
-                                const att = g.items.filter(b => b.attended === true).length
-                                return (
-                                  <div key={g.ym}>
-                                    <div style={{ display:'flex', alignItems:'center', gap:6, margin:'0 2px 6px' }}>
-                                      <span style={{ fontSize:11, fontWeight:800, color:'#B5650E', fontVariantNumeric:'tabular-nums' }}>{gy}.{gm}</span>
-                                      <span style={{ fontSize:9.5, fontWeight:700, color:'#a2aaa1' }}>출석 {att}/{g.items.length}</span>
-                                      <span style={{ flex:1, height:1, background:'rgba(0,0,0,0.05)' }}/>
-                                    </div>
-                                    <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
-                                      {g.items.map(b => {
-                                        const dt = new Date((b.class_date || '') + 'T00:00:00')
-                                        const dow = isNaN(dt.getTime()) ? '' : DOW[dt.getDay()]
-                                        const past = (b.class_date || '') < todayStr
-                                        const st = b.attended === true ? { t:'출석', c:'#2E7D4F', bg:'#EAF3E4', dot:'#4CA06A' }
-                                          : past ? { t:'결석', c:'#94382F', bg:'#F9E9E7', dot:'#C1564D' }
-                                          : { t:'예정', c:'#B5650E', bg:'#FBF3E4', dot:'#E8912A' }
-                                        return (
-                                          <div key={b.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 11px', background:'#fff', border:'0.5px solid rgba(0,0,0,0.07)', borderRadius:11 }}>
-                                            <span style={{ width:7, height:7, borderRadius:'50%', background:st.dot, flexShrink:0 }}/>
-                                            <div style={{ flex:1, minWidth:0 }}>
-                                              <div style={{ fontSize:12, fontWeight:800, color:'#1c2a24', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{b.class_name || '수업'}</div>
-                                              <div style={{ fontSize:10, color:'#a2aaa1', fontWeight:600, fontVariantNumeric:'tabular-nums' }}>{(b.class_date || '').slice(5).replace('-', '/')}{dow ? ` (${dow})` : ''}{b.class_time ? ` · ${b.class_time.split('~')[0]}` : ''}</div>
+                            recs.length === 0 ? (
+                              <div style={{ fontSize:11, color:'#a2aaa1', textAlign:'center', padding:'18px 0', background:'#F8F7F3', borderRadius:12 }}>예약 기록이 없어요 🐾</div>
+                            ) : (
+                              <div className="no-scrollbar" style={{ display:'flex', flexDirection:'column', gap:12, maxHeight:360, overflowY:'auto' }}>
+                                {groups.map(g => {
+                                  const [gy, gm] = g.ym.split('-')
+                                  const att = g.items.filter(b => b.attended === true).length
+                                  return (
+                                    <div key={g.ym}>
+                                      <div style={{ display:'flex', alignItems:'center', gap:6, margin:'0 2px 6px' }}>
+                                        <span style={{ fontSize:11, fontWeight:800, color:'#B5650E', fontVariantNumeric:'tabular-nums' }}>{gy}.{gm}</span>
+                                        <span style={{ fontSize:9.5, fontWeight:700, color:'#a2aaa1' }}>출석 {att}/{g.items.length}</span>
+                                        <span style={{ flex:1, height:1, background:'rgba(0,0,0,0.05)' }}/>
+                                      </div>
+                                      <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
+                                        {g.items.map(b => {
+                                          const dt = new Date((b.class_date || '') + 'T00:00:00')
+                                          const dow = isNaN(dt.getTime()) ? '' : DOW[dt.getDay()]
+                                          const past = (b.class_date || '') < todayStr
+                                          const st = b.attended === true ? { t:'출석', c:'#2E7D4F', bg:'#EAF3E4', dot:'#4CA06A' }
+                                            : past ? { t:'결석', c:'#94382F', bg:'#F9E9E7', dot:'#C1564D' }
+                                            : { t:'예정', c:'#B5650E', bg:'#FBF3E4', dot:'#E8912A' }
+                                          return (
+                                            <div key={b.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 11px', background:'#fff', border:'0.5px solid rgba(0,0,0,0.07)', borderRadius:11 }}>
+                                              <span style={{ width:7, height:7, borderRadius:'50%', background:st.dot, flexShrink:0 }}/>
+                                              <div style={{ flex:1, minWidth:0 }}>
+                                                <div style={{ fontSize:12, fontWeight:800, color:'#1c2a24', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{b.class_name || '수업'}</div>
+                                                <div style={{ fontSize:10, color:'#a2aaa1', fontWeight:600, fontVariantNumeric:'tabular-nums' }}>{(b.class_date || '').slice(5).replace('-', '/')}{dow ? ` (${dow})` : ''}{b.class_time ? ` · ${b.class_time.split('~')[0]}` : ''}</div>
+                                              </div>
+                                              <span style={{ fontSize:10, fontWeight:800, color:st.c, background:st.bg, borderRadius:8, padding:'3px 9px', flexShrink:0 }}>{st.t}</span>
                                             </div>
-                                            <span style={{ fontSize:10, fontWeight:800, color:st.c, background:st.bg, borderRadius:8, padding:'3px 9px', flexShrink:0 }}>{st.t}</span>
-                                          </div>
-                                        )
-                                      })}
+                                          )
+                                        })}
+                                      </div>
                                     </div>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          ))}
+                                  )
+                                })}
+                              </div>
+                            )
+                          )}
                         </div>
                       )
                     })()}
+
+                    {/* ── 관리 도구(강사 전용) — 접기/펼치기 ── */}
+                    <div onClick={e => { e.stopPropagation(); setManageOpen(manageOpen === m.id ? null : m.id) }}
+                      style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', padding:'9px 2px', marginTop:2, borderTop:'1px solid rgba(0,0,0,0.05)' }}>
+                      <span style={{ fontSize:11, fontWeight:900, color:'#1c2a24' }}>🛠 관리 도구</span>
+                      <span style={{ fontSize:9.5, fontWeight:700, color:'#a2aaa1' }}>수강권 부여 · 모임권 · 냥 꾸미기 · 삭제</span>
+                      <span style={{ flex:1 }}/>
+                      <span style={{ fontSize:11, color:'#bcc2ba', transform: manageOpen === m.id ? 'rotate(180deg)' : 'none', transition:'transform 0.15s' }}>▾</span>
+                    </div>
+                    {manageOpen === m.id && (
+                    <div style={{ marginTop:4 }}>
 
                     {/* 수강권 */}
                     <div style={{ background:'#fff', border:'0.5px solid rgba(0,0,0,0.08)', borderRadius:15, padding:14, marginBottom:10 }}>
@@ -755,6 +772,9 @@ export default function AdminMembersPage() {
                         {deleting === m.id ? '삭제 중…' : armed === m.id ? '🗑 정말 삭제하기' : '삭제하려면 확인을 켜세요'}
                       </button>
                     </div>
+
+                    </div>
+                    )}
 
                   </div>
                 )}
