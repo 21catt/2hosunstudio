@@ -631,47 +631,50 @@ export default function AdminMembersPage() {
                         </div>
                       )}
 
-                      <div style={{ borderTop:'0.5px solid rgba(0,0,0,0.07)', marginTop: ticket ? 13 : 10, paddingTop:12 }}>
-                        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginBottom:8 }}>
-                          <span style={{ fontSize:9, fontWeight:700, color:'#a2aaa1', letterSpacing:'0.3px' }}>빠른 부여 · 회차 조정</span>
-                          {ticket && (
-                            <div style={{ display:'inline-flex', alignItems:'stretch', border:'1px solid rgba(0,0,0,0.12)', borderRadius:10, overflow:'hidden', flexShrink:0 }}>
-                              <button onClick={e => { e.stopPropagation(); adjustTicket(ticket.id, ticket.remain, -1) }}
-                                style={{ padding:'5px 12px', background:'transparent', border:'none', color:'#9B453D', fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>−</button>
-                              <span style={{ padding:'5px 11px', fontSize:12, fontWeight:800, color:'#1c2a24', borderLeft:'1px solid rgba(0,0,0,0.1)', borderRight:'1px solid rgba(0,0,0,0.1)', display:'flex', alignItems:'center', fontVariantNumeric:'tabular-nums' }}>{ticket.remain}</span>
-                              <button onClick={e => { e.stopPropagation(); adjustTicket(ticket.id, ticket.remain, 1) }}
-                                style={{ padding:'5px 12px', background:'transparent', border:'none', color:'var(--ac)', fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>+</button>
-                            </div>
-                          )}
+                      {ticket && (
+                        <div style={{ borderTop:'0.5px solid rgba(0,0,0,0.07)', marginTop:13, paddingTop:12, display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
+                          <span style={{ fontSize:9, fontWeight:700, color:'#a2aaa1', letterSpacing:'0.3px' }}>회차 조정</span>
+                          <div style={{ display:'inline-flex', alignItems:'stretch', border:'1px solid rgba(0,0,0,0.12)', borderRadius:10, overflow:'hidden', flexShrink:0 }}>
+                            <button onClick={e => { e.stopPropagation(); adjustTicket(ticket.id, ticket.remain, -1) }}
+                              style={{ padding:'5px 12px', background:'transparent', border:'none', color:'#9B453D', fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>−</button>
+                            <span style={{ padding:'5px 11px', fontSize:12, fontWeight:800, color:'#1c2a24', borderLeft:'1px solid rgba(0,0,0,0.1)', borderRight:'1px solid rgba(0,0,0,0.1)', display:'flex', alignItems:'center', fontVariantNumeric:'tabular-nums' }}>{ticket.remain}</span>
+                            <button onClick={e => { e.stopPropagation(); adjustTicket(ticket.id, ticket.remain, 1) }}
+                              style={{ padding:'5px 12px', background:'transparent', border:'none', color:'var(--ac)', fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>+</button>
+                          </div>
                         </div>
-                        <div style={{ fontSize:8.5, fontWeight:800, color:'#a2aaa1', marginBottom:6, letterSpacing:'0.3px' }}>회차권 부여 (새 수강권)</div>
-                        <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom: ticket ? 12 : 0 }}>
-                          {QUICK_PRESETS.map(([total, days, label]) => (
-                            <button key={label}
-                              onClick={e => { e.stopPropagation(); grantTicket(m.id, label, total, days) }}
-                              style={{ padding:'7px 12px', background:'#fff', color:'var(--acTx)', border:'1px solid rgb(var(--ac-rgb) / 0.3)', borderRadius:11, fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
-                              {label}
-                            </button>
-                          ))}
-                        </div>
-                        {ticket && (
-                          <>
-                            <div style={{ fontSize:8.5, fontWeight:800, color:'#a2aaa1', marginBottom:6, letterSpacing:'0.3px' }}>일수 부여 · 만료일 연장 (회차 유지)</div>
-                            <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-                              {DAY_PRESETS.map(days => (
-                                <button key={days}
-                                  onClick={e => { e.stopPropagation(); updateTicketExpiry(ticket, days) }}
-                                  style={{ padding:'7px 12px', background:'#fff', color:'#B5650E', border:'1px solid rgba(224,138,30,0.35)', borderRadius:11, fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
-                                  +{days}일
-                                </button>
-                              ))}
-                            </div>
-                            <div style={{ fontSize:9, color:'#a2aaa1', marginTop:6, lineHeight:1.4 }}>
-                              현재 만료일에서 그만큼 연장돼요 (잔여 회차 유지 · 이미 지났으면 오늘부터)
-                            </div>
-                          </>
-                        )}
+                      )}
+                    </div>
+
+                    {/* 빠른 부여 — 회차권 · 일수(만료일 연장) */}
+                    <div style={{ background:'#fff', border:'0.5px solid rgba(0,0,0,0.08)', borderRadius:15, padding:14, marginBottom:10 }}>
+                      <div style={{ fontSize:10, fontWeight:800, color:'#1c2a24', marginBottom:10 }}>빠른 부여</div>
+                      <div style={{ fontSize:8.5, fontWeight:800, color:'#a2aaa1', marginBottom:6, letterSpacing:'0.3px' }}>회차권 부여 (새 수강권)</div>
+                      <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom: ticket ? 12 : 0 }}>
+                        {QUICK_PRESETS.map(([total, days, label]) => (
+                          <button key={label}
+                            onClick={e => { e.stopPropagation(); grantTicket(m.id, label, total, days) }}
+                            style={{ padding:'7px 12px', background:'#fff', color:'var(--acTx)', border:'1px solid rgb(var(--ac-rgb) / 0.3)', borderRadius:11, fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                            {label}
+                          </button>
+                        ))}
                       </div>
+                      {ticket && (
+                        <>
+                          <div style={{ fontSize:8.5, fontWeight:800, color:'#a2aaa1', marginBottom:6, letterSpacing:'0.3px' }}>일수 부여 · 만료일 연장 (회차 유지)</div>
+                          <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                            {DAY_PRESETS.map(days => (
+                              <button key={days}
+                                onClick={e => { e.stopPropagation(); updateTicketExpiry(ticket, days) }}
+                                style={{ padding:'7px 12px', background:'#fff', color:'#B5650E', border:'1px solid rgba(224,138,30,0.35)', borderRadius:11, fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                                +{days}일
+                              </button>
+                            ))}
+                          </div>
+                          <div style={{ fontSize:9, color:'#a2aaa1', marginTop:6, lineHeight:1.4 }}>
+                            현재 만료일에서 그만큼 연장돼요 (잔여 회차 유지 · 이미 지났으면 오늘부터)
+                          </div>
+                        </>
+                      )}
                     </div>
 
                     {/* 모임 참여권 */}
