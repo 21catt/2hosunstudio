@@ -23,11 +23,8 @@ const S = {
   // 수강권: 코어 #06050b(짧게) → 연결·외곽 #1a2252 동일(작은 검정 코어 + 네이비가 대부분).
   pass: 'radial-gradient(120% 120% at 50% 44%, #06050b 0%, #06050b 10%, #1a2252 34%, #1a2252 100%)',
   passFill: 'linear-gradient(90deg, #e8531d, #f2872f 60%, #f6b23e)',
-  // 퀵타일 4종 — 전체 분위기에 맞춘 각기 다른 색 조합(다크 베이스 + 우하단 컬러 오브).
-  tileCurriculum: 'radial-gradient(64% 72% at 82% 84%, rgba(216,88,152,0.95) 0%, rgba(190,66,124,0.42) 22%, rgba(190,66,124,0) 48%), radial-gradient(126% 126% at 20% 16%, #3a1828 0%, #271019 58%, #1b0c13 100%)',
-  tileRecords: 'radial-gradient(64% 72% at 82% 84%, rgba(92,112,224,0.95) 0%, rgba(62,82,194,0.42) 22%, rgba(62,82,194,0) 48%), radial-gradient(126% 126% at 20% 16%, #1e2748 0%, #151d38 58%, #0f1428 100%)',
-  tileFarm: 'radial-gradient(64% 72% at 82% 84%, rgba(126,172,106,0.95) 0%, rgba(92,150,88,0.4) 22%, rgba(92,150,88,0) 48%), radial-gradient(126% 126% at 20% 16%, #23332a 0%, #18241f 58%, #111a15 100%)',
-  tileNotify: 'radial-gradient(64% 72% at 82% 84%, rgba(244,152,58,0.92) 0%, rgba(232,120,40,0.4) 22%, rgba(232,120,40,0) 48%), radial-gradient(126% 126% at 20% 16%, #34251a 0%, #251811 58%, #1a1109 100%)',
+  // 퀵타일 4종 공통 — 코어 #210107(짧게) → 연결 #341124 → 외곽 #76739b.
+  tile: 'radial-gradient(92% 98% at 50% 42%, #210107 0%, #210107 12%, #341124 37%, #76739b 100%)',
   // 공지: 상단 #44404f → 연결 #865c66 → 하단 #be787a (세로 그라데이션).
   notice: 'linear-gradient(180deg, #44404f 0%, #865c66 52%, #be787a 100%)',
   // 다크 유리(그 외 요소)
@@ -44,7 +41,7 @@ function Tile({ bg, label, onClick, children }) {
   return (
     <button onClick={onClick} style={{ padding: '15px 0 12px', borderRadius: 20, border: 'none', background: bg, boxShadow: S.hi, color: S.text, fontFamily: 'inherit', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
       {children}
-      <span style={{ fontSize: 12, fontWeight: 700 }}>{label}</span>
+      <span style={{ fontSize: 12, fontWeight: 700, textShadow: '0 1px 3px rgba(0,0,0,0.45)' }}>{label}</span>
     </button>
   )
 }
@@ -201,18 +198,18 @@ export default function SpaceHome(props) {
           )
         })()}
 
-        {/* QUICK TILES — 각기 다른 색 조합(마젠타·블루·세이지·앰버) */}
+        {/* QUICK TILES — 4종 공통 그라데이션(#210107→#341124→#76739b) */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginTop: 16 }}>
-          <Tile bg={S.tileCurriculum} label="커리큘럼" onClick={() => go('/student/curriculum?tab=core')}>
+          <Tile bg={S.tile} label="커리큘럼" onClick={() => go('/student/curriculum?tab=core')}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.7"><path d="M5 5.5A1.5 1.5 0 0 1 6.5 4H18v16H6.5A1.5 1.5 0 0 1 5 18.5Z" strokeLinejoin="round" /><path d="M8 4v16" strokeLinecap="round" /></svg>
           </Tile>
-          <Tile bg={S.tileRecords} label="기록" onClick={() => go('/student/records')}>
+          <Tile bg={S.tile} label="기록" onClick={() => go('/student/records')}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.7"><rect x="6" y="4" width="12" height="17" rx="2" /><path d="M9 4V3h6v1" strokeLinejoin="round" /><path d="M9 9h6M9 13h6M9 17h4" strokeLinecap="round" /></svg>
           </Tile>
-          <Tile bg={S.tileFarm} label="텃밭" onClick={() => go('/student/farm')}>
+          <Tile bg={S.tile} label="텃밭" onClick={() => go('/student/farm')}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.7"><path d="M12 21v-8" strokeLinecap="round" /><path d="M12 13c0-3-2-5-5-5 0 3 2 5 5 5ZM12 13c0-3.5 2.5-6 6-6 0 3.5-2.5 6-6 6Z" strokeLinejoin="round" /></svg>
           </Tile>
-          <Tile bg={S.tileNotify} label="알림" onClick={() => go('/student/notification')}>
+          <Tile bg={S.tile} label="알림" onClick={() => go('/student/notification')}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.7"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6Z" strokeLinejoin="round" /><path d="M10 19a2 2 0 0 0 4 0" strokeLinecap="round" /></svg>
           </Tile>
         </div>
