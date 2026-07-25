@@ -197,12 +197,15 @@ export default function AdminMembersPage() {
     } finally { setPauseBusy(null) }
   }
 
-  // 횟수 입력 없이 일수(만료일)만 갱신 — 기존 수강권의 잔여·총 횟수는 유지
+  // 만료일 연장 — 현재 만료일에 일수를 더한다(이미 지났으면 오늘 기준). 잔여·총 횟수는 유지
   async function updateTicketExpiry(ticket, days) {
-    const expires = new Date()
-    expires.setDate(expires.getDate() + days)
-    await supabase.from('tickets').update({ expires_at: expires.toISOString().split('T')[0] }).eq('id', ticket.id)
-    alert(`만료일이 오늘부터 ${days}일 뒤로 변경됐어요!`)
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    let base = new Date(ticket.expires_at)
+    if (isNaN(base) || base < today) base = today // 이미 만료됐으면 오늘부터
+    base.setDate(base.getDate() + days)
+    const next = base.toISOString().split('T')[0]
+    await supabase.from('tickets').update({ expires_at: next }).eq('id', ticket.id)
+    alert(`만료일이 ${days}일 연장됐어요! (${next}까지)`)
     loadMembers()
   }
 
@@ -664,7 +667,7 @@ export default function AdminMembersPage() {
                               ))}
                             </div>
                             <div style={{ fontSize:9, color:'#a2aaa1', marginTop:6, lineHeight:1.4 }}>
-                              일수 부여는 잔여 회차는 그대로 두고 만료일만 오늘부터 그만큼 뒤로 바꿔요
+                              현재 만료일에서 그만큼 연장돼요 (잔여 회차 유지 · 이미 지났으면 오늘부터)
                             </div>
                           </>
                         )}
