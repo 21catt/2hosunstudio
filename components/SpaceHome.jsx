@@ -15,18 +15,21 @@ const S = {
   text: '#f3eef8', sub: 'rgba(243,238,248,0.66)', faint: 'rgba(243,238,248,0.5)', dim: 'rgba(243,238,248,0.34)',
   accent: '#e35ba6', accentText: '#ffe6f2', accentSoft: 'rgba(227,91,166,0.16)', accentRing: 'rgba(227,91,166,0.5)',
   // 첨부 이미지 카드 그라데이션 (섹션별) — 진한 명도 코어의 '위치'를 원본대로.
-  // Codex: 가운데 코어 #581b3a(넓게) → 중간연결 #ba426f(좁은 링) → 외곽 #c593b9.
-  hero: 'radial-gradient(116% 124% at 52% 46%, #581b3a 0%, #581b3a 46%, #ba426f 61%, #c593b9 100%)',
-  // 날짜: 가운데 코어 #0d0a1b(넓게) → 중간연결 #363e44(좁은 링) → 외곽 #92a19a.
-  media: 'radial-gradient(130% 135% at 50% 46%, #0d0a1b 0%, #0d0a1b 48%, #363e44 62%, #92a19a 100%)',
-  mediaSel: 'radial-gradient(130% 135% at 50% 46%, #1a1530 0%, #1a1530 46%, #4a565f 62%, #a8b6ae 100%)',
-  // Web Design: 상단-중앙 세이지 밝음 → 모서리 진하게(비네트).
-  pass: 'radial-gradient(108% 112% at 44% 32%, #5a675f 0%, #434d46 46%, #2b322d 80%, #222722 100%)',
+  // Codex: 코어 #581b3a(짧게) → 중간연결 #ba426f → 외곽 #c593b9 (색이 넓게).
+  hero: 'radial-gradient(116% 124% at 52% 44%, #581b3a 0%, #581b3a 13%, #ba426f 40%, #c593b9 100%)',
+  // 날짜: 코어 #0d0a1b(짧게) → 중간 #363e44 → 외곽 #92a19a (외곽 영역 넓게 — 반경 축소·외곽 스톱 당김).
+  media: 'radial-gradient(72% 74% at 50% 42%, #0d0a1b 0%, #0d0a1b 13%, #363e44 38%, #92a19a 84%, #92a19a 100%)',
+  mediaSel: 'radial-gradient(72% 74% at 50% 42%, #1a1530 0%, #1a1530 13%, #4a565f 38%, #a8b6ae 84%, #a8b6ae 100%)',
+  // 수강권: 코어 #06050b(짧게) → 연결·외곽 #1a2252 동일(작은 검정 코어 + 네이비가 대부분).
+  pass: 'radial-gradient(120% 120% at 50% 44%, #06050b 0%, #06050b 10%, #1a2252 34%, #1a2252 100%)',
   passFill: 'linear-gradient(90deg, #e8531d, #f2872f 60%, #f6b23e)',
-  // UI: 좌상단 진한 브라운 코어 + 우하단 선명한 블루 오브.
-  tile: 'radial-gradient(60% 70% at 84% 85%, rgba(72,86,208,0.98) 0%, rgba(60,72,184,0.5) 20%, rgba(58,69,168,0) 47%), radial-gradient(128% 128% at 22% 16%, #743f22 0%, #542e19 46%, #331d12 80%, #241610 100%)',
-  // Total Skills: 좌상단 그레이-모브 → 우하단 웜 로즈.
-  notice: 'radial-gradient(140% 155% at 28% 10%, #86758a 0%, #9c7d84 40%, #ba8a8b 72%, #cb9699 100%)',
+  // 퀵타일 4종 — 전체 분위기에 맞춘 각기 다른 색 조합(다크 베이스 + 우하단 컬러 오브).
+  tileCurriculum: 'radial-gradient(64% 72% at 82% 84%, rgba(216,88,152,0.95) 0%, rgba(190,66,124,0.42) 22%, rgba(190,66,124,0) 48%), radial-gradient(126% 126% at 20% 16%, #3a1828 0%, #271019 58%, #1b0c13 100%)',
+  tileRecords: 'radial-gradient(64% 72% at 82% 84%, rgba(92,112,224,0.95) 0%, rgba(62,82,194,0.42) 22%, rgba(62,82,194,0) 48%), radial-gradient(126% 126% at 20% 16%, #1e2748 0%, #151d38 58%, #0f1428 100%)',
+  tileFarm: 'radial-gradient(64% 72% at 82% 84%, rgba(126,172,106,0.95) 0%, rgba(92,150,88,0.4) 22%, rgba(92,150,88,0) 48%), radial-gradient(126% 126% at 20% 16%, #23332a 0%, #18241f 58%, #111a15 100%)',
+  tileNotify: 'radial-gradient(64% 72% at 82% 84%, rgba(244,152,58,0.92) 0%, rgba(232,120,40,0.4) 22%, rgba(232,120,40,0) 48%), radial-gradient(126% 126% at 20% 16%, #34251a 0%, #251811 58%, #1a1109 100%)',
+  // 공지: 상단 #44404f → 연결 #865c66 → 하단 #be787a (세로 그라데이션).
+  notice: 'linear-gradient(180deg, #44404f 0%, #865c66 52%, #be787a 100%)',
   // 다크 유리(그 외 요소)
   glass: 'rgba(255,255,255,0.055)', glassSoft: 'rgba(255,255,255,0.035)',
   hi: 'inset 0 1px 0 rgba(255,255,255,0.08)', hiStrong: 'inset 0 1px 0 rgba(255,255,255,0.14)',
@@ -37,9 +40,9 @@ const DOW = ['일', '월', '화', '수', '목', '금', '토']
 const glassBlur = { backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)' }
 const fmt = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
-function Tile({ label, onClick, children }) {
+function Tile({ bg, label, onClick, children }) {
   return (
-    <button onClick={onClick} style={{ padding: '15px 0 12px', borderRadius: 20, border: 'none', background: S.tile, boxShadow: S.hi, color: S.text, fontFamily: 'inherit', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+    <button onClick={onClick} style={{ padding: '15px 0 12px', borderRadius: 20, border: 'none', background: bg, boxShadow: S.hi, color: S.text, fontFamily: 'inherit', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
       {children}
       <span style={{ fontSize: 12, fontWeight: 700 }}>{label}</span>
     </button>
@@ -198,18 +201,18 @@ export default function SpaceHome(props) {
           )
         })()}
 
-        {/* QUICK TILES — UI 러스트+블루 글로우 */}
+        {/* QUICK TILES — 각기 다른 색 조합(마젠타·블루·세이지·앰버) */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginTop: 16 }}>
-          <Tile label="커리큘럼" onClick={() => go('/student/curriculum?tab=core')}>
+          <Tile bg={S.tileCurriculum} label="커리큘럼" onClick={() => go('/student/curriculum?tab=core')}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.7"><path d="M5 5.5A1.5 1.5 0 0 1 6.5 4H18v16H6.5A1.5 1.5 0 0 1 5 18.5Z" strokeLinejoin="round" /><path d="M8 4v16" strokeLinecap="round" /></svg>
           </Tile>
-          <Tile label="기록" onClick={() => go('/student/records')}>
+          <Tile bg={S.tileRecords} label="기록" onClick={() => go('/student/records')}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.7"><rect x="6" y="4" width="12" height="17" rx="2" /><path d="M9 4V3h6v1" strokeLinejoin="round" /><path d="M9 9h6M9 13h6M9 17h4" strokeLinecap="round" /></svg>
           </Tile>
-          <Tile label="텃밭" onClick={() => go('/student/farm')}>
+          <Tile bg={S.tileFarm} label="텃밭" onClick={() => go('/student/farm')}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.7"><path d="M12 21v-8" strokeLinecap="round" /><path d="M12 13c0-3-2-5-5-5 0 3 2 5 5 5ZM12 13c0-3.5 2.5-6 6-6 0 3.5-2.5 6-6 6Z" strokeLinejoin="round" /></svg>
           </Tile>
-          <Tile label="알림" onClick={() => go('/student/notification')}>
+          <Tile bg={S.tileNotify} label="알림" onClick={() => go('/student/notification')}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.7"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6Z" strokeLinejoin="round" /><path d="M10 19a2 2 0 0 0 4 0" strokeLinecap="round" /></svg>
           </Tile>
         </div>
