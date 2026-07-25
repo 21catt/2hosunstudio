@@ -1,5 +1,6 @@
 'use client'
 import HeroWeatherFX from './HeroWeatherFX'
+import SpaceBg from './SpaceBg'
 // 울트라 스페이스(space) 테마 전용 다크 홈 — 2026 여름 한정(2달) 스킨.
 // 첨부 iOS 위젯 목업의 카드 그라데이션을 섹션별로 그대로 이식한다.
 //   Codex(마젠타 라디얼)  → HERO "수업 예약, 여기서 시작"
@@ -20,11 +21,13 @@ const S = {
   // 날짜: 코어 #0d0a1b(짧게) → 중간 #363e44 → 외곽 #92a19a (외곽 영역 넓게 — 반경 축소·외곽 스톱 당김).
   media: 'radial-gradient(72% 74% at 50% 42%, #0d0a1b 0%, #0d0a1b 13%, #363e44 38%, #92a19a 84%, #92a19a 100%)',
   mediaSel: 'radial-gradient(72% 74% at 50% 42%, #1a1530 0%, #1a1530 13%, #4a565f 38%, #a8b6ae 84%, #a8b6ae 100%)',
+  // 오늘: 같은 그라데이션 구조를 유지하되 조화되는 웜 로즈(세이지 날짜들과 구분).
+  mediaToday: 'radial-gradient(72% 74% at 50% 42%, #2c0f1f 0%, #2c0f1f 13%, #86345c 38%, #d69ab8 84%, #d69ab8 100%)',
   // 수강권: 코어 #06050b(짧게) → 연결·외곽 #1a2252 동일(작은 검정 코어 + 네이비가 대부분).
   pass: 'radial-gradient(120% 120% at 50% 44%, #06050b 0%, #06050b 10%, #1a2252 34%, #1a2252 100%)',
   passFill: 'linear-gradient(90deg, #e8531d, #f2872f 60%, #f6b23e)',
-  // 퀵타일 4종 공통 — 코어 #210107(짧게) → 연결 #341124 → 외곽 #76739b.
-  tile: 'radial-gradient(92% 98% at 50% 42%, #210107 0%, #210107 12%, #341124 37%, #76739b 100%)',
+  // 퀵타일 4종 공통 — 코어 #210107(면적 축소) → 연결 #341124 → 외곽 #76739b(영역 확장).
+  tile: 'radial-gradient(82% 88% at 50% 40%, #210107 0%, #210107 6%, #341124 27%, #76739b 74%, #76739b 100%)',
   // 공지: 상단 #44404f → 연결 #865c66 → 하단 #be787a (세로 그라데이션).
   notice: 'linear-gradient(180deg, #44404f 0%, #865c66 52%, #be787a 100%)',
   // 다크 유리(그 외 요소)
@@ -65,12 +68,9 @@ export default function SpaceHome(props) {
   } = props
 
   return (
-    <div style={{ position: 'relative', minHeight: '100vh', background: S.bg, color: S.text, fontFamily: "'Pretendard','Nunito',-apple-system,sans-serif", overflow: 'hidden' }}>
-      {/* ambient nebula blobs */}
-      <div style={{ position: 'absolute', top: -70, left: -50, width: 340, height: 340, borderRadius: '50%', background: 'radial-gradient(circle, rgba(227,91,166,0.4), transparent 65%)', filter: 'blur(26px)', pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', top: 200, right: -100, width: 320, height: 320, borderRadius: '50%', background: 'radial-gradient(circle, rgba(64,86,196,0.42), transparent 65%)', filter: 'blur(28px)', pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', bottom: 40, left: -80, width: 320, height: 320, borderRadius: '50%', background: 'radial-gradient(circle, rgba(120,60,180,0.34), transparent 65%)', filter: 'blur(30px)', pointerEvents: 'none' }} />
-      <div style={{ position: 'absolute', bottom: 240, right: -70, width: 240, height: 240, borderRadius: '50%', background: 'radial-gradient(circle, rgba(239,95,34,0.22), transparent 65%)', filter: 'blur(26px)', pointerEvents: 'none' }} />
+    <div style={{ position: 'relative', minHeight: '100vh', background: 'transparent', color: S.text, fontFamily: "'Pretendard','Nunito',-apple-system,sans-serif" }}>
+      {/* 우주 배경 — 성운 + 반짝이는 별밭(고정, 콘텐츠 뒤) */}
+      <SpaceBg />
 
       {/* top bar */}
       <div style={{ position: 'relative', zIndex: 5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 10px' }}>
@@ -146,10 +146,10 @@ export default function SpaceHome(props) {
             const has = bookedDates.has(ds)
             const label = d.getDate() === 1 ? `${d.getMonth() + 1}월` : DOW[d.getDay()]
             return (
-              <button key={ds} onClick={() => onDate(d)} style={{ flex: '0 0 auto', width: 56, padding: '11px 0', borderRadius: 16, position: 'relative', border: 'none', background: isSel ? S.mediaSel : S.media, boxShadow: isSel ? `0 0 0 2px ${S.accentRing}, ${S.hiStrong}` : S.hi, color: '#eef1fb', fontFamily: 'inherit', cursor: 'pointer', textAlign: 'center', opacity: isMon ? 0.5 : 1 }}>
-                {has && <span style={{ position: 'absolute', top: 5, right: 6, width: 7, height: 7, borderRadius: '50%', background: S.accent, border: '1.5px solid #121c42' }} />}
-                <div style={{ fontSize: 11, color: isToday ? '#ffd0e8' : 'rgba(238,241,251,0.6)', fontWeight: 700 }}>{label}</div>
-                <div style={{ fontSize: 17, fontWeight: 800, marginTop: 3 }}>{d.getDate()}</div>
+              <button key={ds} onClick={() => onDate(d)} style={{ flex: '0 0 auto', width: 56, padding: '11px 0', borderRadius: 16, position: 'relative', border: 'none', background: isToday ? S.mediaToday : (isSel ? S.mediaSel : S.media), boxShadow: isSel ? `0 0 0 2px ${S.accentRing}, ${S.hiStrong}` : (isToday ? `0 0 0 1px rgba(214,154,184,0.5), ${S.hi}` : S.hi), color: '#f4f0f6', fontFamily: 'inherit', cursor: 'pointer', textAlign: 'center', opacity: isMon ? 0.55 : 1 }}>
+                {has && <span style={{ position: 'absolute', top: 5, right: 6, width: 7, height: 7, borderRadius: '50%', background: S.accent, border: '1.5px solid rgba(0,0,0,0.35)' }} />}
+                <div style={{ fontSize: 11, color: isToday ? '#ffe0ec' : 'rgba(238,241,251,0.74)', fontWeight: 700, textShadow: '0 1px 2px rgba(0,0,0,0.4)' }}>{label}</div>
+                <div style={{ fontSize: 17, fontWeight: 800, marginTop: 3, textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>{d.getDate()}</div>
               </button>
             )
           })}
@@ -225,9 +225,9 @@ export default function SpaceHome(props) {
           </div>
         )}
 
-        {/* PASS CARD — Web Design 세이지+주황 진행바 */}
+        {/* PASS CARD — 네이비(#1a2252) + 주황 진행바. 다크 배경과 대비 약해 링으로 분리 */}
         {user && ticket && (
-          <div style={{ marginTop: 16, borderRadius: 24, padding: '19px 20px', background: S.pass, boxShadow: '0 14px 34px -18px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1)' }}>
+          <div style={{ marginTop: 16, borderRadius: 24, padding: '19px 20px', background: S.pass, boxShadow: '0 0 0 1px rgba(122,140,220,0.28), 0 16px 36px -16px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.16)' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
               <span style={{ fontSize: 12, color: 'rgba(243,240,232,0.62)', fontWeight: 600 }}>내 수강권</span>
               <span style={{ fontSize: 11.5, color: 'rgba(243,240,232,0.42)', fontWeight: 500 }}>만료 {ticket.expires_at}</span>

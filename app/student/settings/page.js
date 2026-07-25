@@ -11,7 +11,8 @@ import { PIXEL_CATS_BY_UNLOCK, pixelCatImg, catUnlocked, catUnlockLabel, getSave
 import { registerPush } from '../../../lib/pushNotify'
 import LoadingCat from '../../../components/LoadingCat'
 import GlassBg from '../../../components/GlassBg'
-import { useFreshTheme } from '../../../lib/useFreshTheme'
+import SpaceBg from '../../../components/SpaceBg'
+import { useFreshTheme, useSpaceTheme } from '../../../lib/useFreshTheme'
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -112,12 +113,14 @@ export default function SettingsPage() {
   }
 
   const fresh = useFreshTheme()
+  const space = useSpaceTheme()
 
   if (loading) return <LoadingCat />
 
   return (
     <>
       {fresh && <GlassBg />}
+      {space && <SpaceBg />}
       <div className="p-header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <NavIcon name="user" color="var(--ac)" size={20} />
@@ -125,7 +128,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div style={{ background: fresh ? 'transparent' : '#fff', padding:'8px 16px 90px' }}>
+      <div style={{ background: (fresh || space) ? 'transparent' : '#fff', padding:'8px 16px 90px' }}>
 
         {user ? (
           <div className="p-card" style={{ padding:'14px 16px', display:'flex', alignItems:'center', gap:12, marginBottom:16 }}>
@@ -182,7 +185,7 @@ export default function SettingsPage() {
             const locked = !catUnlocked(k, { harvest: progress, unlockAll })
             return (
               <div key={k} onClick={() => changeProfileCat(k)}
-                style={{ cursor: locked ? 'default' : 'pointer', aspectRatio:'1', borderRadius:12, position:'relative', overflow:'hidden', background: on ? 'var(--acBg)' : '#fff', border: on ? '2px solid var(--ac)' : '1.5px solid var(--g2)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                style={{ cursor: locked ? 'default' : 'pointer', aspectRatio:'1', borderRadius:12, position:'relative', overflow:'hidden', background: on ? 'var(--acBg)' : 'var(--surf)', border: on ? '2px solid var(--ac)' : '1.5px solid var(--g2)', display:'flex', alignItems:'center', justifyContent:'center' }}>
                 <img src={pixelCatImg(k)} alt={k} width={40} height={40}
                   style={{ imageRendering:'pixelated', display:'block', opacity: locked ? 0.25 : 1, filter: locked ? 'grayscale(1)' : 'none' }} />
                 {locked && (
@@ -206,11 +209,11 @@ export default function SettingsPage() {
             const locked = !themeUnlocked(t.key, { harvest: progress, unlockAll })
             return (
               <div key={t.key} onClick={() => changeTheme(t.key)}
-                style={{ cursor: locked ? 'default' : 'pointer', display:'flex', alignItems:'center', gap:8, padding:'11px 12px', borderRadius:14, background: on ? 'var(--acBg)' : '#fff', border: on ? `2px solid ${t.a1}` : '1.5px solid var(--g2)' }}>
+                style={{ cursor: locked ? 'default' : 'pointer', display:'flex', alignItems:'center', gap:8, padding:'11px 12px', borderRadius:14, background: on ? 'var(--acBg)' : 'var(--surf)', border: on ? `2px solid ${t.a1}` : '1.5px solid var(--g2)' }}>
                 <span style={{ width:16, height:16, borderRadius:'50%', background:t.a1, flexShrink:0, opacity: locked ? 0.3 : 1 }} />
                 <span style={{ width:16, height:16, borderRadius:'50%', background:t.a2, marginLeft:-14, flexShrink:0, border:'2px solid #fff', opacity: locked ? 0.3 : 1 }} />
                 {t.a3 && <span style={{ width:16, height:16, borderRadius:'50%', background:t.a3, marginLeft:-14, flexShrink:0, border:'2px solid #fff', opacity: locked ? 0.3 : 1 }} />}
-                <span style={{ fontSize:12, fontWeight: on?800:600, color: on?'var(--acTx)':'var(--td)', opacity: locked ? 0.4 : 1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.name}</span>
+                <span style={{ flex:1, minWidth:0, fontSize:12, fontWeight: on?800:600, color: on?'var(--acTx)':'var(--td)', opacity: locked ? 0.4 : 1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.name}</span>
                 {!locked && themeSeasonLabel(t.key) && (
                   <span style={{ marginLeft:'auto', fontSize:9, fontWeight:800, color:'var(--acTx)', background:'var(--acBg)', border:'1px solid rgb(var(--ac-rgb) / 0.35)', borderRadius:8, padding:'2px 7px', flexShrink:0, whiteSpace:'nowrap' }}>{themeSeasonEmoji(t.key)} {themeSeasonLabel(t.key)}</span>
                 )}
@@ -231,7 +234,7 @@ export default function SettingsPage() {
             const on = moodStyle === k
             return (
               <div key={k} onClick={() => changeMood(k)}
-                style={{ flex:1, cursor:'pointer', background: on ? 'var(--acBg)' : '#fff', border: on ? '2px solid var(--ac)' : '1.5px solid var(--g2)', borderRadius:14, padding:'12px 4px 9px', display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
+                style={{ flex:1, cursor:'pointer', background: on ? 'var(--acBg)' : 'var(--surf)', border: on ? '2px solid var(--ac)' : '1.5px solid var(--g2)', borderRadius:14, padding:'12px 4px 9px', display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
                 <MoodIndicator ratio={0.7} style={k} size={48} />
                 <span style={{ fontSize:10, fontWeight: on?800:700, color: on?'var(--acTx)':'var(--tmu)' }}>{label}</span>
               </div>
@@ -251,7 +254,7 @@ export default function SettingsPage() {
             const locked = !farmCatUnlocked(c.key, { harvest: progress, unlockAll })
             return (
               <div key={c.key} onClick={() => changeFarmCat(c.key)}
-                style={{ cursor: locked ? 'default' : 'pointer', position:'relative', overflow:'hidden', background: on ? 'var(--acBg)' : '#fff', border: on ? '2px solid var(--ac)' : '1.5px solid var(--g2)', borderRadius:14, padding:'12px 4px 9px', display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
+                style={{ cursor: locked ? 'default' : 'pointer', position:'relative', overflow:'hidden', background: on ? 'var(--acBg)' : 'var(--surf)', border: on ? '2px solid var(--ac)' : '1.5px solid var(--g2)', borderRadius:14, padding:'12px 4px 9px', display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
                 <img src={c.img} alt={c.name} width={44} style={{ imageRendering:'pixelated', display:'block', opacity: locked ? 0.25 : 1, filter: locked ? 'grayscale(1)' : 'none' }} />
                 <span style={{ fontSize:10, fontWeight: on?800:700, color: on?'var(--acTx)':'var(--td)', opacity: locked ? 0.4 : 1 }}>{c.name}</span>
                 <span style={{ fontSize:9, color:'var(--tmu)', opacity: locked ? 0.4 : 1 }}>{c.desc}</span>

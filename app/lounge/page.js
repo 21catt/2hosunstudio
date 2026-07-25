@@ -7,7 +7,8 @@ import AdminNav from '../../components/AdminNav'
 import { NavIcon } from '../../components/NavIcons'
 import LoadingCat from '../../components/LoadingCat'
 import GlassBg from '../../components/GlassBg'
-import { useFreshTheme } from '../../lib/useFreshTheme'
+import SpaceBg from '../../components/SpaceBg'
+import { useFreshTheme, useSpaceTheme } from '../../lib/useFreshTheme'
 import { pixelCatImg, DEFAULT_PROFILE_CAT, getSavedProfileCat } from '../../lib/pixelCats'
 import { compressImage } from '../../lib/imageCompress'
 
@@ -298,6 +299,7 @@ export default function LoungePage() {
   }
 
   const fresh = useFreshTheme()
+  const space = useSpaceTheme()
 
   if (loading) return <LoadingCat />
 
@@ -306,6 +308,7 @@ export default function LoungePage() {
   return (
     <>
       {fresh && <GlassBg />}
+      {space && <SpaceBg />}
       <style>{`
         /* Squash & Stretch — 빠르게 길쭉하게 솟았다(stretch), 납작하게 눌리고(squash), 잔잔한 감쇠 진동으로 정지 */
         @keyframes bubIn {
@@ -342,7 +345,7 @@ export default function LoungePage() {
         </div>
       </div>
 
-      <div style={{ background: fresh ? 'transparent' : '#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'16px 12px 176px', minHeight:'80vh' }}>
+      <div style={{ background: (fresh || space) ? 'transparent' : '#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'16px 12px 176px', minHeight:'80vh' }}>
         {/* 카테고리 칩 — 보낼 때도 이 카테고리로 올라간다 */}
         <div className="no-scrollbar" style={{ display:'flex', gap:7, marginBottom:14, overflowX:'auto', paddingBottom:2 }}>
           {TAGS.map((t,i) => {
@@ -408,7 +411,7 @@ export default function LoungePage() {
                       style={{ width:'100%', padding:'10px 12px', borderRadius:16, border:'2.5px solid var(--ac)', background:'var(--acBg)', fontSize:13, fontWeight:600, color:'var(--td)', lineHeight:1.6, resize:'none', outline:'none', fontFamily:'Nunito,sans-serif', boxSizing:'border-box', display:'block' }}/>
                     <div style={{ display:'flex', gap:6, justifyContent: isMine ? 'flex-end' : 'flex-start', marginTop:5 }}>
                       <button onClick={() => setEditPost(null)} disabled={editSaving}
-                        style={{ padding:'6px 14px', borderRadius:14, border:'2px solid var(--g2)', background:'#fff', color:'var(--tm)', fontSize:11, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>취소</button>
+                        style={{ padding:'6px 14px', borderRadius:14, border:'2px solid var(--g2)', background:'var(--surf)', color:'var(--tm)', fontSize:11, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>취소</button>
                       <button onClick={saveEdit} disabled={editSaving}
                         style={{ padding:'6px 16px', borderRadius:14, border:'none', background:'var(--ac)', color:'#fff', fontSize:11, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif', opacity: editSaving ? 0.6 : 1 }}>{editSaving ? '저장 중…' : '저장'}</button>
                     </div>
@@ -480,11 +483,11 @@ export default function LoungePage() {
                     )}
                     {canDelete && (
                       <button onClick={() => setEditPost({ id: p.id, text: p.content || '' })} title="내용 수정"
-                        style={{ width:18, height:18, borderRadius:'50%', border:'2px solid var(--line)', background:'#fff', fontSize:8.5, lineHeight:1, cursor:'pointer', padding:0 }}>✏️</button>
+                        style={{ width:18, height:18, borderRadius:'50%', border:'2px solid var(--line)', background:'var(--surf)', fontSize:8.5, lineHeight:1, cursor:'pointer', padding:0 }}>✏️</button>
                     )}
                     {canDelete && (
                       <button onClick={() => deletePost(p.id)} title="삭제"
-                        style={{ width:18, height:18, borderRadius:'50%', border:'2px solid var(--line)', background:'#fff', color:'var(--tl)', fontSize:9, lineHeight:1, cursor:'pointer', padding:0 }}>✕</button>
+                        style={{ width:18, height:18, borderRadius:'50%', border:'2px solid var(--line)', background:'var(--surf)', color:'var(--tl)', fontSize:9, lineHeight:1, cursor:'pointer', padding:0 }}>✕</button>
                     )}
                   </div>
                 )
@@ -564,7 +567,7 @@ export default function LoungePage() {
         )}
         <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 12px 10px' }}>
           <label className="press" title="사진 첨부"
-            style={{ width:42, height:42, flexShrink:0, borderRadius:'50%', background:'#fff', border:`3px solid ${ACCENT}`, fontSize:17, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            style={{ width:42, height:42, flexShrink:0, borderRadius:'50%', background:'var(--surf)', border:`3px solid ${ACCENT}`, fontSize:17, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
             📷
             <input type="file" multiple accept="image/*" onChange={pickFiles} style={{ display:'none' }}/>
           </label>

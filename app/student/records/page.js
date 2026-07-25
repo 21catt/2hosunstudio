@@ -7,7 +7,8 @@ import { NavIcon } from '../../../components/NavIcons'
 import ProfileHeaderIcon from '../../../components/ProfileHeaderIcon'
 import LoadingCat from '../../../components/LoadingCat'
 import GlassBg from '../../../components/GlassBg'
-import { useFreshTheme } from '../../../lib/useFreshTheme'
+import SpaceBg from '../../../components/SpaceBg'
+import { useFreshTheme, useSpaceTheme } from '../../../lib/useFreshTheme'
 import PalettePlanner from '../../../components/PalettePlanner'
 import { compressImage } from '../../../lib/imageCompress'
 import { pixelCatImg, DEFAULT_PROFILE_CAT, isValidPixelCat, getSavedProfileCat } from '../../../lib/pixelCats'
@@ -315,6 +316,7 @@ function RecordsInner() {
   }
 
   const fresh = useFreshTheme()
+  const space = useSpaceTheme()
 
   if (loading) return <LoadingCat />
 
@@ -335,6 +337,7 @@ function RecordsInner() {
   return (
     <>
       {fresh && <GlassBg />}
+      {space && <SpaceBg />}
       <style>{`
         @keyframes thumbIn {
           0%   { opacity:0; transform: scale(0.3, 0.45) rotate(-8deg); }
@@ -364,7 +367,7 @@ function RecordsInner() {
         </div>
       </div>
 
-      <div style={{ background: fresh ? 'transparent' : '#fff', padding:'12px 12px 150px', minHeight:'80vh' }}>
+      <div style={{ background: (fresh || space) ? 'transparent' : '#fff', padding:'12px 12px 150px', minHeight:'80vh' }}>
 
         {/* 월 달력 — 날짜에 기록. 기록 있는 날 점 표시, 날짜 눌러 그날 다이어리 열기 */}
         <div className="p-card" style={{ padding:'13px 13px 11px', marginBottom:14 }}>
@@ -576,12 +579,12 @@ function RecordsInner() {
 
         <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 12px 10px' }}>
           <label className="press" title="사진 첨부"
-            style={{ width:42, height:42, flexShrink:0, borderRadius:'50%', background:'#fff', border:`3px solid ${ACCENT}`, fontSize:17, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            style={{ width:42, height:42, flexShrink:0, borderRadius:'50%', background:'var(--surf)', border:`3px solid ${ACCENT}`, fontSize:17, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
             📷
             <input type="file" multiple accept="image/*" onChange={pickFiles} style={{ display:'none' }}/>
           </label>
           <button className="press" title="색 계획 (삼색)" onClick={() => { setPlannerInit(null); setPlannerOpen(true) }}
-            style={{ width:42, height:42, flexShrink:0, borderRadius:'50%', background:'#fff', border:`3px solid ${ACCENT}`, fontSize:17, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', padding:0 }}>
+            style={{ width:42, height:42, flexShrink:0, borderRadius:'50%', background:'var(--surf)', border:`3px solid ${ACCENT}`, fontSize:17, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', padding:0 }}>
             🎨
           </button>
           <input value={composeText} onChange={e => setComposeText(e.target.value)}

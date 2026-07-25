@@ -15,7 +15,8 @@ import { applyTheme, isValidTheme } from '../../../lib/theme'
 import MoodIndicator from '../../../components/MoodIndicator'
 import LoadingCat from '../../../components/LoadingCat'
 import GlassBg from '../../../components/GlassBg'
-import { useFreshTheme } from '../../../lib/useFreshTheme'
+import SpaceBg from '../../../components/SpaceBg'
+import { useFreshTheme, useSpaceTheme } from '../../../lib/useFreshTheme'
 
 const CAT_ICON = { drawing:'pencil', painting:'palette', sculpture:'box', oneday:'calendar', free:'photo', meeting:'users' }
 const CAT_NAME = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', oneday:'원데이', free:'자율창작', meeting:'모임' }
@@ -737,12 +738,14 @@ export default function CalendarPage() {
   }
 
   const fresh = useFreshTheme()
+  const space = useSpaceTheme()
 
   if (loading) return <LoadingCat />
 
   return (
     <>
       {fresh && <GlassBg />}
+      {space && <SpaceBg />}
       <style>{`
         @keyframes spark { 0% { transform: translate(0,0) scale(1.2); opacity:1; } 100% { transform: translate(var(--tx),var(--ty)) scale(0); opacity:0; } }
         @keyframes catPop { 0% { transform: scale(0) rotate(-15deg); opacity:0; } 55% { transform: scale(1.28) rotate(6deg); opacity:1; } 100% { transform: scale(1) rotate(0deg); opacity:1; } }
@@ -762,7 +765,7 @@ export default function CalendarPage() {
 
       {depositModal && (
         <div onClick={() => setDepositModal(null)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', zIndex:1100, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:20, padding:'22px 20px', maxWidth:340, width:'100%' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'var(--surf)', borderRadius:20, padding:'22px 20px', maxWidth:340, width:'100%' }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
               <div style={{ fontSize:16, fontWeight:800, color:'var(--td)' }}>입금 안내</div>
               <span style={{ fontSize:10, fontWeight:700, background:'#FFF3CD', color:'#856404', padding:'3px 8px', borderRadius:20, border:'1px solid #FFD700' }}>입금 대기</span>
@@ -802,7 +805,7 @@ export default function CalendarPage() {
 
       {paymentModal && (
         <div onClick={()=>{setPaymentModal(null); setSelectedCount(1)}} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
-          <div onClick={e=>e.stopPropagation()} style={{ background:'#fff', borderRadius:20, padding:'20px 18px', maxWidth:340, width:'100%' }}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:'var(--surf)', borderRadius:20, padding:'20px 18px', maxWidth:340, width:'100%' }}>
             <div style={{ fontSize:16, fontWeight:800, color:'var(--td)', marginBottom:6 }}>모임 참여 안내</div>
             <div style={{ fontSize:12, color:'var(--tm)', lineHeight:1.6, marginBottom:14 }}>{paymentModal.course.name}</div>
             <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:6 }}>참여 횟수 선택</div>
@@ -839,7 +842,7 @@ export default function CalendarPage() {
         <div onClick={() => setSheetOpen(false)}
           style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', zIndex:1000, display:'flex', alignItems:'flex-end' }}>
           <div onClick={e => e.stopPropagation()}
-            style={{ background:'#fff', borderRadius:'20px 20px 0 0', padding:'20px 18px 32px', width:'100%', maxHeight:'60vh', overflowY:'auto' }}>
+            style={{ background:'var(--surf)', borderRadius:'20px 20px 0 0', padding:'20px 18px 32px', width:'100%', maxHeight:'60vh', overflowY:'auto' }}>
             <div style={{ fontSize:13, fontWeight:800, color:'var(--td)', marginBottom:4 }}>{sheetSlot.course.name} 예약</div>
             <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:14 }}>이번 주 다른 시간대</div>
             {(!ticket || ticket.remain <= 0) ? (
@@ -886,7 +889,7 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      <div style={{ background: fresh ? 'transparent' : '#fff', padding:'8px 14px 0' }}>
+      <div style={{ background: (fresh || space) ? 'transparent' : '#fff', padding:'8px 14px 0' }}>
 
         {user && (() => {
           if (upcomingBookings.length > 0) {
@@ -1142,7 +1145,7 @@ export default function CalendarPage() {
                         <div style={{ borderTop:`1px solid rgb(var(--ac-rgb) / 0.16)`, padding:'6px 12px 12px' }}>
                           {curriculumNames.has(c.name) && (
                             <div onClick={(e) => { e.stopPropagation(); router.push(`/student/curriculum?course=${encodeURIComponent(c.name)}`) }}
-                              style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 10px', margin:'2px 0 8px', borderRadius:10, background:'#fff', border:'1px solid rgba(0,0,0,0.08)', cursor:'pointer' }}>
+                              style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 10px', margin:'2px 0 8px', borderRadius:10, background:'var(--surf)', border:'1px solid rgba(0,0,0,0.08)', cursor:'pointer' }}>
                               <span style={{ fontSize:11, fontWeight:700, color:ACCENT_TEXT }}>📚 이 수업 커리큘럼 보기</span>
                               <span style={{ fontSize:14, color:ACCENT }}>›</span>
                             </div>
@@ -1167,7 +1170,7 @@ export default function CalendarPage() {
                             return (
                               <div key={s.id}
                                 onClick={() => { if (!full && !booked) setSelSchedule(isSel ? null : s) }}
-                                style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'11px 13px', borderRadius:13, marginBottom:7, background:booked?'#E8F5E0':isSel?'#f2f8ea':'#fff', border:`${isSel?2:1}px solid ${booked?'#a8d9a0':isSel?ACCENT:'rgba(0,0,0,0.08)'}`, cursor:full||booked?'default':'pointer', opacity:full?0.5:1 }}>
+                                style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'11px 13px', borderRadius:13, marginBottom:7, background:booked?'#E8F5E0':isSel?'#f2f8ea':'var(--surf)', border:`${isSel?2:1}px solid ${booked?'#a8d9a0':isSel?ACCENT:'rgba(0,0,0,0.08)'}`, cursor:full||booked?'default':'pointer', opacity:full?0.5:1 }}>
                                 <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                                   <div style={{ width:20, height:20, borderRadius:'50%', flexShrink:0, boxSizing:'border-box', background:booked?'#6db870':isSel?ACCENT:'transparent', border:`2px solid ${booked?'#6db870':isSel?ACCENT:BORDER}`, display:'flex', alignItems:'center', justifyContent:'center' }}>
                                     {(booked||isSel) && <svg width="10" height="8" viewBox="0 0 9 7"><polyline points="1,3.5 3,6 8,1" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
@@ -1224,7 +1227,7 @@ export default function CalendarPage() {
                     <div style={{ fontSize:11, color:'var(--tm)', fontWeight:600, marginBottom:8, lineHeight:1.6 }}>
                       수강권 없이 <b style={{ color:'#AD1457' }}>계약금 입금</b>으로 신청해요. 아래 계좌로 <b>입금자명</b>을 넣어 보내주세요.
                     </div>
-                    <div style={{ background:'#fff', borderRadius:10, border:'1px solid #f6c7d6', padding:'9px 11px', marginBottom:8 }}>
+                    <div style={{ background:'var(--surf)', borderRadius:10, border:'1px solid #f6c7d6', padding:'9px 11px', marginBottom:8 }}>
                       <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:3 }}>입금 계좌</div>
                       <div style={{ fontSize:12.5, fontWeight:800, color:'var(--td)', lineHeight:1.5 }}>{DEPOSIT.bank} {DEPOSIT.account}<br/>예금주 {DEPOSIT.holder}</div>
                     </div>

@@ -6,6 +6,8 @@ import StudentNav from '../../../components/StudentNav'
 import { NavIcon } from '../../../components/NavIcons'
 import ProfileHeaderIcon from '../../../components/ProfileHeaderIcon'
 import LoadingCat from '../../../components/LoadingCat'
+import SpaceBg from '../../../components/SpaceBg'
+import { useSpaceTheme } from '../../../lib/useFreshTheme'
 import CoreDocView from '../../../components/CoreDocView'
 import { compressImage } from '../../../lib/imageCompress'
 import { hasRichDoc, DEFAULT_CORE_DOC } from '../../../lib/coreDoc'
@@ -239,7 +241,7 @@ function RecordSheet({ params, userId, onClose, onSaved }) {
   return (
     <div onClick={e => { if (e.target === e.currentTarget) onClose() }}
       style={{ position:'fixed', inset:0, zIndex:1000, background:'rgba(0,0,0,0.45)', display:'flex', flexDirection:'column', justifyContent:'flex-end' }}>
-      <div style={{ background:'#fff', borderRadius:'20px 20px 0 0', maxHeight:'88vh', overflowY:'auto' }}>
+      <div style={{ background:'var(--surf)', borderRadius:'20px 20px 0 0', maxHeight:'88vh', overflowY:'auto' }}>
 
         <div style={{ display:'flex', justifyContent:'center', padding:'12px 0 0' }}>
           <div style={{ width:36, height:4, borderRadius:2, background:'#ddd' }}/>
@@ -590,10 +592,13 @@ function CurriculumInner() {
     }
   }
 
+  const space = useSpaceTheme()
+
   if (loading) return <LoadingCat />
 
   return (
     <>
+      {space && <SpaceBg />}
       <div className="p-header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <NavIcon name="book" color="var(--ac)" size={20} />
@@ -602,20 +607,20 @@ function CurriculumInner() {
         <ProfileHeaderIcon />
       </div>
 
-      <div style={{ background:'#fff', padding:'8px 14px 0', minHeight:'80vh' }}>
+      <div style={{ background: space ? 'transparent' : '#fff', padding:'8px 14px 0', minHeight:'80vh' }}>
 
         {/* Segment toggle */}
         <div style={{ display:'flex', gap:4, marginBottom:18, background:'var(--g1)', borderRadius:12, padding:3 }}>
           <button onClick={() => setTab('my')}
-            style={{ flex:1, padding:'8px 4px', borderRadius:10, background: tab==='my' ? '#fff' : 'transparent', border:'none', fontSize:13, fontWeight:700, cursor:'pointer', color: tab==='my' ? 'var(--td)' : 'var(--tmu)', fontFamily:'Nunito,sans-serif', boxShadow: tab==='my' ? '0 1px 4px rgba(0,0,0,0.1)' : 'none' }}>
+            style={{ flex:1, padding:'8px 4px', borderRadius:10, background: tab==='my' ? 'var(--surf)' : 'transparent', border:'none', fontSize:13, fontWeight:700, cursor:'pointer', color: tab==='my' ? 'var(--td)' : 'var(--tmu)', fontFamily:'Nunito,sans-serif', boxShadow: tab==='my' ? '0 1px 4px rgba(0,0,0,0.1)' : 'none' }}>
             내 경로
           </button>
           <button onClick={() => handleTabSwitch('core')}
-            style={{ flex:1, padding:'8px 4px', borderRadius:10, background: tab==='core' ? '#fff' : 'transparent', border:'none', fontSize:13, fontWeight:700, cursor:'pointer', color: tab==='core' ? 'var(--td)' : 'var(--tmu)', fontFamily:'Nunito,sans-serif', boxShadow: tab==='core' ? '0 1px 4px rgba(0,0,0,0.1)' : 'none' }}>
+            style={{ flex:1, padding:'8px 4px', borderRadius:10, background: tab==='core' ? 'var(--surf)' : 'transparent', border:'none', fontSize:13, fontWeight:700, cursor:'pointer', color: tab==='core' ? 'var(--td)' : 'var(--tmu)', fontFamily:'Nunito,sans-serif', boxShadow: tab==='core' ? '0 1px 4px rgba(0,0,0,0.1)' : 'none' }}>
             핵심 내용
           </button>
           <button onClick={() => handleTabSwitch('browse')}
-            style={{ flex:1, padding:'8px 4px', borderRadius:10, background: tab==='browse' ? '#fff' : 'transparent', border:'none', fontSize:13, fontWeight:700, cursor:'pointer', color: tab==='browse' ? 'var(--td)' : 'var(--tmu)', fontFamily:'Nunito,sans-serif', boxShadow: tab==='browse' ? '0 1px 4px rgba(0,0,0,0.1)' : 'none' }}>
+            style={{ flex:1, padding:'8px 4px', borderRadius:10, background: tab==='browse' ? 'var(--surf)' : 'transparent', border:'none', fontSize:13, fontWeight:700, cursor:'pointer', color: tab==='browse' ? 'var(--td)' : 'var(--tmu)', fontFamily:'Nunito,sans-serif', boxShadow: tab==='browse' ? '0 1px 4px rgba(0,0,0,0.1)' : 'none' }}>
             둘러보기
           </button>
         </div>
@@ -685,7 +690,7 @@ function CurriculumInner() {
                             <div key={step.id} style={{ marginBottom:10, display:'flex', alignItems:'flex-start' }}>
                               <div style={{
                                 position:'absolute', left:0, width:22, height:22, borderRadius:11,
-                                background: isDone ? ACCENT : isToday ? '#FF8F00' : '#fff',
+                                background: isDone ? ACCENT : isToday ? '#FF8F00' : 'var(--surf)',
                                 border:`2px solid ${isDone ? ACCENT : isToday ? '#FF8F00' : isNext ? ACCENT : BORDER}`,
                                 display:'flex', alignItems:'center', justifyContent:'center',
                                 fontSize:10, fontWeight:800, zIndex:1,
@@ -772,7 +777,7 @@ function CurriculumInner() {
                     const emptyCore = !savedRich && !course.coreContent && course.coreImages.length === 0
                     const richDoc = savedRich ? course.coreDoc : (emptyCore ? DEFAULT_CORE_DOC : null)
                     return (
-                      <div key={course.name} ref={el => { if (el) coreCardRefs.current[key] = el }} style={{ borderRadius:14, marginBottom:8, border:`1.5px solid ${isOpen ? ACCENT : BORDER}`, background: isOpen ? '#fff' : CARD, overflow:'hidden', transition:'border-color 0.15s' }}>
+                      <div key={course.name} ref={el => { if (el) coreCardRefs.current[key] = el }} style={{ borderRadius:14, marginBottom:8, border:`1.5px solid ${isOpen ? ACCENT : BORDER}`, background: isOpen ? 'var(--surf)' : CARD, overflow:'hidden', transition:'border-color 0.15s' }}>
                         {/* 헤더 — 클릭해서 펼치고 접기 */}
                         <div onClick={() => setExpandedCore(isOpen ? null : key)}
                           style={{ padding:'13px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', cursor:'pointer', gap:8 }}>

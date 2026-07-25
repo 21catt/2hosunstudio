@@ -8,6 +8,8 @@ import ProfileHeaderIcon from '../../../components/ProfileHeaderIcon'
 import { FARM_CATS, getSavedFarmCat, isValidFarmCat, CROP_STAGES, cropImg, getSavedHarvest, saveHarvestLocal } from '../../../lib/farmCats'
 import { WEED, weedImg, weedStage, tickWeeds } from '../../../lib/weeds'
 import LoadingCat from '../../../components/LoadingCat'
+import SpaceBg from '../../../components/SpaceBg'
+import { useSpaceTheme } from '../../../lib/useFreshTheme'
 import ColorMixGame from '../../../components/ColorMixGame'
 import ColorTetrisGame from '../../../components/ColorTetrisGame'
 import { topGameScores } from '../../../lib/gameScore'
@@ -325,10 +327,13 @@ export default function FarmPage() {
   const cropPoints = Math.max(0, cropAttended - harvest * CROP_STAGES)
   const cropReady = cropPoints >= CROP_STAGES
 
+  const space = useSpaceTheme()
+
   if (loading) return <LoadingCat />
 
   return (
     <>
+      {space && <SpaceBg />}
       <style>{`
         @keyframes driftR { from{transform:translateX(-110px)} to{transform:translateX(490px)} }
         @keyframes driftL { from{transform:translateX(490px)} to{transform:translateX(-110px)} }
@@ -380,7 +385,7 @@ export default function FarmPage() {
         </div>
       </div>
 
-      <div style={{ background:'#fff', paddingTop:8, paddingBottom:80 }}>
+      <div style={{ background: space ? 'transparent' : '#fff', paddingTop:8, paddingBottom:80 }}>
 
         {/* 농장 메인 씬 — 테마별 픽셀 환경 */}
         <div style={{ position:'relative', overflow:'hidden', background:FARM_ENV[farmTheme].ground }}>
@@ -648,7 +653,7 @@ export default function FarmPage() {
         <div onClick={() => setWeedReward(false)}
           style={{ position:'fixed', inset:0, background:'rgba(27,28,70,0.55)', zIndex:1200, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}>
           <div onClick={e => e.stopPropagation()}
-            style={{ background:'#fff', borderRadius:22, padding:'26px 22px', maxWidth:320, width:'100%', textAlign:'center', border:'3px solid var(--ac)', boxShadow:'0 14px 40px rgba(0,0,0,0.25)' }}>
+            style={{ background:'var(--surf)', borderRadius:22, padding:'26px 22px', maxWidth:320, width:'100%', textAlign:'center', border:'3px solid var(--ac)', boxShadow:'0 14px 40px rgba(0,0,0,0.25)' }}>
             <div style={{ fontSize:46 }}>🎁</div>
             <div style={{ fontSize:16, fontWeight:900, color:'var(--td)', margin:'10px 0 6px' }}>잡초 500개 제거 완료!</div>
             <div style={{ fontSize:12.5, color:'var(--tm)', fontWeight:600, lineHeight:1.7, marginBottom:16 }}>

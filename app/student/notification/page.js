@@ -6,6 +6,8 @@ import StudentNav from '../../../components/StudentNav'
 import { NavIcon } from '../../../components/NavIcons'
 import ProfileHeaderIcon from '../../../components/ProfileHeaderIcon'
 import LoadingCat from '../../../components/LoadingCat'
+import SpaceBg from '../../../components/SpaceBg'
+import { useSpaceTheme } from '../../../lib/useFreshTheme'
 
 export default function StudentNotificationPage() {
   const router = useRouter()
@@ -83,10 +85,13 @@ export default function StudentNotificationPage() {
   const attended = doneClasses.filter(d => d.status === 'attended').length
   const absent = doneClasses.filter(d => d.status === 'absent').length
 
+  const space = useSpaceTheme()
+
   if (loading) return <LoadingCat />
 
   return (
     <>
+      {space && <SpaceBg />}
       <div className="p-header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <NavIcon name="bell" color="var(--ac)" size={20} />
@@ -95,7 +100,7 @@ export default function StudentNotificationPage() {
         <ProfileHeaderIcon />
       </div>
 
-      <div style={{ background:'#fff', padding:'8px 14px 80px' }}>
+      <div style={{ background: space ? 'transparent' : '#fff', padding:'8px 14px 80px' }}>
         {/* 탭 */}
         <div style={{ display:'flex', borderBottom:'2px solid var(--g1)', marginBottom:14 }}>
           {['내 예약 현황','수업 종료 현황'].map((t,i) => (
