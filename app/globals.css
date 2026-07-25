@@ -181,6 +181,29 @@
   --card: #eef3e4;
 }
 
+/* 울트라 스페이스 (다크, 2달 한정) — 어두운 바이올렛 배경 + 우주빛 마젠타 강조.
+   유일한 다크 테마라 명암 램프(g1=어두운 표면 / g5=밝은 텍스트)가 밝은 테마와 반대. */
+[data-theme='space'] {
+  --g1: #241834;
+  --g2: #3a2b4e;
+  --g3: #9a6fc4;
+  --g4: #e35ba6;
+  --g5: #ffb3d8;
+  --bg: #0d0812;
+  --surf: #180f26;
+  --td: #f3eef8;
+  --tm: #b7adc8;
+  --tmu: #837897;
+  --tl: #4a3f5c;
+  --ac: #e35ba6;
+  --ac-rgb: 227 91 166;
+  --ac2: #4a5fb4;
+  --acBg: #2a1526;
+  --acTx: #ff9ecb;
+  --card: #170f22;
+  --line: rgba(255, 255, 255, 0.1);
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -504,6 +527,55 @@ body {
 /* 하단 고정 입력바용 — 하단탭과 같은 톤의 진한 유리 */
 [data-theme='fresh'] .g-glass-bar {
   background: rgba(240,246,248,0.86) !important;
+  -webkit-backdrop-filter: blur(22px);
+  backdrop-filter: blur(22px);
+}
+
+/* ── 울트라 스페이스(space) 다크 스킨 — 전역 표면/하단탭을 다크 유리로. 홈은 SpaceHome 별도. ── */
+[data-theme='space'] body { background: #0d0812; }
+[data-theme='space'] .app-shell { background: transparent; }
+[data-theme='space'] .p-header { background: transparent; }
+/* 외곽선 제거(요청) — 깊이는 내부 하이라이트만 */
+[data-theme='space'] .p-card,
+[data-theme='space'] .p-tile {
+  background: rgba(255,255,255,0.055);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  border: none;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+}
+[data-theme='space'] .p-hero {
+  background: radial-gradient(135% 120% at 50% 40%, #e65fa8 0%, #b83a7c 26%, #6e1a4c 48%, #2c0b20 74%, #190712 100%);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  border: none;
+  color: #fff;
+}
+[data-theme='space'] .p-chip {
+  background: rgba(255,255,255,0.08);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border-color: rgba(255,255,255,0.14);
+  color: var(--td);
+}
+[data-theme='space'] .p-chip--fill {
+  background: linear-gradient(135deg, #e35ba6, #b83a7c);
+  border-color: transparent;
+  color: #fff;
+}
+[data-theme='space'] .bottom-nav {
+  background: rgba(18,12,26,0.82);
+  -webkit-backdrop-filter: blur(22px);
+  backdrop-filter: blur(22px);
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+[data-theme='space'] .g-glass {
+  background: rgba(255,255,255,0.055) !important;
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+[data-theme='space'] .g-glass-bar {
+  background: rgba(18,12,26,0.86) !important;
   -webkit-backdrop-filter: blur(22px);
   backdrop-filter: blur(22px);
 }

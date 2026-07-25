@@ -9,6 +9,7 @@ import { LogoMark, HeroDeco, DotPatch } from '../../components/Deco'
 import HeroWeatherFX from '../../components/HeroWeatherFX'
 import { applyTheme, isValidTheme, getSavedTheme, themeInWindow } from '../../lib/theme'
 import GlassHome from '../../components/GlassHome'
+import SpaceHome from '../../components/SpaceHome'
 import { bookClass, requestBookingApproval, hasValidTicket, cancelBooking } from '../../lib/booking'
 import { sendPushToAdmins } from '../../lib/pushNotify'
 import { sendKakaoToAdmins } from '../../lib/kakaoNotify'
@@ -36,6 +37,7 @@ export default function StudentHomePage() {
   const [loading, setLoading] = useState(true)
   const [activeTheme, setActiveTheme] = useState('ultra') // 실제 적용 중인 테마(기간 반영) — 'fresh'면 글래스 홈
   const [freshPromo, setFreshPromo] = useState(false) // 여름 한정 스킨 안내 팝업
+  const [spacePromo, setSpacePromo] = useState(false) // 울트라 스페이스(다크) 스킨 안내 팝업
   const [classes, setClasses] = useState([])
   const [lockedDates, setLockedDates] = useState(new Set())
   const [allBookings, setAllBookings] = useState([])
@@ -77,10 +79,14 @@ export default function StudentHomePage() {
 
   // 최초: 저장된 테마(기간 반영)로 글래스 홈 여부 결정 — 로그인 전/데이터 로드 전에도 반영
   useEffect(() => {
-    setActiveTheme(getSavedTheme())
-    // 여름 한정 스킨 안내 — 기간 내 + 아직 fresh 아님 + "다시 보지 않기" 안 누름
+    const saved = getSavedTheme()
+    setActiveTheme(saved)
+    // 스킨 안내 팝업 — 기간 내 + 아직 해당 테마 아님 + "다시 보지 않기" 안 누름.
+    // 울트라 스페이스(신규 2달 한정)를 우선 안내, 없으면 여름(fresh) 안내.
     try {
-      if (themeInWindow('fresh') && getSavedTheme() !== 'fresh' && !localStorage.getItem('2hs_fresh_promo_hide')) {
+      if (themeInWindow('space') && saved !== 'space' && !localStorage.getItem('2hs_space_promo_hide')) {
+        setSpacePromo(true)
+      } else if (themeInWindow('fresh') && saved !== 'fresh' && !localStorage.getItem('2hs_fresh_promo_hide')) {
         setFreshPromo(true)
       }
     } catch {}
@@ -97,6 +103,19 @@ export default function StudentHomePage() {
   function hideFreshPromo(forever) {
     if (forever) { try { localStorage.setItem('2hs_fresh_promo_hide', '1') } catch {} }
     setFreshPromo(false)
+  }
+
+  // 울트라 스페이스(다크) 스킨 — 즉시 적용 + 계정 저장(로그인 시)
+  function applySpaceNow() {
+    setActiveTheme(applyTheme('space'))
+    try { localStorage.setItem('2hs_space_promo_hide', '1') } catch {}
+    setSpacePromo(false)
+    if (user?.id) supabase.from('user_prefs').upsert({ user_id: user.id, theme: 'space' }).then(() => {})
+  }
+
+  function hideSpacePromo(forever) {
+    if (forever) { try { localStorage.setItem('2hs_space_promo_hide', '1') } catch {} }
+    setSpacePromo(false)
   }
 
   // 오늘 셀이 보이도록 스트립 초기 스크롤
@@ -338,8 +357,11 @@ export default function StudentHomePage() {
 
   return (
     <>
-      {activeTheme === 'fresh' ? (
-        <GlassHome
+      {(activeTheme === 'fresh' || activeTheme === 'space') ? (
+        (() => {
+          const HomeSkin = activeTheme === 'space' ? SpaceHome : GlassHome
+          return (
+        <HomeSkin
           user={user} ticket={ticket} nextBooking={nextBooking} pendingBooking={pendingBooking}
           notices={notices} weather={weather} heroSub={heroSub} unread={unread}
           stripDates={stripDates} selDate={selDate} todayStr={todayStr} bookedDates={bookedDates} stripRef={stripRef}
@@ -348,6 +370,8 @@ export default function StudentHomePage() {
           onDate={goDate} onQuickBook={quickBook} onCancel={askCancel} onAsk={openAsk}
           go={(href) => router.push(href)}
         />
+          )
+        })()
       ) : (
       <>
       <div className="p-header">
@@ -611,6 +635,36 @@ export default function StudentHomePage() {
       </>
       )}
 
+      {/* 울트라 스페이스 다크 스킨 안내 팝업 — 신규 2달 한정, 기간 내 1회성(다시 보지 않기 지원) */}
+      {spacePromo && activeTheme !== 'space' && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(8,5,14,0.55)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:120, padding:24 }}>
+          <div className="pop-in" style={{ background:'#160f22', borderRadius:22, padding:'0 0 16px', width:'100%', maxWidth:320, overflow:'hidden', boxShadow:'0 18px 50px rgba(0,0,0,0.55)' }}>
+            <div style={{ height:104, position:'relative', background:'radial-gradient(120% 130% at 50% 40%, #e65fa8 0%, #b83a7c 26%, #6e1a4c 50%, #2c0b20 78%, #190712 100%)', overflow:'hidden' }}>
+              <div style={{ position:'absolute', top:16, left:18, display:'flex', gap:8 }}>
+                {[0,1,2,3,4,5].map(i => <span key={i} style={{ width:i<2?7:5, height:i<2?7:5, borderRadius:'50%', background:'#fff', opacity:i<2?0.95:0.5-i*0.06, marginTop:i<2?0:1 }}/>)}
+              </div>
+              <div style={{ position:'absolute', left:'50%', top:'54%', transform:'translate(-50%,-50%)', background:'rgba(255,255,255,0.14)', boxShadow:'inset 0 1px 0 rgba(255,255,255,0.25)', borderRadius:14, padding:'10px 18px', fontSize:14, fontWeight:800, color:'#fff', whiteSpace:'nowrap', backdropFilter:'blur(8px)', WebkitBackdropFilter:'blur(8px)' }}>🌌 울트라 스페이스</div>
+            </div>
+            <div style={{ padding:'15px 18px 0' }}>
+              <div style={{ fontSize:15, fontWeight:800, color:'#f3eef8', marginBottom:6 }}>새 다크 스킨이 열렸어요</div>
+              <div style={{ fontSize:12, color:'rgba(243,238,248,0.7)', lineHeight:1.65, marginBottom:14 }}>
+                <b style={{ color:'#ff8ac2' }}>2달간 누구나 무료!</b> 깊은 바이올렛 배경에 우주빛 그라데이션 카드로 앱 전체가 바뀌어요. 설정에서 언제든 되돌릴 수 있어요 🐾
+              </div>
+              <button onClick={applySpaceNow}
+                style={{ width:'100%', padding:'12px', background:'linear-gradient(135deg,#e35ba6,#b83a7c)', color:'#fff', border:'none', borderRadius:12, fontSize:13, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                지금 적용해보기
+              </button>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:10 }}>
+                <button onClick={()=>hideSpacePromo(true)}
+                  style={{ background:'none', border:'none', fontSize:11, color:'rgba(243,238,248,0.4)', cursor:'pointer', fontFamily:'Nunito,sans-serif', textDecoration:'underline', textUnderlineOffset:2, padding:0 }}>다시 보지 않기</button>
+                <button onClick={()=>hideSpacePromo(false)}
+                  style={{ background:'none', border:'none', fontSize:12, fontWeight:700, color:'rgba(243,238,248,0.65)', cursor:'pointer', fontFamily:'Nunito,sans-serif', padding:'4px 6px' }}>나중에</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 여름 한정 싱그러운 스킨 안내 팝업 — 기간 내 1회성(다시 보지 않기 지원) */}
       {freshPromo && activeTheme !== 'fresh' && (
         <div style={{ position:'fixed', inset:0, background:'rgba(27,28,40,0.45)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:120, padding:24 }}>
@@ -805,7 +859,7 @@ export default function StudentHomePage() {
         </div>
       )}
 
-      {activeTheme !== 'fresh' && <StudentNav active="home" />}
+      {activeTheme !== 'fresh' && activeTheme !== 'space' && <StudentNav active="home" />}
     </>
   )
 }
