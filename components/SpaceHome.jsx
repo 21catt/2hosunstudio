@@ -14,14 +14,19 @@ const S = {
   bg: '#0d0812',
   text: '#f3eef8', sub: 'rgba(243,238,248,0.66)', faint: 'rgba(243,238,248,0.5)', dim: 'rgba(243,238,248,0.34)',
   accent: '#e35ba6', accentText: '#ffe6f2', accentSoft: 'rgba(227,91,166,0.16)', accentRing: 'rgba(227,91,166,0.5)',
-  // 첨부 이미지 카드 그라데이션 (섹션별)
-  hero: 'radial-gradient(135% 120% at 50% 40%, #e65fa8 0%, #b83a7c 26%, #6e1a4c 48%, #2c0b20 74%, #190712 100%)',
-  media: 'linear-gradient(155deg, #33468b 0%, #1c2a58 55%, #121c42 100%)',
-  mediaSel: 'linear-gradient(155deg, #4a5fb4 0%, #2a3a76 100%)',
-  pass: 'linear-gradient(150deg, #4d594f 0%, #353f38 55%, #262d29 100%)',
-  passFill: 'linear-gradient(90deg, #ef5f22, #f4a63c)',
-  tile: 'radial-gradient(78% 92% at 84% 90%, rgba(64,86,196,0.72) 0%, rgba(64,86,196,0) 44%), linear-gradient(150deg, #6f4023 0%, #48291b 55%, #2a1811 100%)',
-  notice: 'linear-gradient(150deg, #6f5a6d 0%, #9c7079 46%, #c2898c 100%)',
+  // 첨부 이미지 카드 그라데이션 (섹션별) — 진한 명도 코어의 '위치'를 원본대로.
+  // Codex: 검정-마룬 코어가 중심(약간 우측), 가장자리로 갈수록 밝은 마젠타.
+  hero: 'radial-gradient(125% 135% at 60% 47%, #0f0409 0%, #330b22 19%, #6c1948 39%, #a62c72 60%, #cc4187 79%, #e876b0 100%)',
+  // Media: 좌하단 블루 글로우 → 우상단 진한 네이비.
+  media: 'radial-gradient(140% 140% at 32% 82%, #3b50a3 0%, #26326e 42%, #172049 72%, #10163a 100%)',
+  mediaSel: 'radial-gradient(140% 140% at 32% 82%, #5064c2 0%, #34428e 45%, #1e2a60 100%)',
+  // Web Design: 상단-중앙 세이지 밝음 → 모서리 진하게(비네트).
+  pass: 'radial-gradient(108% 112% at 44% 32%, #5a675f 0%, #434d46 46%, #2b322d 80%, #222722 100%)',
+  passFill: 'linear-gradient(90deg, #e8531d, #f2872f 60%, #f6b23e)',
+  // UI: 좌상단 진한 브라운 코어 + 우하단 선명한 블루 오브.
+  tile: 'radial-gradient(60% 70% at 84% 85%, rgba(72,86,208,0.98) 0%, rgba(60,72,184,0.5) 20%, rgba(58,69,168,0) 47%), radial-gradient(128% 128% at 22% 16%, #743f22 0%, #542e19 46%, #331d12 80%, #241610 100%)',
+  // Total Skills: 좌상단 그레이-모브 → 우하단 웜 로즈.
+  notice: 'radial-gradient(140% 155% at 28% 10%, #86758a 0%, #9c7d84 40%, #ba8a8b 72%, #cb9699 100%)',
   // 다크 유리(그 외 요소)
   glass: 'rgba(255,255,255,0.055)', glassSoft: 'rgba(255,255,255,0.035)',
   hi: 'inset 0 1px 0 rgba(255,255,255,0.08)', hiStrong: 'inset 0 1px 0 rgba(255,255,255,0.14)',
@@ -226,9 +231,18 @@ export default function SpaceHome(props) {
               <span style={{ fontSize: 11.5, color: 'rgba(243,240,232,0.42)', fontWeight: 500 }}>만료 {ticket.expires_at}</span>
             </div>
             <div style={{ fontSize: 20, fontWeight: 800, marginTop: 6, letterSpacing: '-0.4px', color: '#f6f3ec' }}>{ticket.total}회권 · 잔여 {ticket.remain}회</div>
-            <div style={{ marginTop: 14, height: 9, borderRadius: 9, background: 'rgba(0,0,0,0.28)', overflow: 'hidden' }}>
-              <div style={{ width: `${Math.round((ticket.remain / ticket.total) * 100)}%`, height: '100%', borderRadius: 9, background: S.passFill, boxShadow: '0 0 12px rgba(239,95,34,0.6)' }} />
-            </div>
+            {(() => {
+              const pct = Math.max(0, Math.min(100, Math.round((ticket.remain / ticket.total) * 100)))
+              return (
+                <div style={{ position: 'relative', marginTop: 18, marginBottom: 3 }}>
+                  <div style={{ height: 6, borderRadius: 6, background: 'rgba(0,0,0,0.32)', overflow: 'hidden' }}>
+                    <div style={{ width: `${pct}%`, height: '100%', borderRadius: 6, background: S.passFill, boxShadow: '0 0 10px rgba(239,95,34,0.65)' }} />
+                  </div>
+                  {/* 노란 삼각 마커 (원본 Web Design 슬라이더) */}
+                  <div style={{ position: 'absolute', top: -6, left: `${pct}%`, transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderBottom: '7px solid #f6d24a', filter: 'drop-shadow(0 1px 3px rgba(246,210,74,0.55))' }} />
+                </div>
+              )
+            })()}
           </div>
         )}
 

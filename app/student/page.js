@@ -639,7 +639,7 @@ export default function StudentHomePage() {
       {spacePromo && activeTheme !== 'space' && (
         <div style={{ position:'fixed', inset:0, background:'rgba(8,5,14,0.55)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:120, padding:24 }}>
           <div className="pop-in" style={{ background:'#160f22', borderRadius:22, padding:'0 0 16px', width:'100%', maxWidth:320, overflow:'hidden', boxShadow:'0 18px 50px rgba(0,0,0,0.55)' }}>
-            <div style={{ height:104, position:'relative', background:'radial-gradient(120% 130% at 50% 40%, #e65fa8 0%, #b83a7c 26%, #6e1a4c 50%, #2c0b20 78%, #190712 100%)', overflow:'hidden' }}>
+            <div style={{ height:104, position:'relative', background:'radial-gradient(125% 150% at 60% 50%, #0f0409 0%, #330b22 18%, #6c1948 38%, #a62c72 60%, #cc4187 80%, #e876b0 100%)', overflow:'hidden' }}>
               <div style={{ position:'absolute', top:16, left:18, display:'flex', gap:8 }}>
                 {[0,1,2,3,4,5].map(i => <span key={i} style={{ width:i<2?7:5, height:i<2?7:5, borderRadius:'50%', background:'#fff', opacity:i<2?0.95:0.5-i*0.06, marginTop:i<2?0:1 }}/>)}
               </div>
