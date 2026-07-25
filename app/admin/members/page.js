@@ -90,6 +90,15 @@ export default function AdminMembersPage() {
     return () => { window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh) }
   }, [])
 
+  // 학생을 펼치면 그 카드(원형휠) 위치로 스크롤 — 다른 학생 클릭 시 잔여 원형휠이 바로 보이게
+  useEffect(() => {
+    if (!expanded) return
+    const id = requestAnimationFrame(() => {
+      document.getElementById(`mem-${expanded}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+    return () => cancelAnimationFrame(id)
+  }, [expanded])
+
   async function loadMembers() {
     const { data } = await supabase
       .from('users')
@@ -361,7 +370,7 @@ export default function AdminMembersPage() {
                 </div>
               )}
 
-              <div style={{ border:`0.5px solid ${isOpen ? 'rgba(76,139,41,0.45)' : 'rgba(0,0,0,0.06)'}`, borderRadius:16, marginBottom:7, background: isOpen ? '#FBFCF9' : '#fff', overflow:'hidden' }}>
+              <div id={`mem-${m.id}`} style={{ border:`0.5px solid ${isOpen ? 'rgba(76,139,41,0.45)' : 'rgba(0,0,0,0.06)'}`, borderRadius:16, marginBottom:7, background: isOpen ? '#FBFCF9' : '#fff', overflow:'hidden', scrollMarginTop:14 }}>
 
                 {/* ── Collapsed row ── */}
                 <div onClick={() => setExpanded(isOpen ? null : m.id)}
@@ -497,7 +506,7 @@ export default function AdminMembersPage() {
 
                     {/* 탭: 수강권 이력 / 이용 내역 */}
                     {(() => {
-                      const tab = detailTab[m.id] || 'usage'
+                      const tab = detailTab[m.id] || 'history'
                       const recs = (m.bookings || []).filter(b => b.status !== 'cancelled')
                         .sort((a, b) => (b.class_date || '').localeCompare(a.class_date || '') || (b.class_time || '').localeCompare(a.class_time || ''))
                       const groups = []
@@ -512,7 +521,7 @@ export default function AdminMembersPage() {
                       return (
                         <div style={{ marginBottom:12 }}>
                           <div style={{ display:'flex', background:'#F5F4EF', borderRadius:12, padding:3, marginBottom:10 }}>
-                            {[['history', '수강권 이력', grants.length], ['usage', '이용 내역', recs.length]].map(([key, label, cnt]) => {
+                            {[['history', '수강권·결제 이력', grants.length], ['usage', '이용 내역', recs.length]].map(([key, label, cnt]) => {
                               const on = tab === key
                               return (
                                 <button key={key} onClick={e => { e.stopPropagation(); setDetailTab(prev => ({ ...prev, [m.id]: key })) }}
