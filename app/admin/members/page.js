@@ -216,6 +216,15 @@ export default function AdminMembersPage() {
     loadMembers()
   }
 
+  // 일수 조정 — 현재 만료일에서 하루씩 ±(회차 조정과 같은 개념)
+  async function adjustTicketExpiry(ticket, delta) {
+    const base = new Date(ticket.expires_at)
+    if (isNaN(base)) return
+    base.setDate(base.getDate() + delta)
+    await supabase.from('tickets').update({ expires_at: base.toISOString().split('T')[0] }).eq('id', ticket.id)
+    loadMembers()
+  }
+
   async function grantMeetingTicket(userId, total) {
     const expires = new Date()
     expires.setMonth(expires.getMonth() + 1)
@@ -632,14 +641,26 @@ export default function AdminMembersPage() {
                       )}
 
                       {ticket && (
-                        <div style={{ borderTop:'0.5px solid rgba(0,0,0,0.07)', marginTop:13, paddingTop:12, display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
-                          <span style={{ fontSize:9, fontWeight:700, color:'#a2aaa1', letterSpacing:'0.3px' }}>회차 조정</span>
-                          <div style={{ display:'inline-flex', alignItems:'stretch', border:'1px solid rgba(0,0,0,0.12)', borderRadius:10, overflow:'hidden', flexShrink:0 }}>
-                            <button onClick={e => { e.stopPropagation(); adjustTicket(ticket.id, ticket.remain, -1) }}
-                              style={{ padding:'5px 12px', background:'transparent', border:'none', color:'#9B453D', fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>−</button>
-                            <span style={{ padding:'5px 11px', fontSize:12, fontWeight:800, color:'#1c2a24', borderLeft:'1px solid rgba(0,0,0,0.1)', borderRight:'1px solid rgba(0,0,0,0.1)', display:'flex', alignItems:'center', fontVariantNumeric:'tabular-nums' }}>{ticket.remain}</span>
-                            <button onClick={e => { e.stopPropagation(); adjustTicket(ticket.id, ticket.remain, 1) }}
-                              style={{ padding:'5px 12px', background:'transparent', border:'none', color:'var(--ac)', fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>+</button>
+                        <div style={{ borderTop:'0.5px solid rgba(0,0,0,0.07)', marginTop:13, paddingTop:12, display:'flex', flexDirection:'column', gap:9 }}>
+                          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
+                            <span style={{ fontSize:9, fontWeight:700, color:'#a2aaa1', letterSpacing:'0.3px' }}>회차 조정</span>
+                            <div style={{ display:'inline-flex', alignItems:'stretch', border:'1px solid rgba(0,0,0,0.12)', borderRadius:10, overflow:'hidden', flexShrink:0 }}>
+                              <button onClick={e => { e.stopPropagation(); adjustTicket(ticket.id, ticket.remain, -1) }}
+                                style={{ padding:'5px 12px', background:'transparent', border:'none', color:'#9B453D', fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>−</button>
+                              <span style={{ padding:'5px 11px', fontSize:12, fontWeight:800, color:'#1c2a24', borderLeft:'1px solid rgba(0,0,0,0.1)', borderRight:'1px solid rgba(0,0,0,0.1)', display:'flex', alignItems:'center', fontVariantNumeric:'tabular-nums', minWidth:44, justifyContent:'center' }}>{ticket.remain}회</span>
+                              <button onClick={e => { e.stopPropagation(); adjustTicket(ticket.id, ticket.remain, 1) }}
+                                style={{ padding:'5px 12px', background:'transparent', border:'none', color:'var(--ac)', fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>+</button>
+                            </div>
+                          </div>
+                          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
+                            <span style={{ fontSize:9, fontWeight:700, color:'#a2aaa1', letterSpacing:'0.3px' }}>일수 조정 <span style={{ color:'#c2c8c0' }}>(만료일)</span></span>
+                            <div style={{ display:'inline-flex', alignItems:'stretch', border:'1px solid rgba(0,0,0,0.12)', borderRadius:10, overflow:'hidden', flexShrink:0 }}>
+                              <button onClick={e => { e.stopPropagation(); adjustTicketExpiry(ticket, -1) }}
+                                style={{ padding:'5px 12px', background:'transparent', border:'none', color:'#9B453D', fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>−</button>
+                              <span style={{ padding:'5px 11px', fontSize:12, fontWeight:800, color: paused ? '#3E5B79' : (daysLeft <= 0 ? '#9B453D' : '#1c2a24'), borderLeft:'1px solid rgba(0,0,0,0.1)', borderRight:'1px solid rgba(0,0,0,0.1)', display:'flex', alignItems:'center', fontVariantNumeric:'tabular-nums', minWidth:44, justifyContent:'center' }}>{paused ? '정지' : daysLeft <= 0 ? '만료' : `${daysLeft}일`}</span>
+                              <button onClick={e => { e.stopPropagation(); adjustTicketExpiry(ticket, 1) }}
+                                style={{ padding:'5px 12px', background:'transparent', border:'none', color:'var(--ac)', fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>+</button>
+                            </div>
                           </div>
                         </div>
                       )}
