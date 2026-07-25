@@ -32,6 +32,7 @@ export default function AdminRecordsPage() {
   const [rcMap, setRcMap] = useState({})       // record_id → 댓글/답글 스레드
   const [rcInput, setRcInput] = useState({})
   const [rcSending, setRcSending] = useState({})
+  const [lightbox, setLightbox] = useState(null) // 확대해서 볼 이미지 URL
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -261,7 +262,8 @@ export default function AdminRecordsPage() {
                   {r.class_record_photos?.length > 0 && (
                     <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:10 }}>
                       {r.class_record_photos.map(p => (
-                        <div key={p.id} style={{ width:80, height:80, borderRadius:10, background:'var(--g1)', overflow:'hidden', flexShrink:0 }}>
+                        <div key={p.id} onClick={() => signedUrls[p.storage_path] && setLightbox(signedUrls[p.storage_path])}
+                          style={{ width:80, height:80, borderRadius:10, background:'var(--g1)', overflow:'hidden', flexShrink:0, cursor: signedUrls[p.storage_path] ? 'zoom-in' : 'default' }}>
                           {signedUrls[p.storage_path]
                             ? <img src={signedUrls[p.storage_path]} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>
                             : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24 }}>📷</div>
@@ -302,7 +304,8 @@ export default function AdminRecordsPage() {
                               {Array.isArray(fb.photos) && fb.photos.length > 0 && (
                                 <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom: fb.teacher_id === user?.id ? 6 : 0 }}>
                                   {fb.photos.map((path, pi) => (
-                                    <div key={pi} style={{ width:72, height:72, borderRadius:8, background:'var(--g1)', overflow:'hidden', flexShrink:0 }}>
+                                    <div key={pi} onClick={() => signedUrls[path] && setLightbox(signedUrls[path])}
+                                      style={{ width:72, height:72, borderRadius:8, background:'var(--g1)', overflow:'hidden', flexShrink:0, cursor: signedUrls[path] ? 'zoom-in' : 'default' }}>
                                       {signedUrls[path]
                                         ? <img src={signedUrls[path]} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>
                                         : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20 }}>📷</div>}
@@ -405,6 +408,16 @@ export default function AdminRecordsPage() {
 
         <div style={{ height:80 }}/>
       </div>
+
+      {/* 이미지 확대 라이트박스 — 아무 곳이나 탭하면 닫힘 */}
+      {lightbox && (
+        <div onClick={() => setLightbox(null)}
+          style={{ position:'fixed', inset:0, zIndex:2000, background:'rgba(0,0,0,0.88)', display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+          <img src={lightbox} alt="" style={{ maxWidth:'100%', maxHeight:'100%', objectFit:'contain', borderRadius:8 }}/>
+          <button onClick={e => { e.stopPropagation(); setLightbox(null) }}
+            style={{ position:'absolute', top:16, right:16, width:40, height:40, borderRadius:'50%', border:'none', background:'rgba(255,255,255,0.15)', color:'#fff', fontSize:18, fontWeight:900, cursor:'pointer' }}>✕</button>
+        </div>
+      )}
 
       <AdminNav active="records"/>
     </>
