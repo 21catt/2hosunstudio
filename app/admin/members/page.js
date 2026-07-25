@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import AdminNav from '../../../components/AdminNav'
 import { NavIcon } from '../../../components/NavIcons'
-import { HEADER_BG, PRIMARY, MST } from '../../../lib/adminTheme'
+import { HEADER_BG, MST } from '../../../lib/adminTheme'
 
 const STATUS_ORDER = { '만료': 0, '만료임박': 1, '일시정지': 1.5, '수강중': 2 }
 const DAY = 864e5
@@ -50,6 +50,7 @@ function fmtDate(d) {
 }
 
 const QUICK_PRESETS = [[3,28,'4주3회'],[4,30,'4회권'],[7,56,'8주7회'],[8,60,'8회권'],[12,90,'12회권']]
+const DAY_PRESETS = [7, 14, 30, 60, 90] // 일수 부여(만료일만 연장) 빠른 프리셋
 
 export default function AdminMembersPage() {
   const router = useRouter()
@@ -59,7 +60,6 @@ export default function AdminMembersPage() {
   const [search, setSearch]   = useState('')
   const [filter, setFilter]   = useState('all')
   const [loading, setLoading] = useState(true)
-  const [customInputs, setCustomInputs] = useState({})
   const [meetingInputs, setMeetingInputs] = useState({})
   const [memberMeetingTickets, setMemberMeetingTickets] = useState({})
   const [memberUnlockAll, setMemberUnlockAll] = useState({}) // {userId: bool} — 냥 꾸미기 전체 해금
@@ -641,7 +641,8 @@ export default function AdminMembersPage() {
                             </div>
                           )}
                         </div>
-                        <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:10 }}>
+                        <div style={{ fontSize:8.5, fontWeight:800, color:'#a2aaa1', marginBottom:6, letterSpacing:'0.3px' }}>회차권 부여 (새 수강권)</div>
+                        <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom: ticket ? 12 : 0 }}>
                           {QUICK_PRESETS.map(([total, days, label]) => (
                             <button key={label}
                               onClick={e => { e.stopPropagation(); grantTicket(m.id, label, total, days) }}
@@ -650,40 +651,22 @@ export default function AdminMembersPage() {
                             </button>
                           ))}
                         </div>
-                        <div style={{ display:'flex', gap:7, alignItems:'center' }}>
-                          <input type="number" placeholder="횟수"
-                            value={customInputs[m.id]?.total || ''}
-                            onChange={e => setCustomInputs(prev => ({ ...prev, [m.id]: { ...prev[m.id], total: e.target.value } }))}
-                            onClick={e => e.stopPropagation()}
-                            style={{ flex:1, minWidth:0, padding:'8px 11px', background:'#F5F4EF', border:'none', borderRadius:11, fontSize:12, fontFamily:'Nunito,sans-serif', color:'#1c2a24', outline:'none' }}/>
-                          <input type="number" placeholder="일수(만료일)"
-                            value={customInputs[m.id]?.days || ''}
-                            onChange={e => setCustomInputs(prev => ({ ...prev, [m.id]: { ...prev[m.id], days: e.target.value } }))}
-                            onClick={e => e.stopPropagation()}
-                            style={{ flex:1, minWidth:0, padding:'8px 11px', background:'#F5F4EF', border:'none', borderRadius:11, fontSize:12, fontFamily:'Nunito,sans-serif', color:'#1c2a24', outline:'none' }}/>
-                          <button onClick={e => {
-                            e.stopPropagation()
-                            const t = parseInt(customInputs[m.id]?.total)
-                            const d = parseInt(customInputs[m.id]?.days)
-                            if (!t && !d) { alert('횟수 또는 일수를 입력해 주세요'); return }
-                            if (!t) {
-                              // 일수만 입력 → 기존 수강권 만료일만 갱신(횟수 유지)
-                              if (!ticket) { alert('수강권이 없어요. 횟수도 함께 입력해 새로 부여해 주세요'); return }
-                              updateTicketExpiry(ticket, d)
-                            } else {
-                              // 횟수 입력 → 새 수강권 부여(일수 미입력 시 기본 30일)
-                              grantTicket(m.id, `${t}회권`, t, d || 30)
-                            }
-                            setCustomInputs(prev => ({ ...prev, [m.id]: { total: '', days: '' } }))
-                          }}
-                            style={{ padding:'8px 18px', background: PRIMARY, color:'#fff', border:'none', borderRadius:11, fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
-                            {ticket && !customInputs[m.id]?.total && customInputs[m.id]?.days ? '만료일 변경' : '부여'}
-                          </button>
-                        </div>
                         {ticket && (
-                          <div style={{ fontSize:9, color:'#a2aaa1', marginTop:6, lineHeight:1.4 }}>
-                            일수만 입력하면 잔여 횟수는 그대로 두고 만료일만 바뀌어요
-                          </div>
+                          <>
+                            <div style={{ fontSize:8.5, fontWeight:800, color:'#a2aaa1', marginBottom:6, letterSpacing:'0.3px' }}>일수 부여 · 만료일 연장 (회차 유지)</div>
+                            <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                              {DAY_PRESETS.map(days => (
+                                <button key={days}
+                                  onClick={e => { e.stopPropagation(); updateTicketExpiry(ticket, days) }}
+                                  style={{ padding:'7px 12px', background:'#fff', color:'#B5650E', border:'1px solid rgba(224,138,30,0.35)', borderRadius:11, fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                                  +{days}일
+                                </button>
+                              ))}
+                            </div>
+                            <div style={{ fontSize:9, color:'#a2aaa1', marginTop:6, lineHeight:1.4 }}>
+                              일수 부여는 잔여 회차는 그대로 두고 만료일만 오늘부터 그만큼 뒤로 바꿔요
+                            </div>
+                          </>
                         )}
                       </div>
                     </div>
