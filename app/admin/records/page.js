@@ -262,7 +262,7 @@ export default function AdminRecordsPage() {
                   {r.class_record_photos?.length > 0 && (
                     <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:10 }}>
                       {r.class_record_photos.map(p => (
-                        <div key={p.id} onClick={() => signedUrls[p.storage_path] && setLightbox(signedUrls[p.storage_path])}
+                        <div key={p.id} onClick={() => signedUrls[p.storage_path] && setLightbox({ url: signedUrls[p.storage_path], record: r })}
                           style={{ width:80, height:80, borderRadius:10, background:'var(--g1)', overflow:'hidden', flexShrink:0, cursor: signedUrls[p.storage_path] ? 'zoom-in' : 'default' }}>
                           {signedUrls[p.storage_path]
                             ? <img src={signedUrls[p.storage_path]} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>
@@ -304,7 +304,7 @@ export default function AdminRecordsPage() {
                               {Array.isArray(fb.photos) && fb.photos.length > 0 && (
                                 <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom: fb.teacher_id === user?.id ? 6 : 0 }}>
                                   {fb.photos.map((path, pi) => (
-                                    <div key={pi} onClick={() => signedUrls[path] && setLightbox(signedUrls[path])}
+                                    <div key={pi} onClick={() => signedUrls[path] && setLightbox({ url: signedUrls[path], record: r })}
                                       style={{ width:72, height:72, borderRadius:8, background:'var(--g1)', overflow:'hidden', flexShrink:0, cursor: signedUrls[path] ? 'zoom-in' : 'default' }}>
                                       {signedUrls[path]
                                         ? <img src={signedUrls[path]} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>
@@ -409,13 +409,35 @@ export default function AdminRecordsPage() {
         <div style={{ height:80 }}/>
       </div>
 
-      {/* 이미지 확대 라이트박스 — 아무 곳이나 탭하면 닫힘 */}
+      {/* 이미지 확대 + 사진 보면서 피드백 작성 */}
       {lightbox && (
         <div onClick={() => setLightbox(null)}
-          style={{ position:'fixed', inset:0, zIndex:2000, background:'rgba(0,0,0,0.88)', display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
-          <img src={lightbox} alt="" style={{ maxWidth:'100%', maxHeight:'100%', objectFit:'contain', borderRadius:8 }}/>
+          style={{ position:'fixed', inset:0, zIndex:2000, background:'rgba(0,0,0,0.9)', display:'flex', flexDirection:'column' }}>
           <button onClick={e => { e.stopPropagation(); setLightbox(null) }}
-            style={{ position:'absolute', top:16, right:16, width:40, height:40, borderRadius:'50%', border:'none', background:'rgba(255,255,255,0.15)', color:'#fff', fontSize:18, fontWeight:900, cursor:'pointer' }}>✕</button>
+            style={{ position:'absolute', top:14, right:14, zIndex:2, width:40, height:40, borderRadius:'50%', border:'none', background:'rgba(255,255,255,0.15)', color:'#fff', fontSize:18, fontWeight:900, cursor:'pointer' }}>✕</button>
+
+          <div onClick={e => e.stopPropagation()} style={{ flex:1, minHeight:0, display:'flex', alignItems:'center', justifyContent:'center', padding:'54px 16px 8px' }}>
+            <img src={lightbox.url} alt="" style={{ maxWidth:'100%', maxHeight:'100%', objectFit:'contain', borderRadius:8 }}/>
+          </div>
+
+          {lightbox.record && (
+            <div onClick={e => e.stopPropagation()}
+              style={{ background:'#fff', borderRadius:'18px 18px 0 0', padding:'12px 14px', paddingBottom:'max(14px, env(safe-area-inset-bottom))', boxShadow:'0 -10px 30px -12px rgba(0,0,0,0.5)' }}>
+              <div style={{ fontSize:11, fontWeight:800, color:'var(--tmu)', marginBottom:8 }}>
+                📝 {userMap[lightbox.record.user_id] || '학생'} · {lightbox.record.class_name || '기록'} — 사진 보며 피드백
+              </div>
+              <textarea value={fbInputs[lightbox.record.id] || ''}
+                onChange={e => setFbInputs(prev => ({ ...prev, [lightbox.record.id]: e.target.value }))}
+                rows={2} placeholder="이 사진을 보고 피드백을 남겨보세요..."
+                style={{ width:'100%', padding:'9px 11px', borderRadius:10, border:`1.5px solid ${BORDER}`, fontSize:13, resize:'none', fontFamily:'Nunito,sans-serif', marginBottom:8, boxSizing:'border-box', outline:'none' }}/>
+              <button
+                onClick={async () => { await handleFeedbackSubmit(lightbox.record) }}
+                disabled={fbSubmitting[lightbox.record.id] || !(fbInputs[lightbox.record.id]?.trim())}
+                style={{ width:'100%', padding:'11px', background:ACCENT, color:'#fff', border:'none', borderRadius:11, fontSize:14, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif', opacity: fbSubmitting[lightbox.record.id] || !(fbInputs[lightbox.record.id]?.trim()) ? 0.45 : 1 }}>
+                {fbSubmitting[lightbox.record.id] ? '저장 중...' : '피드백 저장'}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
