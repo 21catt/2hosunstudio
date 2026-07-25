@@ -81,12 +81,14 @@ export default function StudentHomePage() {
   useEffect(() => {
     const saved = getSavedTheme()
     setActiveTheme(saved)
-    // 스킨 안내 팝업 — 기간 내 + 아직 해당 테마 아님 + "다시 보지 않기" 안 누름.
-    // 울트라 스페이스(신규 2달 한정)를 우선 안내, 없으면 여름(fresh) 안내.
+    // 스킨 안내 팝업 — 기간 내 + "다시 보지 않기" 안 누름.
+    // 이미 시즌 스킨(space/fresh)을 쓰는 중이면 어떤 팝업도 안 띄운다(space 사용자에게 fresh 권유 방지).
+    // 신규 울트라 스페이스를 우선 안내, 스페이스 시즌이 끝났으면 여름(fresh)로 폴백.
     try {
-      if (themeInWindow('space') && saved !== 'space' && !localStorage.getItem('2hs_space_promo_hide')) {
+      const onSkin = saved === 'space' || saved === 'fresh'
+      if (!onSkin && themeInWindow('space') && !localStorage.getItem('2hs_space_promo_hide')) {
         setSpacePromo(true)
-      } else if (themeInWindow('fresh') && saved !== 'fresh' && !localStorage.getItem('2hs_fresh_promo_hide')) {
+      } else if (!onSkin && !themeInWindow('space') && themeInWindow('fresh') && !localStorage.getItem('2hs_fresh_promo_hide')) {
         setFreshPromo(true)
       }
     } catch {}
