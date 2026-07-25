@@ -58,8 +58,12 @@ async function refundAndDeleteBookings(bookings, todayStr) {
         .gte('expires_at', todayStr).order('expires_at',{ascending:true}).limit(1)
       if (mt?.[0]) await supabase.from('meeting_tickets').update({ remain: mt[0].remain + count }).eq('id', mt[0].id)
     } else {
-      const { data: tks } = await supabase.from('tickets').select('id,remain').eq('user_id', userId).limit(1)
-      if (tks?.[0]) await supabase.from('tickets').update({ remain: tks[0].remain + count }).eq('id', tks[0].id)
+      const { data: tks } = await supabase.from('tickets').select('id,remain,total').eq('user_id', userId).limit(1)
+      // 관리자 취소 시 차감됐던 수강 횟수 복구(총 횟수 초과 방지)
+      if (tks?.[0]) {
+        const restored = tks[0].total ? Math.min(tks[0].total, tks[0].remain + count) : tks[0].remain + count
+        await supabase.from('tickets').update({ remain: restored }).eq('id', tks[0].id)
+      }
     }
   }))
   // 예약 일괄 삭제

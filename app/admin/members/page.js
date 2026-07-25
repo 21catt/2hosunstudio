@@ -6,19 +6,47 @@ import AdminNav from '../../../components/AdminNav'
 import { NavIcon } from '../../../components/NavIcons'
 import { HEADER_BG, PRIMARY, MST } from '../../../lib/adminTheme'
 
-const STATUS_ORDER = { '만료': 0, '만료임박': 1, '수강중': 2 }
+const STATUS_ORDER = { '만료': 0, '만료임박': 1, '일시정지': 1.5, '수강중': 2 }
+const DAY = 864e5
+
+// 일시정지 중이면 만료일 계산 기준을 '정지 시작 시각'으로 고정 → 정지 동안 잔여일이 줄지 않는다.
+function getDaysLeft(ticket) {
+  if (!ticket) return -999
+  const ref = ticket.paused_at ? new Date(ticket.paused_at) : new Date()
+  return Math.ceil((new Date(ticket.expires_at) - ref) / DAY)
+}
 
 function getStatus(ticket) {
   if (!ticket) return '만료'
-  const days = Math.ceil((new Date(ticket.expires_at) - new Date()) / 864e5)
+  if (ticket.paused_at && ticket.remain > 0) return '일시정지'
+  const days = getDaysLeft(ticket)
   if (ticket.remain === 0 || days <= 0) return '만료'
   if (days <= 7) return '만료임박'
   return '수강중'
 }
 
-function getDaysLeft(ticket) {
-  if (!ticket) return -999
-  return Math.ceil((new Date(ticket.expires_at) - new Date()) / 864e5)
+// 첫 등록일 = 가장 오래된 발급 이력 또는 계정 생성일 중 이른 쪽
+function firstRegDate(member, grants) {
+  const cands = []
+  if (grants?.length) cands.push(new Date(grants[grants.length - 1].granted_at)) // grants = 최신순 → 마지막이 최초
+  if (member?.created_at) cands.push(new Date(member.created_at))
+  const valid = cands.filter(d => !isNaN(d))
+  return valid.length ? new Date(Math.min(...valid.map(d => d.getTime()))) : null
+}
+
+// 총 수강기간(일) = 첫 등록부터 오늘까지 − 정지 누적일 − 현재 정지 경과일
+function totalPeriodDays(member, grants, ticket) {
+  const first = firstRegDate(member, grants)
+  if (!first) return null
+  let days = Math.ceil((new Date() - first) / DAY)
+  days -= (member.paused_days || 0)
+  if (ticket?.paused_at) days -= Math.max(0, Math.ceil((new Date() - new Date(ticket.paused_at)) / DAY))
+  return Math.max(0, days)
+}
+
+function fmtDate(d) {
+  if (!d || isNaN(d)) return '—'
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
 }
 
 const QUICK_PRESETS = [[3,28,'4주3회'],[4,30,'4회권'],[7,56,'8주7회'],[8,60,'8회권'],[12,90,'12회권']]
@@ -40,6 +68,9 @@ export default function AdminMembersPage() {
   const [deleting, setDeleting] = useState(null) // 삭제 중인 userId
   const [attOpen, setAttOpen] = useState(null)   // 참석기록 펼친 userId
   const [armed, setArmed] = useState(null)       // 삭제 확인(잠금해제)된 userId
+  const [grantMap, setGrantMap] = useState({})   // userId → 수강권 발급 이력(최신순)
+  const [histOpen, setHistOpen] = useState(null) // 발급 이력 펼친 userId
+  const [pauseBusy, setPauseBusy] = useState(null) // 일시정지 처리 중 userId
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -67,6 +98,12 @@ export default function AdminMembersPage() {
     // 참여작가 — 하단 별도 목록
     const { data: art } = await supabase.from('users').select('*, bookings(*)').eq('role', 'artist')
     setArtists(art || [])
+    // 수강권 발급 이력(테이블 없으면 조용히 빈 값)
+    const { data: grants } = await supabase.from('ticket_grants').select('*')
+    const gmap = {}
+    grants?.forEach(g => { (gmap[g.user_id] = gmap[g.user_id] || []).push(g) })
+    Object.values(gmap).forEach(arr => arr.sort((a, b) => (b.granted_at || '').localeCompare(a.granted_at || '')))
+    setGrantMap(gmap)
     const { data: mt } = await supabase.from('meeting_tickets').select('*')
     const ticketMap = {}
     mt?.forEach(t => {
@@ -133,8 +170,30 @@ export default function AdminMembersPage() {
       user_id: userId, type, total, remain: total,
       expires_at: expires.toISOString().split('T')[0]
     })
+    // 발급 이력 남기기(테이블 없으면 조용히 무시) — 지난 수강권 이력의 근거
+    await supabase.from('ticket_grants').insert({ user_id: userId, type, total, days })
     alert('수강권이 부여됐어요!')
     loadMembers()
+  }
+
+  // 일시정지 — 활성 수강권의 만료일을 멈춘다(정지 중 잔여일 미차감)
+  async function pauseTicket(ticket) {
+    setPauseBusy(ticket.user_id)
+    try {
+      await supabase.from('tickets').update({ paused_at: new Date().toISOString() }).eq('id', ticket.id)
+      await loadMembers()
+    } finally { setPauseBusy(null) }
+  }
+  // 재개 — 멈춰 있던 기간만큼 만료일을 뒤로 밀고, 정지 누적일에 합산(총 수강기간 계산용)
+  async function resumeTicket(ticket, member) {
+    setPauseBusy(ticket.user_id)
+    try {
+      const elapsed = Math.max(0, Math.ceil((new Date() - new Date(ticket.paused_at)) / DAY))
+      const exp = new Date(ticket.expires_at); exp.setDate(exp.getDate() + elapsed)
+      await supabase.from('tickets').update({ paused_at: null, expires_at: exp.toISOString().split('T')[0] }).eq('id', ticket.id)
+      await supabase.from('users').update({ paused_days: (member.paused_days || 0) + elapsed }).eq('id', member.id)
+      await loadMembers()
+    } finally { setPauseBusy(null) }
   }
 
   // 횟수 입력 없이 일수(만료일)만 갱신 — 기존 수강권의 잔여·총 횟수는 유지
@@ -262,6 +321,18 @@ export default function AdminMembersPage() {
           const pct      = ticket && ticket.total ? Math.min(1, ticket.remain / ticket.total) : 0
           const R = 17.5, CIRC = 2 * Math.PI * R
 
+          // 상세용 — 발급 이력 · 첫 등록일 · 총 수강기간 · 일시정지 · 원형휠(이중 링)
+          const grants     = grantMap[m.id] || []
+          const firstReg   = firstRegDate(m, grants)
+          const totalDays  = totalPeriodDays(m, grants, ticket)
+          const paused     = !!ticket?.paused_at
+          const curGrant   = grants[0]
+          const ticketDays = curGrant?.days || 30
+          const usedTotal  = grants.reduce((s, g) => s + (g.total || 0), 0)
+          const innerPct   = ticket && ticket.total ? Math.max(0, Math.min(1, ticket.remain / ticket.total)) : 0
+          const outerPct   = ticket ? Math.max(0, Math.min(1, getDaysLeft(ticket) / ticketDays)) : 0
+          const RI = 40, RO = 54, CI = 2 * Math.PI * RI, CO = 2 * Math.PI * RO
+
           const showHead = status !== lastStatus
           lastStatus = status
 
@@ -309,7 +380,7 @@ export default function AdminMembersPage() {
                     </span>
                     {status !== '수강중' ? (
                       <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:8, background: st.soft, color: st.tx }}>
-                        {daysLeft <= 0 ? '만료됨' : `${daysLeft}일`}
+                        {status === '일시정지' ? '❚❚ 정지' : daysLeft <= 0 ? '만료됨' : `${daysLeft}일`}
                       </span>
                     ) : (
                       <span style={{ fontSize:10, fontWeight:600, color:'#a2aaa1' }}>{daysLeft}일 남음</span>
@@ -322,6 +393,113 @@ export default function AdminMembersPage() {
                 {/* ── Expanded panel ── */}
                 {isOpen && (
                   <div style={{ padding:'0 13px 15px' }}>
+
+                    {/* 원형휠(이중 링) + 첫 등록일 · 총 수강기간 · 일시정지 */}
+                    <div style={{ border:'0.5px solid rgba(0,0,0,0.08)', borderRadius:16, padding:'15px 14px 13px', marginBottom:10, background:'linear-gradient(180deg,#FCFDFB,#fff)' }}>
+                      {ticket ? (
+                        <div style={{ display:'flex', alignItems:'center', gap:15 }}>
+                          <div style={{ position:'relative', width:118, height:118, flexShrink:0 }}>
+                            <svg width={118} height={118} viewBox="0 0 118 118" style={{ transform:'rotate(-90deg)', filter: paused ? 'saturate(0.55)' : 'none' }}>
+                              <circle cx={59} cy={59} r={RO} fill="none" stroke="#ECEAE2" strokeWidth={7}/>
+                              <circle cx={59} cy={59} r={RI} fill="none" stroke="#EFEDE6" strokeWidth={10}/>
+                              <circle cx={59} cy={59} r={RO} fill="none" strokeWidth={7} strokeLinecap="round"
+                                stroke={paused ? '#5B7A99' : (getDaysLeft(ticket) <= 7 ? '#E08A1E' : 'var(--ac)')}
+                                strokeDasharray={CO} strokeDashoffset={CO * (1 - outerPct)}/>
+                              <circle cx={59} cy={59} r={RI} fill="none" strokeWidth={10} strokeLinecap="round"
+                                stroke="var(--ac)" strokeDasharray={CI} strokeDashoffset={CI * (1 - innerPct)}/>
+                            </svg>
+                            <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
+                              <div style={{ fontSize:26, fontWeight:900, color:'#1c2a24', lineHeight:1, letterSpacing:'-0.5px', fontVariantNumeric:'tabular-nums' }}>
+                                {ticket.remain}<span style={{ fontSize:12, color:'#a2aaa1' }}>/{ticket.total}</span>
+                              </div>
+                              <div style={{ fontSize:9, fontWeight:800, color:'var(--acTx)', marginTop:3 }}>잔여 횟수</div>
+                            </div>
+                            <div style={{ position:'absolute', top:2, left:'50%', transform:'translateX(-50%)', fontSize:9.5, fontWeight:900, borderRadius:999, padding:'2px 8px', whiteSpace:'nowrap',
+                              background: paused ? '#E9EFF5' : (getDaysLeft(ticket) <= 7 ? '#FAEFDD' : '#EAF3E4'),
+                              color: paused ? '#3E5B79' : (getDaysLeft(ticket) <= 7 ? '#A0580B' : 'var(--acTx)') }}>
+                              {paused ? '❚❚ 정지' : daysLeft <= 0 ? '만료' : `D-${daysLeft}`}
+                            </div>
+                          </div>
+
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ fontSize:15, fontWeight:900, color:'#1c2a24', letterSpacing:'-0.2px' }}>{ticket.type || '수강권'}</div>
+                            <div style={{ fontSize:10.5, fontWeight:700, color:'#a2aaa1', marginTop:2 }}>
+                              {paused ? '일시정지 중 · 만료일 멈춤' : daysLeft <= 0 ? '만료됨' : `만료 ${ticket.expires_at} · ${daysLeft}일`}
+                            </div>
+                            <div style={{ display:'flex', gap:14, marginTop:11 }}>
+                              <div>
+                                <div style={{ fontSize:9, fontWeight:800, color:'#a2aaa1' }}>첫 등록</div>
+                                <div style={{ fontSize:12, fontWeight:900, color:'#1c2a24', marginTop:2, fontVariantNumeric:'tabular-nums' }}>{fmtDate(firstReg)}</div>
+                              </div>
+                              <div>
+                                <div style={{ fontSize:9, fontWeight:800, color:'#a2aaa1' }}>총 수강기간</div>
+                                <div style={{ fontSize:12, fontWeight:900, color:'#1c2a24', marginTop:2, fontVariantNumeric:'tabular-nums' }}>{totalDays != null ? `${totalDays}일` : '—'}</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ display:'flex', gap:14 }}>
+                          <div><div style={{ fontSize:9, fontWeight:800, color:'#a2aaa1' }}>첫 등록</div><div style={{ fontSize:12, fontWeight:900, color:'#1c2a24', marginTop:2 }}>{fmtDate(firstReg)}</div></div>
+                          <div><div style={{ fontSize:9, fontWeight:800, color:'#a2aaa1' }}>총 수강기간</div><div style={{ fontSize:12, fontWeight:900, color:'#1c2a24', marginTop:2 }}>{totalDays != null ? `${totalDays}일` : '—'}</div></div>
+                        </div>
+                      )}
+
+                      {/* 일시정지 컨트롤 */}
+                      {ticket && (
+                        <div style={{ display:'flex', alignItems:'center', gap:10, marginTop:13, paddingTop:12, borderTop:'0.5px solid rgba(0,0,0,0.07)' }}>
+                          <span style={{ width:30, height:30, borderRadius:9, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:900,
+                            background: paused ? '#E9EFF5' : '#F1F4F1', color: paused ? '#3E5B79' : '#8f978d' }}>{paused ? '❚❚' : '▶'}</span>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ fontSize:11.5, fontWeight:900, color:'#1c2a24' }}>{paused ? '일시정지 중' : '수강 중'}</div>
+                            <div style={{ fontSize:9.5, fontWeight:700, color:'#a2aaa1', marginTop:1 }}>{paused ? '수강일이 멈춰 있어요' : '쉬어갈 때 누르면 만료일이 멈춰요'}</div>
+                          </div>
+                          <button onClick={e => { e.stopPropagation(); paused ? resumeTicket(ticket, m) : pauseTicket(ticket) }}
+                            disabled={pauseBusy === m.id}
+                            style={{ padding:'8px 15px', border:'none', borderRadius:10, fontSize:11, fontWeight:900, cursor:'pointer', fontFamily:'Nunito,sans-serif', opacity: pauseBusy === m.id ? 0.6 : 1,
+                              background: paused ? 'var(--ac)' : '#E9EFF5', color: paused ? '#fff' : '#3E5B79' }}>
+                            {pauseBusy === m.id ? '처리 중…' : paused ? '재개하기' : '일시정지'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 지난 수강권 이력 — 접기/펼치기 */}
+                    {grants.length > 0 && (() => {
+                      const histOn = histOpen === m.id
+                      return (
+                        <div style={{ marginBottom:10 }}>
+                          <div onClick={e => { e.stopPropagation(); setHistOpen(histOn ? null : m.id) }}
+                            style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', padding:'6px 2px' }}>
+                            <span style={{ fontSize:11, fontWeight:800, color:'#1c2a24' }}>수강권 발급 이력</span>
+                            <span style={{ fontSize:10, fontWeight:800, color:'var(--acTx)', background:'var(--acBg)', borderRadius:8, padding:'2px 7px' }}>{grants.length}회 · 누적 {usedTotal}회</span>
+                            <span style={{ flex:1 }}/>
+                            <span style={{ fontSize:11, color:'#bcc2ba', transform: histOn ? 'rotate(180deg)' : 'none', transition:'transform 0.15s' }}>▾</span>
+                          </div>
+                          {histOn && (
+                            <div style={{ display:'flex', flexDirection:'column', gap:6, marginTop:8 }}>
+                              {grants.map((g, gi) => {
+                                const gd = new Date(g.granted_at)
+                                const isCur = gi === 0
+                                return (
+                                  <div key={g.id || gi} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', background:'#fff', border:'0.5px solid rgba(0,0,0,0.07)', borderRadius:11 }}>
+                                    <span style={{ width:8, height:8, borderRadius:'50%', background: isCur ? 'var(--ac)' : '#c9cdc4', flexShrink:0 }}/>
+                                    <div style={{ flex:1, minWidth:0 }}>
+                                      <div style={{ fontSize:12, fontWeight:900, color:'#1c2a24' }}>{g.type || '수강권'} <span style={{ color:'#a2aaa1', fontWeight:800 }}>{g.total}회</span></div>
+                                      <div style={{ fontSize:10, color:'#a2aaa1', fontWeight:700, marginTop:2, fontVariantNumeric:'tabular-nums' }}>{fmtDate(gd)} 발급{g.days ? ` · ${g.days}일권` : ''}</div>
+                                    </div>
+                                    <span style={{ fontSize:9.5, fontWeight:900, borderRadius:8, padding:'3px 9px', flexShrink:0,
+                                      background: isCur ? 'var(--acBg)' : '#F1F0EB', color: isCur ? 'var(--acTx)' : '#a2aaa1' }}>
+                                      {isCur ? '사용중' : '완료'}
+                                    </span>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
 
                     {/* 수업 참석 기록 — 접기/펼치기 · 월별 묶음 · 요일 표시 */}
                     {(() => {
