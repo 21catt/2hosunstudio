@@ -22,15 +22,15 @@ const COLORS = [
   // 1단계 — 원색(밝기 2단: 0·1)
   { hex: '#16407a', level: 0, tier: 0, tag: '원색' },
   { hex: '#cf2130', level: 1, tier: 0, tag: '원색' },
-  { hex: '#1e9e74', level: 1, tier: 0, tag: '원색' },
+  { hex: '#1e9e74', level: 2, tier: 0, tag: '원색' },
   // 2단계 — 2차색·주황(밝기 3단: +2)
   { hex: '#5a2d86', level: 0, tier: 1, tag: '보라' },
   { hex: '#e8862a', level: 2, tier: 1, tag: '주황' },
-  { hex: '#f4d01c', level: 2, tier: 1, tag: '노랑' },
+  { hex: '#f4d01c', level: 4, tier: 1, tag: '노랑' },
   // 3단계 — 틴트(화이트 섞인 파스텔, 밝기 4단: +3) + 번트 오렌지
   { hex: '#b85c22', level: 1, tier: 2, tag: '번트오렌지' },
   { hex: '#8fbce6', level: 3, tier: 2, tag: '틴트·하늘' },
-  { hex: '#f7b9d1', level: 3, tier: 2, tag: '틴트·분홍' },
+  { hex: '#f7b9d1', level: 4, tier: 2, tag: '틴트·분홍' },
   // 4단계 — 셰이드(블랙 섞인 딥톤, 밝기 5단: +4)
   { hex: '#6a121b', level: 0, tier: 3, tag: '셰이드·마룬' },
   { hex: '#0f4636', level: 0, tier: 3, tag: '셰이드·딥그린' },
@@ -42,18 +42,18 @@ const COLORS = [
   { hex: '#f0c4d6', level: 4, tier: 4, tag: '분홍(미묘)' },
   // 6단계 — 3차색(연두·청록·자홍)
   { hex: '#7ba428', level: 2, tier: 5, tag: '연두' },
-  { hex: '#2a9d8f', level: 1, tier: 5, tag: '청록' },
+  { hex: '#2a9d8f', level: 2, tier: 5, tag: '청록' },
   { hex: '#b5359c', level: 1, tier: 5, tag: '자홍' },
   // 7단계 — 같은 계열 색차(주황 3종째, 초록·하늘 미묘 쌍)
   { hex: '#e07b2a', level: 2, tier: 6, tag: '주황(미묘2)' },
-  { hex: '#1a8f6a', level: 1, tier: 6, tag: '초록(미묘)' },
+  { hex: '#1a8f6a', level: 2, tier: 6, tag: '초록(미묘)' },
   { hex: '#8ab6e6', level: 3, tier: 6, tag: '하늘(미묘)' },
   // 8단계 — 탁색(회색 섞인 저채도 — 색인지 명도인지 헷갈림)
   { hex: '#8a7d5a', level: 2, tier: 7, tag: '올리브' },
   { hex: '#9a7a86', level: 2, tier: 7, tag: '더스티로즈' },
   { hex: '#6b7a95', level: 2, tier: 7, tag: '슬레이트블루' },
   // 9단계 — 밝은 파스텔 쌍둥이(밝은 톤 미세 구별)
-  { hex: '#f2c0d2', level: 3, tier: 8, tag: '분홍틴트(미묘)' },
+  { hex: '#f2c0d2', level: 4, tier: 8, tag: '분홍틴트(미묘)' },
   { hex: '#c3e8d4', level: 4, tier: 8, tag: '민트(미묘)' },
   { hex: '#f2e0ac', level: 4, tier: 8, tag: '크림(미묘)' },
   // 10단계 — 어두운 딥톤 쌍둥이(어두운 톤 미세 구별)
