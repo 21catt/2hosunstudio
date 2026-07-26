@@ -85,12 +85,13 @@ const stageSpeed = idx => Math.max(160, 760 - idx * 60) // 5단↑ 계속 빨라
 // 이 단계까지 열린 색들(밝기 버킷 활성 범위 안). newTier = 이번 단계에 새로 등장한 것.
 const unlockedColors = idx => COLORS.filter(c => c.tier <= idx && c.level < stageLevels(idx))
 
-// 배경·보드 = 중성 회색 — 색·명도가 가장 정확히 보이는 무채색 바탕
+// 배경·보드 = 바우하우스/스위스 그리드 리스킨(크림 바탕 + 플랫 정사각형).
+// ⚠️ 원래 중성 회색이 명도 지각엔 더 정확하지만, 디자인 요청으로 크림 바탕 채택.
 const U = {
-  bg: '#6e6e6e', panel: '#7c7c7c', board: '#808080', empty: '#767676', line: 'rgba(0,0,0,0.2)',
-  tx: '#ffffff', tx2: '#efefef', mut: '#dadada', faint: '#c2c2c2',
-  grad: 'linear-gradient(135deg,#A3E635,#22D3AA)', acc: '#dcff7a', onAcc: '#243208',
-  glow: '0 8px 20px -6px rgba(90,200,120,0.5)',
+  bg: '#ece7da', panel: '#ddd6c6', board: '#e0dacb', empty: '#ece7da', line: 'rgba(45,38,26,0.16)',
+  tx: '#2a2620', tx2: '#3a352c', mut: '#6a6458', faint: '#8a8478',
+  grad: 'linear-gradient(135deg,#c0501e,#57a03d)', acc: '#e7c01f', onAcc: '#3a2e00',
+  glow: '0 8px 20px -8px rgba(45,38,26,0.3)',
 }
 const makeBoard = () => Array.from({ length: ROWS }, () => Array(COLS).fill(null))
 const rnd = n => Math.floor(Math.random() * n)
@@ -352,11 +353,12 @@ export default function ColorTetrisGame({ open, onClose }) {
         <div style={{ padding: '10px 16px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
 
           <div style={{ position: 'relative', animation: shaking ? 'ctShake 0.3s ease-in-out' : 'none' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${COLS},${CELL}px)`, gap: GAP, background: U.board, padding: GAP + 2, borderRadius: 12, border: `1px solid ${U.line}` }}>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${COLS},${CELL}px)`, gap: GAP, background: U.board, padding: GAP + 2, borderRadius: 4, border: `1px solid ${U.line}` }}>
               {Array.from({ length: ROWS }).map((_, r) => Array.from({ length: COLS }).map((__, c) => {
                 const isFall = f && f.row === r && f.col === c
                 const cell = isFall ? { color: f.color } : boardRef.current[r][c]
-                return <div key={`${r}-${c}`} style={{ width: CELL, height: CELL, borderRadius: 6, background: cell ? cell.color : U.empty, boxShadow: cell ? 'inset 0 2px 0 rgba(255,255,255,0.2), 0 1px 2px rgba(0,0,0,0.22)' : 'none' }} />
+                // 바우하우스: 플랫 정사각형(라운드·광택 제거) · 낙하 조각만 검은 테두리
+                return <div key={`${r}-${c}`} style={{ width: CELL, height: CELL, borderRadius: 2, background: cell ? cell.color : U.empty, boxShadow: 'none', outline: isFall ? '3px solid #1a1a18' : 'none', outlineOffset: '-3px' }} />
               }))}
             </div>
 
@@ -366,8 +368,8 @@ export default function ColorTetrisGame({ open, onClose }) {
                 const x = PAD + cell.c * (CELL + GAP), y = PAD + cell.r * (CELL + GAP)
                 return (
                   <div key={`${b.id}-${k}`} style={{ position: 'absolute', left: x, top: y, width: CELL, height: CELL }}>
-                    <span style={{ position: 'absolute', inset: 0, borderRadius: 6, background: cell.color, animation: 'ctPop 0.46s ease-out forwards' }} />
-                    <span style={{ position: 'absolute', inset: -4, borderRadius: 9, border: '2px solid rgba(255,255,255,0.95)', animation: 'ctFlash 0.44s ease-out forwards' }} />
+                    <span style={{ position: 'absolute', inset: 0, borderRadius: 2, background: cell.color, animation: 'ctPop 0.46s ease-out forwards' }} />
+                    <span style={{ position: 'absolute', inset: -4, borderRadius: 3, border: '2px solid rgba(26,24,20,0.85)', animation: 'ctFlash 0.44s ease-out forwards' }} />
                     {[[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]].map(([sx, sy], si) => (
                       <span key={si} style={{ position: 'absolute', left: CELL / 2 - 3, top: CELL / 2 - 3, width: 6, height: 6, borderRadius: 2, background: cell.color, '--dx': `${sx * 30}px`, '--dy': `${sy * 30}px`, animation: 'ctShard 0.55s ease-out forwards' }} />
                     ))}
