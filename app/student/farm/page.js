@@ -25,6 +25,7 @@ const FARM_ENV = {
   palu:     { img: '/farm/palu.png',     ground: '#E7A24E' },
   sage:     { img: '/farm/sage.png',     ground: '#E8C64F' },
   midgreen: { img: '/farm/midgreen.png', ground: '#B4DDA6' },
+  space:    { img: '/farm/farm-space.png', ground: '#1c1533' }, // 스페이스 테마 냥밭 배경(어두운 우주)
 }
 
 // 픽셀 구름 5종 — [x, y, w, h] 사각형 조합 (56x22 그리드)
