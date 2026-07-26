@@ -73,10 +73,10 @@ export default function SpaceHome(props) {
       <SpaceBg />
       {/* 오늘 날짜 박스 바깥쪽으로 퍼지는 빛 일렁임(은은) — 외곽 헤일로만, 밝기·번짐이 부드럽게 흐른다 */}
       <style>{`@keyframes todayGlow{
-        0%{box-shadow:0 0 5px 0 rgba(240,150,197,0.32)}
-        40%{box-shadow:0 0 11px 0 rgba(244,150,200,0.66)}
-        70%{box-shadow:0 0 8px 0 rgba(233,132,186,0.46)}
-        100%{box-shadow:0 0 5px 0 rgba(240,150,197,0.32)}
+        0%{box-shadow:0 0 7px 0 rgba(241,152,199,0.44)}
+        40%{box-shadow:0 0 14px 1px rgba(246,152,202,0.88)}
+        70%{box-shadow:0 0 10px 0 rgba(234,134,188,0.62)}
+        100%{box-shadow:0 0 7px 0 rgba(241,152,199,0.44)}
       }`}</style>
 
       {/* top bar */}
@@ -153,7 +153,7 @@ export default function SpaceHome(props) {
             const has = bookedDates.has(ds)
             const label = d.getDate() === 1 ? `${d.getMonth() + 1}월` : DOW[d.getDay()]
             return (
-              <button key={ds} onClick={() => onDate(d)} style={{ flex: '0 0 auto', width: 56, padding: '11px 0', borderRadius: 16, position: 'relative', border: 'none', background: isToday ? S.mediaToday : (isSel ? S.mediaSel : S.media), boxShadow: isToday ? '0 0 5px 0 rgba(240,150,197,0.32)' : (isSel ? `0 0 0 2px ${S.accentRing}, ${S.hiStrong}` : S.hi), animation: isToday ? 'todayGlow 2.8s ease-in-out infinite' : undefined, color: '#f4f0f6', fontFamily: 'inherit', cursor: 'pointer', textAlign: 'center', opacity: isMon ? 0.55 : 1 }}>
+              <button key={ds} onClick={() => onDate(d)} style={{ flex: '0 0 auto', width: 56, padding: '11px 0', borderRadius: 16, position: 'relative', border: 'none', background: isToday ? S.mediaToday : (isSel ? S.mediaSel : S.media), boxShadow: isToday ? '0 0 7px 0 rgba(241,152,199,0.44)' : (isSel ? `0 0 0 2px ${S.accentRing}, ${S.hiStrong}` : S.hi), animation: isToday ? 'todayGlow 2.8s ease-in-out infinite' : undefined, color: '#f4f0f6', fontFamily: 'inherit', cursor: 'pointer', textAlign: 'center', opacity: isMon ? 0.55 : 1 }}>
                 {has && <span style={{ position: 'absolute', top: 5, right: 6, width: 7, height: 7, borderRadius: '50%', background: S.accent, border: '1.5px solid rgba(0,0,0,0.35)' }} />}
                 <div style={{ fontSize: 11, color: isToday ? '#ffe0ec' : 'rgba(238,241,251,0.74)', fontWeight: 700, textShadow: '0 1px 2px rgba(0,0,0,0.4)' }}>{label}</div>
                 <div style={{ fontSize: 17, fontWeight: 800, marginTop: 3, textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>{d.getDate()}</div>
