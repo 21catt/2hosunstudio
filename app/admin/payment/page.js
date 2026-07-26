@@ -5,6 +5,8 @@ import { supabase } from '../../../lib/supabase'
 import AdminNav from '../../../components/AdminNav'
 import { NavIcon } from '../../../components/NavIcons'
 import { HEADER_BG, PRIMARY, T, OK, WARN, BAD } from '../../../lib/adminTheme'
+import { useSpaceTheme } from '../../../lib/useFreshTheme'
+import SpaceBg from '../../../components/SpaceBg'
 
 const DOW = ['일','월','화','수','목','금','토']
 
@@ -39,6 +41,7 @@ export default function AdminPaymentPage() {
   const [confirming, setConfirming] = useState({})
   const [cancelling, setCancelling] = useState({})
   const [refunding, setRefunding]   = useState({})
+  const space = useSpaceTheme()
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -98,6 +101,7 @@ export default function AdminPaymentPage() {
 
   return (
     <>
+      {space && <SpaceBg />}
       <div className="header" style={{ background: HEADER_BG }}>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <NavIcon name="card" color="#fff" size={20} />
@@ -105,7 +109,7 @@ export default function AdminPaymentPage() {
         </div>
       </div>
 
-      <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 0', minHeight:'80vh' }}>
+      <div style={{ background: space ? 'transparent' : '#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 0', minHeight:'80vh' }}>
 
         {/* ── 입금 대기 ─────────────────────────────────────────── */}
         <SectionHead dot={OK.dot} tx={OK.tx} label="입금 대기" count={pending.length} />
@@ -120,7 +124,7 @@ export default function AdminPaymentPage() {
           const timeLeft = msLeft <= 0 ? '만료됨' : hl > 0 ? `${hl}시간 ${ml}분 남음` : `${ml}분 남음`
           const isExp = msLeft <= 0
           return (
-            <div key={b.id} style={{ borderRadius:15, marginBottom:8, padding:'13px 14px', border:`0.5px solid ${isExp ? 'rgba(193,86,77,0.35)' : T.card}`, background: isExp ? BAD.soft : '#fff' }}>
+            <div key={b.id} style={{ borderRadius:15, marginBottom:8, padding:'13px 14px', border:`0.5px solid ${isExp ? 'rgba(193,86,77,0.35)' : T.card}`, background: isExp ? BAD.soft : 'var(--surf)' }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:11 }}>
                 <div>
                   <div style={{ fontSize:14, fontWeight:800, color: T.text, marginBottom:3, letterSpacing:'-0.2px' }}>{userMap[b.user_id] || '학생'}</div>

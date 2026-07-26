@@ -7,6 +7,8 @@ import { NavIcon } from '../../../components/NavIcons'
 import { pixelCatImg, DEFAULT_PROFILE_CAT, isValidPixelCat, getSavedProfileCat } from '../../../lib/pixelCats'
 import { sendPushToUser } from '../../../lib/pushNotify'
 import { compressImage } from '../../../lib/imageCompress'
+import { useSpaceTheme } from '../../../lib/useFreshTheme'
+import SpaceBg from '../../../components/SpaceBg'
 
 const ACCENT = 'var(--ac)'
 const ACCENT_BG = 'var(--acBg)'
@@ -33,6 +35,7 @@ export default function AdminRecordsPage() {
   const [rcInput, setRcInput] = useState({})
   const [rcSending, setRcSending] = useState({})
   const [lightbox, setLightbox] = useState(null) // 확대해서 볼 이미지 URL
+  const space = useSpaceTheme()
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -208,6 +211,7 @@ export default function AdminRecordsPage() {
 
   return (
     <>
+      {space && <SpaceBg />}
       <div className="header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <NavIcon name="clipboard" color="#fff" size={20} />
@@ -215,7 +219,7 @@ export default function AdminRecordsPage() {
         </div>
       </div>
 
-      <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 0', minHeight:'80vh' }}>
+      <div style={{ background: space ? 'transparent' : '#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 0', minHeight:'80vh' }}>
 
         <input value={search} onChange={e => setSearch(e.target.value)}
           placeholder="학생명 / 날짜 / 수업명 검색..."
@@ -253,7 +257,7 @@ export default function AdminRecordsPage() {
                 <div style={{ borderTop:'1px solid rgb(var(--ac-rgb) / 0.16)', padding:'10px 14px 14px' }}>
 
                   {r.note && (
-                    <div style={{ background:'#fff', borderRadius:10, padding:'10px 12px', border:`1px solid ${BORDER}`, marginBottom:10 }}>
+                    <div style={{ background:'var(--surf)', borderRadius:10, padding:'10px 12px', border:`1px solid ${BORDER}`, marginBottom:10 }}>
                       <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:4 }}>학생 메모</div>
                       <div style={{ fontSize:12, color:'var(--td)', lineHeight:1.7, whiteSpace:'pre-wrap' }}>{r.note}</div>
                     </div>
@@ -276,7 +280,7 @@ export default function AdminRecordsPage() {
                   {r.class_record_feedback?.length > 0 && (
                     <div style={{ marginBottom:10 }}>
                       {r.class_record_feedback.map(fb => (
-                        <div key={fb.id} style={{ background:'#fff', borderRadius:10, padding:'10px 12px', border:`1px solid ${BORDER}`, marginBottom:6 }}>
+                        <div key={fb.id} style={{ background:'var(--surf)', borderRadius:10, padding:'10px 12px', border:`1px solid ${BORDER}`, marginBottom:6 }}>
                           {fbEditing[fb.id] !== undefined ? (
                             <>
                               <textarea value={fbEditing[fb.id]}
@@ -352,7 +356,7 @@ export default function AdminRecordsPage() {
                     )}
 
                     <div style={{ display:'flex', gap:6 }}>
-                      <label style={{ flexShrink:0, width:40, height:38, borderRadius:10, border:`1.5px solid ${BORDER}`, background:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:17, cursor:'pointer' }} title="사진 첨부">
+                      <label style={{ flexShrink:0, width:40, height:38, borderRadius:10, border:`1.5px solid ${BORDER}`, background:'var(--surf)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:17, cursor:'pointer' }} title="사진 첨부">
                         📷
                         <input type="file" accept="image/*" multiple style={{ display:'none' }} onChange={e => pickFbFiles(r.id, e)}/>
                       </label>
@@ -422,7 +426,7 @@ export default function AdminRecordsPage() {
 
           {lightbox.record && (
             <div onClick={e => e.stopPropagation()}
-              style={{ background:'#fff', borderRadius:'18px 18px 0 0', padding:'12px 14px', paddingBottom:'max(14px, env(safe-area-inset-bottom))', boxShadow:'0 -10px 30px -12px rgba(0,0,0,0.5)' }}>
+              style={{ background:'var(--surf)', borderRadius:'18px 18px 0 0', padding:'12px 14px', paddingBottom:'max(14px, env(safe-area-inset-bottom))', boxShadow:'0 -10px 30px -12px rgba(0,0,0,0.5)' }}>
               <div style={{ fontSize:11, fontWeight:800, color:'var(--tmu)', marginBottom:8 }}>
                 📝 {userMap[lightbox.record.user_id] || '학생'} · {lightbox.record.class_name || '기록'} — 사진 보며 피드백
               </div>

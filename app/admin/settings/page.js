@@ -5,8 +5,10 @@ import { supabase } from '../../../lib/supabase'
 import AdminNav from '../../../components/AdminNav'
 import { NavIcon } from '../../../components/NavIcons'
 import { HEADER_BG } from '../../../lib/adminTheme'
-import { THEMES, applyTheme, getSavedTheme, isValidTheme } from '../../../lib/theme'
+import { THEMES, applyTheme, getSavedTheme, isValidTheme, DEFAULT_THEME } from '../../../lib/theme'
 import { PIXEL_CATS, pixelCatImg, getSavedProfileCat, saveProfileCatLocal, isValidPixelCat, DEFAULT_PROFILE_CAT } from '../../../lib/pixelCats'
+import { useSpaceTheme } from '../../../lib/useFreshTheme'
+import SpaceBg from '../../../components/SpaceBg'
 
 // 관리자 개인 설정 — 프로필 사진(픽셀 고양이)·화면 색(테마) 커스텀.
 // 관리자는 전부 해금(잠금 없음). 냥밭 농부냥은 없음.
@@ -17,6 +19,7 @@ export default function AdminSettingsPage() {
   const [profileCat, setProfileCat] = useState(DEFAULT_PROFILE_CAT)
   const [themeKey, setThemeKey] = useState('ultra')
   const [loading, setLoading] = useState(true)
+  const space = useSpaceTheme()
 
   useEffect(() => {
     setThemeKey(getSavedTheme())
@@ -30,7 +33,7 @@ export default function AdminSettingsPage() {
         supabase.from('users').select('name').eq('id', data.user.id).single(),
       ])
       if (isValidPixelCat(pref?.profile_cat)) setProfileCat(pref.profile_cat)
-      if (isValidTheme(pref?.theme)) { setThemeKey(pref.theme); applyTheme(pref.theme) }
+      if (isValidTheme(pref?.theme) && getSavedTheme() === DEFAULT_THEME) { setThemeKey(pref.theme); applyTheme(pref.theme) }
       setName(u?.name || data.user.user_metadata?.name || '')
       setLoading(false)
     })
@@ -56,6 +59,7 @@ export default function AdminSettingsPage() {
 
   return (
     <>
+      {space && <SpaceBg />}
       <div className="header" style={{ background: HEADER_BG }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span onClick={() => router.push('/admin')} style={{ fontSize: 20, fontWeight: 900, color: '#fff', cursor: 'pointer', lineHeight: 1 }} title="홈">‹</span>
@@ -63,7 +67,7 @@ export default function AdminSettingsPage() {
         </div>
       </div>
 
-      <div style={{ background: '#fff', borderRadius: '24px 24px 0 0', marginTop: -8, padding: '16px 16px 90px', minHeight: '80vh' }}>
+      <div style={{ background: space ? 'transparent' : '#fff', borderRadius: '24px 24px 0 0', marginTop: -8, padding: '16px 16px 90px', minHeight: '80vh' }}>
 
         {/* 계정 카드 */}
         <div className="p-card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
@@ -86,7 +90,7 @@ export default function AdminSettingsPage() {
             const on = profileCat === k
             return (
               <div key={k} onClick={() => changeProfileCat(k)}
-                style={{ cursor: 'pointer', aspectRatio: '1', borderRadius: 12, overflow: 'hidden', background: on ? 'var(--acBg)' : '#fff', border: on ? '2px solid var(--ac)' : '1.5px solid var(--g2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                style={{ cursor: 'pointer', aspectRatio: '1', borderRadius: 12, overflow: 'hidden', background: on ? 'var(--acBg)' : 'var(--surf)', border: on ? '2px solid var(--ac)' : '1.5px solid var(--g2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <img src={pixelCatImg(k)} alt={k} width={40} height={40} style={{ imageRendering: 'pixelated', display: 'block' }} />
               </div>
             )
@@ -101,7 +105,7 @@ export default function AdminSettingsPage() {
             const on = themeKey === t.key
             return (
               <div key={t.key} onClick={() => changeTheme(t.key)}
-                style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, padding: '11px 12px', borderRadius: 14, background: on ? 'var(--acBg)' : '#fff', border: on ? `2px solid ${t.a1}` : '1.5px solid var(--g2)' }}>
+                style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, padding: '11px 12px', borderRadius: 14, background: on ? 'var(--acBg)' : 'var(--surf)', border: on ? `2px solid ${t.a1}` : '1.5px solid var(--g2)' }}>
                 <span style={{ width: 16, height: 16, borderRadius: '50%', background: t.a1, flexShrink: 0 }} />
                 <span style={{ width: 16, height: 16, borderRadius: '50%', background: t.a2, marginLeft: -14, flexShrink: 0, border: '2px solid #fff' }} />
                 {t.a3 && <span style={{ width: 16, height: 16, borderRadius: '50%', background: t.a3, marginLeft: -14, flexShrink: 0, border: '2px solid #fff' }} />}

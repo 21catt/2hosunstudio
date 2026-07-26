@@ -20,6 +20,8 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import CoreDocEditor from '../../../components/CoreDocEditor'
+import { useSpaceTheme } from '../../../lib/useFreshTheme'
+import SpaceBg from '../../../components/SpaceBg'
 
 const ACCENT      = 'var(--ac)'
 const ACCENT_BG   = 'var(--acBg)'
@@ -71,7 +73,7 @@ function SortableStepItem({ step, index, editing, setEditing, handleUpdate, hand
                   style={{ position:'absolute', top:5, right:5, width:22, height:22, borderRadius:11, background:'rgba(0,0,0,0.55)', color:'#fff', border:'none', fontSize:14, cursor:'pointer', lineHeight:1 }}>×</button>
               </div>
             )}
-            <label style={{ display:'block', textAlign:'center', padding:'7px', borderRadius:8, border:`1.5px dashed ${BORDER}`, background:'#fff', fontSize:11, fontWeight:700, color:'var(--tmu)', cursor: uploading?'default':'pointer', marginBottom:8 }}>
+            <label style={{ display:'block', textAlign:'center', padding:'7px', borderRadius:8, border:`1.5px dashed ${BORDER}`, background:'var(--surf)', fontSize:11, fontWeight:700, color:'var(--tmu)', cursor: uploading?'default':'pointer', marginBottom:8 }}>
               {uploading ? '업로드 중...' : (editing[step.id].image_url ? '사진 변경' : '📷 사진 추가')}
               <input type="file" accept="image/*" disabled={uploading} style={{ display:'none' }}
                 onChange={async e => { const f = e.target.files?.[0]; e.target.value=''; if (!f) return; const url = await onUploadImage(f); if (url) setEditing(prev => ({ ...prev, [step.id]: { ...prev[step.id], image_url: url } })) }}/>
@@ -181,6 +183,7 @@ function AdminCurriculumInner() {
   // 리치 핵심내용(인물화형) 문서 (class_courses.core_doc)
   const [coreDoc, setCoreDoc] = useState(null)
   const [coreDocSaving, setCoreDocSaving] = useState(false)
+  const space = useSpaceTheme()
 
   // 커리큘럼 회차 사진 업로드 (공개 버킷 재사용, 학생/비회원도 조회 가능)
   async function uploadImage(file) {
@@ -388,6 +391,7 @@ function AdminCurriculumInner() {
 
   return (
     <>
+      {space && <SpaceBg />}
       <div className="header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <NavIcon name="book" color="#fff" size={20} />
@@ -395,7 +399,7 @@ function AdminCurriculumInner() {
         </div>
       </div>
 
-      <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 0', minHeight:'80vh' }}>
+      <div style={{ background: space ? 'transparent' : '#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 0', minHeight:'80vh' }}>
 
         {/* Course chips */}
         <div style={{ marginBottom:16 }}>
@@ -460,7 +464,7 @@ function AdminCurriculumInner() {
                   </SortableContext>
                 </DndContext>
               )}
-              <label style={{ display:'block', textAlign:'center', padding:'12px', borderRadius:10, border:`1.5px dashed ${BORDER}`, background:'#fff', fontSize:11, fontWeight:700, color:'var(--tmu)', cursor: coreUploading ? 'default' : 'pointer' }}>
+              <label style={{ display:'block', textAlign:'center', padding:'12px', borderRadius:10, border:`1.5px dashed ${BORDER}`, background:'var(--surf)', fontSize:11, fontWeight:700, color:'var(--tmu)', cursor: coreUploading ? 'default' : 'pointer' }}>
                 {coreUploading ? '업로드 중...' : '📷 사진 추가 (여러 장 가능)'}
                 <input type="file" accept="image/*" multiple disabled={coreUploading} style={{ display:'none' }}
                   onChange={e => { const fs = Array.from(e.target.files || []); e.target.value=''; if (fs.length) addCoreImages(fs) }}/>
@@ -526,7 +530,7 @@ function AdminCurriculumInner() {
                       style={{ position:'absolute', top:6, right:6, width:24, height:24, borderRadius:12, background:'rgba(0,0,0,0.55)', color:'#fff', border:'none', fontSize:15, cursor:'pointer', lineHeight:1 }}>×</button>
                   </div>
                 )}
-                <label style={{ display:'block', textAlign:'center', padding:'9px', borderRadius:10, border:`1.5px dashed ${BORDER}`, background:'#fff', fontSize:12, fontWeight:700, color:'var(--tmu)', cursor: uploading?'default':'pointer', marginBottom:10 }}>
+                <label style={{ display:'block', textAlign:'center', padding:'9px', borderRadius:10, border:`1.5px dashed ${BORDER}`, background:'var(--surf)', fontSize:12, fontWeight:700, color:'var(--tmu)', cursor: uploading?'default':'pointer', marginBottom:10 }}>
                   {uploading ? '업로드 중...' : (newImageUrl ? '사진 변경' : '📷 사진 추가 (선택)')}
                   <input type="file" accept="image/*" disabled={uploading} style={{ display:'none' }}
                     onChange={async e => { const f = e.target.files?.[0]; e.target.value=''; if (!f) return; const url = await uploadImage(f); if (url) setNewImageUrl(url) }}/>

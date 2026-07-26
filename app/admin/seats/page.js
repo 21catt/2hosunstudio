@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import AdminNav from '../../../components/AdminNav'
 import { compressImage } from '../../../lib/imageCompress'
+import { useSpaceTheme } from '../../../lib/useFreshTheme'
+import SpaceBg from '../../../components/SpaceBg'
 
 const SEATS = ['A', 'B', 'C', 'D', 'E']
 const SEAT_LABEL = { A:'A · 창가·자연광', B:'B · 창가·자연광', C:'C · 중앙', D:'D · 중앙', E:'E · 창가' }
@@ -16,6 +18,7 @@ export default function AdminSeatsPage() {
   const [loading, setLoading] = useState(true)
   const [previewIdx, setPreviewIdx] = useState(0)
   const touchX = useRef(null)
+  const space = useSpaceTheme()
 
   function handleSwipe(e, len) {
     if (touchX.current == null || len < 2) return
@@ -96,6 +99,7 @@ export default function AdminSeatsPage() {
 
   return (
     <>
+      {space && <SpaceBg />}
       <div className="header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <button onClick={() => router.push('/admin')}
@@ -104,12 +108,12 @@ export default function AdminSeatsPage() {
         </div>
       </div>
 
-      <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 100px' }}>
+      <div style={{ background: space ? 'transparent' : '#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 100px' }}>
 
         <div style={{ display:'flex', gap:6, marginBottom:18, overflowX:'auto', paddingBottom:4 }}>
           {SEATS.map(s => (
             <button key={s} onClick={() => { setSelSeat(s); setPreviewIdx(0) }}
-              style={{ flexShrink:0, padding:'8px 16px', borderRadius:20, border:`1.5px solid ${selSeat===s?'var(--g4)':'var(--g2)'}`, background:selSeat===s?'var(--g4)':'#fff', color:selSeat===s?'#fff':'var(--td)', fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+              style={{ flexShrink:0, padding:'8px 16px', borderRadius:20, border:`1.5px solid ${selSeat===s?'var(--g4)':'var(--g2)'}`, background:selSeat===s?'var(--g4)':'var(--surf)', color:selSeat===s?'#fff':'var(--td)', fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
               {s}
             </button>
           ))}

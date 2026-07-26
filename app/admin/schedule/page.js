@@ -11,6 +11,8 @@ import { fetchLockedDates } from '../../../lib/lockedDates'
 import { notifyAllAdmins } from '../../../lib/adminNotify'
 import { sendPushToAdmins } from '../../../lib/pushNotify'
 import { sendKakaoToAdmins } from '../../../lib/kakaoNotify'
+import { useSpaceTheme } from '../../../lib/useFreshTheme'
+import SpaceBg from '../../../components/SpaceBg'
 
 const DAYS = ['일','월','화','수','목','금','토']
 const CATS = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', oneday:'원데이', free:'자율창작', meeting:'모임' }
@@ -437,6 +439,7 @@ export default function AdminSchedulePage() {
   const [memberSearch, setMemberSearch] = useState('')
   const [bookBusy, setBookBusy] = useState(false)
   const [loading, setLoading] = useState(true)
+  const space = useSpaceTheme()
   const [showForm, setShowForm] = useState(false)
   const [editCourse, setEditCourse] = useState(null)
   const [view, setView] = useState('calendar') // calendar | list
@@ -614,6 +617,7 @@ const myCourses = sortCoursesByCategory(courses.filter(c => c.category === 'meet
 
   return (
     <>
+      {space && <SpaceBg />}
       <div className="header" style={{ background: HEADER_BG }}>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <NavIcon name="calendar" color="#fff" size={20} />
@@ -640,7 +644,7 @@ const myCourses = sortCoursesByCategory(courses.filter(c => c.category === 'meet
         </div>
       </div>
 
-      <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'16px 14px 80px' }}>
+      <div style={{ background: space ? 'transparent' : '#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'16px 14px 80px' }}>
 
         {/* 폼 */}
         {(showForm||editCourse) && (
@@ -919,7 +923,7 @@ const myCourses = sortCoursesByCategory(courses.filter(c => c.category === 'meet
                   {listCourses.length === 0 ? (
                     <div style={{ textAlign:'center', padding:40, color:'var(--tmu)', fontSize:12 }}>등록된 수업이 없어요 🐾</div>
                   ) : listCourses.map(c => (
-              <div key={c.id} style={{ background:'#fff', borderRadius:14, padding:'12px 14px', marginBottom:8, border:'0.5px solid rgba(0,0,0,0.07)' }}>
+              <div key={c.id} style={{ background:'var(--surf)', borderRadius:14, padding:'12px 14px', marginBottom:8, border:'0.5px solid rgba(0,0,0,0.07)' }}>
                 <div style={{ display:'flex', alignItems:'center', gap:11 }}>
                   <div style={{ width:40, height:40, borderRadius:12, background:CAT_COLORS[c.category]||'var(--g1)',
                     display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
@@ -977,7 +981,7 @@ const myCourses = sortCoursesByCategory(courses.filter(c => c.category === 'meet
         <div onClick={() => { if (!bookBusy) setBookForSlot(null) }}
           style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:1000, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
           <div onClick={e => e.stopPropagation()}
-            style={{ background:'#fff', borderRadius:'22px 22px 0 0', width:'100%', maxWidth:430, maxHeight:'82vh', display:'flex', flexDirection:'column', boxSizing:'border-box' }}>
+            style={{ background:'var(--surf)', borderRadius:'22px 22px 0 0', width:'100%', maxWidth:430, maxHeight:'82vh', display:'flex', flexDirection:'column', boxSizing:'border-box' }}>
             <div style={{ padding:'16px 16px 10px', borderBottom:'1px solid var(--g1)' }}>
               <div style={{ fontSize:14, fontWeight:800, color:'var(--td)' }}>회원 대신 예약</div>
               <div style={{ fontSize:11, color:'var(--tmu)', marginTop:3 }}>

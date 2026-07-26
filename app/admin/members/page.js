@@ -5,6 +5,8 @@ import { supabase } from '../../../lib/supabase'
 import AdminNav from '../../../components/AdminNav'
 import { NavIcon } from '../../../components/NavIcons'
 import { HEADER_BG, MST } from '../../../lib/adminTheme'
+import { useSpaceTheme } from '../../../lib/useFreshTheme'
+import SpaceBg from '../../../components/SpaceBg'
 
 const STATUS_ORDER = { '만료': 0, '만료임박': 1, '일시정지': 1.5, '수강중': 2 }
 const DAY = 864e5
@@ -72,6 +74,7 @@ export default function AdminMembersPage() {
   const [pauseBusy, setPauseBusy] = useState(null) // 일시정지 처리 중 userId
   const [manageOpen, setManageOpen] = useState(null) // 관리 도구 펼친 userId
   const [meetingOpen, setMeetingOpen] = useState(null) // 모임 참여권 펼친 userId
+  const space = useSpaceTheme()
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -296,6 +299,7 @@ export default function AdminMembersPage() {
 
   return (
     <>
+      {space && <SpaceBg />}
       {/* Header */}
       <div className="header" style={{ background: HEADER_BG, flexDirection:'column', gap:12, paddingBottom:16 }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', width:'100%' }}>
@@ -314,7 +318,7 @@ export default function AdminMembersPage() {
       </div>
 
       {/* Content */}
-      <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'14px 14px 80px' }}>
+      <div style={{ background: space ? 'transparent' : '#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'14px 14px 80px' }}>
 
         {/* Segmented filter */}
         <div style={{ display:'flex', background:'var(--g1)', borderRadius:13, padding:3, marginBottom:4 }}>

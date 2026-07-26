@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import AdminNav from '../../../components/AdminNav'
 import { NavIcon } from '../../../components/NavIcons'
+import { useSpaceTheme } from '../../../lib/useFreshTheme'
+import SpaceBg from '../../../components/SpaceBg'
 
 // booking_request 알림 본문(고정 템플릿)에서 예약 정보 추출 — 확정 시 예약 생성용.
 function parseRequest(body = '') {
@@ -21,6 +23,7 @@ export default function AdminNotificationPage() {
   const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(null)
+  const space = useSpaceTheme()
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -242,6 +245,7 @@ await supabase.from('notifications')
 
   return (
     <>
+      {space && <SpaceBg />}
       <div className="header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <NavIcon name="bell" color="#fff" size={20} />
@@ -256,7 +260,7 @@ await supabase.from('notifications')
         </button>
       </div>
 
-      <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'16px 14px 80px' }}>
+      <div style={{ background: space ? 'transparent' : '#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'16px 14px 80px' }}>
         <div style={{ fontSize:11, fontWeight:700, color:'var(--g4)', marginBottom:14 }}>
           오늘 {todayCnt}건 · 전체 {notifications.length}건
         </div>

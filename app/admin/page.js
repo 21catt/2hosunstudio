@@ -5,12 +5,14 @@ import { supabase } from '../../lib/supabase'
 import AdminNav from '../../components/AdminNav'
 import { NavIcon } from '../../components/NavIcons'
 import { registerPush } from '../../lib/pushNotify'
-import { applyTheme, getSavedTheme, isValidTheme } from '../../lib/theme'
+import { applyTheme, getSavedTheme, isValidTheme, DEFAULT_THEME } from '../../lib/theme'
 import { LogoMark, HeroDeco } from '../../components/Deco'
 import HeroWeatherFX from '../../components/HeroWeatherFX'
 import { useTodayWeather, WeatherGlyph } from '../../components/WeatherBar'
 import LoadingCat from '../../components/LoadingCat'
 import GlassAdminHome from '../../components/GlassAdminHome'
+import { useSpaceTheme } from '../../lib/useFreshTheme'
+import SpaceBg from '../../components/SpaceBg'
 
 const DOW = ['일', '월', '화', '수', '목', '금', '토']
 
@@ -28,6 +30,7 @@ export default function AdminHomePage() {
   const [refundCnt, setRefundCnt] = useState(0)     // 환불 필요
   const [unread, setUnread] = useState(0)
   const [memberCnt, setMemberCnt] = useState(0)
+  const space = useSpaceTheme()
 
   const now = new Date()
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
@@ -59,7 +62,7 @@ export default function AdminHomePage() {
     setUnread(uc || 0)
     setMemberCnt(mc || 0)
     // 계정에 저장된 테마가 있으면 기기 저장값보다 우선 (기기 간 동기화)
-    if (isValidTheme(pref?.theme)) setActiveTheme(applyTheme(pref.theme))
+    if (isValidTheme(pref?.theme) && getSavedTheme() === DEFAULT_THEME) setActiveTheme(applyTheme(pref.theme))
     setLoading(false)
   }
 
@@ -133,7 +136,8 @@ export default function AdminHomePage() {
   })
 
   return (
-    <div style={{ position: 'relative', minHeight: '100vh', background: '#fff' }}>
+    <div style={{ position: 'relative', minHeight: '100vh', background: space ? 'transparent' : '#fff' }}>
+      {space && <SpaceBg />}
       {/* 헤더 */}
       <div className="p-header" style={{ position: 'relative', zIndex: 2 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

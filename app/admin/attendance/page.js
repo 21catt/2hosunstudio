@@ -6,6 +6,8 @@ import AdminNav from '../../../components/AdminNav'
 import { NavIcon } from '../../../components/NavIcons'
 import { HEADER_BG, PRIMARY, T, OK } from '../../../lib/adminTheme'
 import { sendPushToUser } from '../../../lib/pushNotify'
+import { useSpaceTheme } from '../../../lib/useFreshTheme'
+import SpaceBg from '../../../components/SpaceBg'
 
 const DOW = ['일','월','화','수','목','금','토']
 
@@ -21,6 +23,7 @@ export default function AdminAttendancePage() {
   const [userNames,   setUserNames]   = useState({})
   const [loading,     setLoading]     = useState(true)
   const [toggling,    setToggling]    = useState({})
+  const space = useSpaceTheme()
 
   async function load(date) {
     setLoading(true)
@@ -122,6 +125,7 @@ export default function AdminAttendancePage() {
 
   return (
     <>
+      {space && <SpaceBg />}
       <div className="header" style={{ background: HEADER_BG }}>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <NavIcon name="check" color="#fff" size={20} />
@@ -129,7 +133,7 @@ export default function AdminAttendancePage() {
         </div>
       </div>
 
-      <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'16px 14px 80px', minHeight:'80vh' }}>
+      <div style={{ background: space ? 'transparent' : '#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'16px 14px 80px', minHeight:'80vh' }}>
 
         {/* Date nav */}
         <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:18, marginBottom:20 }}>
@@ -181,7 +185,7 @@ export default function AdminAttendancePage() {
                 </div>
 
                 {/* Student rows */}
-                <div style={{ borderRadius:16, border:`0.5px solid ${T.card}`, overflow:'hidden', background:'#fff' }}>
+                <div style={{ borderRadius:16, border:`0.5px solid ${T.card}`, overflow:'hidden', background:'var(--surf)' }}>
                   {grp.map((b, idx) => {
                     const name = userNames[b.user_id] || '학생'
                     const attended = !!b.attended
@@ -189,7 +193,7 @@ export default function AdminAttendancePage() {
 
                     return (
                       <div key={b.id} onClick={() => !busy && toggleAttended(b)}
-                        style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 14px', cursor:'pointer', background: attended ? '#F1F8EC' : '#fff', borderTop: idx === 0 ? 'none' : `0.5px solid ${T.line}`, opacity: busy ? 0.55 : 1, transition:'background 0.12s' }}>
+                        style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 14px', cursor:'pointer', background: attended ? '#F1F8EC' : 'var(--surf)', borderTop: idx === 0 ? 'none' : `0.5px solid ${T.line}`, opacity: busy ? 0.55 : 1, transition:'background 0.12s' }}>
 
                         {/* Avatar */}
                         <div style={{ width:38, height:38, borderRadius:'50%', background: attended ? OK.soft : T.navBg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:15, fontWeight:800, color: attended ? OK.tx : T.mut, flexShrink:0, transition:'all 0.12s' }}>
@@ -202,7 +206,7 @@ export default function AdminAttendancePage() {
                         </div>
 
                         {/* Toggle circle */}
-                        <div style={{ width:34, height:34, borderRadius:'50%', background: attended ? OK.main : '#fff', border: `2px solid ${attended ? OK.main : 'rgba(0,0,0,0.12)'}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, transition:'all 0.15s' }}>
+                        <div style={{ width:34, height:34, borderRadius:'50%', background: attended ? OK.main : 'var(--surf)', border: `2px solid ${attended ? OK.main : 'rgba(0,0,0,0.12)'}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, transition:'all 0.15s' }}>
                           {attended
                             ? <span style={{ color:'#fff', fontSize:17, lineHeight:1 }}>✓</span>
                             : <div style={{ width:11, height:11, borderRadius:'50%', background:'#d5d3ca' }}/>
