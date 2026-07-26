@@ -648,7 +648,7 @@ export default function StudentHomePage() {
               <div style={{ position:'absolute', top:18, left:18, display:'flex', gap:8, alignItems:'center' }}>
                 {[0,1,2,3,4,5,6].map(i => <span key={i} style={{ width:i<2?7:5, height:i<2?7:5, borderRadius:'50%', background:'#fff', opacity:i<2?1:0.82, boxShadow:i<2?'0 0 6px rgba(255,255,255,0.9)':'none' }}/>)}
               </div>
-              <div style={{ position:'absolute', left:'50%', top:'54%', transform:'translate(-50%,-50%)', background:'rgba(255,255,255,0.14)', boxShadow:'inset 0 1px 0 rgba(255,255,255,0.25)', borderRadius:14, padding:'10px 18px', fontSize:14, fontWeight:800, color:'#fff', whiteSpace:'nowrap', backdropFilter:'blur(8px)', WebkitBackdropFilter:'blur(8px)' }}>🌌 울트라 스페이스</div>
+              <div style={{ position:'absolute', left:'50%', top:'54%', transform:'translate(-50%,-50%)', background:'rgba(255,255,255,0.14)', boxShadow:'inset 0 1px 0 rgba(255,255,255,0.25)', borderRadius:14, padding:'10px 18px', fontSize:14, fontWeight:800, color:'#fff', whiteSpace:'nowrap', backdropFilter:'blur(8px)', WebkitBackdropFilter:'blur(8px)' }}>🌌 스페이스</div>
             </div>
             <div style={{ padding:'15px 18px 0' }}>
               <div style={{ fontSize:15, fontWeight:800, color:'#f3eef8', marginBottom:6 }}>새 다크 스킨이 열렸어요</div>
