@@ -5,7 +5,7 @@ import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
 import { NavIcon } from '../../../components/NavIcons'
 import MoodIndicator from '../../../components/MoodIndicator'
-import { THEMES, applyTheme, getSavedTheme, isValidTheme, themeUnlocked, themeUnlockLabel, themeSeasonLabel, themeSeasonEmoji } from '../../../lib/theme'
+import { THEMES, applyTheme, getSavedTheme, isValidTheme, themeUnlocked, themeUnlockLabel, themeSeasonLabel, themeSeasonEmoji, DEFAULT_THEME } from '../../../lib/theme'
 import { FARM_CATS, getSavedFarmCat, saveFarmCatLocal, isValidFarmCat, getSavedHarvest, saveHarvestLocal, farmCatUnlocked, farmCatUnlockLabel } from '../../../lib/farmCats'
 import { PIXEL_CATS_BY_UNLOCK, pixelCatImg, catUnlocked, catUnlockLabel, getSavedProfileCat, saveProfileCatLocal, isValidPixelCat } from '../../../lib/pixelCats'
 import { registerPush } from '../../../lib/pushNotify'
@@ -55,7 +55,8 @@ export default function SettingsPage() {
         setName(profile?.name || '')
         const { data: pref } = await supabase.from('user_prefs').select('*').eq('user_id', u.id).single()
         setMoodStyle(pref?.mood_style || 'cup')
-        if (isValidTheme(pref?.theme)) { setThemeKey(pref.theme); applyTheme(pref.theme) }
+        // 기기가 아직 테마 미선택(기본)일 때만 계정 테마 채택 — 기기 선택 우선(홈 하얘짐 방지와 동일 원칙)
+        if (isValidTheme(pref?.theme) && getSavedTheme() === DEFAULT_THEME) { setThemeKey(pref.theme); applyTheme(pref.theme) }
         if (isValidFarmCat(pref?.farm_cat)) { setFarmCat(pref.farm_cat); saveFarmCatLocal(pref.farm_cat) }
         if (isValidPixelCat(pref?.profile_cat)) { setProfileCat(pref.profile_cat); saveProfileCatLocal(pref.profile_cat) }
         if (Number.isFinite(pref?.harvest_count) && pref.harvest_count >= 0) { setHarvest(pref.harvest_count); saveHarvestLocal(pref.harvest_count) }

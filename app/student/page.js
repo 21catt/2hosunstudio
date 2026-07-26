@@ -7,7 +7,7 @@ import { NavIcon } from '../../components/NavIcons'
 import { useTodayWeather, WeatherGlyph } from '../../components/WeatherBar'
 import { LogoMark, HeroDeco, DotPatch } from '../../components/Deco'
 import HeroWeatherFX from '../../components/HeroWeatherFX'
-import { applyTheme, isValidTheme, getSavedTheme, themeInWindow } from '../../lib/theme'
+import { applyTheme, isValidTheme, getSavedTheme, themeInWindow, DEFAULT_THEME } from '../../lib/theme'
 import GlassHome from '../../components/GlassHome'
 import SpaceHome from '../../components/SpaceHome'
 import { bookClass, requestBookingApproval, hasValidTicket, cancelBooking } from '../../lib/booking'
@@ -202,7 +202,10 @@ export default function StudentHomePage() {
       setNextBooking(upcoming.find(x => x.confirmed !== false) || null)
       setPendingBooking(upcoming.find(x => x.confirmed === false) || null)
       setUnread(notif.count || 0)
-      if (isValidTheme(pref.data?.theme)) setActiveTheme(applyTheme(pref.data.theme))
+      // 계정 테마 동기화 — 기기가 아직 테마를 안 고른(기본) 경우에만 적용.
+      // 기기가 시즌 스킨(space/fresh 등)을 고른 상태면 계정 미동기화(구값)로 홈이 되돌아
+      // 하얘지는 것 방지 → 기기 선택 우선.
+      if (isValidTheme(pref.data?.theme) && getSavedTheme() === DEFAULT_THEME) setActiveTheme(applyTheme(pref.data.theme))
     }
     setClasses(c.data || [])
     setLockedDates(locked)

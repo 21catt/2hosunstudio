@@ -11,7 +11,7 @@ import { fetchLockedDates } from '../../../lib/lockedDates'
 import { sendPushToAdmins } from '../../../lib/pushNotify'
 import { sendKakaoToAdmins } from '../../../lib/kakaoNotify'
 import { notifyAllAdmins } from '../../../lib/adminNotify'
-import { applyTheme, isValidTheme } from '../../../lib/theme'
+import { applyTheme, isValidTheme, getSavedTheme, DEFAULT_THEME } from '../../../lib/theme'
 import MoodIndicator from '../../../components/MoodIndicator'
 import LoadingCat from '../../../components/LoadingCat'
 import GlassBg from '../../../components/GlassBg'
@@ -246,7 +246,7 @@ export default function CalendarPage() {
       setProfileName(profile.data?.name || '')
       setMoodStyle(pref.data?.mood_style || 'cup')
       // 계정에 저장된 테마가 있으면 기기 저장값보다 우선 (기기 간 동기화)
-      if (isValidTheme(pref.data?.theme)) applyTheme(pref.data.theme)
+      if (isValidTheme(pref.data?.theme) && getSavedTheme() === DEFAULT_THEME) applyTheme(pref.data.theme)
       setMeetingTickets(mt.data || [])
     }
     setClasses(c.data || [])
