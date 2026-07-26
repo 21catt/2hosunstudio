@@ -6,7 +6,7 @@ import StudentNav from '../../../components/StudentNav'
 import { NavIcon } from '../../../components/NavIcons'
 import MoodIndicator from '../../../components/MoodIndicator'
 import { THEMES, applyTheme, getSavedTheme, isValidTheme, themeUnlocked, themeUnlockLabel, themeSeasonLabel, themeSeasonEmoji, DEFAULT_THEME } from '../../../lib/theme'
-import { FARM_CATS, getSavedFarmCat, saveFarmCatLocal, isValidFarmCat, getSavedHarvest, saveHarvestLocal, farmCatUnlocked, farmCatUnlockLabel } from '../../../lib/farmCats'
+import { FARM_CATS, getSavedFarmCat, saveFarmCatLocal, isValidFarmCat, getSavedHarvest, saveHarvestLocal, farmCatUnlocked, farmCatUnlockLabel, farmCatSeasonLabel } from '../../../lib/farmCats'
 import { PIXEL_CATS_BY_UNLOCK, pixelCatImg, catUnlocked, catUnlockLabel, catSeasonLabel, getSavedProfileCat, saveProfileCatLocal, isValidPixelCat } from '../../../lib/pixelCats'
 import { registerPush } from '../../../lib/pushNotify'
 import LoadingCat from '../../../components/LoadingCat'
@@ -267,6 +267,9 @@ export default function SettingsPage() {
                     <span style={{ fontSize:15 }}>🔒</span>
                     <span style={{ fontSize:9, fontWeight:800, color:'var(--tm)' }}>{farmCatUnlockLabel(c.key, unit)}</span>
                   </div>
+                )}
+                {!locked && farmCatSeasonLabel(c.key) && (
+                  <span style={{ position:'absolute', top:2, right:2, fontSize:7.5, fontWeight:800, color:'#fff', background:'linear-gradient(135deg,#e35ba6,#b83a7c)', borderRadius:5, padding:'1px 4px', lineHeight:1.25 }}>무료</span>
                 )}
               </div>
             )
