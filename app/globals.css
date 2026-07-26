@@ -469,6 +469,11 @@ body {
 .mood-sway { animation: moodSway 3.6s ease-in-out infinite; }
 .mood-st1 { animation: moodSteam 2.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
 .mood-st2 { animation: moodSteam 2.6s ease-in-out 0.9s infinite; transform-box: fill-box; transform-origin: center; }
+/* 로켓 무드 — 기운 각도(--tilt) 중심 좌우 흔들림 + 불꽃 flicker */
+@keyframes moodRocket { 0%, 100% { transform: rotate(calc(var(--tilt) - 4deg)) translateY(0); } 50% { transform: rotate(calc(var(--tilt) + 4deg)) translateY(-1px); } }
+.mood-rocket { animation: moodRocket 2.2s ease-in-out infinite; }
+@keyframes moodFlame { 0%, 100% { transform: scaleY(1) scaleX(1); opacity: 0.95; } 50% { transform: scaleY(0.6) scaleX(1.15); opacity: 0.72; } }
+.mood-flame { animation: moodFlame 0.18s infinite; }
 
 /* 보조색 뱃지 (입금 대기 등 상태와 무관한 강조) */
 .p-badge {

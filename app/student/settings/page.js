@@ -7,7 +7,7 @@ import { NavIcon } from '../../../components/NavIcons'
 import MoodIndicator from '../../../components/MoodIndicator'
 import { THEMES, applyTheme, getSavedTheme, isValidTheme, themeUnlocked, themeUnlockLabel, themeSeasonLabel, themeSeasonEmoji, DEFAULT_THEME } from '../../../lib/theme'
 import { FARM_CATS, getSavedFarmCat, saveFarmCatLocal, isValidFarmCat, getSavedHarvest, saveHarvestLocal, farmCatUnlocked, farmCatUnlockLabel } from '../../../lib/farmCats'
-import { PIXEL_CATS_BY_UNLOCK, pixelCatImg, catUnlocked, catUnlockLabel, getSavedProfileCat, saveProfileCatLocal, isValidPixelCat } from '../../../lib/pixelCats'
+import { PIXEL_CATS_BY_UNLOCK, pixelCatImg, catUnlocked, catUnlockLabel, catSeasonLabel, getSavedProfileCat, saveProfileCatLocal, isValidPixelCat } from '../../../lib/pixelCats'
 import { registerPush } from '../../../lib/pushNotify'
 import LoadingCat from '../../../components/LoadingCat'
 import GlassBg from '../../../components/GlassBg'
@@ -195,6 +195,9 @@ export default function SettingsPage() {
                     <span style={{ fontSize:8, fontWeight:800, color:'var(--tm)' }}>{catUnlockLabel(k, unit)}</span>
                   </div>
                 )}
+                {!locked && catSeasonLabel(k) && (
+                  <span style={{ position:'absolute', top:2, right:2, fontSize:7.5, fontWeight:800, color:'#fff', background:'linear-gradient(135deg,#e35ba6,#b83a7c)', borderRadius:5, padding:'1px 4px', lineHeight:1.25 }}>무료</span>
+                )}
               </div>
             )
           })}
@@ -231,7 +234,7 @@ export default function SettingsPage() {
         <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:2 }}>수강권 무드</div>
         <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:10 }}>잔여가 줄면 표정이 바뀌어요 🐾</div>
         <div style={{ display:'flex', gap:8, marginBottom:20 }}>
-          {[['orb','리퀴드 오브'],['cup','커피 유리컵'],['plant','식물']].map(([k, label]) => {
+          {[['rocket','우주 로켓'],['orb','리퀴드 오브'],['cup','커피 유리컵'],['plant','식물']].map(([k, label]) => {
             const on = moodStyle === k
             return (
               <div key={k} onClick={() => changeMood(k)}

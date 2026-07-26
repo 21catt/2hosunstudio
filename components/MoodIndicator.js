@@ -26,6 +26,35 @@ export default function MoodIndicator({ ratio, style, size = 52 }) {
     )
   }
 
+  if (style === 'rocket') {
+    // 잔여 많을수록 각도 틀어져 불꽃 크게 뿜으며 흔들흔들 이륙 · 0이면 지상 대기
+    const flying = r > 0
+    const tilt = flying ? 12 + r * 16 : 0
+    const flen = flying ? 6 + r * 16 : 0
+    return (
+      <svg width={size} height={size} viewBox="0 0 60 60">
+        {!flying && <line x1="13" y1="53" x2="47" y2="53" stroke="#8a8f9e" strokeWidth="2" strokeLinecap="round"/>}
+        <g className={flying ? 'mood-rocket' : undefined} style={{ transformBox:'view-box', transformOrigin:'30px 44px', '--tilt': `${tilt}deg` }}>
+          {flying && (
+            <g className="mood-flame" style={{ transformBox:'view-box', transformOrigin:'30px 40px' }}>
+              <path d={`M25 39 Q30 ${39 + flen * 1.5} 35 39 Q30 ${39 + flen * 0.6} 25 39 Z`} fill="#f0902f"/>
+              <path d={`M27 39 Q30 ${39 + flen} 33 39 Q30 ${39 + flen * 0.45} 27 39 Z`} fill="#ffd24a"/>
+            </g>
+          )}
+          <path d="M30 10 Q39 20 39 34 L39 40 Q30 44 21 40 L21 34 Q21 20 30 10 Z" fill="#eef1f8"/>
+          <path d="M30 10 Q39 20 39 30 L21 30 Q21 20 30 10 Z" fill="#e35ba6"/>
+          <circle cx="30" cy="31" r="4.4" fill="#2b3b7a" stroke="#aab2c4" strokeWidth="1.4"/>
+          <path d="M21 35 L15 45 L21 41 Z" fill="#b83a7c"/>
+          <path d="M39 35 L45 45 L39 41 Z" fill="#b83a7c"/>
+          {!flying && <>
+            <path d="M26 43 L22 52" stroke="#8a8f9e" strokeWidth="2" strokeLinecap="round"/>
+            <path d="M34 43 L38 52" stroke="#8a8f9e" strokeWidth="2" strokeLinecap="round"/>
+          </>}
+        </g>
+      </svg>
+    )
+  }
+
   if (style === 'orb') {
     const wy = 50 - r * 40
     const cid = `orb-${uid}`
