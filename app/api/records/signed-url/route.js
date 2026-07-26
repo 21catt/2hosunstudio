@@ -23,7 +23,9 @@ export async function GET(req) {
     if (u?.role !== 'admin') return NextResponse.json({ error: 'forbidden' }, { status: 403 })
   }
 
-  const { data, error } = await supabaseAdmin.storage.from('class-records').createSignedUrl(path, 3600)
+  // 기록 이미지는 영구 보관 대상 — 서명URL 유효기간을 7일로(열어둔 페이지·캐시에서 안 끊기게).
+  // 앱은 열람 때마다 새 URL을 받으므로, 이 기간은 캐시/재사용 상황의 안전 여유값.
+  const { data, error } = await supabaseAdmin.storage.from('class-records').createSignedUrl(path, 604800)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   return NextResponse.json({ url: data.signedUrl })
