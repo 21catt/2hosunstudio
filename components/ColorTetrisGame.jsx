@@ -9,7 +9,7 @@ import { submitGameScore } from '../lib/gameScore'
 // → 미묘하게만 차이나는 색(색 지각 난이도). 최고점·최고 단계 localStorage + 리더보드 제출.
 // 스킨 = 중성 회색 바탕(색·명도가 가장 정확히 보이는 무채색).
 
-const COLS = 8, ROWS = 13, CELL = 27, GAP = 2, SPAWN = 3
+const COLS = 8, ROWS = 13, CELL = 38, GAP = 3, SPAWN = 3
 const PAD = GAP + 3 // 보드 border+padding 오프셋(파티클 정렬용)
 const BEST_KEY = '2hs_colortetris_best'
 const STAGE_KEY = '2hs_colortetris_stage'
@@ -310,7 +310,7 @@ export default function ColorTetrisGame({ open, onClose }) {
     <div onClick={onClose}
       style={{ position: 'fixed', inset: 0, background: 'rgba(6,7,12,0.72)', zIndex: 1300, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
       <div onClick={e => e.stopPropagation()}
-        style={{ background: U.bg, width: '100%', maxWidth: 400, borderRadius: '26px 26px 0 0', maxHeight: '94vh', overflowY: 'auto', boxSizing: 'border-box', boxShadow: '0 -20px 50px -20px rgba(0,0,0,0.6)' }}>
+        style={{ background: U.bg, width: '100%', maxWidth: 430, borderRadius: '26px 26px 0 0', maxHeight: '94vh', overflowY: 'auto', boxSizing: 'border-box', boxShadow: '0 -20px 50px -20px rgba(0,0,0,0.6)' }}>
         <style>{`
           @keyframes ctPop { 0%{transform:scale(1);opacity:1} 100%{transform:scale(1.95);opacity:0} }
           @keyframes ctFlash { 0%{transform:scale(.5);opacity:.9} 100%{transform:scale(2.5);opacity:0} }
@@ -350,7 +350,7 @@ export default function ColorTetrisGame({ open, onClose }) {
           </div>
         </div>
 
-        <div style={{ padding: '10px 16px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div style={{ padding: '10px 10px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
 
           <div style={{ position: 'relative', animation: shaking ? 'ctShake 0.3s ease-in-out' : 'none' }}>
             <div style={{ display: 'grid', gridTemplateColumns: `repeat(${COLS},${CELL}px)`, gap: GAP, background: U.board, padding: GAP + 2, borderRadius: 4, border: `1px solid ${U.line}` }}>
@@ -358,7 +358,7 @@ export default function ColorTetrisGame({ open, onClose }) {
                 const isFall = f && f.row === r && f.col === c
                 const cell = isFall ? { color: f.color } : boardRef.current[r][c]
                 // 바우하우스: 플랫 정사각형(라운드·광택 제거) · 낙하 조각만 검은 테두리
-                return <div key={`${r}-${c}`} style={{ width: CELL, height: CELL, borderRadius: 2, background: cell ? cell.color : U.empty, boxShadow: 'none', outline: isFall ? '3px solid #1a1a18' : 'none', outlineOffset: '-3px' }} />
+                return <div key={`${r}-${c}`} style={{ width: CELL, height: CELL, borderRadius: 2, background: cell ? cell.color : U.empty, boxShadow: 'none' }} />
               }))}
             </div>
 
