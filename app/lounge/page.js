@@ -51,6 +51,8 @@ export default function LoungePage() {
   const [composeText, setComposeText] = useState('')
   const [composeFiles, setComposeFiles] = useState([])
   const [composePreviews, setComposePreviews] = useState([])
+  const [tagOpen, setTagOpen] = useState(false)      // 태그(멘션) 대상 선택 패널
+  const [mentions, setMentions] = useState([])       // 선택한 태그 대상 [{id, name}]
   const [sending, setSending] = useState(false)
 
   const touchX = useRef(null)
@@ -191,16 +193,25 @@ export default function LoungePage() {
         image_url: urls[0] || null,
         images: urls,
       }
-      let { data: post, error: insErr } = await supabase.from('posts').insert({ ...base, author_cat: myCat }).select().single()
-      if (insErr) { // author_cat 컬럼이 아직 없으면(마이그레이션 전) 없이 재시도
+      const mentionIds = mentions.map(m => m.id).filter(id => id && id !== user.id)
+      let { data: post, error: insErr } = await supabase.from('posts').insert({ ...base, author_cat: myCat, mentioned_ids: mentionIds }).select().single()
+      if (insErr) { // author_cat·mentioned_ids 컬럼이 아직 없으면(마이그레이션 전) 없이 재시도
         ;({ data: post } = await supabase.from('posts').insert(base).select().single())
       }
 
       if (post) {
-        setPosts(prev => [...prev, { ...post, comments: [] }])
+        setPosts(prev => [...prev, { ...post, mentioned_ids: mentionIds, comments: [] }])
         setLastAddedId(post.id)
       }
-      setComposeText('')
+      // 태그된 회원에게 인앱 알림(컬럼 저장 여부와 무관하게 발송)
+      mentionIds.forEach(id => {
+        supabase.from('notifications').insert({
+          user_id: id, type: 'lounge_mention', title: '라운지 태그 🏷️',
+          body: `${user.user_metadata?.name || '누군가'}님이 라운지 글에서 회원님을 태그했어요`,
+          related_id: post?.id || null,
+        }).then(() => {})
+      })
+      setComposeText(''); setMentions([]); setTagOpen(false)
       composePreviews.forEach(u => URL.revokeObjectURL(u))
       setComposeFiles([]); setComposePreviews([])
       setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior:'smooth' }), 60)
@@ -319,6 +330,15 @@ export default function LoungePage() {
 
   const DOW = ['일','월','화','수','목','금','토']
 
+  // 태그 대상 = 라운지 참여자(글 작성자), 본인 제외·이름 중복 제거
+  const taggable = (() => {
+    const m = new Map()
+    posts.forEach(p => { if (p.author_id && p.author_id !== user?.id) m.set(p.author_id, p.author_name || '냥작가') })
+    return [...m.entries()].map(([id, name]) => ({ id, name }))
+  })()
+  const toggleMention = mem => setMentions(prev => prev.some(x => x.id === mem.id) ? prev.filter(x => x.id !== mem.id) : [...prev, mem])
+  const nameOf = id => taggable.find(t => t.id === id)?.name || posts.find(p => p.author_id === id)?.author_name || '냥작가'
+
   return (
     <>
       {fresh && <GlassBg />}
@@ -413,6 +433,14 @@ export default function LoungePage() {
                       : { background:'var(--surf)', color:'var(--td)', border:`3px solid rgb(var(--ac-rgb) / 0.35)`, fontSize:13.5, fontWeight:600, lineHeight:1.6, padding:'10px 13px', borderRadius:'24px 24px 24px 8px', boxShadow:'3px 3px 0 rgb(var(--ac-rgb) / 0.12)', whiteSpace:'pre-wrap', wordBreak:'break-word', cursor: role === 'admin' ? 'pointer' : 'default' }}>
                     {p.title && <div style={{ fontWeight:900, fontSize:14, marginBottom:3, lineHeight:1.4 }}>{p.title}</div>}
                     {p.content && <div>{p.content}</div>}
+                    {Array.isArray(p.mentioned_ids) && p.mentioned_ids.length > 0 && (
+                      <div style={{ display:'flex', flexWrap:'wrap', gap:5, marginTop:7 }}>
+                        {p.mentioned_ids.map(id => (
+                          <span key={id} style={{ fontSize:11, fontWeight:800, borderRadius:10, padding:'2px 8px',
+                            color: isMine ? '#fff' : 'var(--acTx)', background: isMine ? 'rgba(255,255,255,0.22)' : 'var(--acBg)' }}>@{nameOf(id)}</span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )
 
@@ -579,12 +607,50 @@ export default function LoungePage() {
             ))}
           </div>
         )}
+        {/* 태그 선택 패널 (라운지 참여자) */}
+        {tagOpen && (
+          <div style={{ borderTop:'1px solid var(--g1)', padding:'9px 12px', maxHeight:180, overflowY:'auto' }}>
+            <div style={{ fontSize:11, fontWeight:800, color:'var(--tm)', marginBottom:7 }}>누구를 태그할까요? · 라운지 참여자</div>
+            {taggable.length === 0 ? (
+              <div style={{ fontSize:11, color:'var(--tmu)', padding:'4px 0' }}>아직 태그할 참여자가 없어요 (글을 남긴 사람만 태그돼요)</div>
+            ) : (
+              <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                {taggable.map(mem => {
+                  const on = mentions.some(x => x.id === mem.id)
+                  return (
+                    <button key={mem.id} onClick={() => toggleMention(mem)}
+                      style={{ padding:'6px 11px', borderRadius:16, fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif',
+                        border:`1.5px solid ${on ? 'var(--ac)' : 'var(--g2)'}`, background: on ? 'var(--acBg)' : 'var(--surf)', color: on ? 'var(--acTx)' : 'var(--td)' }}>
+                      {on ? '✓ ' : '@'}{mem.name}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+        {/* 선택한 태그 칩 */}
+        {mentions.length > 0 && (
+          <div className="no-scrollbar" style={{ display:'flex', flexWrap:'wrap', gap:6, padding:'9px 12px 0' }}>
+            {mentions.map(m => (
+              <span key={m.id} style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'4px 9px', borderRadius:14, background:'var(--acBg)', color:'var(--acTx)', fontSize:11.5, fontWeight:800, whiteSpace:'nowrap' }}>
+                @{m.name}
+                <button onClick={() => toggleMention(m)} style={{ border:'none', background:'none', color:'var(--acTx)', cursor:'pointer', fontSize:11, padding:0, lineHeight:1 }}>✕</button>
+              </span>
+            ))}
+          </div>
+        )}
         <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 12px 10px' }}>
           <label className="press" title="사진 첨부"
             style={{ width:42, height:42, flexShrink:0, borderRadius:'50%', background:'var(--surf)', border:`3px solid ${ACCENT}`, fontSize:17, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
             📷
             <input type="file" multiple accept="image/*" onChange={pickFiles} style={{ display:'none' }}/>
           </label>
+          <button className="press" onClick={() => setTagOpen(o => !o)} title="회원 태그"
+            style={{ width:42, height:42, flexShrink:0, borderRadius:'50%', position:'relative', background: (tagOpen || mentions.length) ? 'var(--acBg)' : 'var(--surf)', border:`3px solid ${ACCENT}`, fontSize:17, fontWeight:900, color:'var(--ac)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Nunito,sans-serif' }}>
+            @
+            {mentions.length > 0 && <span style={{ position:'absolute', top:-3, right:-3, minWidth:16, height:16, borderRadius:8, background:'var(--ac)', color:'#fff', fontSize:9, fontWeight:800, display:'flex', alignItems:'center', justifyContent:'center', padding:'0 3px', border:'1.5px solid var(--surf)' }}>{mentions.length}</span>}
+          </button>
           <input value={composeText} onChange={e => setComposeText(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleSend() }}
             placeholder={tab === 0 ? '라운지에 글 남기기…' : `${TAGS[tab]}에 글 남기기…`}
