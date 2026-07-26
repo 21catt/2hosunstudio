@@ -71,6 +71,13 @@ export default function SpaceHome(props) {
     <div style={{ position: 'relative', minHeight: '100vh', background: 'transparent', color: S.text, fontFamily: "'Pretendard','Nunito',-apple-system,sans-serif" }}>
       {/* 우주 배경 — 성운 + 반짝이는 별밭(고정, 콘텐츠 뒤) */}
       <SpaceBg />
+      {/* 오늘 날짜 박스 바깥쪽으로 퍼지는 빛 일렁임(은은) — 외곽 헤일로만, 밝기·번짐이 부드럽게 흐른다 */}
+      <style>{`@keyframes todayGlow{
+        0%{box-shadow:0 0 9px 1px rgba(240,150,197,0.32)}
+        40%{box-shadow:0 0 22px 6px rgba(244,150,200,0.7)}
+        70%{box-shadow:0 0 15px 3px rgba(233,132,186,0.48)}
+        100%{box-shadow:0 0 9px 1px rgba(240,150,197,0.32)}
+      }`}</style>
 
       {/* top bar */}
       <div style={{ position: 'relative', zIndex: 5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 10px' }}>
@@ -137,7 +144,7 @@ export default function SpaceHome(props) {
 
         {/* DATE STRIP — Media 딥 블루 셀 */}
         <div style={{ fontSize: 11, color: S.faint, fontWeight: 700, margin: '18px 2px 6px' }}>날짜를 터치해서 예약하기</div>
-        <div ref={stripRef} className="no-scrollbar" style={{ display: 'flex', gap: 9, overflowX: 'auto', cursor: 'grab', touchAction: 'pan-x' }}>
+        <div ref={stripRef} className="no-scrollbar" style={{ display: 'flex', gap: 9, overflowX: 'auto', overflowY: 'visible', cursor: 'grab', touchAction: 'pan-x' }}>
           {stripDates.map(d => {
             const ds = fmt(d)
             const isSel = selDate === ds
@@ -146,7 +153,7 @@ export default function SpaceHome(props) {
             const has = bookedDates.has(ds)
             const label = d.getDate() === 1 ? `${d.getMonth() + 1}월` : DOW[d.getDay()]
             return (
-              <button key={ds} onClick={() => onDate(d)} style={{ flex: '0 0 auto', width: 56, padding: '11px 0', borderRadius: 16, position: 'relative', border: 'none', background: isToday ? S.mediaToday : (isSel ? S.mediaSel : S.media), boxShadow: isSel ? `0 0 0 2px ${S.accentRing}, ${S.hiStrong}` : (isToday ? `0 0 0 1px rgba(214,154,184,0.5), ${S.hi}` : S.hi), color: '#f4f0f6', fontFamily: 'inherit', cursor: 'pointer', textAlign: 'center', opacity: isMon ? 0.55 : 1 }}>
+              <button key={ds} onClick={() => onDate(d)} style={{ flex: '0 0 auto', width: 56, padding: '11px 0', borderRadius: 16, position: 'relative', border: 'none', background: isToday ? S.mediaToday : (isSel ? S.mediaSel : S.media), boxShadow: isToday ? '0 0 9px 1px rgba(240,150,197,0.32)' : (isSel ? `0 0 0 2px ${S.accentRing}, ${S.hiStrong}` : S.hi), animation: isToday ? 'todayGlow 2.8s ease-in-out infinite' : undefined, color: '#f4f0f6', fontFamily: 'inherit', cursor: 'pointer', textAlign: 'center', opacity: isMon ? 0.55 : 1 }}>
                 {has && <span style={{ position: 'absolute', top: 5, right: 6, width: 7, height: 7, borderRadius: '50%', background: S.accent, border: '1.5px solid rgba(0,0,0,0.35)' }} />}
                 <div style={{ fontSize: 11, color: isToday ? '#ffe0ec' : 'rgba(238,241,251,0.74)', fontWeight: 700, textShadow: '0 1px 2px rgba(0,0,0,0.4)' }}>{label}</div>
                 <div style={{ fontSize: 17, fontWeight: 800, marginTop: 3, textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>{d.getDate()}</div>
