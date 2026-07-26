@@ -127,7 +127,21 @@ export default function LoungePage() {
     const { error } = liked
       ? await supabase.from('likes').delete().eq('post_id', postId).eq('user_id', user.id)
       : await supabase.from('likes').insert({ post_id: postId, user_id: user.id })
-    if (error) loadPosts()
+    if (error) { loadPosts(); return }
+    // 공감(하트) 시 글 작성자에게 인앱 알림 — 남의 글에 공감할 때만(내 글 제외), 좋아요 누를 때만
+    if (!liked) {
+      const post = posts.find(p => p.id === postId)
+      if (post && post.author_id && post.author_id !== user.id) {
+        const likerName = user.user_metadata?.name || '누군가'
+        supabase.from('notifications').insert({
+          user_id: post.author_id,
+          type: 'lounge_like',
+          title: '라운지 공감 ❤️',
+          body: `${likerName}님이 회원님의 라운지 글에 공감했어요`,
+          related_id: postId,
+        }).then(() => {})
+      }
+    }
   }
 
   function pickFiles(e) {
