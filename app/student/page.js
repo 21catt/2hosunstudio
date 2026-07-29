@@ -279,7 +279,7 @@ export default function StudentHomePage() {
 
 
   async function quickBook(c, s, ds) {
-    if (!user) { router.push('/signup'); return }
+    if (!user) { router.push(`/student/calendar?date=${ds}`); return } // 미가입자 = 캘린더에서 예약 요청
     if (c.category === 'meeting' || c.category === 'oneday') { router.push(`/student/calendar?date=${ds}`); return }
     const key = `${c.id}-${s.id}-${ds}`
     setBookingBusy(key)
@@ -429,7 +429,7 @@ export default function StudentHomePage() {
               ) : (
                 <>
                   <button className="p-chip" onClick={()=>router.push('/student/curriculum?tab=core')}>커리큘럼 보기</button>
-                  <button className="p-chip p-chip--fill" onClick={()=>router.push('/signup')}>가입하고 예약</button>
+                  <button className="p-chip p-chip--fill" onClick={()=>router.push('/student/calendar')}>예약하기</button>
                 </>
               )}
               <button className="p-chip" onClick={openAsk}

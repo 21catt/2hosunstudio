@@ -135,7 +135,7 @@ export default function SpaceHome(props) {
           </div>
           <div style={{ display: 'flex', gap: 9, marginTop: 20, position: 'relative', zIndex: 1 }}>
             <button onClick={() => go('/student/curriculum?tab=core')} style={{ flex: 1, padding: '13px 0', borderRadius: 15, border: 'none', background: 'rgba(255,255,255,0.15)', boxShadow: S.hi, color: '#fff', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}>{user ? '자세히' : '커리큘럼'}</button>
-            <button onClick={() => go(user ? '/student/calendar' : '/signup')} style={{ flex: 1.2, padding: '13px 0', borderRadius: 15, border: 'none', background: 'linear-gradient(135deg,#ffffff,#ffe1f0)', color: '#8a1f5a', fontSize: 13, fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer', boxShadow: '0 8px 20px -8px rgba(255,255,255,0.5)' }}>예약하기</button>
+            <button onClick={() => go('/student/calendar')} style={{ flex: 1.2, padding: '13px 0', borderRadius: 15, border: 'none', background: 'linear-gradient(135deg,#ffffff,#ffe1f0)', color: '#8a1f5a', fontSize: 13, fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer', boxShadow: '0 8px 20px -8px rgba(255,255,255,0.5)' }}>예약하기</button>
             <button onClick={onAsk} style={{ flex: 1.3, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '13px 0', borderRadius: 15, border: 'none', background: 'linear-gradient(135deg,#4a5fb4,#2c3d78)', color: '#fff', fontSize: 13, fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer', boxShadow: '0 8px 20px -8px rgba(64,86,196,0.6)' }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 5h16v11H8l-4 3Z" strokeLinejoin="round" /></svg>
               수업 문의

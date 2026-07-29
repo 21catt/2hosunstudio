@@ -160,6 +160,12 @@ export default function CalendarPage() {
   const [selSchedule, setSelSchedule] = useState(null)
   const [onedayInfoOpen, setOnedayInfoOpen] = useState(true) // 원데이 신청 시 가격·입금 안내 토글(기본 펼침)
   const [paymentModal, setPaymentModal] = useState(null)
+  // 미가입자 예약 요청 — {course, schedule, date}. 관리자 알림+가입 권유.
+  const [guestReq, setGuestReq] = useState(null)
+  const [gName, setGName] = useState('')
+  const [gPhone, setGPhone] = useState('')
+  const [gSending, setGSending] = useState(false)
+  const [gSent, setGSent] = useState(false)
   const [selectedCount, setSelectedCount] = useState(1)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [sheetSlot, setSheetSlot] = useState(null)
@@ -470,7 +476,15 @@ export default function CalendarPage() {
   }
 
   async function handleBook() {
-    if (!user) { router.push('/signup'); return }
+    if (!user) {
+      // 미가입자 = 예약 '요청'(관리자 알림+가입 권유). 선택한 수업·시간으로 폼 열기.
+      if (!selCourse || !selSchedule) { router.push('/signup'); return }
+      const d = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
+      if (lockedDates.has(d)) { alert('이 날은 예약이 닫혀 있어요 🐾'); return }
+      setGName(''); setGPhone(''); setGSent(false)
+      setGuestReq({ course: selCourse, schedule: selSchedule, date: d })
+      return
+    }
     if (!selCourse || !selSchedule) return
     const lockStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
     if (lockedDates.has(lockStr)) { alert('이 날은 예약이 닫혀 있어요 🐾'); return }
@@ -499,6 +513,23 @@ export default function CalendarPage() {
     } else {
       await sendBookingRequest(selCourse, selSchedule, dateStr)
     }
+  }
+
+  // 미가입자 예약 요청 전송 — 관리자 전원에게 인앱알림 + 푸시 + 카톡(수업 문의와 동일 채널)
+  async function sendGuestRequest() {
+    if (!guestReq) return
+    const nm = gName.trim(), phone = gPhone.trim()
+    if (!nm || !phone) { alert('이름과 연락처를 입력해 주세요 🐾'); return }
+    setGSending(true)
+    try {
+      const { course, schedule, date } = guestReq
+      const when = `${date} ${schedule.start_time}~${schedule.end_time}`
+      const body = `[미가입 예약요청] ${nm}님\n수업: ${course.name}\n일시: ${when}\n연락처: ${phone}\n※ 미가입자 요청 — 연락 후 확정·안내 필요`
+      await notifyAllAdmins({ type: 'guest_booking_request', title: '📩 미가입 예약 요청', body })
+      sendPushToAdmins('📩 미가입 예약 요청', `${nm} · ${course.name} ${when} · ${phone}`)
+      sendKakaoToAdmins('📩 미가입 예약 요청', body)
+      setGSent(true)
+    } catch {} finally { setGSending(false) }
   }
 
   async function handleMeetingBook() {
@@ -1247,7 +1278,7 @@ export default function CalendarPage() {
                     <button onClick={handleBook}
                       style={{ pointerEvents:'auto', width:'100%', padding:'15px 20px', background:ACCENT, color:'#fff', border:'none', borderRadius:14, fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif', boxShadow:'0 8px 22px -6px rgba(0,0,0,0.35)' }}>
                       {!user
-                        ? '가입하고 예약하기'
+                        ? `${selCourse?.name} ${selSchedule?.start_time}~${selSchedule?.end_time} 예약 요청 🐾`
                         : selCourse?.category === 'oneday'
                           ? `원데이 신청 · ${(selCourse?.price || 0).toLocaleString()}원 (계약금 입금)`
                           : (selCourse?.category === 'meeting' || hasValidTicket())
@@ -1311,6 +1342,49 @@ export default function CalendarPage() {
 
         <div style={{ height:80 }}/>
       </div>
+
+      {/* 미가입자 예약 요청 모달 */}
+      {guestReq && (
+        <div onClick={() => setGuestReq(null)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, padding:24 }}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:'var(--surf)', borderRadius:20, padding:'22px 20px 18px', width:'100%', maxWidth:340, boxShadow:'0 12px 40px rgba(0,0,0,0.35)' }}>
+            {!gSent ? (
+              <>
+                <div style={{ fontSize:15.5, fontWeight:900, color:'var(--td)', marginBottom:4 }}>예약 요청 📩</div>
+                <div style={{ fontSize:11.5, color:'var(--tm)', fontWeight:600, marginBottom:14 }}>미가입자는 예약 요청으로 진행돼요. 관리자가 확인 후 연락드려요 🐾</div>
+                <div style={{ background:'var(--acBg)', borderRadius:12, padding:'10px 12px', marginBottom:14 }}>
+                  <div style={{ fontSize:13, fontWeight:800, color:'var(--acTx)' }}>{guestReq.course.name}</div>
+                  <div style={{ fontSize:11.5, color:'var(--tm)', fontWeight:600, marginTop:2 }}>{guestReq.date} · {guestReq.schedule.start_time}~{guestReq.schedule.end_time}</div>
+                </div>
+                <input value={gName} onChange={e=>setGName(e.target.value)} placeholder="이름"
+                  style={{ width:'100%', height:44, background:'var(--bg)', border:'1.5px solid var(--g2)', borderRadius:12, padding:'0 14px', fontSize:13, color:'var(--td)', fontFamily:'Nunito,sans-serif', outline:'none', boxSizing:'border-box', marginBottom:8 }}/>
+                <input value={gPhone} onChange={e=>setGPhone(e.target.value)} placeholder="연락처 (예: 010-1234-5678)" inputMode="tel"
+                  style={{ width:'100%', height:44, background:'var(--bg)', border:'1.5px solid var(--g2)', borderRadius:12, padding:'0 14px', fontSize:13, color:'var(--td)', fontFamily:'Nunito,sans-serif', outline:'none', boxSizing:'border-box', marginBottom:14 }}/>
+                <button onClick={sendGuestRequest} disabled={gSending}
+                  style={{ width:'100%', padding:'13px', background:'var(--ac)', color:'#fff', border:'none', borderRadius:12, fontSize:13.5, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif', opacity:gSending?0.6:1 }}>
+                  {gSending ? '보내는 중…' : '예약 요청 보내기'}
+                </button>
+                <button onClick={()=>router.push('/signup')} style={{ width:'100%', marginTop:8, padding:'11px', background:'none', color:'var(--ac)', border:'1.5px solid var(--g2)', borderRadius:12, fontSize:12.5, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                  가입하면 바로 예약돼요 → 가입하기
+                </button>
+              </>
+            ) : (
+              <div style={{ textAlign:'center' }}>
+                <div style={{ fontSize:34, marginBottom:6 }}>🎉</div>
+                <div style={{ fontSize:15.5, fontWeight:900, color:'var(--td)', marginBottom:6 }}>예약 요청 완료!</div>
+                <div style={{ fontSize:12, color:'var(--tm)', fontWeight:600, lineHeight:1.6, marginBottom:16 }}>
+                  관리자가 확인 후 연락드릴게요.<br/>가입하면 다음부턴 <b style={{ color:'var(--ac)' }}>바로 예약</b>할 수 있어요 🐾
+                </div>
+                <button onClick={()=>router.push('/signup')} style={{ width:'100%', padding:'13px', background:'var(--ac)', color:'#fff', border:'none', borderRadius:12, fontSize:13.5, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                  회원가입하고 바로 예약하기
+                </button>
+                <button onClick={()=>{ setGuestReq(null); setSelSchedule(null) }} style={{ width:'100%', marginTop:8, padding:'11px', background:'none', color:'var(--tm)', border:'none', fontSize:12.5, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                  닫기
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <StudentNav active="calendar" />
     </>
