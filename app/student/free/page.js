@@ -7,7 +7,8 @@ import { sendPushToAdmins } from '../../../lib/pushNotify'
 import { notifyAllAdmins } from '../../../lib/adminNotify'
 import { fetchLockedDates } from '../../../lib/lockedDates'
 import GlassBg from '../../../components/GlassBg'
-import { useFreshTheme } from '../../../lib/useFreshTheme'
+import SpaceBg from '../../../components/SpaceBg'
+import { useFreshTheme, useSpaceTheme } from '../../../lib/useFreshTheme'
 
 
 const DEPOSIT = { bank: '국민은행', account: '392801-04-209666', holder: '양승민 (2호선스튜디오)' }
@@ -220,6 +221,7 @@ function FreeInner() {
   }
 
   const fresh = useFreshTheme()
+  const space = useSpaceTheme()
 
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh' }}>
@@ -242,9 +244,10 @@ function FreeInner() {
   return (
     <>
       {fresh && <GlassBg />}
+      {space && <SpaceBg />}
       {depositModal && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', zIndex:1100, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
-          <div style={{ background:'#fff', borderRadius:20, padding:'22px 20px', maxWidth:340, width:'100%' }}>
+          <div style={{ background:'var(--surf)', borderRadius:20, padding:'22px 20px', maxWidth:340, width:'100%' }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
               <div style={{ fontSize:16, fontWeight:800, color:'var(--td)' }}>예약 접수 완료</div>
               <span style={{ fontSize:10, fontWeight:700, background:'#FFF3CD', color:'#856404', padding:'3px 8px', borderRadius:20, border:'1px solid #FFD700' }}>입금 대기</span>
@@ -298,7 +301,7 @@ function FreeInner() {
         </div>
       </div>
 
-      <div style={{ background: fresh ? 'transparent' : '#fff', padding:'8px 14px 100px' }}>
+      <div style={{ background: (fresh || space) ? 'transparent' : '#fff', padding:'8px 14px 100px' }}>
 
         <div style={{ marginBottom:14 }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
@@ -405,7 +408,7 @@ function FreeInner() {
         )}
 
         {startHour && (
-          <div style={{ background:'#fff', borderRadius:14, padding:'14px 16px', marginBottom:14, border:'1.5px solid var(--g1)' }}>
+          <div style={{ background:'var(--surf)', borderRadius:14, padding:'14px 16px', marginBottom:14, border:'1.5px solid var(--g1)' }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6 }}>
               <div style={{ fontSize:11, color:'var(--tmu)' }}>{dateLabel}</div>
               <div style={{ fontSize:10, color:'#7B4F00', background:'#FAEEDA', padding:'2px 8px', borderRadius:10, fontWeight:700 }}>
@@ -520,7 +523,7 @@ function FreeInner() {
         )}
 
         {startHour && selSeat && (
-          <div style={{ background:'#fff', borderRadius:14, padding:'14px 16px', marginBottom:14, border:'1.5px solid var(--g1)' }}>
+          <div style={{ background:'var(--surf)', borderRadius:14, padding:'14px 16px', marginBottom:14, border:'1.5px solid var(--g1)' }}>
             <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, color:'var(--tmu)', marginBottom:6 }}>
               <span>{selSeat} 자리 · {duration}시간</span>
               <span>{price.toLocaleString()}원</span>
