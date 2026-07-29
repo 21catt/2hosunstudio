@@ -219,6 +219,9 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
           const { data: orphans } = await supabase.from('bookings').select('*')
             .in('schedule_id', removedIds).gte('class_date', todayStr).neq('status','attended')
           await refundAndDeleteBookings(orphans || [], todayStr)
+          // 삭제 대상 시간을 참조하는 '남은' 예약(과거·출석 완료 등)은 링크만 해제(기록은 class_name·date·time로 보존)
+          // → FK(bookings_schedule_id_fkey) 위반으로 옛 시간 삭제가 실패하던 문제 해결
+          { const { error } = await supabase.from('bookings').update({ schedule_id: null }).in('schedule_id', removedIds); if (error) errs.push('예약 링크 해제: ' + error.message) }
           { const { error } = await supabase.from('class_schedules').delete().in('id', removedIds); if (error) errs.push('옛 시간 삭제: ' + error.message) }
         }
 
