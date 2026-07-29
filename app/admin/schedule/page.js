@@ -167,6 +167,7 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
     }
     const todayStr = new Date().toISOString().split('T')[0]
     let courseId = initial?.id
+    const errs = [] // 쓰기 실패(권한/네트워크) 수집 — 조용한 실패 방지
 
     try {
       // 같은 이름(공백 변종 포함)의 다른 수업이 있으면 차단 — 이름 중복은 커리큘럼·핵심내용이 뒤섞이는 원인
@@ -178,7 +179,7 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
       }
       if (courseId) {
         // 1. 수업 정보 업데이트
-        await supabase.from('class_courses').update(courseData).eq('id', courseId)
+        { const { error } = await supabase.from('class_courses').update(courseData).eq('id', courseId); if (error) errs.push('수업정보: ' + error.message) }
 
         // 2. 스케줄 diff 계산 — initial의 임베드가 아니라 테이블에서 직접 읽는다.
         // (과거 중복 행 폭증으로 임베드가 1000행에서 잘려, 새 시간이 diff에 안 잡히고
@@ -218,7 +219,7 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
           const { data: orphans } = await supabase.from('bookings').select('*')
             .in('schedule_id', removedIds).gte('class_date', todayStr).neq('status','attended')
           await refundAndDeleteBookings(orphans || [], todayStr)
-          await supabase.from('class_schedules').delete().in('id', removedIds)
+          { const { error } = await supabase.from('class_schedules').delete().in('id', removedIds); if (error) errs.push('옛 시간 삭제: ' + error.message) }
         }
 
         // 4. 날짜 범위 축소 처리 (배치 쿼리)
@@ -232,7 +233,8 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
 
         // 5. 새 스케줄 추가
         if (toAdd.length > 0) {
-          await supabase.from('class_schedules').insert(toAdd.map(s => ({...s, course_id:courseId})))
+          const { error } = await supabase.from('class_schedules').insert(toAdd.map(s => ({...s, course_id:courseId})))
+          if (error) errs.push('새 시간 추가: ' + error.message)
         }
 
         // 6. 예외 갱신
@@ -243,9 +245,10 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
 
       } else {
         // 신규 개설
-        const { data } = await supabase.from('class_courses').insert({
+        const { data, error: cErr } = await supabase.from('class_courses').insert({
           ...courseData, teacher:teacherName, teacher_id:teacherId
         }).select()
+        if (cErr) errs.push('수업 개설: ' + cErr.message)
         const newId = data?.[0]?.id
         if (newId) {
           const schedules = []
@@ -254,9 +257,12 @@ function CourseForm({ initial, onSave, onCancel, teacherName, teacherId }) {
               schedules.push({ course_id:newId, day_of_week:day, start_time:slot.start, end_time:slot.end })
             })
           })
-          if (schedules.length > 0) await supabase.from('class_schedules').insert(schedules)
+          if (schedules.length > 0) { const { error } = await supabase.from('class_schedules').insert(schedules); if (error) errs.push('시간 추가: ' + error.message) }
           if (exceptions.length > 0) await supabase.from('class_exceptions').insert(exceptions.map(e => ({...e, course_id:newId})))
         }
+      }
+      if (errs.length) {
+        alert('일부 저장에 실패했어요 — 관리자 쓰기 권한(RLS) 문제일 수 있어요.\n아래 마이그레이션(전체 관리자 쓰기 정책)을 Supabase에서 실행하면 해결됩니다:\n\n' + errs.join('\n'))
       }
       onSave()
     } catch (err) {
