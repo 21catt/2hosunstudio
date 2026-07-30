@@ -117,7 +117,6 @@ export default function LoungePage() {
   }
 
   // 작성자 아이디/아바타 탭 → 인스타형 개인 프로필(공유한 글 모아보기)
-  function goProfile(id) { if (id) router.push(`/profile/${id}`) }
 
   // 하트 공감 토글 — likes 테이블(1인 1공감)이 단일 소스, 낙관적 갱신
   async function toggleLike(postId) {
@@ -543,15 +542,14 @@ export default function LoungePage() {
                           {thumbs}
                           {meta}
                         </div>
-                        <span onClick={() => goProfile(p.author_id)} style={{ cursor:'pointer', display:'flex' }} title="내 프로필">
+                        <span style={{ display:'flex' }}>
                           <CatAvatar catKey={p.author_cat || profileMap[p.author_id]} size={38} />
                         </span>
                       </div>
                     ) : (
                       <div style={{ display:'flex', gap:8, alignItems:'flex-start' }}>
                         {/* 프로필 이미지 + 그 밑에 이름 (세로 스택) */}
-                        <div onClick={() => goProfile(p.author_id)} title={`${p.author_name} 프로필`}
-                          style={{ cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', gap:3, width:44, flexShrink:0 }}>
+                        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3, width:44, flexShrink:0 }}>
                           <CatAvatar catKey={p.author_cat || profileMap[p.author_id]} size={38} />
                           <span style={{ fontSize:9.5, fontWeight:800, color:'var(--acTx)', textAlign:'center', lineHeight:1.2, wordBreak:'keep-all' }}>{p.author_name}</span>
                         </div>
@@ -570,7 +568,7 @@ export default function LoungePage() {
                           <div key={c.id} style={{ display:'flex', gap:6, alignItems:'flex-end', flexDirection: isMine ? 'row-reverse' : 'row' }}>
                             <CatAvatar catKey={c.author_cat || profileMap[c.user_id]} size={24} />
                             <div style={{ background:ACCENT_BG, border:'2px solid rgb(var(--ac-rgb) / 0.3)', borderRadius:14, padding:'6px 10px', maxWidth:240 }}>
-                              <span onClick={() => goProfile(c.user_id)} style={{ fontSize:9, fontWeight:900, color:ACCENT_TEXT, marginRight:5, cursor:'pointer' }}>{c.author_name}</span>
+                              <span style={{ fontSize:9, fontWeight:900, color:ACCENT_TEXT, marginRight:5 }}>{c.author_name}</span>
                               <span style={{ fontSize:11, color:'var(--td)', fontWeight:600, lineHeight:1.4 }}>{c.content}</span>
                             </div>
                           </div>

@@ -90,7 +90,7 @@ export default function SpaceHome(props) {
           <span style={{ fontSize: 19, fontWeight: 800, letterSpacing: '-0.4px' }}>2호선 스튜디오</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, color: S.sub }}>
-          <span className="tap" onClick={() => user && go(`/profile/${user.id}`)} style={{ display: 'flex', cursor: 'pointer' }}>
+          <span className="tap" onClick={() => go('/student/settings')} style={{ display: 'flex', cursor: 'pointer' }}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
               <circle cx="12" cy="8" r="3.4" /><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6" strokeLinecap="round" />
             </svg>
