@@ -4,7 +4,6 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
 import { NavIcon } from '../../../components/NavIcons'
-import ProfileHeaderIcon from '../../../components/ProfileHeaderIcon'
 import LoadingCat from '../../../components/LoadingCat'
 import GlassBg from '../../../components/GlassBg'
 import SpaceBg from '../../../components/SpaceBg'
@@ -363,7 +362,6 @@ function RecordsInner() {
           <span style={{ fontSize:11, fontWeight:700, color:'var(--acTx)', background:ACCENT_BG, border:'1.5px solid rgb(var(--ac-rgb) / 0.3)', padding:'4px 10px', borderRadius:20 }}>
             기록 {records.length}개
           </span>
-          <ProfileHeaderIcon />
         </div>
       </div>
 

@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
 import { NavIcon } from '../../../components/NavIcons'
-import ProfileHeaderIcon from '../../../components/ProfileHeaderIcon'
 import { FARM_CATS, getSavedFarmCat, isValidFarmCat, CROP_STAGES, cropImg, getSavedHarvest, saveHarvestLocal } from '../../../lib/farmCats'
 import { WEED, weedImg, weedStage, tickWeeds } from '../../../lib/weeds'
 import LoadingCat from '../../../components/LoadingCat'
@@ -382,7 +381,6 @@ export default function FarmPage() {
           <span style={{ color:'var(--acTx)', fontSize:11, fontWeight:700, background:'var(--acBg)', border:'1.5px solid rgb(var(--ac-rgb) / 0.3)', padding:'4px 10px', borderRadius:20 }}>
             {cropReady ? `${activeCat.cropName} 수확 가능!` : `총 ${cropAttended}pt · 수확 ${harvest}개`}
           </span>
-          <ProfileHeaderIcon />
         </div>
       </div>
 

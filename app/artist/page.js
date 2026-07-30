@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import StudentNav from '../../components/StudentNav'
 import { NavIcon } from '../../components/NavIcons'
-import ProfileHeaderIcon from '../../components/ProfileHeaderIcon'
 import { useTodayWeather, WeatherGlyph } from '../../components/WeatherBar'
 
 // 전시 작가 홈 — 수강생 홈과 같은 구성(헤더 → 히어로 → 퀵타일 → 참여권 → 공지).
@@ -78,7 +77,6 @@ export default function ArtistHomePage() {
           <NavIcon name="photo" color="var(--ac)" size={20} />
           <span className="p-title">전시 작가</span>
         </div>
-        <ProfileHeaderIcon />
       </div>
 
       <div style={{ background: '#fff', padding: '8px 16px 90px' }}>

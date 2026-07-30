@@ -5,7 +5,6 @@ import { supabase } from '../../../lib/supabase'
 import { notifyAllAdmins } from '../../../lib/adminNotify'
 import { useTodayWeather } from '../../../components/WeatherBar'
 import { NavIcon } from '../../../components/NavIcons'
-import ProfileHeaderIcon from '../../../components/ProfileHeaderIcon'
 import StudentNav from '../../../components/StudentNav'
 const CAT_IMAGES = [
   '/cats/cat01.png',
@@ -333,7 +332,6 @@ setAllBookings(allMeetingBookings || [])
           <NavIcon name="calendar" color="var(--ac)" size={20} />
           <span className="p-title">회의 신청</span>
         </div>
-        <ProfileHeaderIcon />
       </div>
 
       <div style={{ background:'#fff', padding:'12px 14px 0' }}>

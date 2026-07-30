@@ -388,11 +388,6 @@ export default function StudentHomePage() {
           {!user && (
             <button onClick={()=>router.push('/login')} className="p-chip p-chip--sm">로그인 / 가입</button>
           )}
-          {user && (
-            <div className="tap" onClick={()=>router.push('/student/settings')} style={{ cursor:'pointer', display:'flex' }} title="개인 설정">
-              <NavIcon name="profile" color="var(--ac)" size={22} />
-            </div>
-          )}
           <div className="tap" onClick={()=>router.push('/student/notification')} style={{ position:'relative', cursor:'pointer', display:'flex' }} title="알림">
             <NavIcon name="bell" color="var(--ac)" size={22} />
             {unread > 0 && (
