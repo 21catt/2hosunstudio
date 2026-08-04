@@ -748,12 +748,10 @@ export default function LoungePage() {
                   <div style={{ fontSize:11, fontWeight:900, color:'#ffd66b', letterSpacing:0.2 }}>🎨 강사 피드백</div>
                   {fb.items.map(it => (
                     <div key={it.id} style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                      {it.body && (
-                        <div style={{ fontSize:12, color:'#fff', lineHeight:1.55, wordBreak:'break-word', fontWeight:600 }}>
-                          <span style={{ fontWeight:900, color:'rgba(255,255,255,0.75)', marginRight:6 }}>{it.teacher_name} 쌤</span>
-                          {it.body}
-                        </div>
-                      )}
+                      <div style={{ fontSize:12, color:'#fff', lineHeight:1.55, wordBreak:'break-word', fontWeight:600 }}>
+                        <span style={{ fontWeight:900, color:'#4dff88', textShadow:'0 0 7px rgba(77,255,136,0.5)', marginRight:6 }}>{it.teacher_name} 쌤</span>
+                        {it.body}
+                      </div>
                       {it.photos.length > 0 && (
                         <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
                           {it.photos.map((url, i) => (
