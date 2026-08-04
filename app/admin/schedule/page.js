@@ -442,7 +442,8 @@ export default function AdminSchedulePage() {
   const [user, setUser] = useState(null)
   const [courses, setCourses] = useState([])
   const [bookings, setBookings] = useState([])
-  const [lockedDates, setLockedDates] = useState(new Set())
+  const [lockedDates, setLockedDates] = useState(new Map())
+  const [lockNote, setLockNote] = useState('')      // 잠금 안내 문구(학생 캘린더에 표시)
   const [members, setMembers] = useState([])          // 대신 예약용 회원 목록
   const [bookForSlot, setBookForSlot] = useState(null) // { course, schedule, dateStr } — 대신 예약 모달
   const [memberSearch, setMemberSearch] = useState('')
@@ -526,13 +527,21 @@ const todayStr = `${todayY}-${String(todayM+1).padStart(2,'0')}-${String(todayD)
   }
 
   // 특정 날짜 예약 잠금/해제 — 스케줄은 건드리지 않고 그 위에 얹는 필터. 해제 시 원래 수업 그대로 복구.
-  async function toggleLock(dateStr) {
+  // 잠글 때 안내 문구(note)를 함께 저장 → 학생이 그 날을 클릭하면 캘린더에 표시된다.
+  async function toggleLock(dateStr, note = '') {
     if (lockedDates.has(dateStr)) {
       await supabase.from('locked_dates').delete().eq('date', dateStr)
     } else {
-      const { error } = await supabase.from('locked_dates').insert({ date: dateStr, created_by: user?.id })
+      const { error } = await supabase.from('locked_dates').insert({ date: dateStr, created_by: user?.id, note: note.trim() || null })
       if (error) { alert('잠금 실패: ' + error.message + '\n\nlocked_dates 테이블이 없으면 migration-locked-dates.sql을 먼저 실행해 주세요.'); return }
     }
+    setLockedDates(await fetchLockedDates())
+  }
+
+  // 이미 잠긴 날짜의 안내 문구만 수정 저장
+  async function saveLockNote(dateStr, note) {
+    const { error } = await supabase.from('locked_dates').update({ note: note.trim() || null }).eq('date', dateStr)
+    if (error) { alert('메모 저장 실패: ' + error.message); return }
     setLockedDates(await fetchLockedDates())
   }
 
@@ -617,6 +626,9 @@ const myCourses = sortCoursesByCategory(courses.filter(c => c.category === 'meet
   const selDateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selDay).padStart(2,'0')}`
   const selLocked = lockedDates.has(selDateStr)
   const selDayBookingCount = bookings.filter(b => b.class_date === selDateStr).length
+
+  // 선택한 날짜가 바뀌면 그 날의 저장된 안내 문구로 입력칸을 채운다(편집 가능)
+  useEffect(() => { setLockNote(lockedDates.get(selDateStr) || '') }, [selDateStr])
 
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh' }}>
@@ -750,7 +762,7 @@ const myCourses = sortCoursesByCategory(courses.filter(c => c.category === 'meet
                 onClick={() => {
                   if (!selLocked && selDayBookingCount > 0 &&
                     !confirm(`이 날 이미 ${selDayBookingCount}건 예약돼 있어요.\n잠그면 새 예약만 막히고 기존 예약은 유지됩니다.\n계속할까요?`)) return
-                  toggleLock(selDateStr)
+                  toggleLock(selDateStr, lockNote)
                 }}
                 style={{ display:'inline-flex', alignItems:'center', gap:5, flexShrink:0, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontSize:11, fontWeight:800,
                   padding:'6px 11px', borderRadius:10, border:'none',
@@ -758,9 +770,23 @@ const myCourses = sortCoursesByCategory(courses.filter(c => c.category === 'meet
                 {selLocked ? '🔒 예약 잠금 해제' : '🔓 이 날 예약 잠금'}
               </button>
             </div>
+            {!selLocked && (
+              <textarea value={lockNote} onChange={e => setLockNote(e.target.value)} rows={2}
+                placeholder="잠금 안내 문구 (예: 워크숍으로 예약이 닫혀요) — 잠글 때 학생 캘린더에 표시돼요"
+                style={{ width:'100%', boxSizing:'border-box', resize:'vertical', fontFamily:'Nunito,sans-serif', fontSize:11, fontWeight:600, color:'var(--td)', background:'var(--g1)', border:'1.5px solid var(--g2)', borderRadius:10, padding:'8px 10px', marginBottom:10, outline:'none' }} />
+            )}
             {selLocked && (
-              <div style={{ fontSize:11, fontWeight:700, color: BAD.tx, background: BAD.soft, borderRadius:10, padding:'9px 12px', marginBottom:10 }}>
-                🔒 이 날은 예약이 잠겼어요 — 학생 예약 불가 (개설 수업은 그대로 보존, 해제하면 복구)
+              <div style={{ marginBottom:10 }}>
+                <div style={{ fontSize:11, fontWeight:700, color: BAD.tx, background: BAD.soft, borderRadius:10, padding:'9px 12px', marginBottom:8 }}>
+                  🔒 이 날은 예약이 잠겼어요 — 학생 예약 불가 (개설 수업은 그대로 보존, 해제하면 복구)
+                </div>
+                <div style={{ display:'flex', gap:6, alignItems:'flex-end' }}>
+                  <textarea value={lockNote} onChange={e => setLockNote(e.target.value)} rows={2}
+                    placeholder="학생에게 보여줄 안내 문구 (예: 워크숍으로 예약이 닫혀요)"
+                    style={{ flex:1, minWidth:0, boxSizing:'border-box', resize:'vertical', fontFamily:'Nunito,sans-serif', fontSize:11, fontWeight:600, color:'var(--td)', background:'#fff', border:'1.5px solid var(--g2)', borderRadius:10, padding:'8px 10px', outline:'none' }} />
+                  <button onClick={() => saveLockNote(selDateStr, lockNote)}
+                    style={{ flexShrink:0, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontSize:11, fontWeight:800, padding:'8px 12px', borderRadius:10, border:'none', background:'var(--ac)', color:'#fff' }}>메모 저장</button>
+                </div>
               </div>
             )}
 

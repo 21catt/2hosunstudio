@@ -146,7 +146,7 @@ export default function CalendarPage() {
   const [bookings, setBookings] = useState([])
   const [allBookings, setAllBookings] = useState([])
   const [classes, setClasses] = useState([])
-  const [lockedDates, setLockedDates] = useState(new Set())
+  const [lockedDates, setLockedDates] = useState(new Map())
   const [curriculumNames, setCurriculumNames] = useState(new Set())
   const [pendingCourse, setPendingCourse] = useState(null)
   const [pendingSlot, setPendingSlot] = useState(null) // 핵심내용 시간 클릭 딥링크 { dow, start }
@@ -1087,6 +1087,11 @@ export default function CalendarPage() {
           <div style={{ textAlign:'center', padding:'22px 20px', color:'var(--tmu)', fontSize:12, background:'var(--g1)', borderRadius:14, border:'1.5px solid var(--g2)' }}>
             <div style={{ fontSize:20, marginBottom:6 }}>🔒</div>
             이 날은 예약이 닫혀 있어요
+            {lockedDates.get(selDateStr) && (
+              <div style={{ marginTop:10, fontSize:12, fontWeight:700, color:'var(--td)', lineHeight:1.6, whiteSpace:'pre-wrap', wordBreak:'break-word', background:'#fff', border:'1.5px solid var(--g2)', borderRadius:12, padding:'10px 12px', textAlign:'left' }}>
+                {lockedDates.get(selDateStr)}
+              </div>
+            )}
           </div>
         ) : dc.length === 0 ? (
           <div style={{ textAlign:'center', padding:20, color:'var(--tmu)', fontSize:12 }}>이날은 수업이 없어요 🐾</div>

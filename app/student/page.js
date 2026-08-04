@@ -39,7 +39,7 @@ export default function StudentHomePage() {
   const [freshPromo, setFreshPromo] = useState(false) // 여름 한정 스킨 안내 팝업
   const [spacePromo, setSpacePromo] = useState(false) // 울트라 스페이스(다크) 스킨 안내 팝업
   const [classes, setClasses] = useState([])
-  const [lockedDates, setLockedDates] = useState(new Set())
+  const [lockedDates, setLockedDates] = useState(new Map())
   const [allBookings, setAllBookings] = useState([])
   const [notices, setNotices] = useState([]) // 라운지에서 관리자가 공지 지정한 글 (최대 2개)
   const [myBookings, setMyBookings] = useState([])
