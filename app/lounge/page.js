@@ -91,21 +91,26 @@ export default function LoungePage() {
   }, [loading, tab])
 
   // 라운지에 공유된 수업기록 이미지를 열면, 그 기록에 강사가 남긴 피드백을 함께 불러온다.
+  // record_id 가 붙은 신규 글은 물론, 그 컬럼이 없던 시절의 기존 공유 글도 서버가 시각 매칭으로 처리한다.
   useEffect(() => {
     if (!viewer) return
-    const rid = posts.find(x => x.id === viewer.postId)?.record_id
-    if (!rid || recFB[rid]) return   // record_id 없는 글(일반 라운지 글)·이미 로드된 건 스킵
-    setRecFB(prev => ({ ...prev, [rid]: { loading: true, items: [] } }))
+    const pid = viewer.postId
+    const p = posts.find(x => x.id === pid)
+    if (!p) return
+    // 공유 기록으로 보이는 글만 조회(일반 채팅 글은 스킵) — record_id 있거나, 수업/전시 태그의 '기록' 글
+    const isRecordShare = !!p.record_id || ((p.tag === 'class' || p.tag === 'exhibit') && (p.title || '').includes('기록'))
+    if (!isRecordShare || recFB[pid]) return
+    setRecFB(prev => ({ ...prev, [pid]: { loading: true, items: [] } }))
     ;(async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
         const token = session?.access_token
-        if (!token) { setRecFB(prev => ({ ...prev, [rid]: { loading: false, items: [] } })); return }
-        const res = await fetch(`/api/lounge/record-feedback?recordId=${rid}`, { headers: { Authorization: `Bearer ${token}` } })
+        if (!token) { setRecFB(prev => ({ ...prev, [pid]: { loading: false, items: [] } })); return }
+        const res = await fetch(`/api/lounge/record-feedback?postId=${pid}`, { headers: { Authorization: `Bearer ${token}` } })
         const json = await res.json().catch(() => ({}))
-        setRecFB(prev => ({ ...prev, [rid]: { loading: false, items: res.ok ? (json.feedback || []) : [] } }))
+        setRecFB(prev => ({ ...prev, [pid]: { loading: false, items: res.ok ? (json.feedback || []) : [] } }))
       } catch {
-        setRecFB(prev => ({ ...prev, [rid]: { loading: false, items: [] } }))
+        setRecFB(prev => ({ ...prev, [pid]: { loading: false, items: [] } }))
       }
     })()
   }, [viewer?.postId])
@@ -716,8 +721,7 @@ export default function LoungePage() {
               </div>
             )}
             {(() => {
-              const rid = posts.find(x => x.id === viewer.postId)?.record_id
-              const fb = rid ? recFB[rid] : null
+              const fb = recFB[viewer.postId]
               if (!fb) return null
               if (fb.loading) return (
                 <div style={{ fontSize:11, color:'rgba(255,255,255,0.6)', fontWeight:700 }}>강사 피드백 불러오는 중…</div>
