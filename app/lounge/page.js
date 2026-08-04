@@ -106,7 +106,9 @@ export default function LoungePage() {
         const { data: { session } } = await supabase.auth.getSession()
         const token = session?.access_token
         if (!token) { setRecFB(prev => ({ ...prev, [pid]: { loading: false, items: [] } })); return }
-        const res = await fetch(`/api/lounge/record-feedback?postId=${pid}`, { headers: { Authorization: `Bearer ${token}` } })
+        // record_id 를 이미 아는 글(신규 공유)은 그 값을 넘겨 서버의 글 조회 왕복을 생략 → 더 빠름
+        const q = p.record_id ? `recordId=${p.record_id}` : `postId=${pid}`
+        const res = await fetch(`/api/lounge/record-feedback?${q}`, { headers: { Authorization: `Bearer ${token}` } })
         const json = await res.json().catch(() => ({}))
         setRecFB(prev => ({ ...prev, [pid]: { loading: false, items: res.ok ? (json.feedback || []) : [] } }))
       } catch {
@@ -394,7 +396,10 @@ export default function LoungePage() {
         .heart-pop { animation: heartPop 0.4s ease; display:inline-block; }
         .press { transition: transform 0.12s cubic-bezier(0.34,1.56,0.64,1); }
         .press:active { transform: scale(0.84); }
-        @media (prefers-reduced-motion: reduce) { .bub-in, .thumb-in, .heart-pop { animation: none } .press:active { transform:none } }
+        /* 강사 피드백 로딩 — 쉬머 스켈레톤 */
+        @keyframes fbShimmer { 0%{ background-position:-180px 0 } 100%{ background-position:180px 0 } }
+        .fb-skel { border-radius:6px; background:linear-gradient(90deg, rgba(255,255,255,0.09) 25%, rgba(255,255,255,0.22) 50%, rgba(255,255,255,0.09) 75%); background-size:180px 100%; animation: fbShimmer 1.1s linear infinite; }
+        @media (prefers-reduced-motion: reduce) { .bub-in, .thumb-in, .heart-pop { animation: none } .press:active { transform:none } .fb-skel { animation: none } }
         .viewer-input::placeholder { color: rgba(255,255,255,0.55); }
       `}</style>
 
@@ -724,7 +729,18 @@ export default function LoungePage() {
               const fb = recFB[viewer.postId]
               if (!fb) return null
               if (fb.loading) return (
-                <div style={{ fontSize:11, color:'rgba(255,255,255,0.6)', fontWeight:700 }}>강사 피드백 불러오는 중…</div>
+                <div style={{ display:'flex', flexDirection:'column', gap:8, background:'rgba(255,255,255,0.08)', border:'1.5px solid rgba(255,255,255,0.16)', borderRadius:14, padding:'10px 12px' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, fontWeight:900, color:'#ffd66b' }}>
+                    🎨 강사 피드백
+                    <span style={{ display:'inline-flex', gap:3 }}>
+                      <span className="dot-pulse" style={{ width:4, height:4, borderRadius:'50%', background:'#ffd66b', animationDelay:'0s' }}/>
+                      <span className="dot-pulse" style={{ width:4, height:4, borderRadius:'50%', background:'#ffd66b', animationDelay:'0.2s' }}/>
+                      <span className="dot-pulse" style={{ width:4, height:4, borderRadius:'50%', background:'#ffd66b', animationDelay:'0.4s' }}/>
+                    </span>
+                  </div>
+                  <div className="fb-skel" style={{ height:11, width:'88%' }}/>
+                  <div className="fb-skel" style={{ height:11, width:'62%' }}/>
+                </div>
               )
               if (!fb.items.length) return null
               return (

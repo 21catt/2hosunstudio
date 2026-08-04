@@ -57,27 +57,32 @@ export async function GET(req) {
   const list = rows || []
   if (list.length === 0) return NextResponse.json({ feedback: [] })
 
-  // 강사 이름 매핑
+  // 강사 이름 매핑 + 첨부 사진 서명을 동시에(둘 다 피드백 행에만 의존 — 순차 대기 제거)
   const teacherIds = [...new Set(list.map(r => r.teacher_id).filter(Boolean))]
-  const nameById = {}
-  if (teacherIds.length) {
-    const { data: us } = await supabaseAdmin.from('users').select('id, name').in('id', teacherIds)
-    ;(us || []).forEach(u => { nameById[u.id] = u.name })
-  }
+  const [nameById, signedByRow] = await Promise.all([
+    (async () => {
+      const map = {}
+      if (teacherIds.length) {
+        const { data: us } = await supabaseAdmin.from('users').select('id, name').in('id', teacherIds)
+        ;(us || []).forEach(u => { map[u.id] = u.name })
+      }
+      return map
+    })(),
+    // 모든 피드백의 사진을 한 번에 병렬 서명(행별로 나눠 기다리지 않음)
+    Promise.all(list.map(async r => {
+      const paths = Array.isArray(r.photos) ? r.photos.filter(Boolean) : []
+      return (await Promise.all(paths.map(async p => {
+        const { data } = await supabaseAdmin.storage.from('class-records').createSignedUrl(p, 604800)
+        return data?.signedUrl || null
+      }))).filter(Boolean)
+    })),
+  ])
 
-  // 피드백 첨부 사진 서명(class-records 비공개 버킷, 7일)
-  const feedback = await Promise.all(list.map(async r => {
-    const paths = Array.isArray(r.photos) ? r.photos.filter(Boolean) : []
-    const photos = (await Promise.all(paths.map(async p => {
-      const { data } = await supabaseAdmin.storage.from('class-records').createSignedUrl(p, 604800)
-      return data?.signedUrl || null
-    }))).filter(Boolean)
-    return {
-      id: r.id,
-      body: r.body || '',
-      teacher_name: nameById[r.teacher_id] || '강사',
-      photos,
-    }
+  const feedback = list.map((r, i) => ({
+    id: r.id,
+    body: r.body || '',
+    teacher_name: nameById[r.teacher_id] || '강사',
+    photos: signedByRow[i],
   }))
 
   return NextResponse.json({ feedback })
