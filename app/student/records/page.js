@@ -249,8 +249,11 @@ function RecordsInner() {
             image_url: shareUrls[0] || null,
             images: shareUrls,
           }
-          const { error: shErr } = await supabase.from('posts').insert({ ...pbase, author_cat: catMap[user.id] || getSavedProfileCat() })
-          if (shErr) await supabase.from('posts').insert(pbase) // author_cat 컬럼 없으면 없이 재시도
+          // record_id 로 원본 기록을 연결 → 라운지 뷰어에서 강사 피드백을 되짚어 보여줄 수 있게.
+          // 컬럼 유무를 모르므로 단계적 폴백: (author_cat+record_id) → (record_id) → (기본).
+          let { error: shErr } = await supabase.from('posts').insert({ ...pbase, record_id: rec.id, author_cat: catMap[user.id] || getSavedProfileCat() })
+          if (shErr) ({ error: shErr } = await supabase.from('posts').insert({ ...pbase, record_id: rec.id })) // author_cat 컬럼 없음
+          if (shErr) await supabase.from('posts').insert(pbase) // record_id 컬럼도 없으면 최종 폴백
 
         } catch {} // 공유 실패해도 기록 저장은 유지
       }

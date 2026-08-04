@@ -41,6 +41,8 @@ export default function LoungePage() {
   const [viewer, setViewer] = useState(null)          // { images, idx, postId } — 이미지 크게 보기 + 댓글
   const [viewerText, setViewerText] = useState('')    // 라이트박스 댓글 입력
   const [viewerSending, setViewerSending] = useState(false)
+  const [recFB, setRecFB] = useState({})              // {recordId: {loading, items:[{teacher_name, body, photos:[url]}]}} — 강사 피드백
+  const [fbPhoto, setFbPhoto] = useState(null)         // 피드백 첨부사진 크게 보기(뷰어 위 겹침)
   const [editPost, setEditPost] = useState(null)      // { id, text } — 게시글 내용 수정 중
   const [editSaving, setEditSaving] = useState(false)
   const [catMenu, setCatMenu] = useState(null)        // 카테고리 변경 중인 글 (바텀시트)
@@ -87,6 +89,26 @@ export default function LoungePage() {
     if (loading) return
     setTimeout(() => window.scrollTo({ top: document.body.scrollHeight }), 120)
   }, [loading, tab])
+
+  // 라운지에 공유된 수업기록 이미지를 열면, 그 기록에 강사가 남긴 피드백을 함께 불러온다.
+  useEffect(() => {
+    if (!viewer) return
+    const rid = posts.find(x => x.id === viewer.postId)?.record_id
+    if (!rid || recFB[rid]) return   // record_id 없는 글(일반 라운지 글)·이미 로드된 건 스킵
+    setRecFB(prev => ({ ...prev, [rid]: { loading: true, items: [] } }))
+    ;(async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        const token = session?.access_token
+        if (!token) { setRecFB(prev => ({ ...prev, [rid]: { loading: false, items: [] } })); return }
+        const res = await fetch(`/api/lounge/record-feedback?recordId=${rid}`, { headers: { Authorization: `Bearer ${token}` } })
+        const json = await res.json().catch(() => ({}))
+        setRecFB(prev => ({ ...prev, [rid]: { loading: false, items: res.ok ? (json.feedback || []) : [] } }))
+      } catch {
+        setRecFB(prev => ({ ...prev, [rid]: { loading: false, items: [] } }))
+      }
+    })()
+  }, [viewer?.postId])
 
   async function loadPosts(uid = user?.id) {
     const { data } = await supabase
@@ -694,6 +716,38 @@ export default function LoungePage() {
               </div>
             )}
             {(() => {
+              const rid = posts.find(x => x.id === viewer.postId)?.record_id
+              const fb = rid ? recFB[rid] : null
+              if (!fb) return null
+              if (fb.loading) return (
+                <div style={{ fontSize:11, color:'rgba(255,255,255,0.6)', fontWeight:700 }}>강사 피드백 불러오는 중…</div>
+              )
+              if (!fb.items.length) return null
+              return (
+                <div className="no-scrollbar" style={{ maxHeight:150, overflowY:'auto', display:'flex', flexDirection:'column', gap:8, background:'rgba(255,255,255,0.08)', border:'1.5px solid rgba(255,255,255,0.16)', borderRadius:14, padding:'10px 12px' }}>
+                  <div style={{ fontSize:11, fontWeight:900, color:'#ffd66b', letterSpacing:0.2 }}>🎨 강사 피드백</div>
+                  {fb.items.map(it => (
+                    <div key={it.id} style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                      {it.body && (
+                        <div style={{ fontSize:12, color:'#fff', lineHeight:1.55, wordBreak:'break-word', fontWeight:600 }}>
+                          <span style={{ fontWeight:900, color:'rgba(255,255,255,0.75)', marginRight:6 }}>{it.teacher_name} 쌤</span>
+                          {it.body}
+                        </div>
+                      )}
+                      {it.photos.length > 0 && (
+                        <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                          {it.photos.map((url, i) => (
+                            <img key={i} src={url} alt="" onClick={() => setFbPhoto(url)}
+                              style={{ width:52, height:52, objectFit:'cover', borderRadius:10, cursor:'pointer', border:'2px solid rgba(255,255,255,0.3)', flexShrink:0 }}/>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
+            {(() => {
               const cs = posts.find(x => x.id === viewer.postId)?.comments || []
               return cs.length > 0 && (
                 <div className="no-scrollbar" style={{ maxHeight:110, overflowY:'auto', display:'flex', flexDirection:'column', gap:5 }}>
@@ -717,6 +771,18 @@ export default function LoungePage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* 강사 피드백 첨부사진 크게 보기 — 뷰어 위에 겹침(닫으면 원래 이미지로 복귀) */}
+      {fbPhoto && (
+        <div onClick={() => setFbPhoto(null)}
+          style={{ position:'fixed', inset:0, background:'rgba(8,9,30,0.96)', zIndex:1300, display:'flex', alignItems:'center', justifyContent:'center', padding:'46px 12px' }}>
+          <img src={fbPhoto} alt="" onClick={e => e.stopPropagation()}
+            style={{ maxWidth:'100%', maxHeight:'100%', objectFit:'contain', borderRadius:16, display:'block' }}/>
+          <div style={{ position:'absolute', top:16, left:0, right:0, textAlign:'center', color:'#ffd66b', fontSize:12, fontWeight:900, pointerEvents:'none' }}>🎨 강사 피드백</div>
+          <button onClick={() => setFbPhoto(null)}
+            style={{ position:'absolute', top:14, right:14, width:38, height:38, borderRadius:'50%', background:'rgba(255,255,255,0.16)', color:'#fff', border:'none', fontSize:17, cursor:'pointer', lineHeight:1 }}>✕</button>
         </div>
       )}
 
