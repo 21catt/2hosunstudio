@@ -539,7 +539,7 @@ function FreeInner() {
           <div style={{ padding:'14px', background:'var(--g1)', borderRadius:14, textAlign:'center', color:'var(--tmu)', fontSize:12, fontWeight:700, border:'1.5px solid var(--g2)' }}>
             🔒 이 날은 예약이 닫혀 있어요
             {lockedDates.get(`${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`) && (
-              <div style={{ marginTop:10, fontSize:12, fontWeight:700, color:'var(--td)', lineHeight:1.6, whiteSpace:'pre-wrap', wordBreak:'break-word', background:'#fff', border:'1.5px solid var(--g2)', borderRadius:12, padding:'10px 12px', textAlign:'left' }}>
+              <div style={{ marginTop:10, fontSize:12.5, fontWeight:700, color:'#3a2f47', lineHeight:1.6, whiteSpace:'pre-wrap', wordBreak:'break-word', background:'#fff', border:'1.5px solid #e3d9ef', borderRadius:12, padding:'11px 13px', textAlign:'left' }}>
                 {lockedDates.get(`${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`)}
               </div>
             )}
