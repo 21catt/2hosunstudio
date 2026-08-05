@@ -96,6 +96,24 @@ const U = {
 const makeBoard = () => Array.from({ length: ROWS }, () => Array(COLS).fill(null))
 const rnd = n => Math.floor(Math.random() * n)
 
+// 난이도 — 중간 단계부터 바닥에 명암(회색) 블록이 미리 깔린 채 시작.
+// 단계가 오를수록 한 줄씩 순차적으로 쌓여 최대 4줄까지. 각 칸은 그 단계에 열린 명암 레벨 중 랜덤.
+// (회색만 있는 덩어리는 안 사라지므로, 같은 밝기 색을 붙여 지워 나가야 함 — 시작판이 좁아지는 난이도)
+const PREFILL_FROM = 4   // 5단계(0-based idx 4)부터 바닥 더미 시작
+const PREFILL_MAX = 4    // 최대 4줄
+const prefillRows = idx => Math.max(0, Math.min(PREFILL_MAX, idx - PREFILL_FROM + 1))
+const makeInitialBoard = idx => {
+  const B = makeBoard()
+  const n = prefillRows(idx)
+  const levels = stageLevels(idx)
+  for (let r = ROWS - n; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++) {
+      const level = rnd(levels)
+      B[r][c] = { kind: 'value', level, color: GRAY[level] }
+    }
+  return B
+}
+
 export default function ColorTetrisGame({ open, onClose }) {
   const boardRef = useRef(makeBoard())
   const fallRef = useRef(null)
@@ -239,7 +257,7 @@ export default function ColorTetrisGame({ open, onClose }) {
 
   const startGame = useCallback(() => {
     clearTimeout(timerRef.current)
-    boardRef.current = makeBoard(); fallRef.current = null
+    boardRef.current = makeInitialBoard(0); fallRef.current = null
     overRef.current = false; setOver(false)
     stageClearRef.current = false; setStageClear(null)
     scoreRef.current = 0; setScore(0)
@@ -254,7 +272,7 @@ export default function ColorTetrisGame({ open, onClose }) {
     stageClearRef.current = false; setStageClear(null)
     stageRef.current += 1; setStageIdx(stageRef.current)
     clearedRef.current = 0; setStageProg(0)
-    boardRef.current = makeBoard(); fallRef.current = null // 새 단계 = 깨끗한 보드
+    boardRef.current = makeInitialBoard(stageRef.current); fallRef.current = null // 중간 단계부터 바닥 명암 더미
     speedRef.current = stageSpeed(stageRef.current)
     spawn(); render()
     clearTimeout(timerRef.current)
@@ -495,6 +513,13 @@ function StageClearOverlay({ stage, score, onNext }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10.5, fontWeight: 800, color: U.acc, background: 'rgba(220,255,122,0.1)', border: '1px solid rgba(220,255,122,0.3)', borderRadius: 10, padding: '6px 10px' }}>
           <span style={{ display: 'flex', gap: 3 }}>{nextNew.slice(0, 5).map(c => <span key={c.hex} style={{ width: 12, height: 12, borderRadius: 3, background: c.hex }} />)}</span>
           <span>다음 단계 · {nextNote}</span>
+        </div>
+      )}
+
+      {prefillRows(nextIdx) > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, fontWeight: 800, color: '#cfcfcf', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 10, padding: '6px 10px' }}>
+          <span style={{ display: 'flex', gap: 2 }}>{Array.from({ length: prefillRows(nextIdx) }).map((_, i) => <span key={i} style={{ width: 10, height: 10, borderRadius: 2, background: GRAY[i % GRAY.length] }} />)}</span>
+          <span>바닥에 명암 블록 {prefillRows(nextIdx)}줄이 깔린 채 시작해요</span>
         </div>
       )}
 
