@@ -6,11 +6,28 @@ import { submitGameScore } from '../lib/gameScore'
 // 근접도는 제출해야 공개(눈으로 판단 → 색감 훈련). 5라운드 총점, 최고점 localStorage 기록.
 // 스킨 = 다크 네온(게임 모달 자체 스킨, 앱 8색 테마와 무관).
 
-const PIGMENTS = [
+// 물감식(감산) 3원색 세트 — refl = 각 물감이 반사하는 [R,G,B] 비율
+const RYB = [
   { key: 'r', name: '빨강', hex: '#D21E2B', refl: [0.85, 0.10, 0.10] },
   { key: 'y', name: '노랑', hex: '#F3E01E', refl: [0.95, 0.90, 0.10] },
   { key: 'b', name: '파랑', hex: '#185FA5', refl: [0.10, 0.30, 0.80] },
 ]
+// CMY — 인쇄식 감산 3원색(마젠타·시안·레몬옐로우). 빨·노·파 관례와 혼합 결과가 달라 난이도.
+const CMY = [
+  { key: 'm', name: '마젠타', hex: '#D6197D', refl: [0.90, 0.10, 0.62] },
+  { key: 'c', name: '시안', hex: '#12A9C6', refl: [0.10, 0.72, 0.86] },
+  { key: 'l', name: '레몬옐로우', hex: '#EBE83A', refl: [0.86, 0.93, 0.10] },
+]
+const WHITE = { key: 'w', name: '화이트', hex: '#ffffff' }
+const BLACK = { key: 'k', name: '블랙', hex: '#222222' }
+// 난이도: 3원색만 / 3원색+흑백(명도 조절) / CMY+흑백
+const LEVELS = [
+  { id: 'ryb', name: '기본', pig: RYB, bw: false, tag: '빨·노·파 3원색' },
+  { id: 'rybbw', name: '흑백', pig: RYB, bw: true, tag: '빨·노·파 + 화이트·블랙' },
+  { id: 'cmybw', name: 'CMY', pig: CMY, bw: true, tag: '마젠타·시안·레몬옐로우 + 흑백' },
+]
+const channelsOf = lvl => (lvl.bw ? [...lvl.pig, WHITE, BLACK] : lvl.pig)
+const zeroAmounts = lvl => Object.fromEntries(channelsOf(lvl).map(p => [p.key, 0]))
 const ROUNDS = 5
 const BEST_KEY = '2hs_colormix_best'
 // 배경 = 중성 회색(≈18% 그레이) — 색이 가장 정확히 보이는 무채색 바탕
@@ -21,9 +38,15 @@ const U = {
   glow: '0 8px 20px -6px rgba(90,200,120,0.5)',
 }
 
-function mix(a) { // a: {r,y,b} 0..1 → [R,G,B] 0..255 (곱셈식 감산)
-  const chan = i => Math.round(255 * PIGMENTS.reduce((acc, p) => acc * (1 - a[p.key] * (1 - p.refl[i])), 1))
-  return [chan(0), chan(1), chan(2)]
+function mixWith(a, lvl) { // a: 물감별 양 0..1 → [R,G,B] 0..255 (곱셈식 감산 + 흑백 틴트/셰이드)
+  const chan = i => 255 * lvl.pig.reduce((acc, p) => acc * (1 - (a[p.key] || 0) * (1 - p.refl[i])), 1)
+  let out = [chan(0), chan(1), chan(2)]
+  if (lvl.bw) {
+    const w = a.w || 0, k = a.k || 0
+    out = out.map(v => v + (255 - v) * w) // 화이트 = 밝게(틴트)
+    out = out.map(v => v * (1 - k))       // 블랙 = 어둡게(셰이드)
+  }
+  return out.map(v => Math.round(Math.max(0, Math.min(255, v))))
 }
 const css = ([r, g, b]) => `rgb(${r},${g},${b})`
 
@@ -47,22 +70,32 @@ function accuracyOf(mine, target) {
 }
 function starsOf(acc) { return acc >= 95 ? 3 : acc >= 85 ? 2 : acc >= 70 ? 1 : 0 }
 
-function randomTarget(round, rnd) {
+function randomTarget(round, rnd, lvl) {
   const amt = () => Math.round((0.15 + rnd() * 0.85) * 100) / 100
-  const a = { r: amt(), y: amt(), b: amt() }
-  if (round <= 2) { const drop = ['r', 'y', 'b'][Math.floor(rnd() * 3)]; a[drop] = rnd() * 0.15 }
-  else if (round === 3) { const drop = ['r', 'y', 'b'][Math.floor(rnd() * 3)]; a[drop] *= 0.5 }
-  return mix(a)
+  const a = {}
+  const keys = lvl.pig.map(p => p.key)
+  keys.forEach(k => { a[k] = amt() })
+  if (round <= 2) { const drop = keys[Math.floor(rnd() * keys.length)]; a[drop] = rnd() * 0.15 }
+  else if (round === 3) { const drop = keys[Math.floor(rnd() * keys.length)]; a[drop] *= 0.5 }
+  if (lvl.bw) {
+    // 흑백은 가끔·소량만(항상 크게 섞이면 탁해짐) — 라운드 오를수록 등장 확률↑
+    a.w = rnd() < (round >= 2 ? 0.6 : 0.35) ? Math.round(rnd() * 0.6 * 100) / 100 : 0
+    a.k = rnd() < (round >= 3 ? 0.5 : 0.25) ? Math.round(rnd() * 0.45 * 100) / 100 : 0
+    if (a.w > 0.2 && a.k > 0.2) { if (rnd() < 0.5) a.w *= 0.4; else a.k *= 0.4 } // 둘 다 크면 회색 → 하나 줄임
+  }
+  return mixWith(a, lvl)
 }
 
 export default function ColorMixGame({ open, onClose }) {
   const [phase, setPhase] = useState('play') // play | result | done
   const [round, setRound] = useState(1)
-  const [amounts, setAmounts] = useState({ r: 0, y: 0, b: 0 })
+  const [diff, setDiff] = useState(0)        // 난이도 인덱스(LEVELS)
+  const [amounts, setAmounts] = useState(() => zeroAmounts(LEVELS[0]))
   const [target, setTarget] = useState([200, 200, 200])
   const [scores, setScores] = useState([])
   const [best, setBest] = useState(0)
   const [lastAcc, setLastAcc] = useState(0)
+  const lvl = LEVELS[diff]
 
   useEffect(() => {
     if (!open) return
@@ -70,13 +103,15 @@ export default function ColorMixGame({ open, onClose }) {
     startNew()
   }, [open])
 
-  function startNew() {
+  function startNew(level = diff) {
+    const l = LEVELS[level]
+    setDiff(level)
     setPhase('play'); setRound(1); setScores([])
-    setAmounts({ r: 0, y: 0, b: 0 })
-    setTarget(randomTarget(1, Math.random))
+    setAmounts(zeroAmounts(l))
+    setTarget(randomTarget(1, Math.random, l))
   }
   function submit() {
-    const acc = accuracyOf(mix(amounts), target)
+    const acc = accuracyOf(mixWith(amounts, lvl), target)
     setLastAcc(acc)
     setScores(prev => [...prev, acc])
     setPhase('result')
@@ -91,14 +126,14 @@ export default function ColorMixGame({ open, onClose }) {
     }
     const nr = round + 1
     setRound(nr)
-    setAmounts({ r: 0, y: 0, b: 0 })
-    setTarget(randomTarget(nr, Math.random))
+    setAmounts(zeroAmounts(lvl))
+    setTarget(randomTarget(nr, Math.random, lvl))
     setPhase('play')
   }
 
   if (!open) return null
 
-  const mine = mix(amounts)
+  const mine = mixWith(amounts, lvl)
   const total = scores.reduce((s, v) => s + v, 0)
   const gradText = { background: U.grad, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }
   const bigBtn = { width: '100%', padding: '14px', background: U.grad, color: U.onAcc, border: 'none', borderRadius: 16, fontSize: 14, fontWeight: 900, cursor: 'pointer', fontFamily: 'Nunito,sans-serif', boxShadow: U.glow }
@@ -138,6 +173,19 @@ export default function ColorMixGame({ open, onClose }) {
           </div>
         ) : (
           <div style={{ padding: '6px 16px 22px' }}>
+            {/* 난이도 선택 — 바꾸면 새 판 시작 */}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+              {LEVELS.map((l, i) => {
+                const on = diff === i
+                return (
+                  <button key={l.id} onClick={() => startNew(i)}
+                    style={{ flex: 1, padding: '8px 4px', borderRadius: 12, cursor: 'pointer', fontFamily: 'Nunito,sans-serif',
+                      border: on ? `1.5px solid ${U.acc}` : `1px solid ${U.line}`, background: on ? 'rgba(220,255,122,0.14)' : U.panel,
+                      color: on ? U.acc : U.mut, fontSize: 11, fontWeight: 900 }}>{l.name}</button>
+                )
+              })}
+            </div>
+
             <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
               <div style={{ flex: 1, textAlign: 'center' }}>
                 <div style={{ fontSize: 9, fontWeight: 800, color: U.faint, letterSpacing: 1, marginBottom: 5 }}>TARGET</div>
@@ -160,14 +208,14 @@ export default function ColorMixGame({ open, onClose }) {
             </div>
 
             <div style={{ background: U.panel, border: `1px solid ${U.line}`, borderRadius: 16, padding: '14px 13px', display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 14, opacity: phase === 'result' ? 0.6 : 1 }}>
-              {PIGMENTS.map(p => (
+              {channelsOf(lvl).map(p => (
                 <div key={p.key} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ width: 22, height: 22, borderRadius: '50%', background: p.hex, flexShrink: 0, boxShadow: '0 1px 2px rgba(0,0,0,0.3)' }} />
-                  <span style={{ width: 28, flexShrink: 0, fontSize: 11, fontWeight: 800, color: U.tx2 }}>{p.name}</span>
-                  <input type="range" min="0" max="100" value={Math.round(amounts[p.key] * 100)} disabled={phase === 'result'}
+                  <span style={{ width: 22, height: 22, borderRadius: '50%', background: p.hex, flexShrink: 0, boxShadow: '0 1px 2px rgba(0,0,0,0.3)', border: p.key === 'w' ? '1px solid rgba(0,0,0,0.28)' : 'none' }} />
+                  <span style={{ width: 42, flexShrink: 0, fontSize: 11, fontWeight: 800, color: U.tx2 }}>{p.name}</span>
+                  <input type="range" min="0" max="100" value={Math.round((amounts[p.key] || 0) * 100)} disabled={phase === 'result'}
                     onChange={e => setAmounts(a => ({ ...a, [p.key]: (+e.target.value) / 100 }))}
-                    style={{ flex: 1, accentColor: p.hex }} />
-                  <span style={{ width: 30, flexShrink: 0, textAlign: 'right', fontSize: 10.5, fontWeight: 900, color: U.mut, fontVariantNumeric: 'tabular-nums' }}>{Math.round(amounts[p.key] * 100)}%</span>
+                    style={{ flex: 1, accentColor: p.key === 'w' ? '#d8d8d8' : p.key === 'k' ? '#333' : p.hex }} />
+                  <span style={{ width: 30, flexShrink: 0, textAlign: 'right', fontSize: 10.5, fontWeight: 900, color: U.mut, fontVariantNumeric: 'tabular-nums' }}>{Math.round((amounts[p.key] || 0) * 100)}%</span>
                 </div>
               ))}
             </div>
@@ -188,7 +236,7 @@ export default function ColorMixGame({ open, onClose }) {
             )}
 
             <div style={{ fontSize: 10, color: U.faint, fontWeight: 700, textAlign: 'center', marginTop: 10, lineHeight: 1.5 }}>
-              세 물감을 섞어 목표색에 가깝게 · 눈으로 판단하고 제출!
+              {lvl.tag} · {lvl.bw ? '화이트=밝게, 블랙=어둡게 · ' : ''}목표색에 가깝게 섞어 제출!
             </div>
           </div>
         )}
