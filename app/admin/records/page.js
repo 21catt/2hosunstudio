@@ -193,6 +193,62 @@ export default function AdminRecordsPage() {
     loadAll()
   }
 
+  // 수업 피드백 전체를 책 편집용 텍스트로 내보내기 — 학생 이름은 성만(김OO)으로 익명화.
+  // 수업명별 그룹 + 날짜순(아카이브), 하단에 JSON 첨부(종합 편집용). 강사명은 그대로.
+  async function exportFeedbackArchive() {
+    try {
+      const chunk = async (table, cols, ids) => {
+        const out = []
+        for (let i = 0; i < ids.length; i += 200) {
+          const { data } = await supabase.from(table).select(cols).in('id', ids.slice(i, i + 200))
+          out.push(...(data || []))
+        }
+        return out
+      }
+      const { data: fbs, error } = await supabase.from('class_record_feedback').select('id, body, teacher_id, record_id')
+      if (error) { alert('내보내기 실패: ' + error.message); return }
+      const rows = (fbs || []).filter(f => (f.body || '').trim())
+      if (rows.length === 0) { alert('내보낼 피드백이 없어요'); return }
+
+      const recs = await chunk('class_records', 'id, class_name, class_date, user_id, note', [...new Set(rows.map(f => f.record_id))])
+      const recById = Object.fromEntries(recs.map(r => [r.id, r]))
+      const nameIds = [...new Set([...rows.map(f => f.teacher_id), ...recs.map(r => r.user_id)].filter(Boolean))]
+      const users = await chunk('users', 'id, name', nameIds)
+      const nameById = Object.fromEntries(users.map(u => [u.id, u.name]))
+
+      const anon = full => { const n = (full || '').trim(); return n.length >= 1 ? n.slice(0, 1) + 'OO' : '학생' }
+      const scrub = (text, full) => {
+        let t = text || ''
+        const n = (full || '').trim()
+        if (n.length >= 2) { t = t.split(n).join(anon(n)); const g = n.slice(1); if (g.length >= 1) t = t.split(g).join('○○') }
+        return t
+      }
+      const items = rows.map(f => {
+        const r = recById[f.record_id] || {}
+        const sname = nameById[r.user_id] || ''
+        return { cls: r.class_name || '기타', date: r.class_date || '', student: anon(sname), teacher: nameById[f.teacher_id] || '', note: scrub(r.note || '', sname), body: scrub(f.body, sname) }
+      }).sort((a, b) => (a.cls).localeCompare(b.cls) || (a.date).localeCompare(b.date))
+
+      let out = `2호선 스튜디오 · 수업 피드백 아카이브\n총 ${items.length}건 · 내보낸 날짜 ${new Date().toISOString().slice(0, 10)}\n※ 학생 이름은 성만 표기(김OO)로 익명화됨\n`
+      let curCls = null
+      for (const it of items) {
+        if (it.cls !== curCls) { curCls = it.cls; out += `\n\n════════════════════\n[수업: ${curCls}]\n════════════════════\n` }
+        out += `\n· ${it.date}${it.teacher ? ` · 강사 ${it.teacher}` : ''} · ${it.student}\n`
+        if (it.note) out += `  기록: ${it.note}\n`
+        out += `  피드백: ${it.body}\n`
+      }
+      out += `\n\n──── DATA(JSON · 종합 편집용) ────\n` + JSON.stringify(items)
+
+      const blob = new Blob([out], { type: 'text/plain;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url; a.download = `수업피드백_아카이브_${new Date().toISOString().slice(0, 10)}.txt`
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url)
+    } catch (e) {
+      alert('내보내기 실패: ' + (e?.message || e))
+    }
+  }
+
   const filtered = search.trim()
     ? records.filter(r => {
         const name = userMap[r.user_id] || ''
@@ -225,8 +281,12 @@ export default function AdminRecordsPage() {
           placeholder="학생명 / 날짜 / 수업명 검색..."
           style={{ width:'100%', padding:'10px 14px', borderRadius:12, border:`1.5px solid ${BORDER}`, fontSize:13, background:'var(--g1)', fontFamily:'Nunito,sans-serif', marginBottom:14, boxSizing:'border-box', outline:'none' }}/>
 
-        <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:10 }}>
-          전체 {filtered.length}건
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginBottom:10 }}>
+          <span style={{ fontSize:11, color:'var(--tmu)' }}>전체 {filtered.length}건</span>
+          <button onClick={exportFeedbackArchive}
+            style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'8px 14px', borderRadius:10, border:'none', background:ACCENT, color:ACCENT_TEXT, fontSize:12, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+            📖 피드백 아카이브 내보내기
+          </button>
         </div>
 
         {filtered.length === 0 ? (
