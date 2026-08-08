@@ -300,9 +300,13 @@ export default function FarmPage() {
   }
 
   // 잡초 뽑기 (4단계부터) → 제거 수 +1, 500개면 보상
+  // ⚠️ 터치 반응: onClick 이 아니라 onPointerDown 으로 호출된다(아래 밭 렌더).
+  //    클릭은 누른 뒤 손가락이 조금만 움직여도(스크롤 판정) 취소돼 "눌러도 안 뽑히는" 원인이었다.
+  //    같은 잡초가 두 번 처리되지 않도록 id 존재 여부로 가드한다.
   function removeWeed(w) {
     const s = weedRef.current
     if (!s) return
+    if (!s.weeds.some(x => x.id === w.id)) return
     if (weedStage(w, Date.now()) < WEED.REMOVABLE_STAGE) return
     const nextWeeds = s.weeds.filter(x => x.id !== w.id)
     const removed = s.removed + 1
@@ -495,8 +499,10 @@ export default function FarmPage() {
             return (
               <div key={w.id}>
                 {removable && (
-                  <div onClick={() => removeWeed(w)} title="잡초 뽑기 ✂️"
-                    style={{ position:'absolute', left:`${w.x}%`, top:`${w.y}%`, width:Math.max(50, size + 26), height:size + 28, transform:'translate(-50%,-100%)', zIndex:12, cursor:'pointer' }} />
+                  // 터치 = onPointerDown(누르는 즉시). onClick 은 손가락이 조금만 밀려도
+                  // 스크롤로 판정돼 취소되어 "눌러도 안 뽑히는" 원인이었다.
+                  <div onPointerDown={() => removeWeed(w)} title="잡초 뽑기 ✂️"
+                    style={{ position:'absolute', left:`${w.x}%`, top:`${w.y}%`, width:Math.max(64, size + 34), height:size + 40, transform:'translate(-50%,-100%)', zIndex:12, cursor:'pointer', touchAction:'manipulation', WebkitTapHighlightColor:'transparent' }} />
                 )}
                 <img src={weedImg(stage)} alt="잡초"
                   className={removable ? 'weed-ready' : ''}
