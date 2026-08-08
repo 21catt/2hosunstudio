@@ -35,7 +35,19 @@ export default function AdminRecordsPage() {
   const [rcInput, setRcInput] = useState({})
   const [rcSending, setRcSending] = useState({})
   const [lightbox, setLightbox] = useState(null) // 확대해서 볼 이미지 URL
+  const [exportOpen, setExportOpen] = useState(false)  // 책 원고용 내보내기 패널
+  const [exportSince, setExportSince] = useState('')   // 증분 기준일
+  const [lastExport, setLastExport] = useState('')     // 마지막 내보낸 날(로컬 기록)
   const space = useSpaceTheme()
+
+  // 마지막 내보내기 날짜를 기억해 증분 기준일로 제안 — 매번 전체를 다시 뽑지 않게
+  useEffect(() => {
+    try {
+      const last = localStorage.getItem('2hs_fb_export_last') || ''
+      setLastExport(last)
+      if (last) setExportSince(last)
+    } catch {}
+  }, [])
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -193,9 +205,10 @@ export default function AdminRecordsPage() {
     loadAll()
   }
 
-  // 수업 피드백 전체를 책 편집용 텍스트로 내보내기 — 학생 이름은 성만(김OO)으로 익명화.
-  // 수업명별 그룹 + 날짜순(아카이브), 하단에 JSON 첨부(종합 편집용). 강사명은 그대로.
-  async function exportFeedbackArchive() {
+  // 수업 피드백을 책 편집용 텍스트로 내보내기 — 학생 이름은 성만(김OO)으로 익명화.
+  // 날짜순(아카이브) + 하단 JSON(종합 편집용). 강사명은 그대로.
+  // since 가 있으면 그 날짜 이후 기록만(증분 내보내기 — 지속 업데이트용).
+  async function exportFeedbackArchive(since = '') {
     try {
       const chunk = async (table, cols, ids) => {
         const out = []
@@ -207,33 +220,51 @@ export default function AdminRecordsPage() {
       }
       const { data: fbs, error } = await supabase.from('class_record_feedback').select('id, body, teacher_id, record_id')
       if (error) { alert('내보내기 실패: ' + error.message); return }
-      const rows = (fbs || []).filter(f => (f.body || '').trim())
+      let rows = (fbs || []).filter(f => (f.body || '').trim())
       if (rows.length === 0) { alert('내보낼 피드백이 없어요'); return }
 
       const recs = await chunk('class_records', 'id, class_name, class_date, user_id, note', [...new Set(rows.map(f => f.record_id))])
       const recById = Object.fromEntries(recs.map(r => [r.id, r]))
-      const nameIds = [...new Set([...rows.map(f => f.teacher_id), ...recs.map(r => r.user_id)].filter(Boolean))]
-      const users = await chunk('users', 'id, name', nameIds)
-      const nameById = Object.fromEntries(users.map(u => [u.id, u.name]))
+      // 증분: 기준일 이후 수업 기록만
+      if (since) rows = rows.filter(f => ((recById[f.record_id] || {}).class_date || '') >= since)
+      // 링크만 있는 안내성 피드백은 책 재료가 아니라 제외
+      const isLinkOnly = b => (b || '').replace(/https?:\/\/\S+/g, '').replace(/[\s<>\-–—.,!?]/g, '').length < 8
+      const skipped = rows.filter(f => isLinkOnly(f.body)).length
+      rows = rows.filter(f => !isLinkOnly(f.body))
+      if (rows.length === 0) { alert('해당 조건에 내보낼 피드백이 없어요'); return }
+
+      // 익명화: 전체 회원 이름을 모아 본문 어디에 등장하든 치환(다른 학생 언급·호칭 변형까지)
+      const { data: allUsers } = await supabase.from('users').select('id, name, role')
+      const nameById = Object.fromEntries((allUsers || []).map(u => [u.id, u.name]))
+      const teacherIds = new Set((allUsers || []).filter(u => u.role === 'admin').map(u => u.id))
+      const studentNames = (allUsers || [])
+        .filter(u => !teacherIds.has(u.id) && (u.name || '').trim().length >= 2)
+        .map(u => u.name.trim())
+        .sort((a, b) => b.length - a.length) // 긴 이름 먼저(부분 치환 방지)
 
       const anon = full => { const n = (full || '').trim(); return n.length >= 1 ? n.slice(0, 1) + 'OO' : '학생' }
-      const scrub = (text, full) => {
+      const scrub = text => {
         let t = text || ''
-        const n = (full || '').trim()
-        if (n.length >= 2) { t = t.split(n).join(anon(n)); const g = n.slice(1); if (g.length >= 1) t = t.split(g).join('○○') }
+        for (const n of studentNames) {
+          t = t.split(n).join(anon(n))          // 홍길동 → 홍OO
+          const g = n.slice(1)                   // 길동
+          if (g.length >= 2) t = t.split(g).join('○○')
+        }
         return t
       }
+
       const items = rows.map(f => {
         const r = recById[f.record_id] || {}
-        const sname = nameById[r.user_id] || ''
-        return { cls: r.class_name || '기타', date: r.class_date || '', student: anon(sname), teacher: nameById[f.teacher_id] || '', note: scrub(r.note || '', sname), body: scrub(f.body, sname) }
-      }).sort((a, b) => (a.cls).localeCompare(b.cls) || (a.date).localeCompare(b.date))
+        return { cls: r.class_name || '기타', date: r.class_date || '', student: anon(nameById[r.user_id] || ''), teacher: nameById[f.teacher_id] || '', note: scrub(r.note || ''), body: scrub(f.body) }
+      }).sort((a, b) => (a.date).localeCompare(b.date))
 
-      let out = `2호선 스튜디오 · 수업 피드백 아카이브\n총 ${items.length}건 · 내보낸 날짜 ${new Date().toISOString().slice(0, 10)}\n※ 학생 이름은 성만 표기(김OO)로 익명화됨\n`
-      let curCls = null
+      const today = new Date().toISOString().slice(0, 10)
+      const range = since ? `${since} 이후` : '전체'
+      let out = `2호선 스튜디오 · 수업 피드백 아카이브\n범위 ${range} · 총 ${items.length}건 · 내보낸 날짜 ${today}\n※ 학생 이름은 성만 표기(김OO)로 익명화됨${skipped ? `\n※ 링크만 있는 안내 ${skipped}건 제외` : ''}\n`
+      let curDate = null
       for (const it of items) {
-        if (it.cls !== curCls) { curCls = it.cls; out += `\n\n════════════════════\n[수업: ${curCls}]\n════════════════════\n` }
-        out += `\n· ${it.date}${it.teacher ? ` · 강사 ${it.teacher}` : ''} · ${it.student}\n`
+        if (it.date !== curDate) { curDate = it.date; out += `\n\n──────────\n${it.date}\n──────────\n` }
+        out += `\n· ${it.student}${it.teacher ? ` · 강사 ${it.teacher}` : ''}${it.cls && it.cls !== '기타' ? ` · ${it.cls}` : ''}\n`
         if (it.note) out += `  기록: ${it.note}\n`
         out += `  피드백: ${it.body}\n`
       }
@@ -242,8 +273,9 @@ export default function AdminRecordsPage() {
       const blob = new Blob([out], { type: 'text/plain;charset=utf-8' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
-      a.href = url; a.download = `수업피드백_아카이브_${new Date().toISOString().slice(0, 10)}.txt`
+      a.href = url; a.download = `수업피드백_${since ? `증분_${since}부터` : '전체'}_${today}.txt`
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url)
+      try { localStorage.setItem('2hs_fb_export_last', today) } catch {}
     } catch (e) {
       alert('내보내기 실패: ' + (e?.message || e))
     }
@@ -281,13 +313,35 @@ export default function AdminRecordsPage() {
           placeholder="학생명 / 날짜 / 수업명 검색..."
           style={{ width:'100%', padding:'10px 14px', borderRadius:12, border:`1.5px solid ${BORDER}`, fontSize:13, background:'var(--g1)', fontFamily:'Nunito,sans-serif', marginBottom:14, boxSizing:'border-box', outline:'none' }}/>
 
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginBottom:10 }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginBottom:8 }}>
           <span style={{ fontSize:11, color:'var(--tmu)' }}>전체 {filtered.length}건</span>
-          <button onClick={exportFeedbackArchive}
+          <button onClick={() => setExportOpen(v => !v)}
             style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'8px 14px', borderRadius:10, border:'none', background:ACCENT, color:ACCENT_TEXT, fontSize:12, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
-            📖 피드백 아카이브 내보내기
+            📖 책 원고용 내보내기
           </button>
         </div>
+        {exportOpen && (
+          <div style={{ border:`1.5px solid ${BORDER}`, background:'var(--g1)', borderRadius:12, padding:'12px 13px', marginBottom:12, display:'flex', flexDirection:'column', gap:9 }}>
+            <div style={{ fontSize:11, fontWeight:800, color:'var(--td)' }}>피드백을 책 편집용 텍스트로 내보내요</div>
+            <div style={{ display:'flex', alignItems:'center', gap:7, flexWrap:'wrap' }}>
+              <span style={{ fontSize:11, fontWeight:700, color:'var(--tm)' }}>이 날짜 이후만</span>
+              <input type="date" value={exportSince} onChange={e => setExportSince(e.target.value)}
+                style={{ padding:'6px 9px', borderRadius:9, border:`1.5px solid ${BORDER}`, background:'#fff', color:'#3a2f47', fontSize:11, fontWeight:700, fontFamily:'Nunito,sans-serif', outline:'none' }} />
+              <button onClick={() => exportFeedbackArchive(exportSince)} disabled={!exportSince}
+                style={{ padding:'7px 12px', borderRadius:9, border:'none', background: exportSince ? ACCENT : 'var(--g2)', color: exportSince ? ACCENT_TEXT : 'var(--tmu)', fontSize:11, fontWeight:800, cursor: exportSince ? 'pointer' : 'default', fontFamily:'Nunito,sans-serif' }}>
+                증분 내보내기
+              </button>
+            </div>
+            <button onClick={() => exportFeedbackArchive('')}
+              style={{ padding:'8px 12px', borderRadius:9, border:`1.5px solid ${BORDER}`, background:'var(--surf)', color:'var(--td)', fontSize:11, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+              전체 내보내기
+            </button>
+            <div style={{ fontSize:10, color:'var(--tmu)', fontWeight:600, lineHeight:1.5 }}>
+              학생 이름은 성만(김OO) 익명화 · 링크만 있는 안내는 제외
+              {lastExport ? ` · 마지막 내보내기 ${lastExport}` : ''}
+            </div>
+          </div>
+        )}
 
         {filtered.length === 0 ? (
           <div style={{ textAlign:'center', padding:40, color:'var(--tmu)', fontSize:13 }}>기록이 없어요 🐾</div>
