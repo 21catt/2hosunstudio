@@ -6,6 +6,7 @@ import StudentNav from '../../../components/StudentNav'
 import { sendPushToAdmins } from '../../../lib/pushNotify'
 import { notifyAllAdmins } from '../../../lib/adminNotify'
 import { fetchLockedDates } from '../../../lib/lockedDates'
+import { isTooLateToBook, bookingCutoffMessage } from '../../../lib/bookingWindow'
 import GlassBg from '../../../components/GlassBg'
 import SpaceBg from '../../../components/SpaceBg'
 import { useFreshTheme, useSpaceTheme } from '../../../lib/useFreshTheme'
@@ -184,6 +185,8 @@ function FreeInner() {
 
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
     if (lockedDates.has(dateStr)) { alert('이 날은 예약이 닫혀 있어요 🐾'); return }
+    // 수업 시작 4시간 전부터는 예약 불가(일반 수업과 같은 규칙)
+    if (isTooLateToBook(dateStr, `${String(startHour).padStart(2,'0')}:00`)) { alert(bookingCutoffMessage(dateStr, `${String(startHour).padStart(2,'0')}:00`)); return }
     const startStr = `${String(startHour).padStart(2,'0')}:00`
     const endStr = `${String(startHour + duration).padStart(2,'0')}:00`
     const amount = calcPrice(selectedDay, startHour, duration)

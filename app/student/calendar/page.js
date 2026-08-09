@@ -7,6 +7,7 @@ import StudentNav from '../../../components/StudentNav'
 import { NavIcon } from '../../../components/NavIcons'
 import { sortCoursesByCategory } from '../../../lib/courseSort'
 import { fetchLockedDates } from '../../../lib/lockedDates'
+import { isTooLateToBook, bookingCutoffMessage } from '../../../lib/bookingWindow'
 import { sendPushToAdmins } from '../../../lib/pushNotify'
 import { sendKakaoToAdmins } from '../../../lib/kakaoNotify'
 import { notifyAllAdmins } from '../../../lib/adminNotify'
@@ -480,6 +481,7 @@ export default function CalendarPage() {
       if (!selCourse || !selSchedule) { router.push('/signup'); return }
       const d = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
       if (lockedDates.has(d)) { alert('이 날은 예약이 닫혀 있어요 🐾'); return }
+      if (isTooLateToBook(d, selSchedule.start_time)) { alert(bookingCutoffMessage(d, selSchedule.start_time)); return }
       setGName(''); setGPhone(''); setGSent(false)
       setGuestReq({ course: selCourse, schedule: selSchedule, date: d })
       return
@@ -487,6 +489,8 @@ export default function CalendarPage() {
     if (!selCourse || !selSchedule) return
     const lockStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
     if (lockedDates.has(lockStr)) { alert('이 날은 예약이 닫혀 있어요 🐾'); return }
+    // 수업 시작 4시간 전부터는 예약 불가 — 모든 예약 경로(일반·원데이·모임·요청) 공통 게이트
+    if (isTooLateToBook(lockStr, selSchedule.start_time)) { alert(bookingCutoffMessage(lockStr, selSchedule.start_time)); return }
 
     if (selCourse.category === 'meeting') {
       const { data: mt } = await supabase.from('meeting_tickets').select('*').eq('user_id', user.id).eq('status', 'confirmed').gt('remain', 0).gte('expires_at', new Date().toISOString().split('T')[0]).limit(1)
@@ -696,6 +700,8 @@ export default function CalendarPage() {
 
   async function handleQuickBook(course, schedule, dateStr) {
     if (!user) { router.push('/signup'); return }
+    if (lockedDates.has(dateStr)) { alert('이 날은 예약이 닫혀 있어요 🐾'); return }
+    if (isTooLateToBook(dateStr, schedule.start_time)) { alert(bookingCutoffMessage(dateStr, schedule.start_time)); return }
     if (hasValidTicket()) await execBook(course, schedule, dateStr)
     else await sendBookingRequest(course, schedule, dateStr)
   }
