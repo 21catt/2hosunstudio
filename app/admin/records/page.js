@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import AdminNav from '../../../components/AdminNav'
+import TeacherNav from '../../../components/TeacherNav'
+import { isTeacher, isOwner } from '../../../lib/roles'
 import { NavIcon } from '../../../components/NavIcons'
 import { pixelCatImg, DEFAULT_PROFILE_CAT, isValidPixelCat, getSavedProfileCat } from '../../../lib/pixelCats'
 import { sendPushToUser } from '../../../lib/pushNotify'
@@ -35,6 +37,7 @@ export default function AdminRecordsPage() {
   const [rcInput, setRcInput] = useState({})
   const [rcSending, setRcSending] = useState({})
   const [lightbox, setLightbox] = useState(null) // 확대해서 볼 이미지 URL
+  const [myStudents, setMyStudents] = useState(null)  // 내 담당 학생 id 집합(오너는 null = 전체 허용)
   const [exportOpen, setExportOpen] = useState(false)  // 책 원고용 내보내기 패널
   const [exportSince, setExportSince] = useState('')   // 증분 기준일
   const [lastExport, setLastExport] = useState('')     // 마지막 내보낸 날(로컬 기록)
@@ -52,11 +55,29 @@ export default function AdminRecordsPage() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) { router.push('/login'); return }
-      if (data.user.user_metadata?.role !== 'admin') { router.push('/student'); return }
+      if (!isTeacher(data.user)) { router.push('/student'); return }
       setUser(data.user)
       loadAll()
+      if (!isOwner(data.user)) loadMyStudents(data.user.id)
     })
   }, [])
+
+  // 내 담당 학생 = 내 수업(class_courses.teacher_id = 나)에 예약한 학생.
+  // 남의 담당 학생 기록은 읽기만 가능하다(사용자 확정 규칙).
+  async function loadMyStudents(uid) {
+    const { data: cs } = await supabase.from('class_courses').select('id').eq('teacher_id', uid)
+    const ids = (cs || []).map(c => c.id)
+    if (ids.length === 0) { setMyStudents(new Set()); return }
+    const { data: bs } = await supabase.from('bookings').select('user_id').in('course_id', ids)
+    setMyStudents(new Set((bs || []).map(b => b.user_id).filter(Boolean)))
+  }
+
+  // 피드백을 쓸 수 있는가 — 오너는 전체, 강사는 담당 학생만
+  function canFeedback(record) {
+    if (isOwner(user)) return true
+    if (myStudents === null) return false      // 아직 로딩 중이면 잠금(오작성 방지)
+    return myStudents.has(record.user_id)
+  }
 
   async function loadAll() {
     const [{ data: recs }, { data: usrs }] = await Promise.all([
@@ -450,6 +471,12 @@ export default function AdminRecordsPage() {
                     </div>
                   )}
 
+                  {!canFeedback(r) ? (
+                    // 담당이 아닌 학생 = 읽기 전용(사용자 확정 규칙)
+                    <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', background:'var(--g1)', border:`1.5px solid ${BORDER}`, borderRadius:10, padding:'9px 11px' }}>
+                      👀 내 담당 학생이 아니라 읽기만 가능해요
+                    </div>
+                  ) : (
                   <div>
                     <textarea value={fbInputs[r.id] || ''}
                       onChange={e => setFbInputs(prev => ({ ...prev, [r.id]: e.target.value }))}
@@ -482,6 +509,7 @@ export default function AdminRecordsPage() {
                       </button>
                     </div>
                   </div>
+                  )}
 
                   {/* 사진 댓글 / 답글 스레드 — 학생 사진 댓글에 강사가 답글, 학생에게 알림 */}
                   <div style={{ marginTop:12, paddingTop:12, borderTop:'1px dashed rgb(var(--ac-rgb) / 0.25)' }}>
@@ -507,6 +535,7 @@ export default function AdminRecordsPage() {
                         })}
                       </div>
                     )}
+                    {canFeedback(r) && (
                     <div style={{ display:'flex', gap:6, alignItems:'center' }}>
                       <input value={rcInput[r.id] || ''} onChange={e => setRcInput(prev => ({ ...prev, [r.id]: e.target.value }))}
                         onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleRcSubmit(r) }}
@@ -517,6 +546,7 @@ export default function AdminRecordsPage() {
                         {rcSending[r.id] ? '…' : '➤'}
                       </button>
                     </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -544,22 +574,30 @@ export default function AdminRecordsPage() {
               <div style={{ fontSize:11, fontWeight:800, color:'var(--tmu)', marginBottom:8 }}>
                 📝 {userMap[lightbox.record.user_id] || '학생'} · {lightbox.record.class_name || '기록'} — 사진 보며 피드백
               </div>
-              <textarea value={fbInputs[lightbox.record.id] || ''}
-                onChange={e => setFbInputs(prev => ({ ...prev, [lightbox.record.id]: e.target.value }))}
-                rows={2} placeholder="이 사진을 보고 피드백을 남겨보세요..."
-                style={{ width:'100%', padding:'9px 11px', borderRadius:10, border:`1.5px solid ${BORDER}`, fontSize:13, resize:'none', fontFamily:'Nunito,sans-serif', marginBottom:8, boxSizing:'border-box', outline:'none' }}/>
-              <button
-                onClick={async () => { await handleFeedbackSubmit(lightbox.record) }}
-                disabled={fbSubmitting[lightbox.record.id] || !(fbInputs[lightbox.record.id]?.trim())}
-                style={{ width:'100%', padding:'11px', background:ACCENT, color:'#fff', border:'none', borderRadius:11, fontSize:14, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif', opacity: fbSubmitting[lightbox.record.id] || !(fbInputs[lightbox.record.id]?.trim()) ? 0.45 : 1 }}>
-                {fbSubmitting[lightbox.record.id] ? '저장 중...' : '피드백 저장'}
-              </button>
+              {canFeedback(lightbox.record) ? (
+                <>
+                  <textarea value={fbInputs[lightbox.record.id] || ''}
+                    onChange={e => setFbInputs(prev => ({ ...prev, [lightbox.record.id]: e.target.value }))}
+                    rows={2} placeholder="이 사진을 보고 피드백을 남겨보세요..."
+                    style={{ width:'100%', padding:'9px 11px', borderRadius:10, border:`1.5px solid ${BORDER}`, fontSize:13, resize:'none', fontFamily:'Nunito,sans-serif', marginBottom:8, boxSizing:'border-box', outline:'none' }}/>
+                  <button
+                    onClick={async () => { await handleFeedbackSubmit(lightbox.record) }}
+                    disabled={fbSubmitting[lightbox.record.id] || !(fbInputs[lightbox.record.id]?.trim())}
+                    style={{ width:'100%', padding:'11px', background:ACCENT, color:'#fff', border:'none', borderRadius:11, fontSize:14, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif', opacity: fbSubmitting[lightbox.record.id] || !(fbInputs[lightbox.record.id]?.trim()) ? 0.45 : 1 }}>
+                    {fbSubmitting[lightbox.record.id] ? '저장 중...' : '피드백 저장'}
+                  </button>
+                </>
+              ) : (
+                <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', textAlign:'center', padding:'8px 0' }}>
+                  👀 내 담당 학생이 아니라 읽기만 가능해요
+                </div>
+              )}
             </div>
           )}
         </div>
       )}
 
-      <AdminNav active="records"/>
+      {isOwner(user) ? <AdminNav active="records"/> : <TeacherNav active="records"/>}
     </>
   )
 }

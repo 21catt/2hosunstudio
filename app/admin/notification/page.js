@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import AdminNav from '../../../components/AdminNav'
+import TeacherNav from '../../../components/TeacherNav'
+import { isTeacher, isOwner } from '../../../lib/roles'
 import { NavIcon } from '../../../components/NavIcons'
 import { useSpaceTheme } from '../../../lib/useFreshTheme'
 import SpaceBg from '../../../components/SpaceBg'
@@ -28,7 +30,7 @@ export default function AdminNotificationPage() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) { router.push('/login'); return }
-      if (data.user.user_metadata?.role !== 'admin') { router.push('/student'); return }
+      if (!isTeacher(data.user)) { router.push('/student'); return }
       setUser(data.user)
       loadData(data.user.id)
     })
@@ -333,7 +335,7 @@ await supabase.from('notifications')
         })}
       </div>
 
-      <AdminNav active="notification" />
+      {isOwner(user) ? <AdminNav active="notification" /> : <TeacherNav active="notification" />}
     </>
   )
 }

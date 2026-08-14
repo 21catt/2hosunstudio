@@ -66,6 +66,8 @@ export default function AdminMembersPage() {
   const [memberMeetingTickets, setMemberMeetingTickets] = useState({})
   const [memberUnlockAll, setMemberUnlockAll] = useState({}) // {userId: bool} — 냥 꾸미기 전체 해금
   const [artists, setArtists] = useState([]) // 참여작가 (하단 별도 목록)
+  const [pendingTeachers, setPendingTeachers] = useState([])  // 승인 대기 강사
+  const [approving, setApproving] = useState({})
   const [harvestMap, setHarvestMap] = useState({}) // {userId: harvest_count}
   const [deleting, setDeleting] = useState(null) // 삭제 중인 userId
   const [armed, setArmed] = useState(null)       // 삭제 확인(잠금해제)된 userId
@@ -102,6 +104,24 @@ export default function AdminMembersPage() {
     return () => cancelAnimationFrame(id)
   }, [expanded])
 
+  // 강사 승인 — auth 메타(approved)까지 바꿔야 로그인이 열린다(서버 라우트 경유)
+  async function approveTeacher(userId) {
+    setApproving(prev => ({ ...prev, [userId]: true }))
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/admin/approve-teacher', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, approved: true }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) { alert('승인 실패: ' + (json.error || res.status)); return }
+      setPendingTeachers(prev => prev.filter(t => t.id !== userId))
+    } finally {
+      setApproving(prev => { const n = { ...prev }; delete n[userId]; return n })
+    }
+  }
+
   async function loadMembers() {
     const { data } = await supabase
       .from('users')
@@ -111,6 +131,9 @@ export default function AdminMembersPage() {
     // 참여작가 — 하단 별도 목록
     const { data: art } = await supabase.from('users').select('*, bookings(*)').eq('role', 'artist')
     setArtists(art || [])
+    // 강사 가입 승인 대기 — approved 컬럼이 없는 환경이면 조용히 빈 목록
+    const { data: pend } = await supabase.from('users').select('id, name, phone, approved').eq('role', 'teacher')
+    setPendingTeachers((pend || []).filter(t => t.approved === false))
     // 수강권 발급 이력(테이블 없으면 조용히 빈 값)
     const { data: grants } = await supabase.from('ticket_grants').select('*')
     const gmap = {}
@@ -319,6 +342,27 @@ export default function AdminMembersPage() {
 
       {/* Content */}
       <div style={{ background: space ? 'transparent' : '#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'14px 14px 80px' }}>
+
+        {/* 강사 가입 승인 대기 — 승인해야 강사가 로그인할 수 있다 */}
+        {pendingTeachers.length > 0 && (
+          <div style={{ background:'#FFF8E1', border:'1.5px solid #FFE082', borderRadius:14, padding:'12px 13px', marginBottom:12 }}>
+            <div style={{ fontSize:12, fontWeight:800, color:'#8a6d00', marginBottom:8 }}>
+              🧑‍🏫 강사 가입 승인 대기 {pendingTeachers.length}명
+            </div>
+            {pendingTeachers.map(t => (
+              <div key={t.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, background:'#fff', border:'1px solid #FFE082', borderRadius:11, padding:'9px 11px', marginBottom:6 }}>
+                <div style={{ minWidth:0 }}>
+                  <div style={{ fontSize:12, fontWeight:800, color:'var(--td)' }}>{t.name || '이름 없음'}</div>
+                  <div style={{ fontSize:10, color:'var(--tmu)' }}>{t.phone || '연락처 없음'}</div>
+                </div>
+                <button onClick={() => approveTeacher(t.id)} disabled={approving[t.id]}
+                  style={{ flexShrink:0, border:'none', background:'#2e7d32', color:'#fff', borderRadius:9, padding:'7px 13px', fontSize:11, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif', opacity: approving[t.id] ? 0.6 : 1 }}>
+                  {approving[t.id] ? '처리 중…' : '승인'}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Segmented filter */}
         <div style={{ display:'flex', background:'var(--g1)', borderRadius:13, padding:3, marginBottom:4 }}>

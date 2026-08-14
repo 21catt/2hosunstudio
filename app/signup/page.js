@@ -45,16 +45,21 @@ export default function SignupPage() {
       email,
       password: pw,
       options: {
-        data: { name, phone, role, categories:[...cats], approved: role==='student' || role==='artist' }
+        // 강사(teacher)는 오너 승인 전까지 approved:false — 로그인 시 차단된다
+        data: { name, phone, role, categories:[...cats], approved: role !== 'teacher' }
       }
     })
     if (error) { setError(error.message); setLoading(false); return }
-    await supabase.from('users').insert({
-      id: data.user.id, name, phone, role, categories:[...cats]
-    })
+    // approved 컬럼이 없는 환경(마이그레이션 전)에서도 가입은 되게 폴백
+    const base = { id: data.user.id, name, phone, role, categories:[...cats] }
+    const { error: insErr } = await supabase.from('users').insert({ ...base, approved: role !== 'teacher' })
+    if (insErr) await supabase.from('users').insert(base)
     if (role==='student') router.push('/student')
     else if (role==='artist') router.push('/artist')
-    else router.push('/login')
+    else {
+      alert('강사 가입이 접수됐어요 🐾\n관리자 승인 후 로그인할 수 있어요.')
+      router.push('/login')
+    }
   }
 
   // step 1에서 다음 누르면, 작가는 바로 가입, 학생/강사는 step 2
@@ -96,7 +101,7 @@ export default function SignupPage() {
         <button className="btn-primary" disabled={!role} onClick={()=>setStep(1)}>다음</button>
         <button className="btn-secondary" onClick={()=>router.push('/login')}>이미 계정이 있어요 → 로그인</button>
         <div style={{ textAlign:'center', marginTop:18 }}>
-          <span onClick={()=>{ setRole('admin'); setStep(1) }}
+          <span onClick={()=>{ setRole('teacher'); setStep(1) }}
             style={{ fontSize:12, color:'var(--tmu)', cursor:'pointer', textDecoration:'underline', textUnderlineOffset:3 }}>
             강사이신가요? 강사로 가입하기 →
           </span>

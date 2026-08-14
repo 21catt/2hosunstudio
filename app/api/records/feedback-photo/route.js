@@ -16,7 +16,8 @@ export async function POST(req) {
   if (authErr || !user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 
   const { data: u } = await supabaseAdmin.from('users').select('role').eq('id', user.id).single()
-  if (u?.role !== 'admin') return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+      // 강사(teacher)도 기록 사진 접근 필요 — 오너(admin)와 동일 허용
+    if (u?.role !== 'admin' && u?.role !== 'teacher') return NextResponse.json({ error: 'forbidden' }, { status: 403 })
 
   let form
   try { form = await req.formData() } catch { return NextResponse.json({ error: 'bad form' }, { status: 400 }) }

@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
+import { isTeacher, isPendingTeacher, homePathFor } from '../../lib/roles'
 import { NavIcon } from '../../components/NavIcons'
 import { LogoMark } from '../../components/Deco'
 
@@ -35,9 +36,16 @@ export default function LoginPage() {
     }
     const role = data.user.user_metadata?.role
 
-    // 역할 체크
-    if (selectedRole === 'admin' && role !== 'admin') {
+    // 역할 체크 — '강사 로그인' 탭은 강사(teacher)와 오너(admin) 둘 다 받는다(오너 겸 강사)
+    if (selectedRole === 'admin' && !isTeacher(role)) {
       setError('강사 계정이 아니에요.')
+      await supabase.auth.signOut()
+      setLoading(false)
+      return
+    }
+    // 승인 전 강사는 차단 — 가입만으로 권한이 생기면 안 된다
+    if (isPendingTeacher(data.user)) {
+      setError('아직 관리자 승인 전이에요. 승인 후 로그인할 수 있어요 🐾')
       await supabase.auth.signOut()
       setLoading(false)
       return
@@ -58,7 +66,8 @@ export default function LoginPage() {
     // 마지막 로그인 이메일 저장 (역할별)
     localStorage.setItem(`lastEmail_${selectedRole}`, email)
 
-    if (selectedRole === 'admin') router.push('/admin')
+    // 강사 탭이면 실제 역할대로 — 오너는 /admin, 강사는 /teacher
+    if (selectedRole === 'admin') router.push(homePathFor(data.user))
     else if (selectedRole === 'artist') router.push('/artist')
     else router.push('/student')
   }

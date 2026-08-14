@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import AdminNav from '../../../components/AdminNav'
+import TeacherNav from '../../../components/TeacherNav'
+import { isTeacher, isOwner } from '../../../lib/roles'
 import { NavIcon } from '../../../components/NavIcons'
 import { HEADER_BG, PRIMARY, T, OK } from '../../../lib/adminTheme'
 import { sendPushToUser } from '../../../lib/pushNotify'
@@ -27,12 +29,21 @@ export default function AdminAttendancePage() {
 
   async function load(date) {
     setLoading(true)
-    const { data: bks } = await supabase
+    let q = supabase
       .from('bookings')
-      .select('id, user_id, class_name, class_time, attended, attended_at, status')
+      .select('id, user_id, course_id, class_name, class_time, attended, attended_at, status')
       .eq('class_date', date)
       .neq('status', 'cancelled')
       .order('class_time')
+
+    // 강사는 자기 수업 출석만 — 오너는 전체
+    if (!isOwner(user)) {
+      const { data: cs } = await supabase.from('class_courses').select('id').eq('teacher_id', user.id)
+      const ids = (cs || []).map(c => c.id)
+      if (ids.length === 0) { setBookings([]); setUserNames({}); setLoading(false); return }
+      q = q.in('course_id', ids)
+    }
+    const { data: bks } = await q
 
     const list = bks || []
     setBookings(list)
@@ -52,7 +63,7 @@ export default function AdminAttendancePage() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) { router.push('/login'); return }
-      if (data.user.user_metadata?.role !== 'admin') { router.push('/student'); return }
+      if (!isTeacher(data.user)) { router.push('/student'); return }
       setUser(data.user)
     })
   }, [])
@@ -222,7 +233,7 @@ export default function AdminAttendancePage() {
         )}
       </div>
 
-      <AdminNav active="attendance" />
+      {isOwner(user) ? <AdminNav active="attendance" /> : <TeacherNav active="attendance" />}
     </>
   )
 }

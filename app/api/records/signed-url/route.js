@@ -20,7 +20,8 @@ export async function GET(req) {
 
   if (!isOwner) {
     const { data: u } = await supabaseAdmin.from('users').select('role').eq('id', user.id).single()
-    if (u?.role !== 'admin') return NextResponse.json({ error: 'forbidden' }, { status: 403 })
+        // 강사(teacher)도 기록 사진 접근 필요 — 오너(admin)와 동일 허용
+    if (u?.role !== 'admin' && u?.role !== 'teacher') return NextResponse.json({ error: 'forbidden' }, { status: 403 })
   }
 
   // 기록 이미지는 영구 보관 대상 — 서명URL 유효기간을 7일로(열어둔 페이지·캐시에서 안 끊기게).
