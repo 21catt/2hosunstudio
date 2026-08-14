@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
+import { restoreClassTicket, refundsClassTicket } from '../../../lib/booking'
 import StudentNav from '../../../components/StudentNav'
 import { NavIcon } from '../../../components/NavIcons'
 import LoadingCat from '../../../components/LoadingCat'
@@ -60,13 +61,16 @@ export default function StudentNotificationPage() {
   if (diff < 4) { alert('수업 4시간 전에는 취소할 수 없어요'); return }
   if (!confirm('예약을 취소할까요?')) return
   
-  // 강사 id 찾기
-  const { data: course } = await supabase.from('class_courses').select('teacher_id').eq('id', booking.course_id).single()
-  
+  // 강사 id + 카테고리 — 카테고리를 봐야 수강권 복구 대상인지 판단할 수 있다
+  const { data: course } = await supabase.from('class_courses').select('teacher_id, category').eq('id', booking.course_id).single()
+
   await supabase.from('bookings').delete().eq('id', booking.id)
-  const { data: ticket } = await supabase.from('tickets').select('*').eq('user_id', user.id).single()
-  if (ticket) await supabase.from('tickets').update({ remain: ticket.remain+1 }).eq('id', ticket.id)
-  
+  // ⚠️ 예전엔 카테고리를 안 보고 무조건 +1 복구해서, 자율창작·원데이·모임을 취소해도
+  //    일반 수강권이 늘어났다(쓴 적 없는 회차가 생김). 캘린더 취소와 같은 규칙으로 통일.
+  if (refundsClassTicket(course?.category)) {
+    await restoreClassTicket({ userId: user.id })
+  }
+
   // 강사에게 취소 알림
   const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
   if (course?.teacher_id) {

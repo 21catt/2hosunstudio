@@ -8,6 +8,7 @@ import { NavIcon } from '../../../components/NavIcons'
 import { HEADER_BG, PRIMARY, T, OK, WARN, BAD } from '../../../lib/adminTheme'
 import { sortCoursesByCategory } from '../../../lib/courseSort'
 import { fetchLockedDates } from '../../../lib/lockedDates'
+import { consumeClassTicket, refundsClassTicket } from '../../../lib/booking'
 import { notifyAllAdmins } from '../../../lib/adminNotify'
 import { sendPushToAdmins } from '../../../lib/pushNotify'
 import { sendKakaoToAdmins } from '../../../lib/kakaoNotify'
@@ -60,7 +61,8 @@ async function refundAndDeleteBookings(bookings, todayStr) {
         .gte('expires_at', todayStr).order('expires_at',{ascending:true}).limit(1)
       if (mt?.[0]) await supabase.from('meeting_tickets').update({ remain: mt[0].remain + count }).eq('id', mt[0].id)
     } else {
-      const { data: tks } = await supabase.from('tickets').select('id,remain,total').eq('user_id', userId).limit(1)
+      const { data: tks } = await supabase.from('tickets').select('id,remain,total').eq('user_id', userId)
+        .gte('expires_at', todayStr).order('expires_at', { ascending: true }).limit(1)
       // 관리자 취소 시 차감됐던 수강 횟수 복구(총 횟수 초과 방지)
       if (tks?.[0]) {
         const restored = tks[0].total ? Math.min(tks[0].total, tks[0].remain + count) : tks[0].remain + count
@@ -509,11 +511,9 @@ const todayStr = `${todayY}-${String(todayM+1).padStart(2,'0')}-${String(todayD)
         teacher: course.teacher, status: 'booked',
       }).select().single()
       if (error) { alert('예약 실패: ' + error.message); return }
-      // 일반수업이면 회원 수강권 1회 차감(잔여 있는 수강권이 있을 때만)
-      if (course.category !== 'free' && course.category !== 'meeting') {
-        const { data: tix } = await supabase.from('tickets').select('*').eq('user_id', member.id)
-        const t = (tix || []).find(x => x.remain > 0)
-        if (t) await supabase.from('tickets').update({ remain: t.remain - 1 }).eq('id', t.id)
+      // 일반수업이면 회원 수강권 1회 차감(DB 원자 연산 — 학생 예약과 같은 경로)
+      if (refundsClassTicket(course.category)) {
+        await consumeClassTicket({ userId: member.id })
       }
       const msg = `${member.name || '회원'}님 ${course.name} ${dateStr} ${schedule.start_time} 예약 (관리자 대신 예약)`
       await notifyAllAdmins({ type: 'booking_created', title: '새 예약 (대신)', body: msg, related_id: nb?.id })

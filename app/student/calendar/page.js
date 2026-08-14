@@ -8,6 +8,7 @@ import { NavIcon } from '../../../components/NavIcons'
 import { sortCoursesByCategory } from '../../../lib/courseSort'
 import { fetchLockedDates } from '../../../lib/lockedDates'
 import { isTooLateToBook, bookingCutoffMessage } from '../../../lib/bookingWindow'
+import { consumeClassTicket, restoreClassTicket, refundsClassTicket } from '../../../lib/booking'
 import { sendPushToAdmins } from '../../../lib/pushNotify'
 import { sendKakaoToAdmins } from '../../../lib/kakaoNotify'
 import { notifyAllAdmins } from '../../../lib/adminNotify'
@@ -158,6 +159,7 @@ export default function CalendarPage() {
   const [selCat, setSelCat] = useState(null)
   const [selCourse, setSelCourse] = useState(null)
   const [selSchedule, setSelSchedule] = useState(null)
+  const [bookBusy, setBookBusy] = useState(false)   // 예약 처리 중(중복 실행 방지)
   const [onedayInfoOpen, setOnedayInfoOpen] = useState(true) // 원데이 신청 시 가격·입금 안내 토글(기본 펼침)
   const [paymentModal, setPaymentModal] = useState(null)
   // 미가입자 예약 요청 — {course, schedule, date}. 관리자 알림+가입 권유.
@@ -414,7 +416,10 @@ export default function CalendarPage() {
       alert('이 시간대 자리가 방금 마감됐어요. 다른 시간을 선택해 주세요 🐾')
       setSelSchedule(null); loadData(user.id); return
     }
-    const { data: newBooking } = await supabase.from('bookings').insert({
+    // 수강권 차감을 먼저(DB 원자 연산) — 화면 값으로 빼면 연달아 예약할 때 차감이 유실된다
+    const consumed = await consumeClassTicket({ userId: user.id, fallbackTicket: ticket })
+    if (!consumed) { alert('수강권 잔여가 없어요 🐾'); loadData(user.id); return }
+    const { data: newBooking, error: bookErr } = await supabase.from('bookings').insert({
       user_id: user.id,
       course_id: course.id,
       schedule_id: schedule.id,
@@ -424,7 +429,10 @@ export default function CalendarPage() {
       teacher: course.teacher,
       status: 'booked'
     }).select().single()
-    await supabase.from('tickets').update({ remain: ticket.remain - 1 }).eq('id', ticket.id)
+    if (bookErr) { // 예약 실패 → 차감 되돌리기
+      await restoreClassTicket({ userId: user.id, fallbackTicket: consumed })
+      alert('예약에 실패했어요. 다시 시도해 주세요 🐾'); loadData(user.id); return
+    }
     const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
     const pushMsg = `${profile?.name || '학생'}님 ${course.name} ${dateStr} ${schedule.start_time} 예약`
     await notifyAllAdmins({ type: 'booking_created', title: '새 예약', body: pushMsg, related_id: newBooking?.id })
@@ -475,7 +483,14 @@ export default function CalendarPage() {
     loadData(user.id)
   }
 
+  // ⚠️ 중복 실행 방지 — 버튼을 두 번 누르면 예약 2건이 생길 수 있다(관리자 대신 예약의 bookBusy 와 같은 역할)
   async function handleBook() {
+    if (bookBusy) return
+    setBookBusy(true)
+    try { await handleBookInner() } finally { setBookBusy(false) }
+  }
+
+  async function handleBookInner() {
     if (!user) {
       // 미가입자 = 예약 '요청'(관리자 알림+가입 권유). 선택한 수업·시간으로 폼 열기.
       if (!selCourse || !selSchedule) { router.push('/signup'); return }
@@ -638,8 +653,9 @@ export default function CalendarPage() {
       if (mt && mt.length > 0) {
         await supabase.from('meeting_tickets').update({ remain: mt[0].remain + 1 }).eq('id', mt[0].id)
       }
-    } else if (course?.category !== 'free') {
-      await supabase.from('tickets').update({ remain: ticket.remain+1 }).eq('id', ticket.id)
+    } else if (refundsClassTicket(course?.category)) {
+      // ⚠️ oneday(원데이)는 예약 시 차감이 없으므로 복구 대상이 아니다 — 넣으면 없던 회차가 생긴다
+      await restoreClassTicket({ userId: user.id, fallbackTicket: ticket })
     }
 
     const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
@@ -700,10 +716,14 @@ export default function CalendarPage() {
 
   async function handleQuickBook(course, schedule, dateStr) {
     if (!user) { router.push('/signup'); return }
+    if (bookBusy) return
     if (lockedDates.has(dateStr)) { alert('이 날은 예약이 닫혀 있어요 🐾'); return }
     if (isTooLateToBook(dateStr, schedule.start_time)) { alert(bookingCutoffMessage(dateStr, schedule.start_time)); return }
-    if (hasValidTicket()) await execBook(course, schedule, dateStr)
-    else await sendBookingRequest(course, schedule, dateStr)
+    setBookBusy(true)
+    try {
+      if (hasValidTicket()) await execBook(course, schedule, dateStr)
+      else await sendBookingRequest(course, schedule, dateStr)
+    } finally { setBookBusy(false) }
   }
 
   const daysInMonth = new Date(year, month+1, 0).getDate()
@@ -1284,9 +1304,9 @@ export default function CalendarPage() {
                 <>
                   <div style={{ height:78 }} />
                   <div style={{ position:'fixed', left:'50%', transform:'translateX(-50%)', bottom:64, width:'100%', maxWidth:390, padding:'8px 14px', boxSizing:'border-box', zIndex:80, pointerEvents:'none' }}>
-                    <button onClick={handleBook}
-                      style={{ pointerEvents:'auto', width:'100%', padding:'15px 20px', background:ACCENT, color:'#fff', border:'none', borderRadius:14, fontSize:14, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif', boxShadow:'0 8px 22px -6px rgba(0,0,0,0.35)' }}>
-                      {!user
+                    <button onClick={handleBook} disabled={bookBusy}
+                      style={{ pointerEvents:'auto', width:'100%', padding:'15px 20px', background:ACCENT, color:'#fff', border:'none', borderRadius:14, fontSize:14, fontWeight:700, cursor: bookBusy ? 'default' : 'pointer', opacity: bookBusy ? 0.6 : 1, fontFamily:'Nunito,sans-serif', boxShadow:'0 8px 22px -6px rgba(0,0,0,0.35)' }}>
+                      {bookBusy ? '예약 처리 중…' : !user
                         ? `${selCourse?.name} ${selSchedule?.start_time}~${selSchedule?.end_time} 예약 요청 🐾`
                         : selCourse?.category === 'oneday'
                           ? `원데이 신청 · ${(selCourse?.price || 0).toLocaleString()}원 (계약금 입금)`
