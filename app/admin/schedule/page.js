@@ -9,8 +9,8 @@ import { HEADER_BG, PRIMARY, T, OK, WARN, BAD } from '../../../lib/adminTheme'
 import { sortCoursesByCategory } from '../../../lib/courseSort'
 import { fetchLockedDates } from '../../../lib/lockedDates'
 import { consumeClassTicket, refundsClassTicket } from '../../../lib/booking'
-import { notifyAllAdmins } from '../../../lib/adminNotify'
-import { sendPushToAdmins } from '../../../lib/pushNotify'
+import { notifyStaff } from '../../../lib/adminNotify'
+import { sendPushToAdmins, sendPushToStaff } from '../../../lib/pushNotify'
 import { sendKakaoToAdmins } from '../../../lib/kakaoNotify'
 import { useSpaceTheme } from '../../../lib/useFreshTheme'
 import SpaceBg from '../../../components/SpaceBg'
@@ -516,8 +516,8 @@ const todayStr = `${todayY}-${String(todayM+1).padStart(2,'0')}-${String(todayD)
         await consumeClassTicket({ userId: member.id })
       }
       const msg = `${member.name || '회원'}님 ${course.name} ${dateStr} ${schedule.start_time} 예약 (관리자 대신 예약)`
-      await notifyAllAdmins({ type: 'booking_created', title: '새 예약 (대신)', body: msg, related_id: nb?.id })
-      sendPushToAdmins('🐾 새 예약 (대신)', msg)
+      await notifyStaff({ courseId: course.id, type: 'booking_created', title: '새 예약 (대신)', body: msg, related_id: nb?.id })
+      sendPushToStaff(course.id, '🐾 새 예약 (대신)', msg)
       sendKakaoToAdmins('🐾 새 예약 (대신)', msg)
       setBookForSlot(null); setMemberSearch('')
       await loadData()

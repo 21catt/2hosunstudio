@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
-import { notifyAllAdmins } from '../../../lib/adminNotify'
+import { notifyStaff } from '../../../lib/adminNotify'
 import { useTodayWeather } from '../../../components/WeatherBar'
 import { NavIcon } from '../../../components/NavIcons'
 import StudentNav from '../../../components/StudentNav'
@@ -270,7 +270,7 @@ setAllBookings(allMeetingBookings || [])
   }).select().single()
 
   const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
-  await notifyAllAdmins({ type: 'booking_created', title: '새 회의 신청', body: `${profile?.name || '작가'}님이 ${selCourse.name} ${dateStr} ${selSchedule.start_time} 참여 신청`, related_id: newBooking?.id })
+  await notifyStaff({ courseId: selCourse.id, type: 'booking_created', title: '새 회의 신청', body: `${profile?.name || '작가'}님이 ${selCourse.name} ${dateStr} ${selSchedule.start_time} 참여 신청`, related_id: newBooking?.id })
 
   setSelCourse(null); setSelSchedule(null)
   loadData(user.id)
@@ -286,7 +286,7 @@ setAllBookings(allMeetingBookings || [])
     await supabase.from('tickets').update({ remain: ticket.remain+1 }).eq('id', ticket.id)
 
     const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
-    await notifyAllAdmins({ type: 'booking_cancelled', title: '회의 신청 취소', body: `${profile?.name || '작가'}님이 ${booking.class_name} ${booking.class_date} ${booking.class_time} 취소` })
+    await notifyStaff({ courseId: booking.course_id, type: 'booking_cancelled', title: '회의 신청 취소', body: `${profile?.name || '작가'}님이 ${booking.class_name} ${booking.class_date} ${booking.class_time} 취소` })
 
     loadData(user.id)
   }
