@@ -76,8 +76,8 @@ export default function StudentNotificationPage() {
   // 취소 알림 — 담당 강사 + 관리자 전원(예전엔 담당 강사 1명에게만 가서 관리자가 못 봤다)
   const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
   const cancelMsg = `${profile?.name || '학생'}님이 ${booking.class_name} ${booking.class_date} ${booking.class_time} 취소`
-  await notifyStaff({ courseId: booking.course_id, type: 'booking_cancelled', title: '예약 취소', body: cancelMsg })
-  sendPushToStaff(booking.course_id, '🐾 예약 취소', cancelMsg)
+  await notifyStaff({ courseId: booking.course_id, scheduleId: booking.schedule_id, type: 'booking_cancelled', title: '예약 취소', body: cancelMsg })
+  sendPushToStaff(booking.course_id, '🐾 예약 취소', cancelMsg, booking.schedule_id)
 
   loadData(user.id)
 }

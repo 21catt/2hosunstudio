@@ -5,6 +5,7 @@ import { supabase } from '../../../lib/supabase'
 import AdminNav from '../../../components/AdminNav'
 import TeacherNav from '../../../components/TeacherNav'
 import { isTeacher, isOwner } from '../../../lib/roles'
+import { loadTeachingScope } from '../../../lib/teaching'
 import { NavIcon } from '../../../components/NavIcons'
 import { HEADER_BG, PRIMARY, T, OK } from '../../../lib/adminTheme'
 import { sendPushToUser } from '../../../lib/pushNotify'
@@ -31,21 +32,22 @@ export default function AdminAttendancePage() {
     setLoading(true)
     let q = supabase
       .from('bookings')
-      .select('id, user_id, course_id, class_name, class_time, attended, attended_at, status')
+      .select('id, user_id, course_id, schedule_id, class_name, class_time, attended, attended_at, status')
       .eq('class_date', date)
       .neq('status', 'cancelled')
       .order('class_time')
 
     // 강사는 자기 수업 출석만 — 오너는 전체
+    let scope = null
     if (!isOwner(user)) {
-      const { data: cs } = await supabase.from('class_courses').select('id').eq('teacher_id', user.id)
-      const ids = (cs || []).map(c => c.id)
-      if (ids.length === 0) { setBookings([]); setUserNames({}); setLoading(false); return }
-      q = q.in('course_id', ids)
+      scope = await loadTeachingScope(user.id)
+      if (!scope.hasAny) { setBookings([]); setUserNames({}); setLoading(false); return }
+      q = q.in('course_id', scope.scopeCourseIds)
     }
     const { data: bks } = await q
 
-    const list = bks || []
+    // 내 수업이어도 그 타임이 다른 강사면 제외
+    const list = scope ? (bks || []).filter(scope.isMine) : (bks || [])
     setBookings(list)
 
     const ids = [...new Set(list.map(b => b.user_id))]

@@ -435,8 +435,8 @@ export default function CalendarPage() {
     }
     const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
     const pushMsg = `${profile?.name || '학생'}님 ${course.name} ${dateStr} ${schedule.start_time} 예약`
-    await notifyStaff({ courseId: course.id, type: 'booking_created', title: '새 예약', body: pushMsg, related_id: newBooking?.id })
-    sendPushToStaff(course.id, '🐾 새 예약', pushMsg)
+    await notifyStaff({ courseId: course.id, scheduleId: schedule.id, type: 'booking_created', title: '새 예약', body: pushMsg, related_id: newBooking?.id })
+    sendPushToStaff(course.id, '🐾 새 예약', pushMsg, schedule.id)
     sendKakaoToAdmins('🐾 새 예약', pushMsg)
     setSelCat(null); setSelCourse(null); setSelSchedule(null)
     loadData(user.id)
@@ -659,7 +659,7 @@ export default function CalendarPage() {
     }
 
     const { data: profile } = await supabase.from('users').select('name').eq('id', user.id).single()
-    await notifyStaff({ courseId: booking.course_id, type: 'booking_cancelled', title: '예약 취소', body: `${profile?.name || '학생'}님이 ${booking.class_name} ${booking.class_date} ${booking.class_time} 취소` })
+    await notifyStaff({ courseId: booking.course_id, scheduleId: booking.schedule_id, type: 'booking_cancelled', title: '예약 취소', body: `${profile?.name || '학생'}님이 ${booking.class_name} ${booking.class_date} ${booking.class_time} 취소` })
 
     loadData(user.id)
   }

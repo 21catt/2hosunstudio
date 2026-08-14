@@ -5,6 +5,7 @@ import { supabase } from '../../../lib/supabase'
 import AdminNav from '../../../components/AdminNav'
 import TeacherNav from '../../../components/TeacherNav'
 import { isTeacher, isOwner } from '../../../lib/roles'
+import { loadTeachingScope } from '../../../lib/teaching'
 import { NavIcon } from '../../../components/NavIcons'
 import { pixelCatImg, DEFAULT_PROFILE_CAT, isValidPixelCat, getSavedProfileCat } from '../../../lib/pixelCats'
 import { sendPushToUser } from '../../../lib/pushNotify'
@@ -65,11 +66,10 @@ export default function AdminRecordsPage() {
   // 내 담당 학생 = 내 수업(class_courses.teacher_id = 나)에 예약한 학생.
   // 남의 담당 학생 기록은 읽기만 가능하다(사용자 확정 규칙).
   async function loadMyStudents(uid) {
-    const { data: cs } = await supabase.from('class_courses').select('id').eq('teacher_id', uid)
-    const ids = (cs || []).map(c => c.id)
-    if (ids.length === 0) { setMyStudents(new Set()); return }
-    const { data: bs } = await supabase.from('bookings').select('user_id').in('course_id', ids)
-    setMyStudents(new Set((bs || []).map(b => b.user_id).filter(Boolean)))
+    const scope = await loadTeachingScope(uid)
+    if (!scope.hasAny) { setMyStudents(new Set()); return }
+    const { data: bs } = await supabase.from('bookings').select('user_id, course_id, schedule_id').in('course_id', scope.scopeCourseIds)
+    setMyStudents(new Set((bs || []).filter(scope.isMine).map(b => b.user_id).filter(Boolean)))
   }
 
   // 피드백을 쓸 수 있는가 — 오너는 전체, 강사는 담당 학생만

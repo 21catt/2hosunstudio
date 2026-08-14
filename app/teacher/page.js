@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import { isTeacher, isOwner, isPendingTeacher } from '../../lib/roles'
+import { loadTeachingScope } from '../../lib/teaching'
 import TeacherNav from '../../components/TeacherNav'
 import { NavIcon } from '../../components/NavIcons'
 import LoadingCat from '../../components/LoadingCat'
@@ -33,24 +34,24 @@ export default function TeacherHomePage() {
   }, [])
 
   async function loadData(uid) {
-    // 내가 담당인 수업 (class_courses.teacher_id = 나)
+    // 내 담당 = 수업 담당 + 타임 담당(class_schedules.teacher_id 우선)
+    const scope = await loadTeachingScope(uid)
+    if (!scope.hasAny) { setCourses([]); setLoading(false); return }
+
     const { data: cs } = await supabase
       .from('class_courses')
       .select('*, class_schedules(*)')
-      .eq('teacher_id', uid)
+      .in('id', scope.scopeCourseIds)
       .eq('is_active', true)
-    const mine = cs || []
-    setCourses(mine)
+    setCourses(cs || [])
 
-    if (mine.length === 0) { setLoading(false); return }
-
-    const ids = mine.map(c => c.id)
     const { data: bs } = await supabase
       .from('bookings')
       .select('*')
-      .in('course_id', ids)
+      .in('course_id', scope.scopeCourseIds)
       .order('class_date', { ascending: true })
-    const list = bs || []
+    // 내 수업이어도 그 타임이 다른 강사면 제외
+    const list = (bs || []).filter(scope.isMine)
     setBookings(list)
 
     const uids = [...new Set(list.map(b => b.user_id).filter(Boolean))]
