@@ -98,6 +98,7 @@ export default function AdminHomePage() {
     { label: '자리사진', icon: 'photo', href: '/admin/seats' },
     { label: '커리큘럼', icon: 'book', href: '/admin/curriculum' },
     { label: '라운지', icon: 'chat', href: '/lounge' },
+    { label: '강사관리', icon: 'profile', href: '/admin/teachers' },
   ]
 
   if (loading) return <LoadingCat />
