@@ -25,6 +25,8 @@ export default function AdminTeachersPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState(null)
+  const [openSched, setOpenSched] = useState({})   // `강사:수업` → 타임 목록 펼침(기본 접힘)
+  const [onlyMine, setOnlyMine] = useState(false)  // 담당 수업만 보기
   const [busy, setBusy] = useState({})
   const space = useSpaceTheme()
 
@@ -174,13 +176,28 @@ export default function AdminTeachersPage() {
 
               {open && (
                 <div style={{ marginTop:12, paddingTop:12, borderTop:`1px dashed ${BORDER}` }}>
-                  <div style={{ fontSize:11, fontWeight:800, color:'var(--td)', marginBottom:8 }}>담당 수업 지정</div>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginBottom:8 }}>
+                    <span style={{ fontSize:11, fontWeight:800, color:'var(--td)' }}>담당 수업 지정</span>
+                    <div style={{ display:'flex', gap:5 }}>
+                      <button onClick={() => setOnlyMine(false)} style={chip(!onlyMine)}>전체 {courses.length}</button>
+                      <button onClick={() => setOnlyMine(true)} style={chip(onlyMine)}>
+                        담당만 {courses.filter(c => c.teacher_id === t.id || (c.class_schedules || []).some(s => s.teacher_id === t.id)).length}
+                      </button>
+                    </div>
+                  </div>
                   {courses.length === 0 ? (
                     <div style={{ fontSize:11, color:'var(--tmu)' }}>개설된 수업이 없어요</div>
-                  ) : courses.map(c => {
+                  ) : courses
+                    .filter(c => !onlyMine || c.teacher_id === t.id || (c.class_schedules || []).some(s => s.teacher_id === t.id))
+                    .map(c => {
                     const mine = c.teacher_id === t.id
                     const other = c.teacher_id && !mine
                     const otherName = other ? (teachers.find(x => x.id === c.teacher_id)?.name || '다른 강사') : ''
+                    const slots = c.class_schedules || []
+                    const slotCount = slots.length
+                    const mySlotCount = slots.filter(s => s.teacher_id === t.id).length
+                    const schedKey = `${t.id}:${c.id}`
+                    const schedOpen = !!openSched[schedKey]
                     return (
                       <div key={c.id} style={{ background:'var(--surf)', border:`1.5px solid ${mine ? 'var(--ac)' : BORDER}`, borderRadius:11, padding:'9px 11px', marginBottom:7 }}>
                         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
@@ -190,16 +207,25 @@ export default function AdminTeachersPage() {
                             </div>
                             {other && <div style={{ fontSize:10, color:'var(--tmu)', marginTop:1 }}>현재 담당: {otherName}</div>}
                           </div>
-                          <button onClick={() => setCourseTeacher(c.id, mine ? null : t.id)} style={chip(mine)}>
-                            {mine ? '담당 해제' : '담당 지정'}
-                          </button>
+                          <div style={{ display:'flex', alignItems:'center', gap:5, flexShrink:0 }}>
+                            {slotCount > 0 && (
+                              // 타임 목록은 기본으로 접어 둔다 — 다 펼치면 스크롤이 너무 길어진다
+                              <button onClick={() => setOpenSched(p => ({ ...p, [schedKey]: !p[schedKey] }))}
+                                style={{ ...chip(false), display:'inline-flex', alignItems:'center', gap:3 }}>
+                                타임 {slotCount}{mySlotCount > 0 && <span style={{ color:'var(--acTx)' }}>·{mySlotCount}</span>} {schedOpen ? '▾' : '▸'}
+                              </button>
+                            )}
+                            <button onClick={() => setCourseTeacher(c.id, mine ? null : t.id)} style={chip(mine)}>
+                              {mine ? '담당 해제' : '담당 지정'}
+                            </button>
+                          </div>
                         </div>
 
                         {/* 타임별 담당 — 비워두면 수업 담당을 따른다 */}
-                        {(c.class_schedules || []).length > 0 && (
+                        {slotCount > 0 && schedOpen && (
                           <div style={{ marginTop:8, paddingTop:8, borderTop:`1px dashed ${BORDER}` }}>
                             <div style={{ fontSize:9.5, fontWeight:800, color:'var(--tmu)', marginBottom:6 }}>타임별 담당 (비우면 수업 담당을 따라요)</div>
-                            <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
+                            <div className="no-scrollbar" style={{ display:'flex', flexDirection:'column', gap:5, maxHeight:168, overflowY:'auto' }}>
                               {[...(c.class_schedules || [])].sort((a,b) => (a.day_of_week - b.day_of_week) || (a.start_time || '').localeCompare(b.start_time || '')).map(s => {
                                 const sMine = s.teacher_id === t.id
                                 const sOther = s.teacher_id && !sMine
