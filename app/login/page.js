@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
-import { isTeacher, isPendingTeacher, homePathFor } from '../../lib/roles'
+import { isTeacher, isPendingTeacher } from '../../lib/roles'
 import { NavIcon } from '../../components/NavIcons'
 import { LogoMark } from '../../components/Deco'
 
@@ -36,9 +36,17 @@ export default function LoginPage() {
     }
     const role = data.user.user_metadata?.role
 
-    // 역할 체크 — '강사 로그인' 탭은 강사(teacher)와 오너(admin) 둘 다 받는다(오너 겸 강사)
-    if (selectedRole === 'admin' && !isTeacher(role)) {
+    // 역할 체크
+    // '강사 로그인'은 강사(teacher) + 오너(admin) 모두 허용 — 오너 겸 강사가 강사 화면으로 바로 들어갈 수 있게
+    if (selectedRole === 'teacher' && !isTeacher(role)) {
       setError('강사 계정이 아니에요.')
+      await supabase.auth.signOut()
+      setLoading(false)
+      return
+    }
+    // '관리자 로그인'은 오너만
+    if (selectedRole === 'admin' && role !== 'admin') {
+      setError('관리자 계정이 아니에요.')
       await supabase.auth.signOut()
       setLoading(false)
       return
@@ -66,8 +74,9 @@ export default function LoginPage() {
     // 마지막 로그인 이메일 저장 (역할별)
     localStorage.setItem(`lastEmail_${selectedRole}`, email)
 
-    // 강사 탭이면 실제 역할대로 — 오너는 /admin, 강사는 /teacher
-    if (selectedRole === 'admin') router.push(homePathFor(data.user))
+    // 고른 입구대로 이동 — 오너가 '강사 로그인'을 골랐으면 강사 화면으로 보낸다
+    if (selectedRole === 'teacher') router.push('/teacher')
+    else if (selectedRole === 'admin') router.push('/admin')
     else if (selectedRole === 'artist') router.push('/artist')
     else router.push('/student')
   }
@@ -119,10 +128,25 @@ export default function LoginPage() {
           계정이 없어요 → 가입하기
         </button>
 
-        <div style={{ textAlign:'center', marginTop:22 }}>
-          <span onClick={() => { setSelectedRole('admin'); setStep(1) }}
+        {/* 강사와 관리자는 권한이 달라 입구를 분리한다(강사는 오너 승인 후 이용) */}
+        <div style={{ display:'flex', gap:8, marginTop:22 }}>
+          {[
+            { id:'teacher', label:'강사 로그인', icon:'clipboard' },
+            { id:'admin', label:'관리자 로그인', icon:'card' },
+          ].map(r => (
+            <div key={r.id} onClick={() => { setSelectedRole(r.id); setStep(1) }}
+              style={{ flex:1, border:'1.5px solid var(--g2)', background:'var(--g1)', borderRadius:14, padding:'12px 10px',
+                display:'flex', flexDirection:'column', alignItems:'center', gap:6, cursor:'pointer' }}>
+              <NavIcon name={r.icon} color="var(--tm)" size={20} />
+              <span style={{ fontSize:11.5, fontWeight:800, color:'var(--tm)' }}>{r.label}</span>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ textAlign:'center', marginTop:14 }}>
+          <span onClick={() => router.push('/signup')}
             style={{ fontSize:11, color:'var(--tmu)', fontWeight:700, cursor:'pointer', textDecoration:'underline', textUnderlineOffset:3 }}>
-            강사(관리자) 로그인
+            강사이신가요? 강사로 가입하기 →
           </span>
         </div>
       </div>
@@ -176,8 +200,15 @@ export default function LoginPage() {
   )
 
   // 로그인 화면
-  const roleEmoji = selectedRole === 'admin' ? '✏️' : selectedRole === 'artist' ? '🖼️' : '🐱'
-  const roleTitle = selectedRole === 'admin' ? '강사 로그인' : selectedRole === 'artist' ? '작가 로그인' : '수강생 로그인'
+  const ROLE_UI = {
+    teacher: { emoji:'✏️', title:'강사 로그인', hint:'담당 수업·출석·기록 피드백' },
+    admin:   { emoji:'🔑', title:'관리자 로그인', hint:'전체 운영·수강권·정산' },
+    artist:  { emoji:'🖼️', title:'작가 로그인', hint:'' },
+    student: { emoji:'🐱', title:'수강생 로그인', hint:'' },
+  }
+  const roleUI = ROLE_UI[selectedRole] || ROLE_UI.student
+  const roleEmoji = roleUI.emoji
+  const roleTitle = roleUI.title
 
   return (
     <>
@@ -192,7 +223,7 @@ export default function LoginPage() {
         <div style={{ textAlign:'center', marginBottom:32 }}>
           <div style={{ fontSize:48, marginBottom:10 }}>{roleEmoji}</div>
           <div style={{ fontSize:18, fontWeight:800, color:'var(--td)', marginBottom:6 }}>{roleTitle}</div>
-          <div style={{ fontSize:12, color:'var(--tmu)' }}>2호선 스튜디오에 오신 걸 환영해요</div>
+          <div style={{ fontSize:12, color:'var(--tmu)' }}>{roleUI.hint || '2호선 스튜디오에 오신 걸 환영해요'}</div>
         </div>
 
         <div className="field">
