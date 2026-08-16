@@ -1,5 +1,6 @@
 import './globals.css'
 import PaletteFab from '../components/PaletteFab'
+import GlassMintLayer from '../components/GlassMintLayer'
 
 export const viewport = {
   themeColor: '#2B2FD4',
@@ -29,6 +30,8 @@ export default function RootLayout({ children }) {
         <script dangerouslySetInnerHTML={{ __html:
           `try{var t=localStorage.getItem('2hs_theme');if(t&&t!=='ultra')document.documentElement.setAttribute('data-theme',t)}catch(e){}`
         }} />
+        {/* 글라스 민트 테마일 때만 뒤에 깔리는 앰비언트 배경(전 페이지 공통) */}
+        <GlassMintLayer />
         <div className="app-shell">
           {children}
           <PaletteFab />
