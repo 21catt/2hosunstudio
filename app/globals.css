@@ -604,25 +604,35 @@ button, a, [role="button"], label, summary { touch-action: manipulation; }
    ⚠️ 다른 테마엔 영향 없음(전부 [data-theme='glass'] 스코프).
    ⚠️ backdrop-filter 미지원 브라우저는 반투명 흰 배경으로 자연 폴백된다. */
 [data-theme='glass'] {
-  --g1: #E4EFE9;
-  --g2: #A9D9C9;
+  /* 유리 위에 얹히는 면들은 전부 반투명 흰색 — 뒤 앰비언트가 비쳐야 유리로 읽힌다.
+     ⚠️ 불투명 색(#fff·#F5F1E8)을 쓰면 배경이 가려져 투명감이 통째로 사라진다. */
+  --g1: rgba(255, 255, 255, 0.42);
+  --g2: rgba(255, 255, 255, 0.72);
   --g3: #7FBFAC;
   --g4: #6BAE9A;
   --g5: #4A8375;
-  --bg: #F5F1E8;
-  --surf: rgba(255, 255, 255, 0.72);
+  --bg: transparent;                          /* body — 앰비언트 배경이 그대로 보이게 */
+  --surf: rgba(255, 255, 255, 0.55);
   --td: #2E3A34;
   --tm: #5C6B63;
   --tmu: #8B978F;
-  --tl: #C3CEC7;
+  --tl: rgba(255, 255, 255, 0.7);
   --ac: #6BAE9A;
   --ac-rgb: 107 174 154;
   --ac2: #F3C9CE;
-  --acBg: #E7F2ED;
+  --acBg: rgba(255, 255, 255, 0.5);
   --acTx: #3F7365;
-  --card: rgba(255, 255, 255, 0.6);
+  --card: rgba(255, 255, 255, 0.55);
   --line: rgba(255, 255, 255, 0.85);
   --page: transparent;
+}
+
+/* 상단 타이틀 바 — 흰 띠가 아니라 배경이 그대로 비쳐야 한다 */
+[data-theme='glass'] .p-header {
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 /* 앱 셸이 불투명하면 앰비언트 배경이 통째로 가려진다 */
@@ -648,8 +658,8 @@ button, a, [role="button"], label, summary { touch-action: manipulation; }
 }
 
 /* 상단 헤더·하단 네비 — 떠 있는 유리 막 */
-[data-theme='glass'] .header,
-[data-theme='glass'] .p-header {
+/* .header = 관리자 화면의 진한 색 띠. .p-header 는 위에서 투명 처리했으므로 제외 */
+[data-theme='glass'] .header {
   background: linear-gradient(150deg, rgba(255,255,255,0.68), rgba(255,255,255,0.42));
   box-shadow: inset 0 -1.5px 0 rgba(255,255,255,0.9), 0 8px 18px -12px rgba(60,80,72,0.4);
   backdrop-filter: blur(12px);
