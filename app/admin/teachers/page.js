@@ -4,8 +4,9 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import AdminNav from '../../../components/AdminNav'
 import { NavIcon } from '../../../components/NavIcons'
+import { pixelCatImg } from '../../../lib/pixelCats'
 import { isOwner } from '../../../lib/roles'
-import { HEADER_BG, T, OK, BAD } from '../../../lib/adminTheme'
+import { HEADER_BG, BAD } from '../../../lib/adminTheme'
 import { useSpaceTheme } from '../../../lib/useFreshTheme'
 import SpaceBg from '../../../components/SpaceBg'
 
@@ -27,6 +28,9 @@ export default function AdminTeachersPage() {
   const [expanded, setExpanded] = useState(null)
   const [openSched, setOpenSched] = useState({})   // `강사:수업` → 타임 목록 펼침(기본 접힘)
   const [onlyMine, setOnlyMine] = useState(false)  // 담당 수업만 보기
+  const [catMap, setCatMap] = useState({})         // 프로필 고양이
+  const [sortAsc, setSortAsc] = useState(true)
+  const [inviteOpen, setInviteOpen] = useState(false)
   const [busy, setBusy] = useState({})
   const space = useSpaceTheme()
 
@@ -48,6 +52,12 @@ export default function AdminTeachersPage() {
     setTeachers(us || [])
     setCourses(cs || [])
     setBookings(bs || [])
+    // 프로필 고양이(있으면 카드 아바타로)
+    const ids = (us || []).map(u => u.id)
+    if (ids.length) {
+      const { data: prefs } = await supabase.from('user_prefs').select('user_id, profile_cat').in('user_id', ids)
+      setCatMap(Object.fromEntries((prefs || []).map(p => [p.user_id, p.profile_cat])))
+    }
     setLoading(false)
   }
 
@@ -101,11 +111,15 @@ export default function AdminTeachersPage() {
   if (loading) return null
 
   const q = search.trim().toLowerCase()
-  const list = q ? teachers.filter(t => (t.name || '').toLowerCase().includes(q) || (t.phone || '').includes(q)) : teachers
+  const filtered = q ? teachers.filter(t => (t.name || '').toLowerCase().includes(q) || (t.phone || '').includes(q)) : teachers
+  const list = [...filtered].sort((a, b) => (sortAsc ? 1 : -1) * (a.name || '').localeCompare(b.name || ''))
   const pending = list.filter(t => t.role === 'teacher' && t.approved === false)
   const active = list.filter(t => !(t.role === 'teacher' && t.approved === false))
+  // 강사별 점 색 — 레퍼런스처럼 카드마다 다른 색 점(이름 기반 결정적)
+  const DOT = ['#2e7d32','#4a4ad6','#1DB98B','#8b5cf6','#e2557a','#e08a1e','#0ea5e9']
+  const dotOf = t => t.role === 'admin' ? '#2e7d32' : DOT[[...(t.name || 'x')].reduce((s,c) => s + c.charCodeAt(0), 0) % DOT.length]
+  const detail = active.find(t => t.id === expanded) || null
 
-  const card = { background:'var(--card)', border:`1.5px solid ${BORDER}`, borderRadius:14, padding:'13px 14px', marginBottom:9 }
   const chip = on => ({ padding:'5px 10px', borderRadius:9, border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif',
     fontSize:10.5, fontWeight:800, background: on ? 'var(--ac)' : 'var(--g1)', color: on ? '#fff' : 'var(--tm)' })
 
@@ -144,37 +158,81 @@ export default function AdminTeachersPage() {
           </div>
         )}
 
-        <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:10 }}>총 {active.length}명</div>
+        {/* 목록 헤더 — 총원 + 정렬 */}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+          <span style={{ fontSize:12, color:'var(--tmu)', fontWeight:700 }}>
+            총 <b style={{ color:'var(--ac)', fontWeight:900 }}>{active.length}</b>명
+          </span>
+          <button onClick={() => setSortAsc(v => !v)}
+            style={{ background:'transparent', border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontSize:11.5, fontWeight:700, color:'var(--tm)' }}>
+            이름 {sortAsc ? '오름차순' : '내림차순'} ▾
+          </button>
+        </div>
 
-        {active.map(t => {
-          const scope = scopeOf(t.id)
-          const open = expanded === t.id
-          const owner = t.role === 'admin'
-          return (
-            <div key={t.id} style={{ ...card, borderColor: open ? 'var(--ac)' : BORDER, background: open ? 'var(--acBg)' : 'var(--card)' }}>
-              <div onClick={() => setExpanded(open ? null : t.id)} style={{ display:'flex', alignItems:'center', gap:11, cursor:'pointer' }}>
-                <div style={{ width:42, height:42, borderRadius:'50%', background:'var(--g1)', border:`1.5px solid ${BORDER}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                  <NavIcon name="profile" color="var(--tm)" size={20} />
+        {/* 강사 카드 그리드 */}
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:10 }}>
+          {active.map(t => {
+            const scope = scopeOf(t.id)
+            const owner = t.role === 'admin'
+            const me = t.id === user?.id
+            const cat = catMap[t.id]
+            return (
+              <div key={t.id} onClick={() => setExpanded(t.id)}
+                style={{ position:'relative', background:'var(--card)', border:`1.5px solid ${BORDER}`, borderRadius:16, padding:'16px 14px 14px', cursor:'pointer' }}>
+                {me && (
+                  <span style={{ position:'absolute', top:10, right:10, fontSize:9, fontWeight:800, background:'var(--g1)', color:'var(--tm)', borderRadius:7, padding:'2px 7px' }}>나</span>
+                )}
+                <div style={{ width:56, height:56, borderRadius:'50%', overflow:'hidden', background:'var(--g1)', border:`1.5px solid ${BORDER}`, display:'flex', alignItems:'center', justifyContent:'center', marginBottom:10 }}>
+                  {cat
+                    ? <img src={pixelCatImg(cat)} alt="" width={40} height={40} style={{ imageRendering:'pixelated', display:'block' }}/>
+                    : <NavIcon name="profile" color="var(--tmu)" size={26} />}
                 </div>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:2 }}>
-                    <span style={{ fontSize:13.5, fontWeight:800, color:'var(--td)' }}>{t.name || '이름 없음'}</span>
-                    <span style={{ fontSize:9, fontWeight:800, padding:'2px 7px', borderRadius:7,
-                      background: owner ? OK.soft : 'var(--acBg)', color: owner ? OK.tx : 'var(--acTx)' }}>
-                      {owner ? '오너·강사' : '강사'}
-                    </span>
-                  </div>
-                  <div style={{ fontSize:10.5, color:'var(--tmu)' }}>{t.phone || '연락처 없음'}</div>
-                  <div style={{ fontSize:10.5, color:'var(--tm)', marginTop:3, fontWeight:700 }}>
-                    담당 수업 {scope.myCourses.length}개
-                    {scope.mySlots.length > 0 && ` · 타임 ${scope.mySlots.length}개`}
-                    {` · 담당 회원 ${scope.students}명`}
-                  </div>
+                <div style={{ fontSize:14.5, fontWeight:900, color:'var(--td)', marginBottom:3, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                  {t.name || '이름 없음'}
                 </div>
-                <span style={{ fontSize:16, color:'var(--tmu)', flexShrink:0 }}>{open ? '▾' : '›'}</span>
+                <div style={{ fontSize:11.5, color:'var(--tmu)', marginBottom:8, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                  {t.phone || '연락처 없음'}
+                </div>
+                <div style={{ display:'flex', alignItems:'center', gap:5 }}>
+                  <span style={{ width:8, height:8, borderRadius:2, background: dotOf(t), flexShrink:0 }}/>
+                  <span style={{ fontSize:11.5, color:'var(--tm)', fontWeight:700 }}>{owner ? '스튜디오 오너' : '강사'}</span>
+                </div>
+                <div style={{ marginTop:8, paddingTop:8, borderTop:`1px dashed ${BORDER}`, fontSize:10, color: (scope.myCourses.length || scope.mySlots.length) ? 'var(--tm)' : BAD.tx, fontWeight:700 }}>
+                  {(scope.myCourses.length || scope.mySlots.length)
+                    ? `수업 ${scope.myCourses.length}${scope.mySlots.length ? ` · 타임 ${scope.mySlots.length}` : ''} · 회원 ${scope.students}`
+                    : '담당 없음'}
+                </div>
               </div>
+            )
+          })}
+        </div>
 
-              {open && (
+        {/* 상세 — 담당 지정 시트 */}
+        {detail && (() => {
+          const t = detail
+          const scope = scopeOf(t.id)
+          return (
+            <div onClick={() => setExpanded(null)}
+              style={{ position:'fixed', inset:0, background:'rgba(10,11,25,0.55)', zIndex:1200, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
+              <div onClick={e => e.stopPropagation()}
+                style={{ background:'var(--surf)', width:'100%', maxWidth:430, borderRadius:'22px 22px 0 0', maxHeight:'86vh', overflowY:'auto', boxSizing:'border-box', padding:'16px 14px calc(20px + env(safe-area-inset-bottom))' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
+                  <div style={{ width:44, height:44, borderRadius:'50%', overflow:'hidden', background:'var(--g1)', border:`1.5px solid ${BORDER}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                    {catMap[t.id]
+                      ? <img src={pixelCatImg(catMap[t.id])} alt="" width={32} height={32} style={{ imageRendering:'pixelated', display:'block' }}/>
+                      : <NavIcon name="profile" color="var(--tmu)" size={22} />}
+                  </div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:15, fontWeight:900, color:'var(--td)' }}>{t.name || '이름 없음'}</div>
+                    <div style={{ fontSize:11, color:'var(--tmu)' }}>
+                      {t.phone || '연락처 없음'} · 담당 회원 {scope.students}명
+                    </div>
+                  </div>
+                  <button onClick={() => setExpanded(null)}
+                    style={{ width:30, height:30, borderRadius:'50%', border:`1.5px solid ${BORDER}`, background:'var(--g1)', color:'var(--tm)', fontSize:13, fontWeight:900, cursor:'pointer', padding:0, flexShrink:0 }}>✕</button>
+                </div>
+
+                <div>{(() => { const open = true; return (
                 <div style={{ marginTop:12, paddingTop:12, borderTop:`1px dashed ${BORDER}` }}>
                   <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginBottom:8 }}>
                     <span style={{ fontSize:11, fontWeight:800, color:'var(--td)' }}>담당 수업 지정</span>
@@ -255,15 +313,42 @@ export default function AdminTeachersPage() {
                     </div>
                   )}
                 </div>
-              )}
+                ) })()}</div>
+              </div>
             </div>
           )
-        })}
+        })()}
 
         {active.length === 0 && (
           <div style={{ textAlign:'center', padding:40, color:'var(--tmu)', fontSize:13 }}>강사가 없어요 🐾</div>
         )}
       </div>
+
+      {/* 강사 추가 안내 — 강사는 직접 가입 후 승인받는 구조라 오너가 계정을 만들지 않는다 */}
+      <button onClick={() => setInviteOpen(true)} aria-label="강사 추가"
+        style={{ position:'fixed', right:18, bottom:78, width:56, height:56, borderRadius:'50%', border:'none', background:'var(--g5)', color:'#fff', fontSize:26, fontWeight:400, cursor:'pointer', boxShadow:'0 6px 18px -4px rgba(0,0,0,0.4)', zIndex:60, lineHeight:1 }}>
+        ＋
+      </button>
+
+      {inviteOpen && (
+        <div onClick={() => setInviteOpen(false)}
+          style={{ position:'fixed', inset:0, background:'rgba(10,11,25,0.55)', zIndex:1300, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background:'var(--surf)', borderRadius:18, padding:'20px 18px', maxWidth:340, width:'100%', boxSizing:'border-box' }}>
+            <div style={{ fontSize:15, fontWeight:900, color:'var(--td)', marginBottom:10 }}>🧑‍🏫 강사 추가하기</div>
+            <div style={{ fontSize:12, color:'var(--tm)', lineHeight:1.8, marginBottom:16 }}>
+              강사는 본인이 직접 가입해요.<br/>
+              1. 로그인 화면 → <b>강사로 가입하기</b><br/>
+              2. 가입하면 이 화면에 <b>승인 대기</b>로 떠요<br/>
+              3. <b>승인</b> 후 <b>담당 수업</b>을 지정해 주세요
+            </div>
+            <button onClick={() => setInviteOpen(false)}
+              style={{ width:'100%', padding:'12px', borderRadius:12, border:'none', background:'var(--ac)', color:'#fff', fontSize:13, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+              알겠어요
+            </button>
+          </div>
+        </div>
+      )}
 
       <AdminNav active="" />
     </>
