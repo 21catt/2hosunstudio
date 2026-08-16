@@ -388,7 +388,7 @@ export default function FarmPage() {
         </div>
       </div>
 
-      <div style={{ background: space ? 'transparent' : '#fff', paddingTop:8, paddingBottom:80 }}>
+      <div style={{ background: 'var(--page)', paddingTop:8, paddingBottom:80 }}>
 
         {/* 농장 메인 씬 — 테마별 픽셀 환경 */}
         <div style={{ position:'relative', overflow:'hidden', background:FARM_ENV[farmTheme].ground }}>

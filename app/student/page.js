@@ -399,7 +399,7 @@ export default function StudentHomePage() {
         </div>
       </div>
 
-      <div style={{ background:'#fff', padding:'8px 16px 90px' }}>
+      <div style={{ background:'var(--page)', padding:'8px 16px 90px' }}>
 
         <div className="p-hero" style={{ marginBottom:14, position:'relative' }}>
           <HeroDeco />

@@ -133,7 +133,7 @@ export default function AdminTeachersPage() {
         </div>
       </div>
 
-      <div style={{ background: space ? 'transparent' : '#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'16px 14px 90px', minHeight:'80vh' }}>
+      <div style={{ background: 'var(--page)', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'16px 14px 90px', minHeight:'80vh' }}>
 
         <input value={search} onChange={e => setSearch(e.target.value)}
           placeholder="강사명 / 연락처 검색"

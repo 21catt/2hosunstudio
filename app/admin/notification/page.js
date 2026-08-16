@@ -262,7 +262,7 @@ await supabase.from('notifications')
         </button>
       </div>
 
-      <div style={{ background: space ? 'transparent' : '#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'16px 14px 80px' }}>
+      <div style={{ background: 'var(--page)', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'16px 14px 80px' }}>
         <div style={{ fontSize:11, fontWeight:700, color:'var(--g4)', marginBottom:14 }}>
           오늘 {todayCnt}건 · 전체 {notifications.length}건
         </div>

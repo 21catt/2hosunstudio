@@ -605,7 +605,7 @@ function CurriculumInner() {
         </div>
       </div>
 
-      <div style={{ background: space ? 'transparent' : '#fff', padding:'8px 14px 0', minHeight:'80vh' }}>
+      <div style={{ background: 'var(--page)', padding:'8px 14px 0', minHeight:'80vh' }}>
 
         {/* Segment toggle */}
         <div style={{ display:'flex', gap:4, marginBottom:18, background:'var(--g1)', borderRadius:12, padding:3 }}>

@@ -99,7 +99,7 @@ export default function StudentNotificationPage() {
         </div>
       </div>
 
-      <div style={{ background: space ? 'transparent' : '#fff', padding:'8px 14px 80px' }}>
+      <div style={{ background: 'var(--page)', padding:'8px 14px 80px' }}>
         {/* 탭 */}
         <div style={{ display:'flex', borderBottom:'2px solid var(--g1)', marginBottom:14 }}>
           {['내 예약 현황','수업 종료 현황'].map((t,i) => (

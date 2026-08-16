@@ -399,7 +399,7 @@ function AdminCurriculumInner() {
         </div>
       </div>
 
-      <div style={{ background: space ? 'transparent' : '#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 0', minHeight:'80vh' }}>
+      <div style={{ background: 'var(--page)', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 0', minHeight:'80vh' }}>
 
         {/* Course chips */}
         <div style={{ marginBottom:16 }}>

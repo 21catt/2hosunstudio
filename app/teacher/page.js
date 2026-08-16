@@ -87,7 +87,7 @@ export default function TeacherHomePage() {
         </div>
       </div>
 
-      <div style={{ background:'#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 90px', minHeight:'80vh' }}>
+      <div style={{ background:'var(--page)', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 90px', minHeight:'80vh' }}>
 
         {isOwner(user) && (
           <div style={{ background:'var(--acBg)', border:'1.5px solid var(--ac)', borderRadius:12, padding:'9px 12px', marginBottom:12, fontSize:11, fontWeight:700, color:'var(--acTx)', display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>

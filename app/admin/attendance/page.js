@@ -146,7 +146,7 @@ export default function AdminAttendancePage() {
         </div>
       </div>
 
-      <div style={{ background: space ? 'transparent' : '#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'16px 14px 80px', minHeight:'80vh' }}>
+      <div style={{ background: 'var(--page)', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'16px 14px 80px', minHeight:'80vh' }}>
 
         {/* Date nav */}
         <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:18, marginBottom:20 }}>

@@ -109,7 +109,7 @@ export default function AdminPaymentPage() {
         </div>
       </div>
 
-      <div style={{ background: space ? 'transparent' : '#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 0', minHeight:'80vh' }}>
+      <div style={{ background: 'var(--page)', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 0', minHeight:'80vh' }}>
 
         {/* ── 입금 대기 ─────────────────────────────────────────── */}
         <SectionHead dot={OK.dot} tx={OK.tx} label="입금 대기" count={pending.length} />

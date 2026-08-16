@@ -137,7 +137,7 @@ export default function AdminHomePage() {
   })
 
   return (
-    <div style={{ position: 'relative', minHeight: '100vh', background: space ? 'transparent' : '#fff' }}>
+    <div style={{ position: 'relative', minHeight: '100vh', background: 'var(--page)' }}>
       {space && <SpaceBg />}
       {/* 헤더 */}
       <div className="p-header" style={{ position: 'relative', zIndex: 2 }}>

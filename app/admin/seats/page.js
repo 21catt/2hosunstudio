@@ -108,7 +108,7 @@ export default function AdminSeatsPage() {
         </div>
       </div>
 
-      <div style={{ background: space ? 'transparent' : '#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 100px' }}>
+      <div style={{ background: 'var(--page)', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'18px 14px 100px' }}>
 
         <div style={{ display:'flex', gap:6, marginBottom:18, overflowX:'auto', paddingBottom:4 }}>
           {SEATS.map(s => (

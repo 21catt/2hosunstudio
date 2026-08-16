@@ -22,6 +22,7 @@
   --acTx: #1e2296;
   --card: #f0f1f7;
   --line: rgba(0, 0, 0, 0.14);
+  --page: #ffffff;   /* 페이지 본문 배경 — 유리 테마에서 투명으로 바뀐다 */
 }
 
 [data-theme='line2'] {
@@ -184,6 +185,7 @@
 /* 울트라 스페이스 (다크, 2달 한정) — 어두운 바이올렛 배경 + 우주빛 마젠타 강조.
    유일한 다크 테마라 명암 램프(g1=어두운 표면 / g5=밝은 텍스트)가 밝은 테마와 반대. */
 [data-theme='space'] {
+  --page: transparent;
   --g1: #241834;
   --g2: #3a2b4e;
   --g3: #9a6fc4;
@@ -620,7 +622,11 @@ button, a, [role="button"], label, summary { touch-action: manipulation; }
   --acTx: #3F7365;
   --card: rgba(255, 255, 255, 0.6);
   --line: rgba(255, 255, 255, 0.85);
+  --page: transparent;
 }
+
+/* 앱 셸이 불투명하면 앰비언트 배경이 통째로 가려진다 */
+[data-theme='glass'] .app-shell { background: transparent; }
 
 /* 유리판 공통 — 안쪽 채움(A 단계: 위 .72 → 아래 .44) + 모서리 하이라이트 + 바닥 그림자 2겹 */
 [data-theme='glass'] .p-card,

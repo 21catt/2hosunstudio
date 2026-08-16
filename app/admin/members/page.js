@@ -341,7 +341,7 @@ export default function AdminMembersPage() {
       </div>
 
       {/* Content */}
-      <div style={{ background: space ? 'transparent' : '#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'14px 14px 80px' }}>
+      <div style={{ background: 'var(--page)', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'14px 14px 80px' }}>
 
         {/* 강사 가입 승인 대기 — 승인해야 강사가 로그인할 수 있다 */}
         {pendingTeachers.length > 0 && (

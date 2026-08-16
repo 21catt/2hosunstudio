@@ -67,7 +67,7 @@ export default function AdminSettingsPage() {
         </div>
       </div>
 
-      <div style={{ background: space ? 'transparent' : '#fff', borderRadius: '24px 24px 0 0', marginTop: -8, padding: '16px 16px 90px', minHeight: '80vh' }}>
+      <div style={{ background: 'var(--page)', borderRadius: '24px 24px 0 0', marginTop: -8, padding: '16px 16px 90px', minHeight: '80vh' }}>
 
         {/* 계정 카드 */}
         <div className="p-card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
