@@ -720,3 +720,118 @@ button, a, [role="button"], label, summary { touch-action: manipulation; }
   [data-theme='glass'] .p-header,
   [data-theme='glass'] .bottom-nav { backdrop-filter: none; -webkit-backdrop-filter: none; }
 }
+
+/* ── 리퀴드 글라스 (보라·홀로그램 유리, 2달 한정) ───────────────────
+   레퍼런스 무드: 두꺼운 유리판 + 빛나는 알약 버튼 + 홀로그램 카드.
+   글라스 민트가 '자연광·차분'이면 이쪽은 '인공광·화려'.
+   ⚠️ 전부 [data-theme='liquid'] 스코프 — 다른 테마 무영향.
+   ⚠️ 면은 반드시 반투명. 불투명 색을 쓰면 뒤 앰비언트가 가려져 유리감이 사라진다. */
+[data-theme='liquid'] {
+  --g1: rgba(255, 255, 255, 0.42);
+  --g2: rgba(255, 255, 255, 0.6);
+  --g3: #A98BF8;
+  --g4: #7B5CF0;
+  --g5: #4A3A80;
+  --bg: transparent;
+  --surf: rgba(255, 255, 255, 0.5);
+  --td: #241E33;
+  --tm: #55506B;
+  --tmu: #8A83A3;
+  --tl: rgba(255, 255, 255, 0.7);
+  --ac: #7B5CF0;
+  --ac-rgb: 123 92 240;
+  --ac2: #46D6C0;
+  --acBg: rgba(255, 255, 255, 0.5);
+  --acTx: #5B3FD0;
+  --card: rgba(255, 255, 255, 0.5);
+  --line: rgba(255, 255, 255, 0.8);
+  --page: transparent;
+}
+
+[data-theme='liquid'] .app-shell { background: transparent; }
+[data-theme='liquid'] .p-header {
+  background: transparent; box-shadow: none;
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+
+/* 유리판 — 두꺼운 단면(모서리 하이라이트 4면) + 바닥 그림자 2겹 */
+[data-theme='liquid'] .p-card,
+[data-theme='liquid'] .p-tile,
+[data-theme='liquid'] .card,
+[data-theme='liquid'] .field {
+  background: linear-gradient(155deg, rgba(255,255,255,0.62), rgba(255,255,255,0.28));
+  border: 1px solid rgba(255,255,255,0.6);
+  border-radius: 20px;
+  box-shadow:
+    0 16px 32px -14px rgba(70,50,120,0.5),
+    0 3px 8px -3px rgba(70,50,120,0.28),
+    inset 0 2px 0 rgba(255,255,255,1),
+    inset 0 -2px 4px rgba(115,105,140,0.18),
+    inset 2px 0 0 rgba(255,255,255,0.7),
+    inset -2px 0 0 rgba(255,255,255,0.35);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* 홀로그램 카드 — 원데이·특별 안내처럼 눈에 띄어야 할 자리 */
+[data-theme='liquid'] .p-hero {
+  background: linear-gradient(135deg, rgba(255,205,190,0.75) 0%, rgba(220,195,250,0.7) 40%, rgba(175,205,250,0.72) 75%, rgba(160,225,240,0.7) 100%);
+  border: 1px solid rgba(255,255,255,0.6);
+  border-radius: 22px;
+  box-shadow:
+    0 18px 34px -14px rgba(110,85,170,0.5),
+    inset 0 2px 1px rgba(255,255,255,0.85),
+    inset 0 -2px 5px rgba(130,100,190,0.25);
+}
+
+/* 빛나는 알약 버튼 — 버튼 색과 같은 색의 글로우가 아래로 번진다 */
+[data-theme='liquid'] .btn-primary,
+[data-theme='liquid'] .p-chip--fill {
+  background: linear-gradient(160deg, #A98BF8 0%, #8365EC 55%, #7A5BE8 100%);
+  border: none;
+  color: #fff;
+  border-radius: 24px;
+  box-shadow:
+    0 14px 26px -10px rgba(110,80,220,0.7),
+    0 3px 8px -2px rgba(110,80,220,0.4),
+    inset 0 2px 1px rgba(255,255,255,0.55),
+    inset 0 -3px 5px rgba(90,55,200,0.45);
+}
+[data-theme='liquid'] .btn-secondary,
+[data-theme='liquid'] .p-chip {
+  background: linear-gradient(155deg, rgba(255,255,255,0.6), rgba(255,255,255,0.26));
+  border: 1px solid rgba(255,255,255,0.6);
+  color: var(--acTx);
+  border-radius: 24px;
+  box-shadow:
+    0 10px 18px -10px rgba(70,62,90,0.45),
+    inset 0 2px 1px rgba(255,255,255,0.9),
+    inset 0 -2px 4px rgba(115,105,140,0.18);
+}
+
+/* 헤더·하단 네비 — 떠 있는 유리 막 */
+[data-theme='liquid'] .header {
+  background: linear-gradient(155deg, rgba(255,255,255,0.6), rgba(255,255,255,0.34));
+  box-shadow: inset 0 -1.5px 0 rgba(255,255,255,0.9), 0 8px 20px -12px rgba(70,50,120,0.45);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+}
+[data-theme='liquid'] .header-title, [data-theme='liquid'] .p-title { color: var(--td); }
+[data-theme='liquid'] .bottom-nav {
+  background: linear-gradient(155deg, rgba(255,255,255,0.62), rgba(255,255,255,0.4));
+  border-top: none;
+  box-shadow: inset 0 1.5px 0 rgba(255,255,255,1), 0 -8px 20px -12px rgba(70,50,120,0.45);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+}
+[data-theme='liquid'] .p-badge {
+  background: rgba(255,255,255,0.6); color: var(--acTx);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.9);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  [data-theme='liquid'] .p-card,
+  [data-theme='liquid'] .p-tile,
+  [data-theme='liquid'] .card,
+  [data-theme='liquid'] .field,
+  [data-theme='liquid'] .header,
+  [data-theme='liquid'] .bottom-nav { backdrop-filter: none; -webkit-backdrop-filter: none; }
+}
