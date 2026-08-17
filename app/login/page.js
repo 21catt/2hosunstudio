@@ -143,12 +143,6 @@ export default function LoginPage() {
           ))}
         </div>
 
-        <div style={{ textAlign:'center', marginTop:14 }}>
-          <span onClick={() => router.push('/signup')}
-            style={{ fontSize:11, color:'var(--tmu)', fontWeight:700, cursor:'pointer', textDecoration:'underline', textUnderlineOffset:3 }}>
-            강사이신가요? 강사로 가입하기 →
-          </span>
-        </div>
       </div>
     </>
   )
