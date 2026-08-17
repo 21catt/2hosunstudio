@@ -73,7 +73,7 @@ export default function StudentHomePage() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user || null)
-      loadData(data.user?.id || null)
+      loadData(data.user?.id || null).catch(e => { console.error('load failed', e); setLoading(false) })
     })
   }, [])
 

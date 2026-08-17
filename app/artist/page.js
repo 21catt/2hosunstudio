@@ -27,7 +27,7 @@ export default function ArtistHomePage() {
       const role = data.user.user_metadata?.role
       if (role !== 'artist' && role !== 'admin') { router.push('/student'); return }
       setUser(data.user)
-      loadData(data.user.id)
+      loadData(data.user.id).catch(e => { console.error('load failed', e); setLoading(false) })
     })
   }, [])
 

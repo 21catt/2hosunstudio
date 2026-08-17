@@ -47,7 +47,7 @@ export default function AdminPaymentPage() {
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) { router.push('/login'); return }
       if (data.user.user_metadata?.role !== 'admin') { router.push('/student'); return }
-      loadAll()
+      loadAll().catch(e => { console.error('load failed', e); setLoading(false) })
     })
   }, [])
 

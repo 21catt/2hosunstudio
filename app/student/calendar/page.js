@@ -189,7 +189,7 @@ export default function CalendarPage() {
     supabase.auth.getUser().then(({ data }) => {
       // 비회원도 캘린더 열람 허용 — 예약 시 회원가입으로 유도
       setUser(data.user || null)
-      loadData(data.user?.id || null)
+      loadData(data.user?.id || null).catch(e => { console.error('load failed', e); setLoading(false) })
     })
   }, [])
 

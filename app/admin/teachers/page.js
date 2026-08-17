@@ -39,7 +39,7 @@ export default function AdminTeachersPage() {
       if (!data.user) { router.push('/login'); return }
       if (!isOwner(data.user)) { router.push('/student'); return }   // 강사는 접근 불가
       setUser(data.user)
-      loadAll()
+      loadAll().catch(e => { console.error('load failed', e); setLoading(false) })
     })
   }, [])
 

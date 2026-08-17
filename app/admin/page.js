@@ -42,7 +42,7 @@ export default function AdminHomePage() {
       if (!data.user) { router.push('/login'); return }
       if (data.user.user_metadata?.role !== 'admin') { router.push('/student'); return }
       setUser(data.user)
-      loadData(data.user.id)
+      loadData(data.user.id).catch(e => { console.error('load failed', e); setLoading(false) })
     })
     if ('Notification' in window) setPushEnabled(Notification.permission === 'granted')
   }, [])

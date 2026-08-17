@@ -229,7 +229,7 @@ export default function FarmPage() {
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) { router.push('/login'); return }
       setUser(data.user)
-      loadData(data.user.id)
+      loadData(data.user.id).catch(e => { console.error('load failed', e); setLoading(false) })
     })
   }, [])
 

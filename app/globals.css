@@ -653,8 +653,10 @@ button, a, [role="button"], label, summary { touch-action: manipulation; }
     inset 0 -1.5px 0 rgba(255,255,255,0.5),
     inset 1.5px 0 0 rgba(255,255,255,0.7),
     inset -1.5px 0 0 rgba(255,255,255,0.4);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  /* ⚠️ 카드에는 backdrop-filter 를 쓰지 않는다.
+     화면에 카드가 10여 개면 실시간 블러 레이어가 그만큼 쌓여 모바일이 멈춘다
+     (실사용 '로그인 후 멈춤'의 원인). 뒤 앰비언트가 이미 블러라 유리감은 그대로다.
+     블러는 고정 크롬(헤더·하단 네비) 2개에만 남긴다. */
 }
 
 /* 상단 헤더·하단 네비 — 떠 있는 유리 막 */
@@ -769,8 +771,10 @@ button, a, [role="button"], label, summary { touch-action: manipulation; }
     inset 0 -2px 4px rgba(115,105,140,0.18),
     inset 2px 0 0 rgba(255,255,255,0.7),
     inset -2px 0 0 rgba(255,255,255,0.35);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  /* ⚠️ 카드에는 backdrop-filter 를 쓰지 않는다.
+     화면에 카드가 10여 개면 실시간 블러 레이어가 그만큼 쌓여 모바일이 멈춘다
+     (실사용 '로그인 후 멈춤'의 원인). 뒤 앰비언트가 이미 블러라 유리감은 그대로다.
+     블러는 고정 크롬(헤더·하단 네비) 2개에만 남긴다. */
 }
 
 /* 홀로그램 카드 — 원데이·특별 안내처럼 눈에 띄어야 할 자리 */

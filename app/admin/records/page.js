@@ -58,7 +58,7 @@ export default function AdminRecordsPage() {
       if (!data.user) { router.push('/login'); return }
       if (!isTeacher(data.user)) { router.push('/student'); return }
       setUser(data.user)
-      loadAll()
+      loadAll().catch(e => { console.error('load failed', e); setLoading(false) })
       if (!isOwner(data.user)) loadMyStudents(data.user.id)
     })
   }, [])

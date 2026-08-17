@@ -29,7 +29,7 @@ export default function TeacherHomePage() {
       if (isPendingTeacher(data.user)) { alert('아직 관리자 승인 전이에요 🐾'); router.push('/login'); return }
       if (!isTeacher(data.user)) { router.push('/student'); return }
       setUser(data.user)
-      loadData(data.user.id)
+      loadData(data.user.id).catch(e => { console.error('load failed', e); setLoading(false) })
     })
   }, [])
 
