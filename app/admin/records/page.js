@@ -30,6 +30,7 @@ export default function AdminRecordsPage() {
   const [signedUrls, setSignedUrls] = useState({})
   const [search, setSearch] = useState('')
   const [fbInputs, setFbInputs] = useState({})
+  const [fbNext, setFbNext] = useState({})      // record_id → "다음에 진행할 것"(선택)
   const [fbEditing, setFbEditing] = useState({})
   const [fbSubmitting, setFbSubmitting] = useState({})
   const [fbFiles, setFbFiles] = useState({})       // record_id → File[] (첨부 대기 사진)
@@ -147,6 +148,9 @@ export default function AdminRecordsPage() {
     setFbFiles(prev => ({ ...prev, [recordId]: [...cur, ...files] }))
     setFbPreviews(prev => ({ ...prev, [recordId]: [...(prev[recordId] || []), ...files.map(f => URL.createObjectURL(f))] }))
   }
+  // "다음에 진행할 것" — 선택 항목. 매번 쓰라고 강제하면 아무 말이나 채워진다.
+  function setFbNextFor(recordId, v) { setFbNext(prev => ({ ...prev, [recordId]: v })) }
+
   function removeFbPick(recordId, i) {
     const prevs = fbPreviews[recordId] || []
     if (prevs[i]) URL.revokeObjectURL(prevs[i])
@@ -188,25 +192,37 @@ export default function AdminRecordsPage() {
   async function handleFeedbackSubmit(record) {
     const recordId = record.id
     const body = (fbInputs[recordId] || '').trim()
+    const nextPlan = (fbNext[recordId] || '').trim()
     const files = fbFiles[recordId] || []
-    if ((!body && files.length === 0) || !user) return
+    if ((!body && files.length === 0 && !nextPlan) || !user) return
     setFbSubmitting(prev => ({ ...prev, [recordId]: true }))
     try {
       const photos = await uploadFbPhotos(recordId, files) // 압축 후 업로드 → 경로 배열
 
-      // photos 컬럼(마이그레이션) 미실행 시 없이 재시도 → 텍스트 피드백은 저장 유지
+      // photos·next_plan 컬럼(마이그레이션) 미실행 시 하나씩 떼고 재시도 → 텍스트 피드백은 저장 유지
       const base = { record_id: recordId, teacher_id: user.id, body: body || '' }
-      let { error } = await supabase.from('class_record_feedback').insert(photos.length ? { ...base, photos } : base)
-      if (error && photos.length) { ({ error } = await supabase.from('class_record_feedback').insert(base)) }
+      const withPhotos = photos.length ? { ...base, photos } : base
+      const attempts = nextPlan ? [{ ...withPhotos, next_plan: nextPlan }, withPhotos, base] : [withPhotos, base]
+      let error = null, savedNext = false
+      for (const payload of attempts) {
+        ;({ error } = await supabase.from('class_record_feedback').insert(payload))
+        if (!error) { savedNext = !!payload.next_plan; break }
+      }
+      // 컬럼이 없어 떼고 저장했다면 조용히 넘어가지 않는다 — 강사가 쓴 문장이 사라진 것이므로
+      if (nextPlan && !savedNext) {
+        alert('피드백은 저장했지만 "다음에 진행할 것"은 저장되지 않았어요.\nmigration-record-next-plan.sql 을 Supabase에서 실행해 주세요 🐾')
+      }
 
       // 학생에게 알림 + 푸시 (기록 답글과 동일)
       const label = record.class_name ? `${record.class_name} 기록` : '기록'
       const summary = body ? body.slice(0, 40) : `사진 ${photos.length}장`
       const nbody = `${user.user_metadata?.name || '강사'} 쌤이 ${label}에 피드백을 남겼어요: ${summary}`
+        + (savedNext ? ` / 다음엔 — ${nextPlan.slice(0, 40)}` : '')
       await supabase.from('notifications').insert({ user_id: record.user_id, type: 'record_feedback', title: '📝 기록 피드백', body: nbody })
       sendPushToUser(record.user_id, '📝 기록 피드백', nbody)
 
       setFbInputs(prev => ({ ...prev, [recordId]: '' }))
+      setFbNextFor(recordId, '')
       clearFbPicks(recordId)
       await loadAll()
     } finally {
@@ -416,6 +432,12 @@ export default function AdminRecordsPage() {
                     <div style={{ marginBottom:10 }}>
                       {r.class_record_feedback.map(fb => (
                         <div key={fb.id} style={{ background:'var(--surf)', borderRadius:10, padding:'10px 12px', border:`1px solid ${BORDER}`, marginBottom:6 }}>
+                          {fb.next_plan && (
+                            <div style={{ display:'flex', alignItems:'flex-start', gap:5, marginBottom:7, fontSize:11.5, fontWeight:700, color:ACCENT_TEXT, background:ACCENT_BG, border:`1.5px solid rgb(var(--ac-rgb) / 0.3)`, borderRadius:9, padding:'6px 9px', lineHeight:1.55 }}>
+                              <span style={{ flexShrink:0, fontWeight:800 }}>다음엔</span>
+                              <span style={{ minWidth:0, wordBreak:'break-word' }}>{fb.next_plan}</span>
+                            </div>
+                          )}
                           {fbEditing[fb.id] !== undefined ? (
                             <>
                               <textarea value={fbEditing[fb.id]}
@@ -483,6 +505,16 @@ export default function AdminRecordsPage() {
                       rows={3} placeholder="피드백 입력..."
                       style={{ width:'100%', padding:'8px 10px', borderRadius:10, border:`1.5px solid ${BORDER}`, fontSize:12, resize:'none', fontFamily:'Nunito,sans-serif', marginBottom:6, boxSizing:'border-box' }}/>
 
+                    {/* 다음에 진행할 것 — 적으면 이 학생 홈에 한 줄로 뜬다(선택) */}
+                    <div style={{ display:'flex', alignItems:'center', gap:6, margin:'0 0 4px 2px' }}>
+                      <span style={{ fontSize:10.5, fontWeight:800, color:ACCENT_TEXT }}>다음에 진행할 것</span>
+                      <span style={{ fontSize:9.5, fontWeight:700, color:'var(--tmu)' }}>선택 · 학생 홈에 뜨고, 다음 기록이 생기면 내려가요</span>
+                    </div>
+                    <input value={fbNext[r.id] || ''}
+                      onChange={e => setFbNextFor(r.id, e.target.value)}
+                      placeholder="예 — 이마에서 광대로 넘어가는 면 한 번 더"
+                      style={{ width:'100%', height:34, padding:'0 10px', borderRadius:10, border:`1.5px solid rgb(var(--ac-rgb) / 0.35)`, background:ACCENT_BG, fontSize:12, fontFamily:'Nunito,sans-serif', color:'var(--td)', marginBottom:6, boxSizing:'border-box', outline:'none' }}/>
+
                     {/* 첨부 사진 미리보기 */}
                     {(fbPreviews[r.id] || []).length > 0 && (
                       <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:6 }}>
@@ -503,8 +535,8 @@ export default function AdminRecordsPage() {
                       </label>
                       <button
                         onClick={() => handleFeedbackSubmit(r)}
-                        disabled={fbSubmitting[r.id] || !((fbInputs[r.id]?.trim()) || (fbFiles[r.id]?.length))}
-                        style={{ flex:1, padding:'9px', background:ACCENT, color:'#fff', border:'none', borderRadius:10, fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'Nunito,sans-serif', opacity: fbSubmitting[r.id] || !((fbInputs[r.id]?.trim()) || (fbFiles[r.id]?.length)) ? 0.45 : 1 }}>
+                        disabled={fbSubmitting[r.id] || !((fbInputs[r.id]?.trim()) || (fbFiles[r.id]?.length) || (fbNext[r.id]?.trim()))}
+                        style={{ flex:1, padding:'9px', background:ACCENT, color:'#fff', border:'none', borderRadius:10, fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'Nunito,sans-serif', opacity: fbSubmitting[r.id] || !((fbInputs[r.id]?.trim()) || (fbFiles[r.id]?.length) || (fbNext[r.id]?.trim())) ? 0.45 : 1 }}>
                         {fbSubmitting[r.id] ? '저장 중...' : '피드백 저장'}
                       </button>
                     </div>

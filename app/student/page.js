@@ -33,6 +33,7 @@ export default function StudentHomePage() {
   const [ticket, setTicket] = useState(null)
   const [nextBooking, setNextBooking] = useState(null)
   const [pendingBooking, setPendingBooking] = useState(null)
+  const [nextPlan, setNextPlan] = useState(null)  // 강사가 최근 피드백에 적어 준 "다음에 진행할 것" 한 줄
   const [unread, setUnread] = useState(0)
   const [loading, setLoading] = useState(true)
   const [activeTheme, setActiveTheme] = useState('ultra') // 실제 적용 중인 테마(기간 반영) — 'fresh'면 글래스 홈
@@ -177,7 +178,7 @@ export default function StudentHomePage() {
 
   async function loadData(userId) {
     // 초기 로딩 쿼리 전부 병렬 발사 — 서로 독립이라 순차 대기(8회 왕복)를 1회 왕복으로 단축
-    const [t, b, notif, pref, c, locked, ab, pin] = await Promise.all([
+    const [t, b, notif, pref, c, locked, ab, pin, recs] = await Promise.all([
       userId ? supabase.from('tickets').select('*').eq('user_id', userId).single() : Promise.resolve({ data: null }),
       userId ? supabase.from('bookings').select('*').eq('user_id', userId).neq('status', 'cancelled') : Promise.resolve({ data: [] }),
       userId ? supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('is_read', false) : Promise.resolve({ count: 0 }),
@@ -191,6 +192,10 @@ export default function StudentHomePage() {
         .not('pinned_at', 'is', null)
         .order('pinned_at', { ascending: false })
         .limit(2),
+      // "다음에 진행할 것"을 찾을 재료 — 최근 기록 20개면 충분하다(그보다 오래된 건 이미 지난 이야기)
+      userId ? supabase.from('class_records').select('id, class_date, class_name')
+        .eq('user_id', userId).order('class_date', { ascending: false }).limit(20)
+        : Promise.resolve({ data: [] }),
     ])
     if (userId) {
       setTicket(t.data)
@@ -206,12 +211,45 @@ export default function StudentHomePage() {
       // 기기가 시즌 스킨(space/fresh 등)을 고른 상태면 계정 미동기화(구값)로 홈이 되돌아
       // 하얘지는 것 방지 → 기기 선택 우선.
       if (isValidTheme(pref.data?.theme) && getSavedTheme() === DEFAULT_THEME) setActiveTheme(applyTheme(pref.data.theme))
+      loadNextPlan(recs.data || [])
     }
     setClasses(c.data || [])
     setLockedDates(locked)
     setAllBookings(ab.data || [])
     setNotices(pin.data || [])
     setLoading(false)
+  }
+
+  // 홈에 뜨는 "다음 시간엔" 한 줄 — 강사가 피드백에 적어 준 가장 최근 것 하나.
+  // 그 수업을 한 번 더 들어 기록을 남기면 내려간다(지난 이야기가 계속 떠 있지 않게).
+  // next_plan 컬럼(마이그레이션) 전이면 조용히 아무것도 띄우지 않는다.
+  async function loadNextPlan(recs) {
+    if (!recs.length) { setNextPlan(null); return }
+    const byId = new Map(recs.map(r => [r.id, r]))
+    const { data, error } = await supabase
+      .from('class_record_feedback')
+      .select('id, next_plan, teacher_id, record_id, created_at')
+      .in('record_id', [...byId.keys()])
+      .not('next_plan', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(5)
+    if (error || !data?.length) { setNextPlan(null); return }
+    for (const fb of data) {
+      const rec = byId.get(fb.record_id)
+      const text = String(fb.next_plan || '').trim()
+      if (!rec || !text) continue
+      const moved = recs.some(r => r.id !== rec.id && r.class_date > rec.class_date
+        && (r.class_name || '') === (rec.class_name || ''))
+      if (moved) continue
+      let teacher = ''
+      if (fb.teacher_id) {
+        const { data: u } = await supabase.from('users').select('name').eq('id', fb.teacher_id).maybeSingle()
+        teacher = u?.name || ''
+      }
+      setNextPlan({ text, date: rec.class_date, cls: rec.class_name || '', teacher })
+      return
+    }
+    setNextPlan(null)
   }
 
   // 날짜 탭 → 그날 수업 패널 토글 (드래그로 지나간 경우는 무시)
@@ -367,7 +405,7 @@ export default function StudentHomePage() {
           const HomeSkin = activeTheme === 'space' ? SpaceHome : GlassHome
           return (
         <HomeSkin
-          user={user} ticket={ticket} nextBooking={nextBooking} pendingBooking={pendingBooking}
+          user={user} ticket={ticket} nextBooking={nextBooking} pendingBooking={pendingBooking} nextPlan={nextPlan}
           notices={notices} weather={weather} heroSub={heroSub} unread={unread}
           stripDates={stripDates} selDate={selDate} todayStr={todayStr} bookedDates={bookedDates} stripRef={stripRef}
           coursesOn={coursesOn} schedulesFor={schedulesFor} myBookingFor={myBookingFor}
@@ -547,6 +585,18 @@ export default function StudentHomePage() {
               </div>
             </div>
             <span className="p-badge" style={{ flexShrink:0 }}>입금 대기</span>
+          </div>
+        )}
+
+        {nextPlan && (
+          <div className="p-card" style={{ padding:'12px 14px', display:'flex', alignItems:'center', gap:12, cursor:'pointer', marginBottom:12 }}
+            onClick={()=>router.push(`/student/records?date=${nextPlan.date}${nextPlan.cls ? `&class=${encodeURIComponent(nextPlan.cls)}` : ''}`)}>
+            <DotPatch size={40} />
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontSize:13, fontWeight:800, color:'var(--td)' }}>다음 시간엔</div>
+              <div style={{ fontSize:11, color:'var(--tm)', marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{nextPlan.text}</div>
+            </div>
+            <span className="p-badge" style={{ flexShrink:0 }}>{nextPlan.teacher ? `${nextPlan.teacher} 쌤` : '강사'}</span>
           </div>
         )}
 

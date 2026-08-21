@@ -40,6 +40,12 @@ function FeedbackBox({ fb, catMap, nameMap, signedUrls, onOpenPhotos }) {
         <span style={{ fontSize:10.5, fontWeight:800, color:'var(--tmu)' }}>{nameMap[fb.teacher_id] ? `${nameMap[fb.teacher_id]} 쌤` : '선생님'}</span>
       </div>
       {fb.body && <div style={{ fontSize:13, fontWeight:600, color:'var(--td)', lineHeight:1.6, whiteSpace:'pre-wrap', wordBreak:'break-word' }}>{fb.body}</div>}
+      {fb.next_plan && (
+        <div style={{ display:'flex', alignItems:'flex-start', gap:6, marginTop: fb.body ? 8 : 0, background:'var(--surf)', border:`1.5px solid rgb(var(--ac-rgb) / 0.35)`, borderRadius:11, padding:'7px 10px' }}>
+          <span style={{ flexShrink:0, fontSize:10, fontWeight:900, color:'#fff', background:ACCENT, borderRadius:8, padding:'2px 7px', marginTop:1 }}>다음엔</span>
+          <span style={{ minWidth:0, fontSize:12.5, fontWeight:700, color:'var(--td)', lineHeight:1.6, wordBreak:'break-word' }}>{fb.next_plan}</span>
+        </div>
+      )}
       {Array.isArray(fb.photos) && fb.photos.length > 0 && (
         <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop: fb.body ? 8 : 0 }}>
           {fb.photos.map((path, pi) => (

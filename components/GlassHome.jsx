@@ -51,7 +51,7 @@ function NavItem({ active, label, onClick, children }) {
 
 export default function GlassHome(props) {
   const {
-    user, ticket, nextBooking, pendingBooking, notices = [], weather, heroSub, unread = 0,
+    user, ticket, nextBooking, pendingBooking, nextPlan, notices = [], weather, heroSub, unread = 0,
     stripDates = [], selDate, todayStr, bookedDates = new Set(), stripRef,
     coursesOn = () => [], schedulesFor = () => [], myBookingFor = () => null, seatCount = () => 0, bookingBusy,
     upcomingOneday = [], onOneday = () => {},
@@ -208,6 +208,17 @@ export default function GlassHome(props) {
               <div style={{ fontSize: 11, color: T.sub, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pendingBooking.class_name} · {pendingBooking.class_date.slice(5).replace('-', '/')} {pendingBooking.class_time?.split('~')[0] || ''}{pendingBooking.amount ? ` · ${Number(pendingBooking.amount).toLocaleString()}원` : ''}</div>
             </div>
             <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 800, color: T.accentText, background: T.accentSoft, borderRadius: 10, padding: '5px 11px' }}>입금 대기</span>
+          </div>
+        )}
+
+        {/* 다음 시간엔 — 강사가 적어 준 한 줄. 눌러서 그날 기록으로 */}
+        {nextPlan && (
+          <div onClick={() => go(`/student/records?date=${nextPlan.date}${nextPlan.cls ? `&class=${encodeURIComponent(nextPlan.cls)}` : ''}`)} style={{ marginTop: 14, borderRadius: 20, padding: '14px 16px', background: T.glass, ...glassBlur, border: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 800 }}>다음 시간엔</div>
+              <div style={{ fontSize: 11, color: T.sub, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nextPlan.text}</div>
+            </div>
+            <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 800, color: T.accentText, background: T.accentSoft, borderRadius: 10, padding: '5px 11px' }}>{nextPlan.teacher ? `${nextPlan.teacher} 쌤` : '강사'}</span>
           </div>
         )}
 
