@@ -29,6 +29,68 @@ function catFace(catMap, userId, size = 38) {
   )
 }
 
+// 강사 피드백 한 칸 — 달력 보기와 피드백 노트가 같은 코드를 쓴다.
+// 두 벌로 두면 한쪽만 고쳐져서 같은 피드백이 화면마다 다르게 보인다.
+function FeedbackBox({ fb, catMap, nameMap, signedUrls, onOpenPhotos }) {
+  return (
+    <div style={{ marginTop:11, background:'var(--acBg)', border:`2px solid ${ACCENT}`, borderRadius:14, padding:'11px 13px' }}>
+      <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:6 }}>
+        {catFace(catMap, fb.teacher_id, 24)}
+        <span style={{ fontSize:9, fontWeight:900, letterSpacing:0.5, background:ACCENT, color:'#fff', padding:'2px 8px', borderRadius:9 }}>강사 피드백</span>
+        <span style={{ fontSize:10.5, fontWeight:800, color:'var(--tmu)' }}>{nameMap[fb.teacher_id] ? `${nameMap[fb.teacher_id]} 쌤` : '선생님'}</span>
+      </div>
+      {fb.body && <div style={{ fontSize:13, fontWeight:600, color:'var(--td)', lineHeight:1.6, whiteSpace:'pre-wrap', wordBreak:'break-word' }}>{fb.body}</div>}
+      {Array.isArray(fb.photos) && fb.photos.length > 0 && (
+        <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop: fb.body ? 8 : 0 }}>
+          {fb.photos.map((path, pi) => (
+            <div key={pi} onClick={() => onOpenPhotos(fb.photos, path)}
+              style={{ width:88, height:88, borderRadius:10, background:'var(--surf)', overflow:'hidden', flexShrink:0, cursor: signedUrls[path] ? 'pointer' : 'default' }}>
+              {signedUrls[path]
+                ? <img src={signedUrls[path]} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>
+                : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22 }}>📷</div>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// 사진 댓글 스레드(강사 ↔ 나) + 이어서 답글. 위와 같은 이유로 한 벌만 둔다.
+function CommentThread({ comments, userId, draft, onDraft, onSend, sending }) {
+  return (
+    <div style={{ marginTop:11, display:'flex', flexDirection:'column', gap:6 }}>
+      {comments.map(c => {
+        const mine = c.user_id === userId
+        const catKey = isValidPixelCat(c.author_cat) ? c.author_cat : DEFAULT_PROFILE_CAT
+        return (
+          <div key={c.id} style={{ display:'flex', gap:6, alignItems:'flex-end', flexDirection: mine ? 'row-reverse' : 'row' }}>
+            <div style={{ width:26, height:26, flexShrink:0, borderRadius:'50%', background:ACCENT_BG, border:`2px solid ${ACCENT}`, display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden' }}>
+              <img src={pixelCatImg(catKey)} alt="" width={17} height={17} style={{ imageRendering:'pixelated', display:'block' }}/>
+            </div>
+            <div style={{ maxWidth:'72%', display:'flex', flexDirection:'column', alignItems: mine ? 'flex-end' : 'flex-start', gap:2 }}>
+              {!mine && <span style={{ fontSize:9.5, fontWeight:800, color:'var(--tmu)', marginLeft:4 }}>{c.author_name} 쌤</span>}
+              <div style={{ background: mine ? ACCENT : 'var(--surf)', color: mine ? '#fff' : 'var(--td)', border: mine ? 'none' : `2px solid rgb(var(--ac-rgb) / 0.3)`, fontSize:12, fontWeight:600, lineHeight:1.5, padding:'7px 11px', borderRadius: mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px', whiteSpace:'pre-wrap', wordBreak:'break-word' }}>
+                {c.content}
+              </div>
+            </div>
+          </div>
+        )
+      })}
+      <div style={{ display:'flex', gap:6, alignItems:'center', marginTop:2 }}>
+        <input value={draft} onChange={e => onDraft(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) onSend() }}
+          placeholder="답글 남기기…"
+          style={{ flex:1, minWidth:0, height:34, background:'var(--bg)', border:`2px solid rgb(var(--ac-rgb) / 0.25)`, borderRadius:18, padding:'0 12px', fontSize:12, color:'var(--td)', fontWeight:600, fontFamily:'Nunito,sans-serif', outline:'none', boxSizing:'border-box' }}/>
+        <button onClick={onSend} disabled={sending || !draft.trim()}
+          style={{ width:34, height:34, flexShrink:0, borderRadius:'50%', border:'none', color:'#fff', fontSize:12, cursor:'pointer', padding:0, display:'flex', alignItems:'center', justifyContent:'center', background: draft.trim() ? ACCENT : 'rgb(var(--ac-rgb) / 0.35)' }}>
+          {sending ? '…' : '➤'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function RecordsInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -38,6 +100,9 @@ function RecordsInner() {
   const [signedUrls, setSignedUrls] = useState({})
   const [catMap, setCatMap] = useState({})       // user_id → profile_cat (개인설정 프로필)
   const [nameMap, setNameMap] = useState({})     // teacher_id → 이름
+  // 같은 기록을 세 가지 눈으로 본다 — 날짜(달력) · 그림만(앨범) · 말만(피드백 노트).
+  // 화면 상태일 뿐이라 데이터는 하나도 더 불러오지 않는다.
+  const [view, setView] = useState('calendar')   // calendar | album | notes
 
   const now = new Date()
   const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`
@@ -334,6 +399,38 @@ function RecordsInner() {
   const cellYmd = (d) => `${calYM.y}-${String(calYM.m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
   const shiftMonth = (delta) => setCalYM(({ y, m }) => { const t = m + delta; return { y: y + Math.floor(t / 12), m: ((t % 12) + 12) % 12 } })
   const dayRecords = records.filter(r => r.class_date === selDate)
+  // 앨범 — 사진만 최근 → 과거로. 달로 끊어 지금 어디쯤을 보고 있는지 알게 한다.
+  const albumGroups = []
+  {
+    const items = records.flatMap(r => (r.class_record_photos || []).map(ph => ({ ph, r })))
+    items.sort((a, b) => b.r.class_date.localeCompare(a.r.class_date))
+    for (const it of items) {
+      const key = it.r.class_date.slice(0, 7)
+      const last = albumGroups[albumGroups.length - 1]
+      if (last && last.key === key) last.items.push(it)
+      else albumGroups.push({ key, items: [it] })
+    }
+  }
+  const albumCount = albumGroups.reduce((a, g) => a + g.items.length, 0)
+  const firstRecordDate = records.length ? records[0].class_date : null   // 기록은 날짜 오름차순
+  // 피드백 노트 — 강사 말이나 주고받은 대화가 있는 기록만, 최근 것부터.
+  const noteRecords = records
+    .filter(r => (r.class_record_feedback || []).length > 0 || (recordComments[r.id] || []).length > 0)
+    .slice().sort((a, b) => b.class_date.localeCompare(a.class_date))
+  const fbCount = noteRecords.reduce((a, r) => a + (r.class_record_feedback || []).length, 0)
+  const talkCount = noteRecords.reduce((a, r) => a + (recordComments[r.id] || []).length, 0)
+  const openPhotos = (paths, path) => {
+    const urls = paths.map(x => signedUrls[x]).filter(Boolean)
+    if (!urls.length) return
+    return { photos: urls, idx: Math.max(0, urls.indexOf(signedUrls[path])) }
+  }
+  const monthLabel = (g, i) => {
+    const [y, m] = g.key.split('-')
+    const prevY = i > 0 ? albumGroups[i - 1].key.slice(0, 4) : null
+    return (i === 0 || prevY !== y) ? `${y} · ${+m}월` : `${+m}월`
+  }
+  const viewTabs = [['calendar', '달력'], ['album', '앨범'], ['notes', '피드백 노트']]
+
   const arrowBtn = { width:28, height:28, borderRadius:9, border:'1.5px solid var(--g2)', background:'var(--surf)', color:'var(--ac)', fontSize:15, cursor:'pointer', lineHeight:1, padding:0 }
 
   return (
@@ -368,7 +465,22 @@ function RecordsInner() {
         </div>
       </div>
 
-      <div style={{ background: (fresh || space) ? 'transparent' : '#fff', padding:'12px 12px 150px', minHeight:'80vh' }}>
+      <div style={{ background: (fresh || space) ? 'transparent' : '#fff', padding: view === 'calendar' ? '12px 12px 150px' : '12px 12px 90px', minHeight:'80vh' }}>
+
+        {/* 보기 전환 — 날짜로 볼지, 그림만 볼지, 받은 말만 볼지 */}
+        <div style={{ display:'flex', gap:5, background:'var(--card)', borderRadius:14, padding:4, marginBottom:14 }}>
+          {viewTabs.map(([k, label]) => (
+            <button key={k} onClick={() => setView(k)} aria-pressed={view === k}
+              style={{ flex:1, border:'none', borderRadius:11, padding:'7px 0', fontFamily:'Nunito,sans-serif', fontSize:12.5, fontWeight:800, cursor:'pointer',
+                color: view === k ? '#fff' : 'var(--tm)',
+                background: view === k ? ACCENT : 'transparent',
+                boxShadow: view === k ? '0 4px 10px -3px rgb(var(--ac-rgb) / 0.6)' : 'none', transition:'background 0.15s' }}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {view === 'calendar' && (<>
 
         {/* 월 달력 — 날짜에 기록. 기록 있는 날 점 표시, 날짜 눌러 그날 다이어리 열기 */}
         <div className="p-card" style={{ padding:'13px 13px 11px', marginBottom:14 }}>
@@ -488,66 +600,117 @@ function RecordsInner() {
 
               {/* 강사 피드백 */}
               {(r.class_record_feedback || []).map(fb => (
-                <div key={fb.id} style={{ marginTop:11, background:'var(--acBg)', border:`2px solid ${ACCENT}`, borderRadius:14, padding:'11px 13px' }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:6 }}>
-                    {catFace(catMap, fb.teacher_id, 24)}
-                    <span style={{ fontSize:9, fontWeight:900, letterSpacing:0.5, background:ACCENT, color:'#fff', padding:'2px 8px', borderRadius:9 }}>강사 피드백</span>
-                    <span style={{ fontSize:10.5, fontWeight:800, color:'var(--tmu)' }}>{nameMap[fb.teacher_id] ? `${nameMap[fb.teacher_id]} 쌤` : '선생님'}</span>
-                  </div>
-                  {fb.body && <div style={{ fontSize:13, fontWeight:600, color:'var(--td)', lineHeight:1.6, whiteSpace:'pre-wrap', wordBreak:'break-word' }}>{fb.body}</div>}
-                  {Array.isArray(fb.photos) && fb.photos.length > 0 && (
-                    <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop: fb.body ? 8 : 0 }}>
-                      {fb.photos.map((path, pi) => (
-                        <div key={pi} onClick={() => { const urls = fb.photos.map(p => signedUrls[p]).filter(Boolean); if (urls.length) { setViewer({ photos: urls, idx: Math.max(0, urls.indexOf(signedUrls[path])), recordId: r.id }); setViewerText('') } }}
-                          style={{ width:88, height:88, borderRadius:10, background:'var(--surf)', overflow:'hidden', flexShrink:0, cursor: signedUrls[path] ? 'pointer' : 'default' }}>
-                          {signedUrls[path]
-                            ? <img src={signedUrls[path]} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>
-                            : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22 }}>📷</div>}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <FeedbackBox key={fb.id} fb={fb} catMap={catMap} nameMap={nameMap} signedUrls={signedUrls}
+                  onOpenPhotos={(paths, path) => {
+                    const urls = paths.map(x => signedUrls[x]).filter(Boolean)
+                    if (!urls.length) return
+                    setViewer({ photos: urls, idx: Math.max(0, urls.indexOf(signedUrls[path])), recordId: r.id }); setViewerText('')
+                  }}/>
               ))}
 
               {/* 사진 댓글 스레드 (강사 ↔ 나) — 대화가 있으면 표시 + 이어서 답글 */}
               {(recordComments[r.id] || []).length > 0 && (
-                <div style={{ marginTop:11, display:'flex', flexDirection:'column', gap:6 }}>
-                  {(recordComments[r.id] || []).map(c => {
-                    const mine = c.user_id === user?.id
-                    const catKey = isValidPixelCat(c.author_cat) ? c.author_cat : DEFAULT_PROFILE_CAT
-                    return (
-                      <div key={c.id} style={{ display:'flex', gap:6, alignItems:'flex-end', flexDirection: mine ? 'row-reverse' : 'row' }}>
-                        <div style={{ width:26, height:26, flexShrink:0, borderRadius:'50%', background:ACCENT_BG, border:`2px solid ${ACCENT}`, display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden' }}>
-                          <img src={pixelCatImg(catKey)} alt="" width={17} height={17} style={{ imageRendering:'pixelated', display:'block' }}/>
-                        </div>
-                        <div style={{ maxWidth:'72%', display:'flex', flexDirection:'column', alignItems: mine ? 'flex-end' : 'flex-start', gap:2 }}>
-                          {!mine && <span style={{ fontSize:9.5, fontWeight:800, color:'var(--tmu)', marginLeft:4 }}>{c.author_name} 쌤</span>}
-                          <div style={{ background: mine ? ACCENT : 'var(--surf)', color: mine ? '#fff' : 'var(--td)', border: mine ? 'none' : `2px solid rgb(var(--ac-rgb) / 0.3)`, fontSize:12, fontWeight:600, lineHeight:1.5, padding:'7px 11px', borderRadius: mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px', whiteSpace:'pre-wrap', wordBreak:'break-word' }}>
-                            {c.content}
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                  <div style={{ display:'flex', gap:6, alignItems:'center', marginTop:2 }}>
-                    <input value={rcInput[r.id] || ''} onChange={e => setRcInput(prev => ({ ...prev, [r.id]: e.target.value }))}
-                      onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) sendInlineComment(r.id) }}
-                      placeholder="답글 남기기…"
-                      style={{ flex:1, minWidth:0, height:34, background:'var(--bg)', border:`2px solid rgb(var(--ac-rgb) / 0.25)`, borderRadius:18, padding:'0 12px', fontSize:12, color:'var(--td)', fontWeight:600, fontFamily:'Nunito,sans-serif', outline:'none', boxSizing:'border-box' }}/>
-                    <button onClick={() => sendInlineComment(r.id)} disabled={rcSending[r.id] || !(rcInput[r.id]?.trim())}
-                      style={{ width:34, height:34, flexShrink:0, borderRadius:'50%', border:'none', color:'#fff', fontSize:12, cursor:'pointer', padding:0, display:'flex', alignItems:'center', justifyContent:'center', background: rcInput[r.id]?.trim() ? ACCENT : 'rgb(var(--ac-rgb) / 0.35)' }}>
-                      {rcSending[r.id] ? '…' : '➤'}
-                    </button>
-                  </div>
-                </div>
+                <CommentThread comments={recordComments[r.id]} userId={user?.id}
+                  draft={rcInput[r.id] || ''} onDraft={v => setRcInput(prev => ({ ...prev, [r.id]: v }))}
+                  onSend={() => sendInlineComment(r.id)} sending={!!rcSending[r.id]}/>
               )}
             </div>
           )
         })}
+
+        </>)}
+
+        {/* 앨범 — 사진만. 메모·피드백을 칸에 넣으면 칸이 커져서 "쌓였다"가 안 보인다. */}
+        {view === 'album' && (albumCount === 0 ? (
+          <div style={{ textAlign:'center', padding:'40px 0', color:'var(--tmu)', fontSize:12.5, border:'1.5px dashed var(--g2)', borderRadius:16, lineHeight:1.9 }}>
+            아직 앨범에 담긴 그림이 없어요 🐾<br/>
+            <span style={{ fontSize:11 }}>기록에 사진을 올리면 여기에 하나씩 쌓여요</span>
+          </div>
+        ) : (
+          <>
+            <div style={{ display:'flex', alignItems:'center', gap:6, margin:'0 2px 12px', fontSize:11.5, fontWeight:800, color:'var(--tmu)' }}>
+              <span style={{ color:ACCENT_TEXT }}>그림 {albumCount}장</span>
+              {firstRecordDate && <><span style={{ width:3, height:3, borderRadius:'50%', background:'var(--tmu)' }} />{firstRecordDate.replace(/-/g, '.')}부터</>}
+            </div>
+            {albumGroups.map((g, gi) => (
+              <div key={g.key} style={{ marginBottom:14 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8, margin:'0 2px 7px' }}>
+                  <span style={{ fontSize:11.5, fontWeight:800, color:'var(--tmu)', flexShrink:0 }}>{monthLabel(g, gi)}</span>
+                  <span style={{ height:1, background:'var(--g1)', flex:1 }} />
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:5 }}>
+                  {g.items.map(({ ph, r }) => {
+                    const url = signedUrls[ph.storage_path]
+                    const hasFb = (r.class_record_feedback || []).length > 0
+                    const md = r.class_date.slice(5).replace('-', '.')
+                    return (
+                      <button key={ph.id} className="press" title={`${md} 기록 보기`}
+                        onClick={() => { setView('calendar'); setCtx({ date: r.class_date, cls: r.class_name || '' }); setCalYM({ y:+r.class_date.slice(0,4), m:+r.class_date.slice(5,7) - 1 }); window.scrollTo(0, 0) }}
+                        style={{ position:'relative', aspectRatio:'1', borderRadius:12, overflow:'hidden', border:'none', padding:0, background:ACCENT_BG, cursor:'pointer', display:'block' }}>
+                        {url
+                          ? <img src={url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}/>
+                          : <span style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20 }}>📷</span>}
+                        <span style={{ position:'absolute', left:4, bottom:4, fontSize:9.5, fontWeight:800, color:'#fff', background:'rgba(11,11,14,0.62)', borderRadius:6, padding:'1px 5px' }}>{md}</span>
+                        {ph.palette && <span style={{ position:'absolute', left:4, top:4, fontSize:9.5, fontWeight:800, color:'#fff', background:'rgba(11,11,14,0.62)', borderRadius:6, padding:'1px 5px' }}>🎨</span>}
+                        {hasFb && <span title="강사 피드백이 있어요" style={{ position:'absolute', top:5, right:5, width:7, height:7, borderRadius:'50%', background:'var(--ac2)', boxShadow:'0 0 0 2px rgba(11,11,14,0.35)' }} />}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+          </>
+        ))}
+
+        {/* 피드백 노트 — 받은 말과 그때 오간 대화를 한 덩어리로 */}
+        {view === 'notes' && (noteRecords.length === 0 ? (
+          <div style={{ textAlign:'center', padding:'40px 0', color:'var(--tmu)', fontSize:12.5, border:'1.5px dashed var(--g2)', borderRadius:16, lineHeight:1.9 }}>
+            아직 받은 피드백이 없어요 🐾<br/>
+            <span style={{ fontSize:11 }}>기록에 강사 피드백이 달리면 여기에 모여요</span>
+          </div>
+        ) : (
+          <>
+            <div style={{ display:'flex', alignItems:'center', gap:6, margin:'0 2px 12px', fontSize:11.5, fontWeight:800, color:'var(--tmu)' }}>
+              <span style={{ color:ACCENT_TEXT }}>받은 피드백 {fbCount}개</span>
+              <span style={{ width:3, height:3, borderRadius:'50%', background:'var(--tmu)' }} />
+              주고받은 말 {talkCount}개
+            </div>
+            {noteRecords.map(r => {
+              const thumbPath = (r.class_record_photos || [])[0]?.storage_path
+              const thumb = thumbPath ? signedUrls[thumbPath] : null
+              const nd = new Date(r.class_date + 'T00:00:00')
+              return (
+                <div key={r.id} className="p-card" style={{ padding:'13px', marginBottom:12 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:7, flexWrap:'wrap' }}>
+                    <span style={{ fontSize:11.5, fontWeight:800, color:'var(--td)' }}>{nd.getMonth()+1}월 {nd.getDate()}일 ({DOW[nd.getDay()]})</span>
+                    {r.class_name && <span style={{ fontSize:10.5, fontWeight:800, color:ACCENT_TEXT, background:ACCENT_BG, border:'1.5px solid rgb(var(--ac-rgb) / 0.3)', borderRadius:20, padding:'2px 9px' }}>{r.class_name}</span>}
+                  </div>
+                  {thumb && (
+                    <div className="press" onClick={() => { const photos = recordPhotos(r); if (photos.length) { setViewer({ photos, idx:0, recordId: r.id }); setViewerText('') } }}
+                      style={{ display:'flex', alignItems:'center', gap:8, marginTop:9, cursor:'pointer' }}>
+                      <img src={thumb} alt="" style={{ width:34, height:34, borderRadius:9, objectFit:'cover', display:'block', flexShrink:0 }}/>
+                      <span style={{ fontSize:10.5, fontWeight:800, color:'var(--tmu)' }}>이 그림에 남겨진 말</span>
+                    </div>
+                  )}
+                  {(r.class_record_feedback || []).map(fb => (
+                    <FeedbackBox key={fb.id} fb={fb} catMap={catMap} nameMap={nameMap} signedUrls={signedUrls}
+                      onOpenPhotos={(paths, path) => { const v = openPhotos(paths, path); if (v) { setViewer({ ...v, recordId: r.id }); setViewerText('') } }}/>
+                  ))}
+                  {(recordComments[r.id] || []).length > 0 && (
+                    <CommentThread comments={recordComments[r.id]} userId={user?.id}
+                      draft={rcInput[r.id] || ''} onDraft={v => setRcInput(prev => ({ ...prev, [r.id]: v }))}
+                      onSend={() => sendInlineComment(r.id)} sending={!!rcSending[r.id]}/>
+                  )}
+                </div>
+              )
+            })}
+          </>
+        ))}
       </div>
 
-      {/* 하단 입력바 — 선택한 날짜에 바로 기록. 📷 사진, 🎨 색 계획 */}
+      {/* 하단 입력바 — 선택한 날짜에 바로 기록. 📷 사진, 🎨 색 계획.
+          앨범·피드백 노트는 지난 것을 읽는 자리라 입력바를 내린다(어느 날짜에 쓰는지가 사라지므로). */}
+      {view === 'calendar' && (
       <div className="g-glass-bar" style={{ position:'fixed', bottom:66, left:'50%', transform:'translateX(-50%)', width:'100%', maxWidth:390, background:'#fff', borderTop:`2px solid rgb(var(--ac-rgb) / 0.15)`, zIndex:90, boxSizing:'border-box' }}>
 
         {/* 대상 날짜 칩 + 라운지 공유 토글 */}
@@ -600,6 +763,7 @@ function RecordsInner() {
           </button>
         </div>
       </div>
+      )}
 
       {/* 사진 크게 보기 — 라이트박스 + 댓글 (라운지와 동일) */}
       {viewer && (
