@@ -203,14 +203,18 @@ export default function AdminRecordsPage() {
       const base = { record_id: recordId, teacher_id: user.id, body: body || '' }
       const withPhotos = photos.length ? { ...base, photos } : base
       const attempts = nextPlan ? [{ ...withPhotos, next_plan: nextPlan }, withPhotos, base] : [withPhotos, base]
-      let error = null, savedNext = false
+      let error = null, savedNext = false, firstError = null
       for (const payload of attempts) {
         ;({ error } = await supabase.from('class_record_feedback').insert(payload))
         if (!error) { savedNext = !!payload.next_plan; break }
+        if (!firstError) firstError = error
       }
-      // 컬럼이 없어 떼고 저장했다면 조용히 넘어가지 않는다 — 강사가 쓴 문장이 사라진 것이므로
+      // 컬럼이 없어 떼고 저장했다면 조용히 넘어가지 않는다 — 강사가 쓴 문장이 사라진 것이므로.
+      // 사유를 그대로 보여 준다: 컬럼이 없는 것과 권한(RLS)에 막힌 것은 고치는 법이 다르다.
       if (nextPlan && !savedNext) {
-        alert('피드백은 저장했지만 "다음에 진행할 것"은 저장되지 않았어요.\nmigration-record-next-plan.sql 을 Supabase에서 실행해 주세요 🐾')
+        const why = firstError?.message || '알 수 없는 이유'
+        console.error('next_plan 저장 실패', firstError)
+        alert('피드백은 저장했지만 "다음에 진행할 것"은 저장되지 않았어요.\n사유: ' + why)
       }
 
       // 학생에게 알림 + 푸시 (기록 답글과 동일)
