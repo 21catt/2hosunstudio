@@ -1,7 +1,8 @@
 'use client'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
+import { notifyAllAdmins } from '../../lib/adminNotify'
 import { pixelCatImg } from '../../lib/pixelCats'
 
 const CATS = [
@@ -17,10 +18,13 @@ const ROLES = [
   { id:'artist', cat:'10-playful', name:'전시 참여 작가', desc:'회의 일정 참여, 냥밭에서 당근 포인트를 모을 수 있어요' },
 ]
 
-export default function SignupPage() {
+function SignupInner() {
   const router = useRouter()
-  const [step, setStep] = useState(0)
-  const [role, setRole] = useState('')
+  const searchParams = useSearchParams()
+  // /signup?role=teacher — 로그인 화면의 "강사로 가입하기"가 역할 고르는 단계를 건너뛴다
+  const qRole = searchParams.get('role') === 'teacher' ? 'teacher' : ''
+  const [step, setStep] = useState(qRole ? 1 : 0)
+  const [role, setRole] = useState(qRole)
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
@@ -57,6 +61,15 @@ export default function SignupPage() {
     if (role==='student') router.push('/student')
     else if (role==='artist') router.push('/artist')
     else {
+      // 승인해야 로그인이 열리므로 오너가 모르면 계정이 잠긴 채로 남는다.
+      // 알림이 실패해도 가입은 끝난 것이라 막지 않는다(회원 관리에 승인 대기로 남아 있다).
+      try {
+        await notifyAllAdmins({
+          type: 'teacher_signup',
+          title: '🧑‍🏫 강사 가입 신청',
+          body: `${name}님이 강사로 가입 신청했어요. 회원 관리에서 승인해야 로그인할 수 있어요.`,
+        })
+      } catch {}
       alert('강사 가입이 접수됐어요 🐾\n관리자 승인 후 로그인할 수 있어요.')
       router.push('/login')
     }
@@ -100,11 +113,15 @@ export default function SignupPage() {
         <div style={{ height:16 }}/>
         <button className="btn-primary" disabled={!role} onClick={()=>setStep(1)}>다음</button>
         <button className="btn-secondary" onClick={()=>router.push('/login')}>이미 계정이 있어요 → 로그인</button>
-        <div style={{ textAlign:'center', marginTop:18 }}>
-          <span onClick={()=>{ setRole('teacher'); setStep(1) }}
-            style={{ fontSize:12, color:'var(--tmu)', cursor:'pointer', textDecoration:'underline', textUnderlineOffset:3 }}>
-            강사이신가요? 강사로 가입하기 →
-          </span>
+        <div onClick={()=>{ setRole('teacher'); setStep(1) }}
+          style={{ marginTop:18, border:'1.5px solid var(--g2)', background:'var(--g1)', borderRadius:14,
+            padding:'13px 14px', display:'flex', alignItems:'center', gap:12, cursor:'pointer' }}>
+          <div style={{ width:40, height:40, borderRadius:12, background:'var(--surf)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:20 }}>✏️</div>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontSize:13, fontWeight:800, color:'var(--td)' }}>강사로 가입하기</div>
+            <div style={{ fontSize:11, color:'var(--tmu)', marginTop:2, lineHeight:1.5 }}>담당 수업의 예약·출석·기록 피드백. 관리자 승인 후 이용할 수 있어요</div>
+          </div>
+          <span style={{ fontSize:18, color:'var(--tmu)', flexShrink:0 }}>›</span>
         </div>
       </div>
     </>
@@ -113,8 +130,8 @@ export default function SignupPage() {
   if (step===1) return (
     <>
       <div className="header">
-        <button onClick={()=>setStep(0)} style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:'50%', width:32, height:32, cursor:'pointer', color:'#fff', fontSize:18 }}>‹</button>
-        <span className="header-title">기본 정보 입력</span>
+        <button onClick={()=>{ if (qRole) router.push('/login'); else setStep(0) }} style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:'50%', width:32, height:32, cursor:'pointer', color:'#fff', fontSize:18 }}>‹</button>
+        <span className="header-title">{role==='teacher' ? '강사 가입 · 기본 정보' : '기본 정보 입력'}</span>
         {role !== 'artist' ? (
           <div style={{ display:'flex', gap:4 }}>
             {[0,1,2].map(i=><div key={i} style={{ width:i===0?18:6, height:6, borderRadius:4, background:i===0?'#fff':'rgba(255,255,255,0.4)' }}/>)}
@@ -163,10 +180,23 @@ export default function SignupPage() {
           ))}
         </div>
         {error && <div style={{ color:'#c0392b', fontSize:12, marginBottom:12, fontWeight:600 }}>{error}</div>}
-        <button className="btn-primary" disabled={loading||(role==='admin'&&cats.size===0)} onClick={handleSignup}>
-          {loading?'가입 중...':role==='admin'?'강사 등록 완료':'가입 완료'}
+        <button className="btn-primary" disabled={loading||(role==='teacher'&&cats.size===0)} onClick={handleSignup}>
+          {loading?'가입 중...':role==='teacher'?'강사 가입 신청':'가입 완료'}
         </button>
+        {role==='teacher' && (
+          <div style={{ fontSize:11, color:'var(--tmu)', textAlign:'center', marginTop:10, lineHeight:1.6 }}>
+            신청하면 관리자에게 알림이 갑니다. <b style={{ color:'var(--acTx)' }}>승인된 뒤부터</b> 로그인할 수 있어요.
+          </div>
+        )}
       </div>
     </>
+  )
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignupInner />
+    </Suspense>
   )
 }

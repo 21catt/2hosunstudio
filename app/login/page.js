@@ -246,9 +246,15 @@ export default function LoginPage() {
         <button className="btn-primary" onClick={handleLogin} disabled={loading||!email||!pw}>
           {loading ? '로그인 중...' : '로그인'}
         </button>
-        <button className="btn-secondary" onClick={() => router.push('/signup')}>
-          계정이 없어요 → 가입하기
+        <button className="btn-secondary"
+          onClick={() => router.push(selectedRole === 'teacher' ? '/signup?role=teacher' : '/signup')}>
+          {selectedRole === 'teacher' ? '강사 계정이 없어요 → 강사로 가입하기' : '계정이 없어요 → 가입하기'}
         </button>
+        {selectedRole === 'teacher' && (
+          <div style={{ fontSize:11, color:'var(--tmu)', textAlign:'center', marginTop:10, lineHeight:1.6 }}>
+            강사 가입은 관리자 승인 후 로그인할 수 있어요.
+          </div>
+        )}
       </div>
     </>
   )
