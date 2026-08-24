@@ -7,7 +7,7 @@ import { NavIcon } from '../../components/NavIcons'
 import { useTodayWeather, WeatherGlyph } from '../../components/WeatherBar'
 import { LogoMark, HeroDeco, DotPatch } from '../../components/Deco'
 import HeroWeatherFX from '../../components/HeroWeatherFX'
-import { applyTheme, isValidTheme, getSavedTheme, themeInWindow, DEFAULT_THEME } from '../../lib/theme'
+import { applyTheme, isValidTheme, getSavedTheme, getSavedThemeRaw, guestTheme, themeInWindow, DEFAULT_THEME } from '../../lib/theme'
 import GlassHome from '../../components/GlassHome'
 import SpaceHome from '../../components/SpaceHome'
 import { bookClass, requestBookingApproval, hasValidTicket, cancelBooking } from '../../lib/booking'
@@ -78,9 +78,10 @@ export default function StudentHomePage() {
     })
   }, [])
 
-  // 최초: 저장된 테마(기간 반영)로 글래스 홈 여부 결정 — 로그인 전/데이터 로드 전에도 반영
+  // 최초: 저장된 테마(기간 반영)로 글래스 홈 여부 결정 — 로그인 전/데이터 로드 전에도 반영.
+  // 고른 적 없는 방문자는 싱그러운으로 맞이한다(layout 의 첫 페인트 스크립트와 같은 규칙).
   useEffect(() => {
-    const saved = getSavedTheme()
+    const saved = getSavedThemeRaw() || guestTheme()
     setActiveTheme(saved)
     // 스킨 안내 팝업 — 기간 내 + "다시 보지 않기" 안 누름.
     // 이미 시즌 스킨(space/fresh)을 쓰는 중이면 어떤 팝업도 안 띄운다(space 사용자에게 fresh 권유 방지).
