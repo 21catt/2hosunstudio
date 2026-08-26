@@ -1,6 +1,6 @@
 import webpush from 'web-push'
-import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { supabaseAdmin } from '../../../../lib/supabaseAdmin'
 
 webpush.setVapidDetails(
   process.env.VAPID_EMAIL,
@@ -8,10 +8,9 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY
 )
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-)
+// ⚠️ 구독 조회·정리는 service-role 로. anon key 로는 push_subscriptions 에 RLS 를 켜는 순간
+//    0건이 돌아와 푸시가 조용히 멎는다(에러도 안 난다).
+const supabase = supabaseAdmin
 
 export async function POST(req) {
   const { title, body, adminId } = await req.json()
