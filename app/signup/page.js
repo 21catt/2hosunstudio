@@ -34,6 +34,17 @@ function SignupInner() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  // 가입 실패 사유는 영어 원문으로 온다 — 가장 흔한 것만 한국어로 바꾼다.
+  // 모르는 사유는 원문 그대로 둔다(감추면 무슨 일인지 알 수 없다).
+  function signupError(msg) {
+    const m = String(msg || '')
+    if (/already registered|already exists/i.test(m)) return '이미 가입된 이메일이에요. 로그인해 주세요.'
+    if (/Password should be at least/i.test(m)) return '비밀번호는 8자 이상으로 해주세요.'
+    if (/invalid format|Unable to validate email/i.test(m)) return '이메일 형식을 확인해 주세요.'
+    if (/only request this after|rate limit/i.test(m)) return '잠시 후 다시 시도해 주세요.'
+    return m
+  }
+
   function toggleCat(id) {
     setCats(prev => {
       const next = new Set(prev)
@@ -53,7 +64,7 @@ function SignupInner() {
         data: { name, phone, role, categories:[...cats], approved: role !== 'teacher' }
       }
     })
-    if (error) { setError(error.message); setLoading(false); return }
+    if (error) { setError(signupError(error.message)); setLoading(false); return }
     // approved 컬럼이 없는 환경(마이그레이션 전)에서도 가입은 되게 폴백
     const base = { id: data.user.id, name, phone, role, categories:[...cats] }
     const { error: insErr } = await supabase.from('users').insert({ ...base, approved: role !== 'teacher' })
@@ -140,7 +151,10 @@ function SignupInner() {
       </div>
       <div className="page-body">
         <div className="field"><label>이름</label><input placeholder="실명을 입력해 주세요" value={name} onChange={e=>setName(e.target.value)}/></div>
-        <div className="field"><label>휴대폰 번호</label><input placeholder="010-0000-0000" value={phone} onChange={e=>setPhone(e.target.value)}/></div>
+        <div className="field">
+          <label>휴대폰 번호{role==='teacher' && <span style={{ color:'var(--acTx)', fontSize:11, fontWeight:800, marginLeft:6 }}>승인 연락용 · 필수</span>}</label>
+          <input placeholder="010-0000-0000" value={phone} onChange={e=>setPhone(e.target.value)}/>
+        </div>
         <div className="field"><label>이메일</label><input type="email" placeholder="example@email.com" value={email} onChange={e=>setEmail(e.target.value)}/></div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
           <div className="field"><label>비밀번호</label><input type="password" placeholder="8자 이상" value={pw} onChange={e=>setPw(e.target.value)}/></div>
@@ -148,7 +162,9 @@ function SignupInner() {
             style={{ borderColor:pw2&&pw!==pw2?'#e07070':'' }}/></div>
         </div>
         {error && <div style={{ color:'#c0392b', fontSize:12, marginBottom:12, fontWeight:600 }}>{error}</div>}
-        <button className="btn-primary" disabled={loading||!name||!email||!pw||pw!==pw2||pw.length<8} onClick={handleStep1Next}>
+        <button className="btn-primary"
+          disabled={loading||!name||!email||!pw||pw!==pw2||pw.length<8||(role==='teacher'&&!phone.trim())}
+          onClick={handleStep1Next}>
           {loading?'가입 중...':role==='artist'?'작가 가입 완료':'다음'}
         </button>
       </div>

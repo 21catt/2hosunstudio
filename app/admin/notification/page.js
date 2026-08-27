@@ -230,6 +230,7 @@ await supabase.from('notifications')
   if (type === 'meeting_cancelled_admin') return { emoji:'✗', bg:'#ffebee', color:'#c0392b' }
   if (type === 'booking_confirmed_admin') return { emoji:'✅', bg:'var(--g1)', color:'var(--g5)' }
   if (type === 'booking_request_dismissed') return { emoji:'✖', bg:'var(--bg)', color:'var(--tmu)' }
+  if (type === 'teacher_signup') return { emoji:'🧑‍🏫', bg:'#FFF3E0', color:'#E65100' }
   return { emoji:'🔔', bg:'var(--bg)', color:'var(--tm)' }
 }
 
@@ -275,7 +276,8 @@ await supabase.from('notifications')
           const ic = iconFor(n.type)
           const isMeetingPending = n.type === 'meeting_pending'
           const isBookingRequest = n.type === 'booking_request'
-          const isActionable = isMeetingPending || isBookingRequest
+          const isTeacherSignup = n.type === 'teacher_signup'
+          const isActionable = isMeetingPending || isBookingRequest || isTeacherSignup
           const isProc = processing === n.id
           return (
             <div key={n.id} style={{ background: isActionable ? '#FFF8E1' : 'var(--bg)', borderRadius:14, padding:'12px 14px',
@@ -314,6 +316,15 @@ await supabase.from('notifications')
                       cursor:isProc?'not-allowed':'pointer', opacity:isProc?0.5:1,
                       fontFamily:'Nunito,sans-serif' }}>
                     {isProc ? '처리중...' : '입금 확인 → 확정'}
+                  </button>
+                </div>
+              )}
+
+              {isTeacherSignup && (
+                <div style={{ marginTop:10, paddingTop:10, borderTop:'1px solid #FFE082' }}>
+                  <button onClick={()=>router.push('/admin/members')}
+                    style={{ width:'100%', padding:'8px', background:'var(--g4)', color:'#fff', border:'none', borderRadius:10, fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                    회원 관리에서 승인하기 →
                   </button>
                 </div>
               )}
