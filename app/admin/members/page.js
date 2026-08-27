@@ -106,6 +106,26 @@ export default function AdminMembersPage() {
     return () => cancelAnimationFrame(id)
   }, [expanded])
 
+  // 반려 — 계정을 지우지 않고 수강생으로 되돌린다(되돌릴 수 있는 쪽으로).
+  async function rejectStaff(t) {
+    const label = t.role === 'admin' ? '관리자' : '강사'
+    if (!confirm(`${t.name || '이 사람'}님의 ${label} 신청을 반려할까요?\n\n계정은 지우지 않고 수강생으로 되돌립니다.\n사유는 직접 연락해 주세요 (${t.phone || '연락처 없음'}).`)) return
+    setApproving(prev => ({ ...prev, [t.id]: true }))
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/admin/approve-teacher', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: t.id, reject: true }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) { alert('반려 실패: ' + (json.error || res.status)); return }
+      setPendingTeachers(prev => prev.filter(x => x.id !== t.id))
+    } finally {
+      setApproving(prev => { const n = { ...prev }; delete n[t.id]; return n })
+    }
+  }
+
   // 강사 승인 — auth 메타(approved)까지 바꿔야 로그인이 열린다(서버 라우트 경유)
   async function approveTeacher(userId) {
     setApproving(prev => ({ ...prev, [userId]: true }))
@@ -376,10 +396,16 @@ export default function AdminMembersPage() {
                     승인 완료 ✓
                   </span>
                 ) : (
-                  <button onClick={() => approveTeacher(t.id)} disabled={approving[t.id]}
-                    style={{ flexShrink:0, border:'none', background:'#2e7d32', color:'#fff', borderRadius:9, padding:'7px 13px', fontSize:11, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif', opacity: approving[t.id] ? 0.6 : 1 }}>
-                    {approving[t.id] ? '처리 중…' : '승인'}
-                  </button>
+                  <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+                    <button onClick={() => rejectStaff(t)} disabled={approving[t.id]}
+                      style={{ border:'1px solid var(--g2)', background:'var(--surf)', color:'var(--tmu)', borderRadius:9, padding:'7px 11px', fontSize:11, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif', opacity: approving[t.id] ? 0.6 : 1 }}>
+                      반려
+                    </button>
+                    <button onClick={() => approveTeacher(t.id)} disabled={approving[t.id]}
+                      style={{ border:'none', background:'#2e7d32', color:'#fff', borderRadius:9, padding:'7px 13px', fontSize:11, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif', opacity: approving[t.id] ? 0.6 : 1 }}>
+                      {approving[t.id] ? '처리 중…' : '승인'}
+                    </button>
+                  </div>
                 )}
               </div>
             ))}
