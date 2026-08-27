@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
-import { isTeacher, isPendingTeacher } from '../../lib/roles'
+import { isTeacher, isPendingStaff } from '../../lib/roles'
 import { NavIcon } from '../../components/NavIcons'
 import { LogoMark } from '../../components/Deco'
 
@@ -51,9 +51,9 @@ export default function LoginPage() {
       setLoading(false)
       return
     }
-    // 승인 전 강사는 차단 — 가입만으로 권한이 생기면 안 된다
-    if (isPendingTeacher(data.user)) {
-      setError('아직 관리자 승인 전이에요. 승인 후 로그인할 수 있어요 🐾')
+    // 승인 전 직원(강사·관리자)은 차단 — 가입만으로 권한이 생기면 안 된다
+    if (isPendingStaff(data.user)) {
+      setError('아직 오너 승인 전이에요. 승인 후 로그인할 수 있어요 🐾')
       await supabase.auth.signOut()
       setLoading(false)
       return
@@ -247,12 +247,19 @@ export default function LoginPage() {
           {loading ? '로그인 중...' : '로그인'}
         </button>
         <button className="btn-secondary"
-          onClick={() => router.push(selectedRole === 'teacher' ? '/signup?role=teacher' : '/signup')}>
-          {selectedRole === 'teacher' ? '강사 계정이 없어요 → 강사로 가입하기' : '계정이 없어요 → 가입하기'}
+          onClick={() => router.push(
+            selectedRole === 'teacher' ? '/signup?role=teacher'
+            : selectedRole === 'admin' ? '/signup?role=admin'
+            : '/signup')}>
+          {selectedRole === 'teacher' ? '강사 계정이 없어요 → 강사로 가입하기'
+           : selectedRole === 'admin' ? '관리자 계정이 없어요 → 관리자로 가입하기'
+           : '계정이 없어요 → 가입하기'}
         </button>
-        {selectedRole === 'teacher' && (
+        {(selectedRole === 'teacher' || selectedRole === 'admin') && (
           <div style={{ fontSize:11, color:'var(--tmu)', textAlign:'center', marginTop:10, lineHeight:1.6 }}>
-            강사 가입은 관리자 승인 후 로그인할 수 있어요.
+            {selectedRole === 'admin'
+              ? '관리자 가입은 오너 승인 후 로그인할 수 있어요. 운영 전권이 열리는 계정이에요.'
+              : '강사 가입은 관리자 승인 후 로그인할 수 있어요.'}
           </div>
         )}
       </div>

@@ -33,11 +33,14 @@ export async function POST(req) {
   // ⚠️ 승인 전에는 로그인이 막혀 있어 알림을 볼 수 없다 — 그래서 "승인된 순간"에 만들어 두면
   //    강사가 처음 로그인했을 때 이 알림이 기다리고 있다. (해제는 알리지 않는다)
   if (approved !== false) {
+    const isAdmin = (target.user.user_metadata || {}).role === 'admin'
     await supabaseAdmin.from('notifications').insert({
       user_id: userId,
       type: 'teacher_approved',
-      title: '🎉 강사 가입이 승인됐어요',
-      body: '이제 강사 로그인으로 들어오실 수 있어요. 담당 수업의 예약·출석·기록 피드백을 확인해 보세요 🐾',
+      title: isAdmin ? '🎉 관리자 가입이 승인됐어요' : '🎉 강사 가입이 승인됐어요',
+      body: isAdmin
+        ? '이제 관리자 로그인으로 들어오실 수 있어요. 회원·수강권·일정 관리를 확인해 보세요 🐾'
+        : '이제 강사 로그인으로 들어오실 수 있어요. 담당 수업의 예약·출석·기록 피드백을 확인해 보세요 🐾',
     })
   }
 

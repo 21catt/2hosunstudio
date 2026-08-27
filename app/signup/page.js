@@ -22,7 +22,8 @@ function SignupInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   // /signup?role=teacher — 로그인 화면의 "강사로 가입하기"가 역할 고르는 단계를 건너뛴다
-  const qRole = searchParams.get('role') === 'teacher' ? 'teacher' : ''
+  const qr = searchParams.get('role')
+  const qRole = (qr === 'teacher' || qr === 'admin') ? qr : ''
   const [step, setStep] = useState(qRole ? 1 : 0)
   const [role, setRole] = useState(qRole)
   const [name, setName] = useState('')
@@ -33,6 +34,9 @@ function SignupInner() {
   const [cats, setCats] = useState(new Set())
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // 승인이 필요한 역할 — 가입만으로 권한이 열리면 안 되는 쪽
+  const isStaffRole = r => r === 'teacher' || r === 'admin'
 
   // 가입 실패 사유는 영어 원문으로 온다 — 가장 흔한 것만 한국어로 바꾼다.
   // 모르는 사유는 원문 그대로 둔다(감추면 무슨 일인지 알 수 없다).
@@ -61,34 +65,37 @@ function SignupInner() {
       password: pw,
       options: {
         // 강사(teacher)는 오너 승인 전까지 approved:false — 로그인 시 차단된다
-        data: { name, phone, role, categories:[...cats], approved: role !== 'teacher' }
+        // 강사·관리자는 오너 승인 전까지 approved:false — 로그인·관리자 홈에서 막힌다
+        data: { name, phone, role, categories:[...cats], approved: !isStaffRole(role) }
       }
     })
     if (error) { setError(signupError(error.message)); setLoading(false); return }
     // approved 컬럼이 없는 환경(마이그레이션 전)에서도 가입은 되게 폴백
     const base = { id: data.user.id, name, phone, role, categories:[...cats] }
-    const { error: insErr } = await supabase.from('users').insert({ ...base, approved: role !== 'teacher' })
+    const { error: insErr } = await supabase.from('users').insert({ ...base, approved: !isStaffRole(role) })
     if (insErr) await supabase.from('users').insert(base)
     if (role==='student') router.push('/student')
     else if (role==='artist') router.push('/artist')
     else {
       // 승인해야 로그인이 열리므로 오너가 모르면 계정이 잠긴 채로 남는다.
       // 알림이 실패해도 가입은 끝난 것이라 막지 않는다(회원 관리에 승인 대기로 남아 있다).
+      const admin = role === 'admin'
       try {
         await notifyAllAdmins({
+          // 종류는 하나로 둔다 — 알림 화면의 "회원 관리에서 승인하기" 버튼을 그대로 쓴다
           type: 'teacher_signup',
-          title: '🧑‍🏫 강사 가입 신청',
-          body: `${name}님이 강사로 가입 신청했어요. 회원 관리에서 승인해야 로그인할 수 있어요.`,
+          title: admin ? '🔑 관리자 가입 신청' : '🧑‍🏫 강사 가입 신청',
+          body: `${name}님이 ${admin ? '관리자' : '강사'}로 가입 신청했어요. 회원 관리에서 승인해야 로그인할 수 있어요.`,
         })
       } catch {}
-      alert('강사 가입이 접수됐어요 🐾\n관리자 승인 후 로그인할 수 있어요.')
+      alert(`${admin ? '관리자' : '강사'} 가입이 접수됐어요 🐾\n오너 승인 후 로그인할 수 있어요.`)
       router.push('/login')
     }
   }
 
-  // step 1에서 다음 누르면, 작가는 바로 가입, 학생/강사는 step 2
+  // step 1에서 다음 누르면 — 작가·관리자는 바로 가입(담당 수업 범위가 없다), 학생·강사는 step 2
   function handleStep1Next() {
-    if (role === 'artist') handleSignup()
+    if (role === 'artist' || role === 'admin') handleSignup()
     else setStep(2)
   }
 
@@ -142,7 +149,7 @@ function SignupInner() {
     <>
       <div className="header">
         <button onClick={()=>{ if (qRole) router.push('/login'); else setStep(0) }} style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:'50%', width:32, height:32, cursor:'pointer', color:'#fff', fontSize:18 }}>‹</button>
-        <span className="header-title">{role==='teacher' ? '강사 가입 · 기본 정보' : '기본 정보 입력'}</span>
+        <span className="header-title">{role==='teacher' ? '강사 가입 · 기본 정보' : role==='admin' ? '관리자 가입 · 기본 정보' : '기본 정보 입력'}</span>
         {role !== 'artist' ? (
           <div style={{ display:'flex', gap:4 }}>
             {[0,1,2].map(i=><div key={i} style={{ width:i===0?18:6, height:6, borderRadius:4, background:i===0?'#fff':'rgba(255,255,255,0.4)' }}/>)}
@@ -152,7 +159,7 @@ function SignupInner() {
       <div className="page-body">
         <div className="field"><label>이름</label><input placeholder="실명을 입력해 주세요" value={name} onChange={e=>setName(e.target.value)}/></div>
         <div className="field">
-          <label>휴대폰 번호{role==='teacher' && <span style={{ color:'var(--acTx)', fontSize:11, fontWeight:800, marginLeft:6 }}>승인 연락용 · 필수</span>}</label>
+          <label>휴대폰 번호{isStaffRole(role) && <span style={{ color:'var(--acTx)', fontSize:11, fontWeight:800, marginLeft:6 }}>승인 연락용 · 필수</span>}</label>
           <input placeholder="010-0000-0000" value={phone} onChange={e=>setPhone(e.target.value)}/>
         </div>
         <div className="field"><label>이메일</label><input type="email" placeholder="example@email.com" value={email} onChange={e=>setEmail(e.target.value)}/></div>
@@ -161,11 +168,17 @@ function SignupInner() {
           <div className="field"><label>비밀번호 확인</label><input type="password" placeholder="재입력" value={pw2} onChange={e=>setPw2(e.target.value)}
             style={{ borderColor:pw2&&pw!==pw2?'#e07070':'' }}/></div>
         </div>
+        {role==='admin' && (
+          <div style={{ fontSize:11.5, color:'var(--acTx)', background:'var(--acBg)', border:'1.5px solid rgb(var(--ac-rgb) / 0.3)', borderRadius:12, padding:'10px 12px', marginBottom:12, lineHeight:1.65 }}>
+            관리자는 <b>수강권 부여 · 회원 삭제 · 전체 기록 열람</b>까지 되는 계정이에요.
+            신청하면 오너에게 알림이 가고, <b>승인된 뒤부터</b> 로그인할 수 있어요.
+          </div>
+        )}
         {error && <div style={{ color:'#c0392b', fontSize:12, marginBottom:12, fontWeight:600 }}>{error}</div>}
         <button className="btn-primary"
-          disabled={loading||!name||!email||!pw||pw!==pw2||pw.length<8||(role==='teacher'&&!phone.trim())}
+          disabled={loading||!name||!email||!pw||pw!==pw2||pw.length<8||(isStaffRole(role)&&!phone.trim())}
           onClick={handleStep1Next}>
-          {loading?'가입 중...':role==='artist'?'작가 가입 완료':'다음'}
+          {loading?'가입 중...':role==='artist'?'작가 가입 완료':role==='admin'?'관리자 가입 신청':'다음'}
         </button>
       </div>
     </>

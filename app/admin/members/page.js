@@ -134,7 +134,8 @@ export default function AdminMembersPage() {
     const { data: art } = await supabase.from('users').select('*, bookings(*)').eq('role', 'artist')
     setArtists(art || [])
     // 강사 가입 승인 대기 — approved 컬럼이 없는 환경이면 조용히 빈 목록
-    const { data: pend } = await supabase.from('users').select('id, name, phone, approved').eq('role', 'teacher')
+    // 강사·관리자 모두 승인 대상(관리자는 운영 전권이라 더더욱)
+    const { data: pend } = await supabase.from('users').select('id, name, phone, approved, role').in('role', ['teacher', 'admin'])
     setPendingTeachers((pend || []).filter(t => t.approved === false))
     // 수강권 발급 이력(테이블 없으면 조용히 빈 값)
     const { data: grants } = await supabase.from('ticket_grants').select('*')
@@ -349,7 +350,7 @@ export default function AdminMembersPage() {
         {pendingTeachers.length > 0 && (
           <div style={{ background:'#FFF8E1', border:'1.5px solid #FFE082', borderRadius:14, padding:'12px 13px', marginBottom:12 }}>
             <div style={{ fontSize:12, fontWeight:800, color:'#8a6d00', marginBottom:8 }}>
-              🧑‍🏫 강사 가입 승인 대기 {pendingTeachers.filter(t => !approvedNow[t.id]).length}명
+              🧑‍🏫 직원 가입 승인 대기 {pendingTeachers.filter(t => !approvedNow[t.id]).length}명
               {Object.keys(approvedNow).length > 0 && (
                 <span style={{ marginLeft:6, color:'#2e7d32' }}>· 승인 완료 {Object.keys(approvedNow).length}명</span>
               )}
@@ -360,7 +361,14 @@ export default function AdminMembersPage() {
                 border: `1px solid ${approvedNow[t.id] ? '#A5D6A7' : '#FFE082'}`,
                 borderRadius:11, padding:'9px 11px', marginBottom:6 }}>
                 <div style={{ minWidth:0 }}>
-                  <div style={{ fontSize:12, fontWeight:800, color:'var(--td)' }}>{t.name || '이름 없음'}</div>
+                  <div style={{ fontSize:12, fontWeight:800, color:'var(--td)', display:'flex', alignItems:'center', gap:5 }}>
+                    {t.name || '이름 없음'}
+                    <span style={{ fontSize:9.5, fontWeight:800, borderRadius:7, padding:'1px 6px',
+                      background: t.role === 'admin' ? '#FFEBEE' : 'var(--acBg)',
+                      color: t.role === 'admin' ? '#b71c1c' : 'var(--acTx)' }}>
+                      {t.role === 'admin' ? '관리자 · 운영 전권' : '강사'}
+                    </span>
+                  </div>
                   <div style={{ fontSize:10, color:'var(--tmu)' }}>{t.phone || '연락처 없음'}</div>
                 </div>
                 {approvedNow[t.id] ? (
