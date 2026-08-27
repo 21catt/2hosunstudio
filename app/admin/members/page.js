@@ -67,6 +67,8 @@ export default function AdminMembersPage() {
   const [memberUnlockAll, setMemberUnlockAll] = useState({}) // {userId: bool} — 냥 꾸미기 전체 해금
   const [artists, setArtists] = useState([]) // 참여작가 (하단 별도 목록)
   const [pendingTeachers, setPendingTeachers] = useState([])  // 승인 대기 강사
+  // 방금 승인한 강사 — 목록에서 바로 사라지면 "됐나?" 싶다. 이 화면에 있는 동안 승인 완료로 남긴다.
+  const [approvedNow, setApprovedNow] = useState({})
   const [approving, setApproving] = useState({})
   const [harvestMap, setHarvestMap] = useState({}) // {userId: harvest_count}
   const [deleting, setDeleting] = useState(null) // 삭제 중인 userId
@@ -116,7 +118,7 @@ export default function AdminMembersPage() {
       })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) { alert('승인 실패: ' + (json.error || res.status)); return }
-      setPendingTeachers(prev => prev.filter(t => t.id !== userId))
+      setApprovedNow(prev => ({ ...prev, [userId]: true }))
     } finally {
       setApproving(prev => { const n = { ...prev }; delete n[userId]; return n })
     }
@@ -347,18 +349,30 @@ export default function AdminMembersPage() {
         {pendingTeachers.length > 0 && (
           <div style={{ background:'#FFF8E1', border:'1.5px solid #FFE082', borderRadius:14, padding:'12px 13px', marginBottom:12 }}>
             <div style={{ fontSize:12, fontWeight:800, color:'#8a6d00', marginBottom:8 }}>
-              🧑‍🏫 강사 가입 승인 대기 {pendingTeachers.length}명
+              🧑‍🏫 강사 가입 승인 대기 {pendingTeachers.filter(t => !approvedNow[t.id]).length}명
+              {Object.keys(approvedNow).length > 0 && (
+                <span style={{ marginLeft:6, color:'#2e7d32' }}>· 승인 완료 {Object.keys(approvedNow).length}명</span>
+              )}
             </div>
             {pendingTeachers.map(t => (
-              <div key={t.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, background:'#fff', border:'1px solid #FFE082', borderRadius:11, padding:'9px 11px', marginBottom:6 }}>
+              <div key={t.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8,
+                background: approvedNow[t.id] ? '#F1F8E9' : '#fff',
+                border: `1px solid ${approvedNow[t.id] ? '#A5D6A7' : '#FFE082'}`,
+                borderRadius:11, padding:'9px 11px', marginBottom:6 }}>
                 <div style={{ minWidth:0 }}>
                   <div style={{ fontSize:12, fontWeight:800, color:'var(--td)' }}>{t.name || '이름 없음'}</div>
                   <div style={{ fontSize:10, color:'var(--tmu)' }}>{t.phone || '연락처 없음'}</div>
                 </div>
-                <button onClick={() => approveTeacher(t.id)} disabled={approving[t.id]}
-                  style={{ flexShrink:0, border:'none', background:'#2e7d32', color:'#fff', borderRadius:9, padding:'7px 13px', fontSize:11, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif', opacity: approving[t.id] ? 0.6 : 1 }}>
-                  {approving[t.id] ? '처리 중…' : '승인'}
-                </button>
+                {approvedNow[t.id] ? (
+                  <span style={{ flexShrink:0, background:'#E8F5E9', color:'#2e7d32', border:'1px solid #A5D6A7', borderRadius:9, padding:'7px 13px', fontSize:11, fontWeight:800 }}>
+                    승인 완료 ✓
+                  </span>
+                ) : (
+                  <button onClick={() => approveTeacher(t.id)} disabled={approving[t.id]}
+                    style={{ flexShrink:0, border:'none', background:'#2e7d32', color:'#fff', borderRadius:9, padding:'7px 13px', fontSize:11, fontWeight:800, cursor:'pointer', fontFamily:'Nunito,sans-serif', opacity: approving[t.id] ? 0.6 : 1 }}>
+                    {approving[t.id] ? '처리 중…' : '승인'}
+                  </button>
+                )}
               </div>
             ))}
           </div>
