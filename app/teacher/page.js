@@ -2,7 +2,8 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
-import { isTeacher, isOwner, isPendingTeacher } from '../../lib/roles'
+import { isTeacher, isOwner } from '../../lib/roles'
+import { staffBlocked } from '../../lib/approval'
 import { loadTeachingScope } from '../../lib/teaching'
 import TeacherNav from '../../components/TeacherNav'
 import { NavIcon } from '../../components/NavIcons'
@@ -24,9 +25,9 @@ export default function TeacherHomePage() {
   const [tab, setTab] = useState(0)              // 0 = 오늘, 1 = 담당 회원
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) { router.push('/login'); return }
-      if (isPendingTeacher(data.user)) { alert('아직 관리자 승인 전이에요 🐾'); router.push('/login'); return }
+      if (await staffBlocked(data.user)) { alert('아직 오너 승인 전이에요 🐾'); router.push('/login'); return }
       if (!isTeacher(data.user)) { router.push('/student'); return }
       setUser(data.user)
       loadData(data.user.id).catch(e => { console.error('load failed', e); setLoading(false) })

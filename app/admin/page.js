@@ -7,6 +7,7 @@ import { NavIcon } from '../../components/NavIcons'
 import { registerPush } from '../../lib/pushNotify'
 import { applyTheme, getSavedTheme, isValidTheme, DEFAULT_THEME } from '../../lib/theme'
 import { isPendingStaff } from '../../lib/roles'
+import { staffBlocked } from '../../lib/approval'
 import { LogoMark, HeroDeco } from '../../components/Deco'
 import HeroWeatherFX from '../../components/HeroWeatherFX'
 import { useTodayWeather, WeatherGlyph } from '../../components/WeatherBar'
@@ -43,9 +44,11 @@ export default function AdminHomePage() {
       if (!data.user) { router.push('/login'); return }
       if (data.user.user_metadata?.role !== 'admin') { router.push('/student'); return }
       // 승인 전 관리자는 막는다 — 가입만으로 운영 전권이 열리면 안 된다(로그인 화면과 같은 규칙)
-      if (isPendingStaff(data.user)) { alert('아직 오너 승인 전이에요 🐾'); router.push('/login'); return }
-      setUser(data.user)
-      loadData(data.user.id).catch(e => { console.error('load failed', e); setLoading(false) })
+      staffBlocked(data.user).then(blocked => {
+        if (blocked) { alert('아직 오너 승인 전이에요 🐾'); router.push('/login'); return }
+        setUser(data.user)
+        loadData(data.user.id).catch(e => { console.error('load failed', e); setLoading(false) })
+      })
     })
     if ('Notification' in window) setPushEnabled(Notification.permission === 'granted')
   }, [])

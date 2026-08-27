@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import { isTeacher, isPendingStaff } from '../../lib/roles'
+import { staffBlocked } from '../../lib/approval'
 import { NavIcon } from '../../components/NavIcons'
 import { LogoMark } from '../../components/Deco'
 
@@ -51,8 +52,9 @@ export default function LoginPage() {
       setLoading(false)
       return
     }
-    // 승인 전 직원(강사·관리자)은 차단 — 가입만으로 권한이 생기면 안 된다
-    if (isPendingStaff(data.user)) {
+    // 승인 전 직원(강사·관리자)은 차단 — 가입만으로 권한이 생기면 안 된다.
+    // 판정은 users 표까지 확인한다(auth 메타만 믿으면 어긋난 메타가 오너를 잠근다).
+    if (await staffBlocked(data.user)) {
       setError('아직 오너 승인 전이에요. 승인 후 로그인할 수 있어요 🐾')
       await supabase.auth.signOut()
       setLoading(false)
