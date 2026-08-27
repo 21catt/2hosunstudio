@@ -15,11 +15,12 @@ const supabase = supabaseAdmin
 export async function POST(req) {
   const { title, body, adminId } = await req.json()
 
-  // 관리자 구독 정보 가져오기
-  let query = supabase.from('push_subscriptions').select('subscription')
-  if (adminId) query = query.eq('user_id', adminId)
+  // ⚠️ 대상이 없으면 보내지 않는다. 예전엔 필터 없이 전체 조회라 push_subscriptions
+  //    전부(=학생 포함)에게 나갔다. 부르는 쪽에서 대상을 명시하게 한다.
+  if (!adminId) return NextResponse.json({ ok: true, sent: 0, skipped: 'no target' })
 
-  const { data } = await query
+  const { data } = await supabase.from('push_subscriptions')
+    .select('subscription').eq('user_id', adminId)
   if (!data || data.length === 0) return NextResponse.json({ ok: true, sent: 0 })
 
   const payload = JSON.stringify({ title, body })
