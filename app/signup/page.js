@@ -64,7 +64,6 @@ function SignupInner() {
       email,
       password: pw,
       options: {
-        // 강사(teacher)는 오너 승인 전까지 approved:false — 로그인 시 차단된다
         // 강사·관리자는 오너 승인 전까지 approved:false — 로그인·관리자 홈에서 막힌다
         data: { name, phone, role, categories:[...cats], approved: !isStaffRole(role) }
       }
@@ -88,6 +87,10 @@ function SignupInner() {
           body: `${name}님이 ${admin ? '관리자' : '강사'}로 가입 신청했어요. 회원 관리에서 승인해야 로그인할 수 있어요.`,
         })
       } catch {}
+      // ⚠️ signUp 은 세션을 만든다. 승인 대기인데 로그인된 채로 두면 그 세션으로 화면이 열리고
+      //    다음 방문도 "로그인됨"으로 시작한다. 승인 전에는 로그인 상태가 아니어야 맞다.
+      //    (알림을 보낸 뒤에 끊는다 — 알림 대상 조회에 로그인이 필요하다)
+      try { await supabase.auth.signOut() } catch {}
       alert(`${admin ? '관리자' : '강사'} 가입이 접수됐어요 🐾\n오너 승인 후 로그인할 수 있어요.`)
       router.push('/login')
     }
