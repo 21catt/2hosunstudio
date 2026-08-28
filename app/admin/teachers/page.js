@@ -46,7 +46,7 @@ export default function AdminTeachersPage() {
   async function loadAll() {
     const [{ data: us }, { data: cs }, { data: bs }] = await Promise.all([
       supabase.from('users').select('id, name, phone, role, approved').in('role', ['admin', 'teacher']).order('name'),
-      supabase.from('class_courses').select('id, name, category, is_active, teacher_id, class_schedules(id, day_of_week, start_time, end_time, teacher_id)').order('name'),
+      supabase.from('class_courses').select('*, class_schedules(id, day_of_week, start_time, end_time, teacher_id)').order('name'),
       supabase.from('bookings').select('user_id, course_id, schedule_id').neq('status', 'cancelled'),
     ])
     setTeachers(us || [])
@@ -78,6 +78,20 @@ export default function AdminTeachersPage() {
   }
 
   // 수업 담당 지정/해제
+  // 보조 담당 토글 — 한 수업에 여러 명을 겹쳐 배치한다.
+  // ⚠️ 학생 화면에는 나오지 않는다. 학생이 보는 강사는 class_courses.teacher(대표 이름)다.
+  //    보조가 얻는 것은 그 수업의 알림 + 출석·기록 화면의 담당 범위뿐이다.
+  async function toggleCoTeacher(course, teacherId) {
+    const cur = Array.isArray(course.co_teacher_ids) ? course.co_teacher_ids : []
+    const next = cur.includes(teacherId) ? cur.filter(x => x !== teacherId) : [...cur, teacherId]
+    const { error } = await supabase.from('class_courses').update({ co_teacher_ids: next }).eq('id', course.id)
+    if (error) {
+      alert('저장 실패: ' + error.message + '\n\nco_teacher_ids 컬럼이 없으면 migration-course-co-teachers.sql 을 먼저 실행해 주세요.')
+      return
+    }
+    setCourses(prev => prev.map(c => c.id === course.id ? { ...c, co_teacher_ids: next } : c))
+  }
+
   async function setCourseTeacher(courseId, teacherId) {
     const { error } = await supabase.from('class_courses').update({ teacher_id: teacherId }).eq('id', courseId)
     if (error) { alert('저장 실패: ' + error.message); return }
@@ -239,16 +253,17 @@ export default function AdminTeachersPage() {
                     <div style={{ display:'flex', gap:5 }}>
                       <button onClick={() => setOnlyMine(false)} style={chip(!onlyMine)}>전체 {courses.length}</button>
                       <button onClick={() => setOnlyMine(true)} style={chip(onlyMine)}>
-                        담당만 {courses.filter(c => c.teacher_id === t.id || (c.class_schedules || []).some(s => s.teacher_id === t.id)).length}
+                        담당만 {courses.filter(c => c.teacher_id === t.id || (c.co_teacher_ids || []).includes(t.id) || (c.class_schedules || []).some(s => s.teacher_id === t.id)).length}
                       </button>
                     </div>
                   </div>
                   {courses.length === 0 ? (
                     <div style={{ fontSize:11, color:'var(--tmu)' }}>개설된 수업이 없어요</div>
                   ) : courses
-                    .filter(c => !onlyMine || c.teacher_id === t.id || (c.class_schedules || []).some(s => s.teacher_id === t.id))
+                    .filter(c => !onlyMine || c.teacher_id === t.id || (c.co_teacher_ids || []).includes(t.id) || (c.class_schedules || []).some(s => s.teacher_id === t.id))
                     .map(c => {
                     const mine = c.teacher_id === t.id
+                    const isCo = Array.isArray(c.co_teacher_ids) && c.co_teacher_ids.includes(t.id)
                     const other = c.teacher_id && !mine
                     const otherName = other ? (teachers.find(x => x.id === c.teacher_id)?.name || '다른 강사') : ''
                     const slots = c.class_schedules || []
@@ -264,6 +279,11 @@ export default function AdminTeachersPage() {
                               {c.name} {!c.is_active && <span style={{ fontSize:9, color:'var(--tmu)' }}>(비활성)</span>}
                             </div>
                             {other && <div style={{ fontSize:10, color:'var(--tmu)', marginTop:1 }}>현재 담당: {otherName}</div>}
+                            {(c.co_teacher_ids || []).length > 0 && (
+                              <div style={{ fontSize:10, color:'var(--acTx)', marginTop:1 }}>
+                                함께: {(c.co_teacher_ids || []).map(id => teachers.find(x => x.id === id)?.name || '?').join(' · ')}
+                              </div>
+                            )}
                           </div>
                           <div style={{ display:'flex', alignItems:'center', gap:5, flexShrink:0 }}>
                             {slotCount > 0 && (
@@ -271,6 +291,12 @@ export default function AdminTeachersPage() {
                               <button onClick={() => setOpenSched(p => ({ ...p, [schedKey]: !p[schedKey] }))}
                                 style={{ ...chip(false), display:'inline-flex', alignItems:'center', gap:3 }}>
                                 타임 {slotCount}{mySlotCount > 0 && <span style={{ color:'var(--acTx)' }}>·{mySlotCount}</span>} {schedOpen ? '▾' : '▸'}
+                              </button>
+                            )}
+                            {!mine && (
+                              <button onClick={() => toggleCoTeacher(c, t.id)} style={chip(isCo)}
+                                title="함께 맡기 — 알림과 출석·기록 범위에 포함됩니다(학생 화면에는 안 나와요)">
+                                {isCo ? '함께 해제' : '함께 맡기'}
                               </button>
                             )}
                             <button onClick={() => setCourseTeacher(c.id, mine ? null : t.id)} style={chip(mine)}>
