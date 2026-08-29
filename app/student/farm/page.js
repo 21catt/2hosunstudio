@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
+import TeacherNav from '../../../components/TeacherNav'
 import { NavIcon } from '../../../components/NavIcons'
 import { FARM_CATS, getSavedFarmCat, isValidFarmCat, CROP_STAGES, cropImg, getSavedHarvest, saveHarvestLocal } from '../../../lib/farmCats'
 import { WEED, weedImg, weedStage, tickWeeds } from '../../../lib/weeds'
@@ -673,7 +674,9 @@ export default function FarmPage() {
       <ColorMixGame open={gameOpen} onClose={() => setGameOpen(false)} />
       <ColorTetrisGame open={tetrisOpen} onClose={() => setTetrisOpen(false)} />
 
-      <StudentNav active="farm" role={user?.user_metadata?.role || undefined} />
+      {(user?.user_metadata?.role) === 'teacher'
+        ? <TeacherNav active="farm" />
+        : <StudentNav active="farm" role={user?.user_metadata?.role || undefined} />}
     </>
   )
 }

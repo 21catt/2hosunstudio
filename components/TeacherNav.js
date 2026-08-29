@@ -3,8 +3,20 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { NavIcon, NAV_ACTIVE, NAV_MUTED } from './NavIcons'
 
-// 강사 하단 내비 — 업무 기능만(수강생 기록 피드백·출석·내 수업 예약·알림).
-// 라운지·냥밭 등 공용 기능은 강사 화면에 두지 않는다(사용자 확정).
+// 강사 하단 내비.
+// 2026-08-26 사용자 확정으로 냥밭·설정을 열었다(그전에는 업무 기능만 뒀다).
+// 설정에서 테마·프로필 고양이를 고르고, 냥밭도 수강생과 같은 화면을 쓴다.
+// 라운지는 아직 강사 탭에 두지 않는다.
+// ⚠️ 강사 탭 목록의 단일 소스 — 강사가 보는 화면(설정·냥밭 포함)은 모두 이 내비를 쓴다.
+//    StudentNav 를 쓰면 홈 탭이 /student(학생 홈)로 가서 길을 잃는다.
+export const TEACHER_TABS = [
+  { href:'/teacher', label:'홈', icon:'home', key:'home' },
+  { href:'/admin/attendance', label:'출석', icon:'check', key:'attendance' },
+  { href:'/admin/records', label:'기록', icon:'clipboard', key:'records' },
+  { href:'/student/farm', label:'냥밭', icon:'plant', key:'farm' },
+  { href:'/admin/notification', label:'알림', icon:'bell', key:'notification' },
+  { href:'/student/settings', label:'설정', icon:'user', key:'settings' },
+]
 export default function TeacherNav({ active }) {
   const [unread, setUnread] = useState(0)
 
@@ -25,12 +37,7 @@ export default function TeacherNav({ active }) {
     setUnread(count || 0)
   }
 
-  const items = [
-    { href:'/teacher', label:'홈', icon:'home', key:'home' },
-    { href:'/admin/attendance', label:'출석', icon:'check', key:'attendance' },
-    { href:'/admin/records', label:'기록', icon:'clipboard', key:'records' },
-    { href:'/admin/notification', label:'알림', icon:'bell', key:'notification' },
-  ]
+  const items = TEACHER_TABS
 
   return (
     <nav className="bottom-nav">

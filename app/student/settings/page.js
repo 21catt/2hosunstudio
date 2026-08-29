@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
+import TeacherNav from '../../../components/TeacherNav'
 import { NavIcon } from '../../../components/NavIcons'
 import MoodIndicator from '../../../components/MoodIndicator'
 import { THEMES, applyTheme, getSavedTheme, isValidTheme, themeUnlocked, themeUnlockLabel, themeSeasonLabel, themeSeasonEmoji, DEFAULT_THEME } from '../../../lib/theme'
@@ -60,7 +61,9 @@ export default function SettingsPage() {
         if (isValidFarmCat(pref?.farm_cat)) { setFarmCat(pref.farm_cat); saveFarmCatLocal(pref.farm_cat) }
         if (isValidPixelCat(pref?.profile_cat)) { setProfileCat(pref.profile_cat); saveProfileCatLocal(pref.profile_cat) }
         if (Number.isFinite(pref?.harvest_count) && pref.harvest_count >= 0) { setHarvest(pref.harvest_count); saveHarvestLocal(pref.harvest_count) }
-        setUnlockAll(pref?.unlock_all === true)
+        // 운영진(강사·관리자)은 해금 조건을 묻지 않는다 — 수확은 수강생의 진행도라
+        // 강사에게 "당근 8개 모으면 테마가 열려요"는 말이 안 된다.
+        setUnlockAll(pref?.unlock_all === true || r === 'teacher' || r === 'admin')
       }
       setLoading(false)
     })
@@ -277,7 +280,9 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <StudentNav active="settings" role={role || undefined} />
+      {(role) === 'teacher'
+        ? <TeacherNav active="settings" />
+        : <StudentNav active="settings" role={role || undefined} />}
     </>
   )
 }
