@@ -6,7 +6,7 @@ import { useTodayWeather } from '../../../components/WeatherBar'
 import StudentNav from '../../../components/StudentNav'
 import { NavIcon } from '../../../components/NavIcons'
 import { sortCoursesByCategory } from '../../../lib/courseSort'
-import { fetchLockedDates } from '../../../lib/lockedDates'
+import { fetchLockedDates, fetchLockedSlots, slotLocked } from '../../../lib/lockedDates'
 import { isTooLateToBook, bookingCutoffMessage } from '../../../lib/bookingWindow'
 import { consumeClassTicket, restoreClassTicket, refundsClassTicket } from '../../../lib/booking'
 import { sendPushToAdmins, sendPushToStaff } from '../../../lib/pushNotify'
@@ -149,6 +149,7 @@ export default function CalendarPage() {
   const [allBookings, setAllBookings] = useState([])
   const [classes, setClasses] = useState([])
   const [lockedDates, setLockedDates] = useState(new Map())
+  const [lockedSlots, setLockedSlots] = useState(new Map())   // 타임 단위 잠금
   const [curriculumNames, setCurriculumNames] = useState(new Set())
   const [pendingCourse, setPendingCourse] = useState(null)
   const [pendingSlot, setPendingSlot] = useState(null) // 핵심내용 시간 클릭 딥링크 { dow, start }
@@ -235,7 +236,7 @@ export default function CalendarPage() {
   async function loadData(userId) {
     const today = new Date().toISOString().split('T')[0]
     // 초기 로딩 쿼리 전부 병렬 발사 — 서로 독립이라 순차 대기를 1회 왕복으로 단축
-    const [t, b, ab, profile, pref, mt, c, locked, cur] = await Promise.all([
+    const [t, b, ab, profile, pref, mt, c, locked, lockedSlotMap, cur] = await Promise.all([
       userId ? supabase.from('tickets').select('*').eq('user_id', userId).single() : Promise.resolve({ data: null }),
       userId ? supabase.from('bookings').select('*').eq('user_id', userId).neq('status', 'cancelled') : Promise.resolve({ data: [] }),
       userId ? supabase.from('bookings').select('course_id, schedule_id, class_date, class_time').eq('status', 'booked') : Promise.resolve({ data: [] }),
@@ -245,6 +246,7 @@ export default function CalendarPage() {
       // 공개 데이터: 로그인 여부와 무관하게 수업/스케줄/예외 로드 (관리자 예외·운영기간 반영)
       supabase.from('class_courses').select('*, class_schedules(*), class_exceptions(*)').eq('is_active', true),
       fetchLockedDates(),
+      fetchLockedSlots(),
       supabase.from('course_curriculum').select('course_name'),
     ])
     if (userId) {
@@ -259,6 +261,7 @@ export default function CalendarPage() {
     }
     setClasses(c.data || [])
     setLockedDates(locked)
+    setLockedSlots(lockedSlotMap)
     setCurriculumNames(new Set((cur.data || []).map(r => r.course_name).filter(Boolean)))
     setLoading(false)
   }
@@ -407,6 +410,11 @@ export default function CalendarPage() {
   }
 
   async function execBook(course, schedule, dateStr) {
+    // 이 시간만 잠긴 경우 — 날짜 전체 잠금은 위 isBookable 이 이미 막는다
+    if (slotLocked(lockedDates, lockedSlots, dateStr, schedule.id)) {
+      alert('이 시간은 예약이 닫혀 있어요 🐾\n다른 시간을 골라 주세요.')
+      return
+    }
     // 예약 직전 같은 시간대 실시간 확인 — 다른 수업 포함 5자리가 이미 찼으면 막음
     const slot = `${schedule.start_time}~${schedule.end_time}`
     const excluded = new Set(classes.filter(c => c.category === 'free' || c.category === 'meeting' || c.category === 'oneday').map(c => c.id))
@@ -462,6 +470,10 @@ export default function CalendarPage() {
 
   // 원데이 신청 — 수강권 불필요, 계약금 입금 대기(confirmed:false)로 예약 생성 후 관리자 알림
   async function bookOneday(course, schedule, dateStr) {
+    if (slotLocked(lockedDates, lockedSlots, dateStr, schedule.id)) {
+      alert('이 시간은 예약이 닫혀 있어요 🐾\n다른 시간을 골라 주세요.')
+      return
+    }
     const slot = `${schedule.start_time}~${schedule.end_time}`
     const excluded = new Set(classes.filter(c => c.category === 'free' || c.category === 'meeting' || c.category === 'oneday').map(c => c.id))
     const { data: live } = await supabase.from('bookings').select('course_id, class_time').eq('status', 'booked').eq('class_date', dateStr)
@@ -1220,7 +1232,10 @@ export default function CalendarPage() {
                               ? allBookings.filter(b => b.course_id === c.id && b.class_date === `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}` && b.class_time === `${s.start_time}~${s.end_time}`).length
                               : sharedSlotCount(selectedDay, s.start_time, s.end_time)
                             const remain = c.max_count - cnt
-                            const full = remain <= 0 && !booked
+                            // 관리자가 이 시간만 잠근 경우 — 자리가 남아도 고를 수 없다
+                            const slotLock = slotLocked(lockedDates, lockedSlots,
+                              `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`, s.id)
+                            const full = (remain <= 0 || slotLock) && !booked
                             const isSel = selSchedule?.id === s.id
                             const hh = parseInt(s.start_time.slice(0, 2), 10)
                             const tod = hh < 12 ? '오전' : hh < 17 ? '오후' : '저녁'
@@ -1242,7 +1257,7 @@ export default function CalendarPage() {
                                 </div>
                                 <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                                   <div style={{ textAlign:'right' }}>
-                                    {!booked && (
+                                    {!booked && !slotLock && (
                                       <div style={{ display:'flex', gap:2, justifyContent:'flex-end', marginBottom:3 }}>
                                         {Array.from({ length: segs }).map((_, k) => (
                                           <span key={k} style={{ width:8, height:6, borderRadius:2, background: k < litN ? meterOn : (full ? 'var(--g2)' : '#dfe6d5') }} />
@@ -1250,7 +1265,9 @@ export default function CalendarPage() {
                                       </div>
                                     )}
                                     <div style={{ fontSize:11, fontWeight:700, color:booked?'#6db870':full?'#9b9b8a':remain<=1?'#c0392b':'#3b6d11' }}>
-                                      {booked ? (booking?.attended === true ? '출석' : '예약됨') : full ? '마감' : remain<=1 ? '마감 임박 · 1자리' : `${remain}자리 남음`}
+                                      {booked ? (booking?.attended === true ? '출석' : '예약됨')
+                                        : slotLock ? '🔒 예약 마감'
+                                        : full ? '마감' : remain<=1 ? '마감 임박 · 1자리' : `${remain}자리 남음`}
                                     </div>
                                   </div>
                                   {booked && canCancel(booking) && (

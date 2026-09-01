@@ -7,7 +7,7 @@ import AdminNav from '../../../components/AdminNav'
 import { NavIcon } from '../../../components/NavIcons'
 import { HEADER_BG, PRIMARY, T, OK, WARN, BAD } from '../../../lib/adminTheme'
 import { sortCoursesByCategory } from '../../../lib/courseSort'
-import { fetchLockedDates } from '../../../lib/lockedDates'
+import { fetchLockedDates, fetchLockedSlots, slotKey } from '../../../lib/lockedDates'
 import { consumeClassTicket, refundsClassTicket } from '../../../lib/booking'
 import { notifyStaff } from '../../../lib/adminNotify'
 import { sendPushToAdmins, sendPushToStaff } from '../../../lib/pushNotify'
@@ -445,6 +445,7 @@ export default function AdminSchedulePage() {
   const [courses, setCourses] = useState([])
   const [bookings, setBookings] = useState([])
   const [lockedDates, setLockedDates] = useState(new Map())
+  const [lockedSlots, setLockedSlots] = useState(new Map())   // "날짜|스케줄id" → 메모
   const [lockNote, setLockNote] = useState('')      // 잠금 안내 문구(학생 캘린더에 표시)
   const [members, setMembers] = useState([])          // 대신 예약용 회원 목록
   const [bookForSlot, setBookForSlot] = useState(null) // { course, schedule, dateStr } — 대신 예약 모달
@@ -490,6 +491,7 @@ const todayStr = `${todayY}-${String(todayM+1).padStart(2,'0')}-${String(todayD)
       .order('class_date')
     setBookings(b || [])
     setLockedDates(await fetchLockedDates())
+    setLockedSlots(await fetchLockedSlots())
     const { data: mem } = await supabase.from('users').select('id, name, phone').eq('role', 'student').order('name')
     setMembers(mem || [])
     setLoading(false)
@@ -530,7 +532,8 @@ const todayStr = `${todayY}-${String(todayM+1).padStart(2,'0')}-${String(todayD)
   // 잠글 때 안내 문구(note)를 함께 저장 → 학생이 그 날을 클릭하면 캘린더에 표시된다.
   async function toggleLock(dateStr, note = '') {
     if (lockedDates.has(dateStr)) {
-      await supabase.from('locked_dates').delete().eq('date', dateStr)
+      // schedule_id 가 비어 있는 행 = 그날 전체 잠금. 타임 잠금은 건드리지 않는다.
+      await supabase.from('locked_dates').delete().eq('date', dateStr).is('schedule_id', null)
     } else {
       const { error } = await supabase.from('locked_dates').insert({ date: dateStr, created_by: user?.id, note: note.trim() || null })
       if (error) { alert('잠금 실패: ' + error.message + '\n\nlocked_dates 테이블이 없으면 migration-locked-dates.sql을 먼저 실행해 주세요.'); return }
@@ -538,9 +541,25 @@ const todayStr = `${todayY}-${String(todayM+1).padStart(2,'0')}-${String(todayD)
     setLockedDates(await fetchLockedDates())
   }
 
+  // 타임 단위 잠금 — 그 수업의 그 시간만 막는다. 날짜 전체 잠금과 별개 행이다.
+  async function toggleSlotLock(dateStr, schedule) {
+    const key = slotKey(dateStr, schedule.id)
+    if (lockedSlots.has(key)) {
+      await supabase.from('locked_dates').delete().eq('date', dateStr).eq('schedule_id', schedule.id)
+    } else {
+      const { error } = await supabase.from('locked_dates')
+        .insert({ date: dateStr, schedule_id: schedule.id, created_by: user?.id })
+      if (error) {
+        alert('시간 잠금 실패: ' + error.message + '\n\nlocked_dates 에 schedule_id 컬럼이 없으면 migration-locked-slots.sql 을 먼저 실행해 주세요.')
+        return
+      }
+    }
+    setLockedSlots(await fetchLockedSlots())
+  }
+
   // 이미 잠긴 날짜의 안내 문구만 수정 저장
   async function saveLockNote(dateStr, note) {
-    const { error } = await supabase.from('locked_dates').update({ note: note.trim() || null }).eq('date', dateStr)
+    const { error } = await supabase.from('locked_dates').update({ note: note.trim() || null }).eq('date', dateStr).is('schedule_id', null)
     if (error) { alert('메모 저장 실패: ' + error.message); return }
     setLockedDates(await fetchLockedDates())
   }
@@ -867,12 +886,29 @@ const myCourses = sortCoursesByCategory(courses.filter(c => c.category === 'meet
                         const slotBookings = dayBookings.filter(b => b.class_time === `${s.start_time}~${s.end_time}`)
                         return (
                           <div key={`${s.start_time}-${s.end_time}`} style={{ marginBottom:10 }}>
-                            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
+                            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6, gap:8 }}>
                               <span style={{ fontSize:11, fontWeight:800, color:'var(--td)' }}>
                                 {s.start_time}~{s.end_time}
+                                {lockedSlots.has(slotKey(selDateStr, s.id)) && (
+                                  <span style={{ marginLeft:6, fontSize:9, fontWeight:800, color:WARN.tx, background:WARN.soft, borderRadius:6, padding:'1px 6px' }}>
+                                    예약 잠금
+                                  </span>
+                                )}
                               </span>
-                              <span style={{ fontSize:10, fontWeight:700, color:slotBookings.length>=c.max_count?BAD.tx:OK.tx }}>
-                                {slotBookings.length}/{c.max_count}명
+                              <span style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
+                                <span style={{ fontSize:10, fontWeight:700, color:slotBookings.length>=c.max_count?BAD.tx:OK.tx }}>
+                                  {slotBookings.length}/{c.max_count}명
+                                </span>
+                                {/* 이 시간만 잠금 — 날짜 전체 잠금과 별개. 이미 잡힌 예약은 그대로 둔다(취소는 따로). */}
+                                {!selLocked && (
+                                  <button onClick={() => toggleSlotLock(selDateStr, s)}
+                                    title={lockedSlots.has(slotKey(selDateStr, s.id)) ? '이 시간 예약 다시 열기' : '이 시간만 예약 잠그기'}
+                                    style={{ fontSize:9, padding:'3px 8px', borderRadius:8, border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:800,
+                                      background: lockedSlots.has(slotKey(selDateStr, s.id)) ? WARN.soft : 'var(--g1)',
+                                      color: lockedSlots.has(slotKey(selDateStr, s.id)) ? WARN.tx : 'var(--tm)' }}>
+                                    {lockedSlots.has(slotKey(selDateStr, s.id)) ? '🔓 열기' : '🔒 이 시간 잠금'}
+                                  </button>
+                                )}
                               </span>
                             </div>
                             {slotBookings.length === 0 ? (

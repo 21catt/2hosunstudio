@@ -15,7 +15,7 @@ import { sendPushToAdmins } from '../../lib/pushNotify'
 import { sendKakaoToAdmins } from '../../lib/kakaoNotify'
 import { pixelCatImg } from '../../lib/pixelCats'
 import { sortCoursesByCategory } from '../../lib/courseSort'
-import { fetchLockedDates } from '../../lib/lockedDates'
+import { fetchLockedDates, fetchLockedSlots, slotLocked } from '../../lib/lockedDates'
 import LoadingCat from '../../components/LoadingCat'
 
 const CELL_W = 56
@@ -41,6 +41,7 @@ export default function StudentHomePage() {
   const [spacePromo, setSpacePromo] = useState(false) // 울트라 스페이스(다크) 스킨 안내 팝업
   const [classes, setClasses] = useState([])
   const [lockedDates, setLockedDates] = useState(new Map())
+  const [lockedSlots, setLockedSlots] = useState(new Map())   // 타임 단위 잠금
   const [allBookings, setAllBookings] = useState([])
   const [notices, setNotices] = useState([]) // 라운지에서 관리자가 공지 지정한 글 (최대 2개)
   const [myBookings, setMyBookings] = useState([])
@@ -179,13 +180,14 @@ export default function StudentHomePage() {
 
   async function loadData(userId) {
     // 초기 로딩 쿼리 전부 병렬 발사 — 서로 독립이라 순차 대기(8회 왕복)를 1회 왕복으로 단축
-    const [t, b, notif, pref, c, locked, ab, pin, recs] = await Promise.all([
+    const [t, b, notif, pref, c, locked, lockedSlotMap, ab, pin, recs] = await Promise.all([
       userId ? supabase.from('tickets').select('*').eq('user_id', userId).single() : Promise.resolve({ data: null }),
       userId ? supabase.from('bookings').select('*').eq('user_id', userId).neq('status', 'cancelled') : Promise.resolve({ data: [] }),
       userId ? supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('is_read', false) : Promise.resolve({ count: 0 }),
       userId ? supabase.from('user_prefs').select('*').eq('user_id', userId).single() : Promise.resolve({ data: null }),
       supabase.from('class_courses').select('*, class_schedules(*), class_exceptions(*)').eq('is_active', true),
       fetchLockedDates(),
+      fetchLockedSlots(),
       supabase.from('bookings').select('course_id, schedule_id, class_date, class_time').eq('status', 'booked'),
       // 홈 하단 공지 — 라운지에서 관리자가 공지 지정한 글. 컬럼(pinned_at)이 아직 없으면 조용히 숨김
       supabase.from('posts')
@@ -216,6 +218,7 @@ export default function StudentHomePage() {
     }
     setClasses(c.data || [])
     setLockedDates(locked)
+    setLockedSlots(lockedSlotMap)
     setAllBookings(ab.data || [])
     setNotices(pin.data || [])
     setLoading(false)
@@ -319,6 +322,8 @@ export default function StudentHomePage() {
 
   async function quickBook(c, s, ds) {
     if (!user) { router.push(`/student/calendar?date=${ds}`); return } // 미가입자 = 캘린더에서 예약 요청
+    // 관리자가 이 시간만 잠근 경우(날짜 전체 잠금은 coursesOn 에서 이미 걸러진다)
+    if (slotLocked(lockedDates, lockedSlots, ds, s.id)) { alert('이 시간은 예약이 닫혀 있어요 🐾'); return }
     if (c.category === 'meeting' || c.category === 'oneday') { router.push(`/student/calendar?date=${ds}`); return }
     const key = `${c.id}-${s.id}-${ds}`
     setBookingBusy(key)
@@ -544,6 +549,13 @@ export default function StudentHomePage() {
                         )
                         if (full) return (
                           <span key={s.id} style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', background:'var(--card)', borderRadius:20, padding:'6px 12px' }}>{label} 마감</span>
+                        )
+                        // 관리자가 이 시간만 잠근 경우 — 마감(자리 참)과 다른 상태라 문구를 나눈다
+                        if (slotLocked(lockedDates, lockedSlots, selDate, s.id)) return (
+                          <span key={s.id} title="관리자가 이 시간 예약을 닫았어요"
+                            style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', background:'var(--card)', borderRadius:20, padding:'6px 12px' }}>
+                            🔒 {label} 예약 마감
+                          </span>
                         )
                         return (
                           <button key={s.id} disabled={busy} onClick={()=>quickBook(c, s, selDate)}
