@@ -239,6 +239,11 @@ export default function LoungePage() {
         setLastAddedId(post.id)
       }
       setBigPhoto(false)
+      // 늘어나 있던 입력창을 한 줄로 되돌린다(값만 비우면 높이가 그대로 남는다)
+      requestAnimationFrame(() => {
+        const el = document.querySelector('textarea[placeholder$="글 남기기…"]')
+        if (el) { el.style.height = 'auto' }
+      })
       // 태그된 회원에게 인앱 알림(컬럼 저장 여부와 무관하게 발송)
       mentionIds.forEach(id => {
         supabase.from('notifications').insert({
@@ -291,6 +296,17 @@ export default function LoungePage() {
     } finally {
       setCatBusy(false)
     }
+  }
+
+  // 입력창이 줄 수를 따라 늘어난다(최대 6줄). 그 뒤에는 안에서 스크롤.
+  function autoGrow(el) {
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = Math.min(el.scrollHeight, 132) + 'px'
+  }
+  // 마우스가 없는 기기(휴대폰·태블릿) — Enter 를 전송으로 쓰면 줄바꿈을 할 방법이 없다
+  const isTouchDevice = () => {
+    try { return window.matchMedia('(pointer: coarse)').matches } catch { return false }
   }
 
   // 올린 뒤에 사진 크기 바꾸기 — 작성자 본인 또는 관리자(카테고리 변경과 같은 권한)
@@ -650,7 +666,7 @@ export default function LoungePage() {
                             <CatAvatar catKey={c.author_cat || profileMap[c.user_id]} size={24} />
                             <div style={{ background:ACCENT_BG, border:'2px solid rgb(var(--ac-rgb) / 0.3)', borderRadius:14, padding:'6px 10px', maxWidth:240 }}>
                               <span style={{ fontSize:9, fontWeight:900, color:ACCENT_TEXT, marginRight:5 }}>{c.author_name}</span>
-                              <span style={{ fontSize:11, color:'var(--td)', fontWeight:600, lineHeight:1.4 }}>{c.content}</span>
+                              <span style={{ fontSize:11, color:'var(--td)', fontWeight:600, lineHeight:1.4, whiteSpace:'pre-wrap', wordBreak:'break-word' }}>{c.content}</span>
                             </div>
                           </div>
                         ))}
@@ -745,10 +761,19 @@ export default function LoungePage() {
             @
             {mentions.length > 0 && <span style={{ position:'absolute', top:-3, right:-3, minWidth:16, height:16, borderRadius:8, background:'var(--ac)', color:'#fff', fontSize:9, fontWeight:800, display:'flex', alignItems:'center', justifyContent:'center', padding:'0 3px', border:'1.5px solid var(--surf)' }}>{mentions.length}</span>}
           </button>
-          <input value={composeText} onChange={e => setComposeText(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleSend() }}
+          {/* 여러 줄로 쓸 수 있게 — 공지·전시 소식은 문단이 나뉘어야 읽힌다.
+              줄 수에 따라 저절로 늘어나고(최대 6줄), 그 뒤에는 안에서 스크롤된다.
+              ⚠️ 보내기 규칙이 기기마다 다르다: 휴대폰은 Enter 가 줄바꿈(전송은 ➤ 버튼),
+                 마우스가 있는 기기는 Enter 전송 · Shift+Enter 줄바꿈(기존 습관 유지). */}
+          <textarea value={composeText} rows={1}
+            onChange={e => { setComposeText(e.target.value); autoGrow(e.target) }}
+            onKeyDown={e => {
+              if (e.key !== 'Enter' || e.nativeEvent.isComposing) return
+              if (e.shiftKey || isTouchDevice()) return      // 줄바꿈
+              e.preventDefault(); handleSend()
+            }}
             placeholder={tab === 0 ? '라운지에 글 남기기…' : `${TAGS[tab]}에 글 남기기…`}
-            style={{ flex:1, height:42, background:ACCENT_BG, border:`3px solid ${ACCENT}`, borderRadius:24, padding:'0 16px', fontSize:13, color:'var(--td)', fontWeight:600, fontFamily:'Nunito,sans-serif', outline:'none', boxSizing:'border-box', minWidth:0 }}/>
+            style={{ flex:1, minHeight:42, maxHeight:132, background:ACCENT_BG, border:`3px solid ${ACCENT}`, borderRadius:24, padding:'9px 16px', fontSize:13, color:'var(--td)', fontWeight:600, fontFamily:'Nunito,sans-serif', outline:'none', boxSizing:'border-box', minWidth:0, resize:'none', lineHeight:1.5, overflowY:'auto' }}/>
           <button className="press" onClick={handleSend} disabled={sending || (!composeText.trim() && composeFiles.length === 0)}
             style={{ width:42, height:42, flexShrink:0, borderRadius:'50%', border:`3px solid ${ACCENT}`, color:'#fff', fontSize:15, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', padding:0,
               background: (composeText.trim() || composeFiles.length) ? ACCENT : 'rgb(var(--ac-rgb) / 0.35)',
