@@ -43,6 +43,8 @@ export default function LoungePage() {
   const [viewerSending, setViewerSending] = useState(false)
   const [recFB, setRecFB] = useState({})              // {recordId: {loading, items:[{teacher_name, body, photos:[url]}]}} — 강사 피드백
   const [fbPhoto, setFbPhoto] = useState(null)         // 피드백 첨부사진 크게 보기(뷰어 위 겹침)
+  // 사진 크게 — 공지·전시 소식처럼 사진이 본문인 글용. 글마다 저장된다(기본 꺼짐).
+  const [bigPhoto, setBigPhoto] = useState(false)
   const [editPost, setEditPost] = useState(null)      // { id, text } — 게시글 내용 수정 중
   const [editSaving, setEditSaving] = useState(false)
   const [catMenu, setCatMenu] = useState(null)        // 카테고리 변경 중인 글 (바텀시트)
@@ -222,8 +224,13 @@ export default function LoungePage() {
         images: urls,
       }
       const mentionIds = mentions.map(m => m.id).filter(id => id && id !== user.id)
-      let { data: post, error: insErr } = await supabase.from('posts').insert({ ...base, author_cat: myCat, mentioned_ids: mentionIds }).select().single()
-      if (insErr) { // author_cat·mentioned_ids 컬럼이 아직 없으면(마이그레이션 전) 없이 재시도
+      const full = { ...base, author_cat: myCat, mentioned_ids: mentionIds, big_photo: bigPhoto }
+      let { data: post, error: insErr } = await supabase.from('posts').insert(full).select().single()
+      if (insErr) { // big_photo·author_cat·mentioned_ids 컬럼이 아직 없으면(마이그레이션 전) 하나씩 빼고 재시도
+        ;({ data: post, error: insErr } = await supabase.from('posts')
+          .insert({ ...base, author_cat: myCat, mentioned_ids: mentionIds }).select().single())
+      }
+      if (insErr) {
         ;({ data: post } = await supabase.from('posts').insert(base).select().single())
       }
 
@@ -231,6 +238,7 @@ export default function LoungePage() {
         setPosts(prev => [...prev, { ...post, mentioned_ids: mentionIds, comments: [] }])
         setLastAddedId(post.id)
       }
+      setBigPhoto(false)
       // 태그된 회원에게 인앱 알림(컬럼 저장 여부와 무관하게 발송)
       mentionIds.forEach(id => {
         supabase.from('notifications').insert({
@@ -280,6 +288,22 @@ export default function LoungePage() {
       if (error) { alert('카테고리 변경에 실패했어요 🐾'); return }
       setPosts(prev => prev.map(x => x.id === post.id ? { ...x, tag: newTag } : x))
       setCatMenu(null)
+    } finally {
+      setCatBusy(false)
+    }
+  }
+
+  // 올린 뒤에 사진 크기 바꾸기 — 작성자 본인 또는 관리자(카테고리 변경과 같은 권한)
+  async function toggleBigPhoto(post) {
+    setCatBusy(true)
+    try {
+      const next = !post.big_photo
+      const { error } = await supabase.from('posts').update({ big_photo: next }).eq('id', post.id)
+      if (error) {
+        alert('사진 크기 변경에 실패했어요.\nmigration-post-big-photo.sql 을 먼저 실행해 주세요 🐾')
+        return
+      }
+      setPosts(prev => prev.map(x => x.id === post.id ? { ...x, big_photo: next } : x))
     } finally {
       setCatBusy(false)
     }
@@ -491,7 +515,21 @@ export default function LoungePage() {
                   </div>
                 )
 
-                const thumbs = images.length > 0 && (
+                // 사진 크게 — 포스터가 본문인 글(공지·전시)에서 62px 썸네일로는 무엇인지 안 보인다.
+                // 잘라내지 않고(contain) 원본 비율 그대로 보여준다. 누르면 기존 라이트박스.
+                const bigShots = images.length > 0 && p.big_photo && (
+                  <div style={{ display:'flex', flexDirection:'column', gap:8, width:'100%', maxWidth:520 }}>
+                    {images.map((src, i) => (
+                      <div key={i} onClick={() => { setViewer({ images, idx: i, postId: p.id }); setViewerText('') }}
+                        style={{ borderRadius:16, overflow:'hidden', cursor:'pointer', border:'2.5px solid rgb(var(--ac-rgb) / 0.3)', background:ACCENT_BG }}>
+                        <img src={src} alt="" loading="lazy"
+                          style={{ width:'100%', maxHeight:520, objectFit:'contain', display:'block' }}/>
+                      </div>
+                    ))}
+                  </div>
+                )
+
+                const thumbs = images.length > 0 && !p.big_photo && (
                   <div style={{ display:'flex', gap:6, flexWrap:'wrap', justifyContent: isMine ? 'flex-end' : 'flex-start', maxWidth:'100%' }}>
                     {images.slice(0, 6).map((src, i) => {
                       const more = i === 5 && images.length > 6
@@ -535,6 +573,15 @@ export default function LoungePage() {
                               </button>
                             )
                           })}
+                          {(p.images?.length > 0 || p.image_url) && (
+                            <button disabled={catBusy} onClick={() => toggleBigPhoto(p)}
+                              title="사진 크기 바꾸기"
+                              style={{ fontSize:8.5, fontWeight:900, padding:'2px 8px', borderRadius:10, cursor:'pointer', fontFamily:'Nunito,sans-serif',
+                                background: p.big_photo ? 'var(--ac)' : 'var(--card)', color: p.big_photo ? '#fff' : 'var(--tm)',
+                                border:'1.5px solid transparent' }}>
+                              🖼 {p.big_photo ? '크게' : '작게'}
+                            </button>
+                          )}
                         </span>
                       ) : (
                         <button onClick={() => setCatMenu(p.id)} title="카테고리 변경"
@@ -571,6 +618,7 @@ export default function LoungePage() {
                       <div style={{ display:'flex', justifyContent:'flex-end', gap:8, alignItems:'flex-end' }}>
                         <div style={{ maxWidth:'78%', display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6 }}>
                           {isEditing ? editBox : (p.title || p.content) && bubble}
+                          {bigShots}
                           {thumbs}
                           {meta}
                         </div>
@@ -587,6 +635,7 @@ export default function LoungePage() {
                         </div>
                         <div style={{ maxWidth:'78%', display:'flex', flexDirection:'column', alignItems:'flex-start', gap:5 }}>
                           {isEditing ? editBox : (p.title || p.content) && bubble}
+                          {bigShots}
                           {thumbs}
                           {meta}
                         </div>
@@ -670,6 +719,21 @@ export default function LoungePage() {
             ))}
           </div>
         )}
+        {composeFiles.length > 0 && (
+          <div style={{ padding:'8px 12px 0' }}>
+            <span onClick={() => setBigPhoto(v => !v)} className="press"
+              title="공지·전시 포스터처럼 사진이 본문인 글에 쓰세요"
+              style={{ display:'inline-flex', alignItems:'center', gap:5, fontSize:11, fontWeight:800, cursor:'pointer',
+                borderRadius:20, padding:'5px 12px',
+                color: bigPhoto ? '#fff' : 'var(--tmu)',
+                background: bigPhoto ? ACCENT : 'var(--surf)',
+                border: `2px solid ${bigPhoto ? ACCENT : 'rgb(var(--ac-rgb) / 0.3)'}`,
+                boxShadow: bigPhoto ? '2px 2px 0 rgb(var(--ac-rgb) / 0.25)' : 'none', transition:'all 0.15s' }}>
+              🖼 사진 크게 {bigPhoto ? 'ON' : 'OFF'}
+            </span>
+          </div>
+        )}
+
         <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 12px 10px' }}>
           <label className="press" title="사진 첨부"
             style={{ width:42, height:42, flexShrink:0, borderRadius:'50%', background:'var(--surf)', border:`3px solid ${ACCENT}`, fontSize:17, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
