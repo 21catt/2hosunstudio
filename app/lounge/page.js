@@ -84,6 +84,7 @@ export default function LoungePage() {
       setUser(data.user || null)
       setRole(data.user?.user_metadata?.role || 'student')
       loadPosts(data.user?.id || null)
+      markLoungeSeen(data.user?.id || null)
     })
   }, [])
 
@@ -307,6 +308,18 @@ export default function LoungePage() {
   // 마우스가 없는 기기(휴대폰·태블릿) — Enter 를 전송으로 쓰면 줄바꿈을 할 방법이 없다
   const isTouchDevice = () => {
     try { return window.matchMedia('(pointer: coarse)').matches } catch { return false }
+  }
+
+  // 라운지를 봤다고 표시 — 하단 탭의 새 글 배지가 이 시각을 기준으로 센다.
+  // ⚠️ 화면에 들어온 시점으로 찍는다. 나가는 시점으로 하면 읽는 동안 올라온 글을 놓친다.
+  //    컬럼이 없으면(마이그레이션 전) 조용히 지나간다 — 배지는 안 뜨고 나머지는 그대로.
+  async function markLoungeSeen(userId) {
+    if (!userId) return
+    try {
+      await supabase.from('user_prefs')
+        .upsert({ user_id: userId, lounge_seen_at: new Date().toISOString() })
+      window.dispatchEvent(new Event('lounge-seen'))
+    } catch {}
   }
 
   // 올린 뒤에 사진 크기 바꾸기 — 작성자 본인 또는 관리자(카테고리 변경과 같은 권한)
