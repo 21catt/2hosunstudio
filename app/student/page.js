@@ -44,6 +44,9 @@ export default function StudentHomePage() {
   const [lockedSlots, setLockedSlots] = useState(new Map())   // 타임 단위 잠금
   const [allBookings, setAllBookings] = useState([])
   const [notices, setNotices] = useState([]) // 라운지에서 관리자가 공지 지정한 글 (최대 2개)
+  // 첫 화면 「요즘 스튜디오」 — 관리자가 라운지에서 '대문'으로 고른 글의 사진들.
+  // 자동 수집이 아니다: 학생 작업 사진이라 관리자가 하나씩 고른다(사용자 확정).
+  const [shots, setShots] = useState([])
   const [myBookings, setMyBookings] = useState([])
   const [selDate, setSelDate] = useState(null)
   const [bookingBusy, setBookingBusy] = useState(null)
@@ -180,7 +183,7 @@ export default function StudentHomePage() {
 
   async function loadData(userId) {
     // 초기 로딩 쿼리 전부 병렬 발사 — 서로 독립이라 순차 대기(8회 왕복)를 1회 왕복으로 단축
-    const [t, b, notif, pref, c, locked, lockedSlotMap, ab, pin, recs] = await Promise.all([
+    const [t, b, notif, pref, c, locked, lockedSlotMap, ab, pin, feat, recs] = await Promise.all([
       userId ? supabase.from('tickets').select('*').eq('user_id', userId).single() : Promise.resolve({ data: null }),
       userId ? supabase.from('bookings').select('*').eq('user_id', userId).neq('status', 'cancelled') : Promise.resolve({ data: [] }),
       userId ? supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('is_read', false) : Promise.resolve({ count: 0 }),
@@ -195,6 +198,12 @@ export default function StudentHomePage() {
         .not('pinned_at', 'is', null)
         .order('pinned_at', { ascending: false })
         .limit(2),
+      // 첫 화면 사진 — 관리자가 대문으로 고른 글. 컬럼이 없으면 조용히 빈 값(줄 자체가 안 뜬다)
+      supabase.from('posts')
+        .select('id, images, image_url, author_name, featured_at')
+        .not('featured_at', 'is', null)
+        .order('featured_at', { ascending: false })
+        .limit(6),
       // "다음에 진행할 것"을 찾을 재료 — 최근 기록 20개면 충분하다(그보다 오래된 건 이미 지난 이야기)
       userId ? supabase.from('class_records').select('id, class_date, class_name')
         .eq('user_id', userId).order('class_date', { ascending: false }).limit(20)
@@ -221,6 +230,11 @@ export default function StudentHomePage() {
     setLockedSlots(lockedSlotMap)
     setAllBookings(ab.data || [])
     setNotices(pin.data || [])
+    // 글 하나에 사진이 여러 장일 수 있다 — 펼쳐서 최대 8장까지
+    setShots((feat.data || []).flatMap(p => {
+      const imgs = Array.isArray(p.images) && p.images.length ? p.images : (p.image_url ? [p.image_url] : [])
+      return imgs.map(url => ({ url, who: p.author_name || '', postId: p.id }))
+    }).slice(0, 8))
     setLoading(false)
   }
 
@@ -398,11 +412,15 @@ export default function StudentHomePage() {
 
   if (loading) return <LoadingCat />
 
+  // 비회원 첫 화면은 예약 도구가 아니라 작업실로 읽혀야 한다(로그인 사용자 문구는 그대로)
+  const heroTitle = user
+    ? (nextBooking ? '이번 주 수업 예약' : '수업 예약, 여기서 시작')
+    : '그리는 사람들이 모이는 곳'
   const heroSub = user
     ? (nextBooking
         ? `${nextBooking.class_name} · ${ticket ? `수강권 ${ticket.remain}회 남음` : nextBooking.class_date.slice(5).replace('-', '/')}`
         : (ticket ? `수강권 ${ticket.remain}회 남음 · 날짜 고르고 바로 예약` : '커리큘럼 보고 · 날짜 고르고 · 바로 시작 🐾'))
-    : '커리큘럼 보고 · 날짜 고르고 · 바로 시작 🐾'
+    : '색채와 명도부터, 한 점을 완성하기까지 — 2호선 스튜디오'
 
   return (
     <>
@@ -411,8 +429,8 @@ export default function StudentHomePage() {
           const HomeSkin = activeTheme === 'space' ? SpaceHome : GlassHome
           return (
         <HomeSkin
-          user={user} ticket={ticket} nextBooking={nextBooking} pendingBooking={pendingBooking} nextPlan={nextPlan}
-          notices={notices} weather={weather} heroSub={heroSub} unread={unread}
+          user={user} ticket={ticket} nextBooking={nextBooking} pendingBooking={pendingBooking} nextPlan={nextPlan} shots={shots}
+          notices={notices} weather={weather} heroSub={heroSub} heroTitle={heroTitle} unread={unread}
           stripDates={stripDates} selDate={selDate} todayStr={todayStr} bookedDates={bookedDates} stripRef={stripRef}
           coursesOn={coursesOn} schedulesFor={schedulesFor} myBookingFor={myBookingFor}
           seatCount={seatCount} bookingBusy={bookingBusy} upcomingOneday={upcomingOneday} onOneday={setOnedayGuide}
@@ -456,7 +474,7 @@ export default function StudentHomePage() {
               </div>
             )}
             <div style={{ fontSize:17, fontWeight:800, color:'var(--td)', letterSpacing:'-0.4px' }}>
-              {user && nextBooking ? '이번 주 수업 예약' : '수업 예약, 여기서 시작'}
+              {heroTitle}
             </div>
             <div style={{ fontSize:12, color:'var(--tm)', margin:'4px 0 12px' }}>{heroSub}</div>
             <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
@@ -478,6 +496,26 @@ export default function StudentHomePage() {
             </div>
           </div>
         </div>
+
+        {!user && shots.length >= 3 && (
+          <div style={{ marginBottom:14 }}>
+            <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', margin:'2px 2px 6px' }}>
+              <span style={{ fontSize:12.5, fontWeight:800, color:'var(--td)' }}>요즘 스튜디오</span>
+              <span onClick={()=>router.push('/lounge')} style={{ fontSize:11, fontWeight:800, color:'var(--acTx)', cursor:'pointer' }}>더 보기 →</span>
+            </div>
+            <div className="no-scrollbar" style={{ display:'flex', gap:7, overflowX:'auto', paddingBottom:2 }}>
+              {shots.map((s, i) => (
+                <div key={i} onClick={()=>router.push('/lounge')}
+                  style={{ position:'relative', width:104, height:130, flexShrink:0, borderRadius:16, overflow:'hidden', cursor:'pointer', border:'2px solid rgb(var(--ac-rgb) / 0.25)', background:'var(--card)' }}>
+                  <img src={s.url} alt="" loading="lazy" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}/>
+                  {s.who && (
+                    <span style={{ position:'absolute', left:0, right:0, bottom:0, padding:'4px 6px', fontSize:9.5, fontWeight:800, color:'#fff', background:'linear-gradient(0deg, rgba(20,30,20,0.62), transparent)' }}>{s.who}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div style={{ fontSize:11, color:'var(--tmu)', fontWeight:700, margin:'2px 2px 6px' }}>날짜를 터치해서 예약하기</div>
 

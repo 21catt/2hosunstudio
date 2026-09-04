@@ -61,7 +61,7 @@ function NavItem({ active, label, onClick, children }) {
 
 export default function SpaceHome(props) {
   const {
-    user, ticket, nextBooking, pendingBooking, nextPlan, notices = [], weather, heroSub, unread = 0,
+    user, ticket, nextBooking, pendingBooking, nextPlan, shots = [], notices = [], weather, heroSub, heroTitle, unread = 0,
     stripDates = [], selDate, todayStr, bookedDates = new Set(), stripRef,
     coursesOn = () => [], schedulesFor = () => [], myBookingFor = () => null, seatCount = () => 0, bookingBusy,
     upcomingOneday = [], onOneday = () => {},
@@ -115,7 +115,7 @@ export default function SpaceHome(props) {
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginTop: 44, position: 'relative', zIndex: 1 }}>
             <div>
               <div style={{ fontSize: 25, fontWeight: 800, letterSpacing: '-0.6px', lineHeight: 1.2, color: '#fff', textShadow: '0 2px 14px rgba(0,0,0,0.45)' }}>
-                {user && nextBooking ? <>이번 주<br />수업 예약</> : <>수업 예약,<br />여기서 시작</>}
+                {heroTitle || (user && nextBooking ? '이번 주 수업 예약' : '수업 예약, 여기서 시작')}
               </div>
               <div style={{ marginTop: 9, fontSize: 13, color: 'rgba(255,255,255,0.8)', fontWeight: 500 }}>{heroSub}</div>
             </div>
@@ -139,6 +139,28 @@ export default function SpaceHome(props) {
         </div>
 
         {/* DATE STRIP — Media 딥 블루 셀 */}
+        {/* 요즘 스튜디오 — 관리자가 라운지에서 대문으로 고른 사진. 비회원 첫 화면에만 뜬다
+            (로그인 사용자에게는 예약 동선이 먼저다). 세 장 미만이면 줄 자체를 숨긴다. */}
+        {!user && shots.length >= 3 && (
+          <div style={{ marginTop: 18 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', margin: '0 2px 7px' }}>
+              <span style={{ fontSize: 13, fontWeight: 800 }}>요즘 스튜디오</span>
+              <span onClick={() => go('/lounge')} style={{ fontSize: 11, fontWeight: 800, color: S.accentText, cursor: 'pointer' }}>더 보기 →</span>
+            </div>
+            <div className="no-scrollbar" style={{ display: 'flex', gap: 7, overflowX: 'auto', paddingBottom: 2 }}>
+              {shots.map((sh, i) => (
+                <div key={i} onClick={() => go('/lounge')}
+                  style={{ position: 'relative', width: 104, height: 130, flexShrink: 0, borderRadius: 16, overflow: 'hidden', cursor: 'pointer', border: `1px solid ${S.border}`, background: S.glass }}>
+                  <img src={sh.url} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  {sh.who && (
+                    <span style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '4px 6px', fontSize: 9.5, fontWeight: 800, color: '#fff', background: 'linear-gradient(0deg, rgba(20,30,20,0.62), transparent)' }}>{sh.who}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div style={{ fontSize: 11, color: S.faint, fontWeight: 700, margin: '18px 2px 6px' }}>날짜를 터치해서 예약하기</div>
         <div ref={stripRef} className="no-scrollbar" style={{ display: 'flex', gap: 9, overflowX: 'auto', overflowY: 'visible', cursor: 'grab', touchAction: 'pan-x' }}>
           {stripDates.map(d => {

@@ -322,6 +322,25 @@ export default function LoungePage() {
     } catch {}
   }
 
+  // 첫 화면 「요즘 스튜디오」에 이 글의 사진을 건다 — 관리자만.
+  // ⚠️ 라운지 공유는 "스튜디오 사람들에게"였고 첫 화면은 그보다 한 층 밖이다.
+  //    그래서 자동으로 끌어가지 않고 관리자가 하나씩 고른다(사용자 확정).
+  async function toggleFeatured(post) {
+    if (role !== 'admin') return
+    setCatBusy(true)
+    try {
+      const next = post.featured_at ? null : new Date().toISOString()
+      const { error } = await supabase.from('posts').update({ featured_at: next }).eq('id', post.id)
+      if (error) {
+        alert('대문 지정에 실패했어요.\nmigration-post-featured.sql 을 먼저 실행해 주세요 🐾')
+        return
+      }
+      setPosts(prev => prev.map(x => x.id === post.id ? { ...x, featured_at: next } : x))
+    } finally {
+      setCatBusy(false)
+    }
+  }
+
   // 올린 뒤에 사진 크기 바꾸기 — 작성자 본인 또는 관리자(카테고리 변경과 같은 권한)
   async function toggleBigPhoto(post) {
     setCatBusy(true)
@@ -602,6 +621,15 @@ export default function LoungePage() {
                               </button>
                             )
                           })}
+                          {role === 'admin' && (p.images?.length > 0 || p.image_url) && (
+                            <button disabled={catBusy} onClick={() => toggleFeatured(p)}
+                              title="첫 화면 「요즘 스튜디오」에 이 사진 걸기"
+                              style={{ fontSize:8.5, fontWeight:900, padding:'2px 8px', borderRadius:10, cursor:'pointer', fontFamily:'Nunito,sans-serif',
+                                background: p.featured_at ? '#2e7d32' : 'var(--card)', color: p.featured_at ? '#fff' : 'var(--tm)',
+                                border:'1.5px solid transparent' }}>
+                              🏠 {p.featured_at ? '대문 ON' : '대문'}
+                            </button>
+                          )}
                           {(p.images?.length > 0 || p.image_url) && (
                             <button disabled={catBusy} onClick={() => toggleBigPhoto(p)}
                               title="사진 크기 바꾸기"
