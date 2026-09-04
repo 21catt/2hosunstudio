@@ -139,9 +139,9 @@ export default function SpaceHome(props) {
         </div>
 
         {/* DATE STRIP — Media 딥 블루 셀 */}
-        {/* 요즘 스튜디오 — 관리자가 라운지에서 대문으로 고른 사진. 비회원 첫 화면에만 뜬다
-            (로그인 사용자에게는 예약 동선이 먼저다). 세 장 미만이면 줄 자체를 숨긴다. */}
-        {!user && shots.length >= 3 && (
+        {/* 요즘 스튜디오 — 관리자가 라운지에서 대문으로 고른 사진. 로그인 여부와 무관하게 뜬다.
+            세 장 미만이면 줄 자체를 숨긴다(빈 줄이 더 허전하다). */}
+        {shots.length >= 3 && (
           <div style={{ marginTop: 18 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', margin: '0 2px 7px' }}>
               <span style={{ fontSize: 13, fontWeight: 800 }}>요즘 스튜디오</span>

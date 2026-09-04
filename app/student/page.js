@@ -497,7 +497,7 @@ export default function StudentHomePage() {
           </div>
         </div>
 
-        {!user && shots.length >= 3 && (
+        {shots.length >= 3 && (
           <div style={{ marginBottom:14 }}>
             <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', margin:'2px 2px 6px' }}>
               <span style={{ fontSize:12.5, fontWeight:800, color:'var(--td)' }}>요즘 스튜디오</span>
