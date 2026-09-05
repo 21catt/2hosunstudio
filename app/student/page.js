@@ -17,6 +17,7 @@ import { pixelCatImg } from '../../lib/pixelCats'
 import { sortCoursesByCategory } from '../../lib/courseSort'
 import { fetchLockedDates, fetchLockedSlots, slotLocked } from '../../lib/lockedDates'
 import LoadingCat from '../../components/LoadingCat'
+import ShotViewer from '../../components/ShotViewer'
 
 const CELL_W = 56
 const CELL_GAP = 8
@@ -47,6 +48,7 @@ export default function StudentHomePage() {
   // 첫 화면 「요즘 스튜디오」 — 관리자가 라운지에서 '대문'으로 고른 글의 사진들.
   // 자동 수집이 아니다: 학생 작업 사진이라 관리자가 하나씩 고른다(사용자 확정).
   const [shots, setShots] = useState([])
+  const [shotOpen, setShotOpen] = useState(null)   // 확대해서 보는 사진(라운지로 나가지 않는다)
   const [myBookings, setMyBookings] = useState([])
   const [selDate, setSelDate] = useState(null)
   const [bookingBusy, setBookingBusy] = useState(null)
@@ -505,7 +507,7 @@ export default function StudentHomePage() {
             </div>
             <div className="no-scrollbar" style={{ display:'flex', gap:7, overflowX:'auto', paddingBottom:2 }}>
               {shots.map((s, i) => (
-                <div key={i} onClick={()=>router.push('/lounge')}
+                <div key={i} onClick={()=>setShotOpen(s)}
                   style={{ position:'relative', width:104, height:130, flexShrink:0, borderRadius:16, overflow:'hidden', cursor:'pointer', border:'2px solid rgb(var(--ac-rgb) / 0.25)', background:'var(--card)' }}>
                   <img src={s.url} alt="" loading="lazy" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}/>
                   {s.who && (
@@ -960,6 +962,7 @@ export default function StudentHomePage() {
         </div>
       )}
 
+      <ShotViewer shot={shotOpen} onClose={()=>setShotOpen(null)} />
       {activeTheme !== 'fresh' && activeTheme !== 'space' && <StudentNav active="home" />}
     </>
   )

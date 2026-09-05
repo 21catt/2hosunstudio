@@ -1,5 +1,7 @@
 'use client'
 import HeroWeatherFX from './HeroWeatherFX'
+import { useState } from 'react'
+import ShotViewer from './ShotViewer'
 // 싱그러운(fresh) 테마 전용 글래스모피즘 홈 — 2026 여름 한정 스킨.
 // data/핸들러는 app/student/page.js에서 props로 받는다. 모달·PaletteFab은 부모/전역이 렌더.
 
@@ -57,6 +59,7 @@ export default function GlassHome(props) {
     upcomingOneday = [], onOneday = () => {},
     onDate = () => {}, onQuickBook = () => {}, onCancel = () => {}, onAsk = () => {}, go = () => {},
   } = props
+  const [shotOpen, setShotOpen] = useState(null)   // 확대해서 보는 사진
 
   return (
     <div style={{ position: 'relative', minHeight: '100vh', background: T.bg, color: T.text, fontFamily: "'Pretendard','Nunito',-apple-system,sans-serif", overflow: 'hidden' }}>
@@ -132,7 +135,7 @@ export default function GlassHome(props) {
             </div>
             <div className="no-scrollbar" style={{ display: 'flex', gap: 7, overflowX: 'auto', paddingBottom: 2 }}>
               {shots.map((sh, i) => (
-                <div key={i} onClick={() => go('/lounge')}
+                <div key={i} onClick={() => setShotOpen(sh)}
                   style={{ position: 'relative', width: 104, height: 130, flexShrink: 0, borderRadius: 16, overflow: 'hidden', cursor: 'pointer', border: `1px solid ${T.border}`, background: T.glass }}>
                   <img src={sh.url} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                   {sh.who && (
@@ -341,6 +344,7 @@ export default function GlassHome(props) {
           <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="12" cy="8" r="3.4" /><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6" strokeLinecap="round" /></svg>
         </NavItem>
       </div>
+      <ShotViewer shot={shotOpen} onClose={() => setShotOpen(null)} />
     </div>
   )
 }
