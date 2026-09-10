@@ -18,6 +18,7 @@ import { sortCoursesByCategory } from '../../lib/courseSort'
 import { fetchLockedDates, fetchLockedSlots, slotLocked } from '../../lib/lockedDates'
 import LoadingCat from '../../components/LoadingCat'
 import ShotViewer from '../../components/ShotViewer'
+import NoticePopup from '../../components/NoticePopup'
 
 const CELL_W = 56
 const CELL_GAP = 8
@@ -962,6 +963,8 @@ export default function StudentHomePage() {
         </div>
       )}
 
+      {/* 휴무·행사 안내 — 스킨 분기 밖(세 스킨 공통), 로그인 여부 무관 */}
+      <NoticePopup />
       <ShotViewer shot={shotOpen} onClose={()=>setShotOpen(null)} />
       {activeTheme !== 'fresh' && activeTheme !== 'space' && <StudentNav active="home" />}
     </>
