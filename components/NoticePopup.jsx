@@ -28,7 +28,9 @@ export default function NoticePopup() {
         animation:'noticeIn 0.2s ease-out' }}>
       <style>{`@keyframes noticeIn{from{opacity:0}to{opacity:1}}
         @keyframes noticeUp{from{transform:translateY(10px) scale(0.97);opacity:0}to{transform:none;opacity:1}}
-        @media (prefers-reduced-motion: reduce){[data-notice]{animation:none!important}}`}</style>
+        @keyframes noticeBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+        @media (prefers-reduced-motion: reduce){[data-notice]{animation:none!important}
+          [data-notice] img{animation:none!important}}`}</style>
 
       <div data-notice onClick={e => e.stopPropagation()}
         style={{ width:'100%', maxWidth:340, background:'var(--surf)', borderRadius:24,
@@ -36,13 +38,26 @@ export default function NoticePopup() {
           padding:'26px 22px 18px', textAlign:'center', fontFamily:'Nunito,sans-serif',
           animation:'noticeUp 0.24s cubic-bezier(0.2,0.9,0.3,1)' }}>
 
-        <div style={{ fontSize:40, lineHeight:1 }}>{notice.emoji}</div>
+        {notice.image ? (
+          // 캐릭터가 나와서 인사한다 — 이모지는 작은 배지로 옆에 둔다
+          <div style={{ position:'relative', width:104, height:104, margin:'0 auto' }}>
+            <img src={notice.image} alt={notice.imageAlt || ''} width={104} height={104}
+              style={{ width:104, height:104, objectFit:'contain', imageRendering:'pixelated',
+                animation:'noticeBob 2.4s ease-in-out infinite' }}/>
+            {notice.emoji && (
+              <div style={{ position:'absolute', top:-2, right:-2, fontSize:24, lineHeight:1 }}>{notice.emoji}</div>
+            )}
+          </div>
+        ) : (
+          <div style={{ fontSize:40, lineHeight:1 }}>{notice.emoji}</div>
+        )}
 
         <div style={{ fontSize:16.5, fontWeight:800, color:'var(--td)', margin:'12px 0 10px' }}>
           {notice.title}
         </div>
 
-        <div style={{ fontSize:13, fontWeight:600, color:'var(--tm)', lineHeight:1.75 }}>
+        <div style={{ fontSize:13, fontWeight:600, color:'var(--tm)', lineHeight:1.75,
+          maxHeight:'44vh', overflowY:'auto' }}>
           {notice.lines.map((l, i) => (
             <div key={i} style={{ minHeight: l ? undefined : 8 }}>{l}</div>
           ))}
@@ -51,7 +66,8 @@ export default function NoticePopup() {
         {notice.closing && (
           <div style={{ marginTop:14, padding:'11px 12px', borderRadius:14,
             background:'var(--acBg)', border:'1.5px solid rgb(var(--ac-rgb) / 0.25)',
-            fontSize:13, fontWeight:800, color:'var(--acTx)', lineHeight:1.6 }}>
+            fontSize:12.5, fontWeight:800, color:'var(--acTx)', lineHeight:1.6,
+            whiteSpace:'pre-line' }}>
             {notice.closing}
           </div>
         )}
