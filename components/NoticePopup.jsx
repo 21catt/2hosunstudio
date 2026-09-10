@@ -40,12 +40,12 @@ export default function NoticePopup() {
 
         {notice.image ? (
           // 캐릭터가 나와서 인사한다 — 이모지는 작은 배지로 옆에 둔다
-          <div style={{ position:'relative', width:104, height:104, margin:'0 auto' }}>
-            <img src={notice.image} alt={notice.imageAlt || ''} width={104} height={104}
-              style={{ width:104, height:104, objectFit:'contain', imageRendering:'pixelated',
+          <div style={{ position:'relative', width:80, height:80, margin:'0 auto' }}>
+            <img src={notice.image} alt={notice.imageAlt || ''} width={80} height={80}
+              style={{ width:80, height:80, objectFit:'contain', imageRendering:'pixelated',
                 animation:'noticeBob 2.4s ease-in-out infinite' }}/>
             {notice.emoji && (
-              <div style={{ position:'absolute', top:-2, right:-2, fontSize:24, lineHeight:1 }}>{notice.emoji}</div>
+              <div style={{ position:'absolute', top:-2, right:-2, fontSize:20, lineHeight:1 }}>{notice.emoji}</div>
             )}
           </div>
         ) : (
