@@ -10,7 +10,7 @@ import HeroWeatherFX from '../../components/HeroWeatherFX'
 import { applyTheme, isValidTheme, getSavedTheme, getSavedThemeRaw, guestTheme, themeInWindow, DEFAULT_THEME } from '../../lib/theme'
 import GlassHome from '../../components/GlassHome'
 import SpaceHome from '../../components/SpaceHome'
-import { bookClass, requestBookingApproval, hasValidTicket, cancelBooking } from '../../lib/booking'
+import { bookClass, requestBookingApproval, hasValidTicket, cancelBooking, ticketStarted } from '../../lib/booking'
 import { sendPushToAdmins } from '../../lib/pushNotify'
 import { sendKakaoToAdmins } from '../../lib/kakaoNotify'
 import { pixelCatImg } from '../../lib/pixelCats'
@@ -349,7 +349,10 @@ export default function StudentHomePage() {
         await bookClass({ user, ticket, course: c, schedule: s, dateStr: ds })
       } else {
         await requestBookingApproval({ user, course: c, schedule: s, dateStr: ds })
-        alert('예약 요청이 접수됐어요! 강사님이 확인 후 연락드릴게요 🐾')
+        // 시작 전이면 "수강권이 없다"가 아니라 "아직 안 열렸다"가 사실이다
+        alert(ticket && !ticketStarted(ticket, todayStr)
+          ? `수강권은 ${ticket.start_date} 부터 쓸 수 있어요.\n그때까지는 예약 요청으로 접수돼요 🐾`
+          : '예약 요청이 접수됐어요! 강사님이 확인 후 연락드릴게요 🐾')
       }
       await loadData(user.id)
     } finally {
@@ -663,7 +666,14 @@ export default function StudentHomePage() {
                 <div style={{ width:`${(ticket.remain / ticket.total) * 100}%`, height:'100%', background:'var(--ac)', transition:'width 0.3s ease' }}/>
               </div>
             </div>
-            <span style={{ fontSize:10, color:'var(--tmu)', flexShrink:0 }}>만료 {ticket.expires_at}</span>
+            {/* 시작일이 아직 안 왔으면 만료일보다 "언제부터 쓰나"가 먼저 궁금하다 */}
+            {!ticketStarted(ticket, todayStr) ? (
+              <span style={{ fontSize:10, fontWeight:800, color:'var(--acTx)', background:'var(--acBg)', borderRadius:9, padding:'3px 8px', flexShrink:0 }}>
+                {ticket.start_date?.slice(5).replace('-', '월 ')}일부터
+              </span>
+            ) : (
+              <span style={{ fontSize:10, color:'var(--tmu)', flexShrink:0 }}>만료 {ticket.expires_at}</span>
+            )}
           </div>
         )}
 

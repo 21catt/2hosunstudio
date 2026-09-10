@@ -6,9 +6,10 @@ import AdminNav from '../../../components/AdminNav'
 import { NavIcon } from '../../../components/NavIcons'
 import { HEADER_BG, MST } from '../../../lib/adminTheme'
 import { useSpaceTheme } from '../../../lib/useFreshTheme'
+import { ticketStarted } from '../../../lib/booking'
 import SpaceBg from '../../../components/SpaceBg'
 
-const STATUS_ORDER = { '만료': 0, '만료임박': 1, '일시정지': 1.5, '수강중': 2 }
+const STATUS_ORDER = { '만료': 0, '만료임박': 1, '일시정지': 1.5, '시작 전': 1.8, '수강중': 2 }
 const DAY = 864e5
 
 // 일시정지 중이면 만료일 계산 기준을 '정지 시작 시각'으로 고정 → 정지 동안 잔여일이 줄지 않는다.
@@ -18,9 +19,11 @@ function getDaysLeft(ticket) {
   return Math.ceil((new Date(ticket.expires_at) - ref) / DAY)
 }
 
-function getStatus(ticket) {
+function getStatus(ticket, todayStr = new Date().toISOString().split('T')[0]) {
   if (!ticket) return '만료'
   if (ticket.paused_at && ticket.remain > 0) return '일시정지'
+  // 수업 시작일이 아직 안 왔다 — 잔여가 남아 있어도 쓸 수 없다
+  if (ticket.remain > 0 && !ticketStarted(ticket, todayStr)) return '시작 전'
   const days = getDaysLeft(ticket)
   if (ticket.remain === 0 || days <= 0) return '만료'
   if (days <= 7) return '만료임박'
@@ -71,6 +74,9 @@ export default function AdminMembersPage() {
   const [approvedNow, setApprovedNow] = useState({})
   const [approving, setApproving] = useState({})
   const [harvestMap, setHarvestMap] = useState({}) // {userId: harvest_count}
+  // 수강권 부여 시 고른 수업 시작일 {userId: 'YYYY-MM-DD'} — 비면 오늘부터
+  const [grantStart, setGrantStart] = useState({})
+  // todayStr 은 아래 렌더 스코프에 이미 있다(로컬 자정 기준) — 중복 선언 금지
   const [deleting, setDeleting] = useState(null) // 삭제 중인 userId
   const [armed, setArmed] = useState(null)       // 삭제 확인(잠금해제)된 userId
   const [grantMap, setGrantMap] = useState({})   // userId → 수강권 발급 이력(최신순)
@@ -221,17 +227,35 @@ export default function AdminMembersPage() {
     }
   }
 
-  async function grantTicket(userId, type, total, days) {
-    const expires = new Date()
+  // 수강권 부여 — 기간은 **수업 시작일**부터 센다(기본 = 오늘 = 기존 동작).
+  // 미리 결제하고 다음 달부터 나오는 경우에 기간이 먼저 깎이지 않게 하는 것이 목적.
+  async function grantTicket(userId, type, total, days, startDate) {
+    const start = startDate || todayStr
+    // ⚠️ 'YYYY-MM-DD' 만 넘기면 UTC 자정으로 파싱돼 시간대에 따라 하루 밀린다
+    const expires = new Date(`${start}T00:00:00`)
     expires.setDate(expires.getDate() + days)
+    const expiresStr = `${expires.getFullYear()}-${String(expires.getMonth() + 1).padStart(2, '0')}-${String(expires.getDate()).padStart(2, '0')}`
+
     await supabase.from('tickets').delete().eq('user_id', userId)
-    await supabase.from('tickets').insert({
-      user_id: userId, type, total, remain: total,
-      expires_at: expires.toISOString().split('T')[0]
-    })
-    // 발급 이력 남기기(테이블 없으면 조용히 무시) — 지난 수강권 이력의 근거
-    await supabase.from('ticket_grants').insert({ user_id: userId, type, total, days })
-    alert('수강권이 부여됐어요!')
+    const base = { user_id: userId, type, total, remain: total, expires_at: expiresStr }
+    let { error } = await supabase.from('tickets').insert({ ...base, start_date: start })
+    let savedStart = !error
+    if (error) { ({ error } = await supabase.from('tickets').insert(base)) }
+    if (error) { alert('수강권 부여에 실패했어요: ' + error.message); return }
+
+    // 발급 이력 남기기(테이블·컬럼 없으면 조용히 무시) — 지난 수강권 이력의 근거
+    const grant = { user_id: userId, type, total, days }
+    const { error: gErr } = await supabase.from('ticket_grants').insert({ ...grant, start_date: start })
+    if (gErr) await supabase.from('ticket_grants').insert(grant)
+
+    // 컬럼이 없어 시작일을 못 넣었으면 조용히 넘어가지 않는다 — 미래 시작으로 준 줄 알았는데
+    // 오늘부터 기간이 흐르면 그만큼 손해다.
+    if (!savedStart && start !== todayStr) {
+      alert(`수강권은 부여됐지만 시작일(${start})은 저장되지 않았어요.\nmigration-ticket-start-date.sql 을 먼저 실행해 주세요 🐾\n지금은 오늘부터 ${days}일로 계산됐어요.`)
+    } else {
+      alert(start === todayStr ? '수강권이 부여됐어요!' : `수강권이 부여됐어요! ${start}부터 ${days}일간 사용해요.`)
+    }
+    setGrantStart(prev => { const n = { ...prev }; delete n[userId]; return n })
     loadMembers()
   }
 
@@ -775,10 +799,30 @@ export default function AdminMembersPage() {
                     <div style={{ background:'#fff', border:'0.5px solid rgba(0,0,0,0.08)', borderRadius:15, padding:14, marginBottom:10 }}>
                       <div style={{ fontSize:10, fontWeight:800, color:'#1c2a24', marginBottom:10 }}>빠른 부여</div>
                       <div style={{ fontSize:8.5, fontWeight:800, color:'#a2aaa1', marginBottom:6, letterSpacing:'0.3px' }}>회차권 부여 (새 수강권)</div>
+
+                      {/* 수업 시작일 — 이 날짜부터 기간을 센다(비우면 오늘부터) */}
+                      <div onClick={e => e.stopPropagation()}
+                        style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap', marginBottom:8 }}>
+                        <span style={{ fontSize:10, fontWeight:800, color:'var(--acTx)' }}>수업 시작일</span>
+                        <input type="date" value={grantStart[m.id] || todayStr}
+                          onChange={e => setGrantStart(prev => ({ ...prev, [m.id]: e.target.value }))}
+                          style={{ fontSize:11, fontWeight:700, fontFamily:'Nunito,sans-serif', color:'var(--td)',
+                            border:'1px solid rgb(var(--ac-rgb) / 0.3)', borderRadius:9, padding:'4px 8px', background:'#fff' }}/>
+                        {(grantStart[m.id] || todayStr) !== todayStr && (
+                          <button onClick={() => setGrantStart(prev => { const n = { ...prev }; delete n[m.id]; return n })}
+                            style={{ fontSize:10, fontWeight:800, color:'var(--tmu)', background:'var(--card)', border:'none', borderRadius:9, padding:'4px 9px', cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
+                            오늘부터
+                          </button>
+                        )}
+                        <span style={{ fontSize:9.5, fontWeight:700, color:'var(--tmu)' }}>
+                          {(grantStart[m.id] || todayStr) === todayStr ? '오늘부터 기간이 시작돼요' : '그날부터 기간이 시작돼요'}
+                        </span>
+                      </div>
+
                       <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom: ticket ? 12 : 0 }}>
                         {QUICK_PRESETS.map(([total, days, label]) => (
                           <button key={label}
-                            onClick={e => { e.stopPropagation(); grantTicket(m.id, label, total, days) }}
+                            onClick={e => { e.stopPropagation(); grantTicket(m.id, label, total, days, grantStart[m.id] || todayStr) }}
                             style={{ padding:'7px 12px', background:'#fff', color:'var(--acTx)', border:'1px solid rgb(var(--ac-rgb) / 0.3)', borderRadius:11, fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:'Nunito,sans-serif' }}>
                             {label}
                           </button>

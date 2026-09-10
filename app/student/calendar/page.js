@@ -8,7 +8,7 @@ import { NavIcon } from '../../../components/NavIcons'
 import { sortCoursesByCategory } from '../../../lib/courseSort'
 import { fetchLockedDates, fetchLockedSlots, slotLocked } from '../../../lib/lockedDates'
 import { isTooLateToBook, bookingCutoffMessage } from '../../../lib/bookingWindow'
-import { consumeClassTicket, restoreClassTicket, refundsClassTicket } from '../../../lib/booking'
+import { consumeClassTicket, restoreClassTicket, refundsClassTicket, ticketStarted } from '../../../lib/booking'
 import { sendPushToAdmins, sendPushToStaff } from '../../../lib/pushNotify'
 import { sendKakaoToAdmins } from '../../../lib/kakaoNotify'
 import { notifyStaff } from '../../../lib/adminNotify'
@@ -452,7 +452,7 @@ export default function CalendarPage() {
 
   // 유효한(기간 내·잔여 있는) 수강권 여부
   function hasValidTicket() {
-    return !!(ticket && ticket.remain > 0 && ticket.expires_at >= todayStr)
+    return !!(ticket && ticket.remain > 0 && ticket.expires_at >= todayStr && ticketStarted(ticket, todayStr))
   }
 
   // 수강권 없음/만료/소진 상태의 예약 → 예약은 만들지 않고 관리자에게 요청 알림(연락처 포함)
@@ -1085,7 +1085,11 @@ export default function CalendarPage() {
                 <div style={{ width:'100%', height:5, background:'rgba(255,255,255,0.5)', borderRadius:3, overflow:'hidden', marginBottom:4 }}>
                   <div style={{ width: `${(ticket.remain / ticket.total) * 100}%`, height: '100%', background: ticket.remain/ticket.total >= 0.6 ? 'var(--g4)' : ticket.remain/ticket.total >= 0.3 ? 'var(--g3)' : '#c9a07a', transition: 'width 0.3s ease, background 0.3s ease' }}/>
                 </div>
-                <div style={{ fontSize:10, color:'var(--g4)', fontWeight:600 }}>만료: {ticket.expires_at}</div>
+                <div style={{ fontSize:10, color:'var(--g4)', fontWeight:600 }}>
+                  {!ticketStarted(ticket, todayStr)
+                    ? `${ticket.start_date?.slice(5).replace('-', '월 ')}일부터 사용`
+                    : `만료: ${ticket.expires_at}`}
+                </div>
               </>
             )}
           </div>

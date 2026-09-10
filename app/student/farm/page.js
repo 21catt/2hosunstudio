@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
+import { ticketStarted } from '../../../lib/booking'
 import StudentNav from '../../../components/StudentNav'
 import TeacherNav from '../../../components/TeacherNav'
 import { NavIcon } from '../../../components/NavIcons'
@@ -257,7 +258,8 @@ export default function FarmPage() {
 
     // 수강권 유효성 → 잡초 기능 on/off
     const t = tk?.[0]
-    const valid = !!(t && t.remain > 0 && (!t.expires_at || t.expires_at >= todayStr))
+    // 냥밭은 만료일이 없어도 유효로 본다(기존 관용도 유지). 시작일 규칙만 공유한다.
+    const valid = !!(t && t.remain > 0 && (!t.expires_at || t.expires_at >= todayStr) && ticketStarted(t, todayStr))
     setTicketValid(valid); ticketValidRef.current = valid
 
     // 잡초 상태 로드 + 경과 시간만큼 스폰/성장·페널티 반영
