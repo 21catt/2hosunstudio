@@ -236,8 +236,14 @@ export default function AdminMembersPage() {
     expires.setDate(expires.getDate() + days)
     const expiresStr = `${expires.getFullYear()}-${String(expires.getMonth() + 1).padStart(2, '0')}-${String(expires.getDate()).padStart(2, '0')}`
 
+    // 남아 있던 회차는 이월한다 — 새 수강권을 준다고 이미 낸 값이 사라지면 안 된다.
+    // 만료됐거나 아직 시작 전인 것도 회차는 살아 있으므로 함께 이월(기간만 새로 시작).
+    const { data: prevTickets } = await supabase.from('tickets').select('remain').eq('user_id', userId)
+    const carried = (prevTickets || []).reduce((s, t) => s + Math.max(0, t.remain || 0), 0)
+    const finalTotal = total + carried
+
     await supabase.from('tickets').delete().eq('user_id', userId)
-    const base = { user_id: userId, type, total, remain: total, expires_at: expiresStr }
+    const base = { user_id: userId, type, total: finalTotal, remain: finalTotal, expires_at: expiresStr }
     let { error } = await supabase.from('tickets').insert({ ...base, start_date: start })
     let savedStart = !error
     if (error) { ({ error } = await supabase.from('tickets').insert(base)) }
@@ -253,7 +259,8 @@ export default function AdminMembersPage() {
     if (!savedStart && start !== todayStr) {
       alert(`수강권은 부여됐지만 시작일(${start})은 저장되지 않았어요.\nmigration-ticket-start-date.sql 을 먼저 실행해 주세요 🐾\n지금은 오늘부터 ${days}일로 계산됐어요.`)
     } else {
-      alert(start === todayStr ? '수강권이 부여됐어요!' : `수강권이 부여됐어요! ${start}부터 ${days}일간 사용해요.`)
+      const carryNote = carried > 0 ? `\n기존 잔여 ${carried}회를 더해 총 ${finalTotal}회예요 🐾` : ''
+      alert((start === todayStr ? '수강권이 부여됐어요!' : `수강권이 부여됐어요! ${start}부터 ${days}일간 사용해요.`) + carryNote)
     }
     setGrantStart(prev => { const n = { ...prev }; delete n[userId]; return n })
     loadMembers()
