@@ -28,11 +28,14 @@ export default function AdminAttendancePage() {
   const [toggling,    setToggling]    = useState({})
   const space = useSpaceTheme()
 
-  async function load(date) {
-    setLoading(true)
-    let q = supabase
+  // 출석은 bookings 한 행이 진실 — 관리자·담당 강사 누가 체크해도 같은 값을 본다.
+  // 다른 사람이 체크한 결과가 이 화면에도 보이도록 포커스·주기적으로 다시 읽는다(silent).
+  async function load(date, silent = false) {
+    if (!silent) setLoading(true)
+    const cols = 'id, user_id, course_id, schedule_id, class_name, class_time, attended, attended_at, status'
+    const build = sel => supabase
       .from('bookings')
-      .select('id, user_id, course_id, schedule_id, class_name, class_time, attended, attended_at, status')
+      .select(sel)
       .eq('class_date', date)
       .neq('status', 'cancelled')
       .order('class_time')
@@ -42,15 +45,21 @@ export default function AdminAttendancePage() {
     if (!isOwner(user)) {
       scope = await loadTeachingScope(user.id)
       if (!scope.hasAny) { setBookings([]); setUserNames({}); setLoading(false); return }
-      q = q.in('course_id', scope.scopeCourseIds)
     }
-    const { data: bks } = await q
+    const run = async sel => {
+      let q = build(sel)
+      if (scope) q = q.in('course_id', scope.scopeCourseIds)
+      return q
+    }
+    // attended_by 컬럼이 아직 없으면(migration-attended-by.sql 전) 조용히 기존 컬럼만
+    let { data: bks, error: bErr } = await run(cols + ', attended_by')
+    if (bErr) ({ data: bks } = await run(cols))
 
     // 내 수업이어도 그 타임이 다른 강사면 제외
     const list = scope ? (bks || []).filter(scope.isMine) : (bks || [])
     setBookings(list)
 
-    const ids = [...new Set(list.map(b => b.user_id))]
+    const ids = [...new Set([...list.map(b => b.user_id), ...list.map(b => b.attended_by)].filter(Boolean))]
     if (ids.length > 0) {
       const { data: users } = await supabase.from('users').select('id, name').in('id', ids)
       const map = {}
@@ -74,6 +83,38 @@ export default function AdminAttendancePage() {
     if (user) load(selectedDate)
   }, [user, selectedDate])
 
+  // 다른 운영진이 체크한 결과를 반영 — 화면에 돌아올 때 + 보고 있는 동안 15초마다
+  useEffect(() => {
+    if (!user) return
+    const refresh = () => { if (document.visibilityState === 'visible') load(selectedDate, true) }
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', refresh)
+    const t = setInterval(refresh, 15000)
+    return () => {
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', refresh)
+      clearInterval(t)
+    }
+  }, [user, selectedDate])
+
+  // 저장 — attended_by 컬럼이 없으면 빼고 다시 시도
+  async function saveAttendance(ids, next, now) {
+    const base = { attended: next, attended_at: next ? now : null }
+    let res = await supabase.from('bookings').update({ ...base, attended_by: next ? user.id : null }).in('id', ids)
+    if (res.error && /attended_by/.test(res.error.message || '')) {
+      res = await supabase.from('bookings').update(base).in('id', ids)
+      return { error: res.error, update: base }
+    }
+    return { error: res.error, update: { ...base, attended_by: next ? user.id : null } }
+  }
+
+  // 누르는 순간 서버의 최신 값 — 화면이 오래돼도 남이 이미 체크한 걸 되돌리거나 알림을 두 번 보내지 않게
+  async function freshState(ids) {
+    let { data, error } = await supabase.from('bookings').select('id, attended, attended_at, attended_by').in('id', ids)
+    if (error) ({ data } = await supabase.from('bookings').select('id, attended, attended_at').in('id', ids))
+    return Object.fromEntries((data || []).map(r => [r.id, r]))
+  }
+
   // 출석 확정 시 학생에게 인앱 알림 + 웹푸시(구독한 경우)
   async function notifyAttendance(b) {
     const d = new Date(selectedDate + 'T00:00:00')
@@ -84,34 +125,40 @@ export default function AdminAttendancePage() {
   }
 
   async function toggleAttended(b) {
-    const next = !b.attended
     setToggling(prev => ({ ...prev, [b.id]: true }))
-    const update = { attended: next, attended_at: next ? new Date().toISOString() : null }
+    const done = () => setToggling(prev => { const n = { ...prev }; delete n[b.id]; return n })
+    const cur = (await freshState([b.id]))[b.id]
+    // 화면은 미출석인데 이미 누군가 체크해 둔 경우 — 되돌리지 않고 보여 준다
+    if (cur && cur.attended && !b.attended) {
+      done()
+      setBookings(prev => prev.map(x => x.id === b.id ? { ...x, ...cur } : x))
+      await load(selectedDate, true)
+      const who = cur.attended_by ? (cur.attended_by === user.id ? '내가' : `${userNames[cur.attended_by] || '다른 운영진'}님이`) : '다른 운영진이'
+      alert(`이미 ${who} 출석 체크했어요 ✓`)
+      return
+    }
+    const next = !(cur ? cur.attended : b.attended)
     // 저장 성공을 확인해야 냥밭 작물 성장(출석 개수 기반)이 확실히 반영된다.
-    const { error } = await supabase.from('bookings').update(update).eq('id', b.id)
-    setToggling(prev => { const n = { ...prev }; delete n[b.id]; return n })
+    const { error, update } = await saveAttendance([b.id], next, new Date().toISOString())
+    done()
     if (error) { alert('출석 저장에 실패했어요. 다시 시도해 주세요.\n' + (error.message || '')); return }
     if (next) notifyAttendance(b)
     setBookings(prev => prev.map(x => x.id === b.id ? { ...x, ...update } : x))
   }
 
   async function markAllAttended(grp) {
-    const pending = grp.filter(b => !b.attended)
-    if (!pending.length) return
-    const now = new Date().toISOString()
-    const results = await Promise.all(pending.map(b =>
-      supabase.from('bookings').update({ attended: true, attended_at: now }).eq('id', b.id)
-    ))
-    const failed = results.filter(r => r.error)
-    if (failed.length) {
-      alert(`출석 저장에 ${failed.length}건 실패했어요. 다시 시도해 주세요.\n` + (failed[0].error?.message || ''))
+    const fresh = await freshState(grp.map(b => b.id))
+    // 그 사이 다른 운영진이 체크한 학생은 빼야 알림이 두 번 가지 않는다
+    const pending = grp.filter(b => !(fresh[b.id]?.attended ?? b.attended))
+    if (!pending.length) { await load(selectedDate, true); return }
+    const { error } = await saveAttendance(pending.map(b => b.id), true, new Date().toISOString())
+    if (error) {
+      alert('출석 저장에 실패했어요. 다시 시도해 주세요.\n' + (error.message || ''))
       await load(selectedDate) // 실제 저장 상태로 되돌림
       return
     }
     pending.forEach(b => notifyAttendance(b))
-    setBookings(prev => prev.map(b =>
-      pending.some(p => p.id === b.id) ? { ...b, attended: true, attended_at: now } : b
-    ))
+    await load(selectedDate, true)
   }
 
   function shift(delta) {
@@ -214,8 +261,14 @@ export default function AdminAttendancePage() {
                         </div>
 
                         {/* Name */}
-                        <div style={{ flex:1, fontSize:14, fontWeight:700, color: attended ? OK.tx : T.text }}>
-                          {name}
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontSize:14, fontWeight:700, color: attended ? OK.tx : T.text }}>{name}</div>
+                          {attended && (b.attended_by || b.attended_at) && (
+                            <div style={{ fontSize:10.5, fontWeight:700, color: OK.tx, opacity:0.8, marginTop:2 }}>
+                              ✓ {b.attended_by ? (b.attended_by === user.id ? '내가' : `${userNames[b.attended_by] || '운영진'}`) : ''} 체크
+                              {b.attended_at ? ` · ${new Date(b.attended_at).toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' })}` : ''}
+                            </div>
+                          )}
                         </div>
 
                         {/* Toggle circle */}
