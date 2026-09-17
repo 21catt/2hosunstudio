@@ -103,6 +103,7 @@ export default function AdminHomePage() {
     { label: '알림', icon: 'bell', href: '/admin/notification', badge: unread },
     { label: '자리사진', icon: 'photo', href: '/admin/seats' },
     { label: '커리큘럼', icon: 'book', href: '/admin/curriculum' },
+    { label: '화실소개', icon: 'pin', href: '/admin/studio' },
     { label: '라운지', icon: 'chat', href: '/lounge' },
     { label: '강사관리', icon: 'profile', href: '/admin/teachers' },
   ]

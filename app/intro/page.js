@@ -2,8 +2,9 @@
 // 비회원 소개 페이지(/intro) — 수업 구성·시작하는 법·시간표를 한 장에.
 // 수업·시간은 현재 등록 정보를 옮겨 적은 것이라, 수업 시간이 바뀌면 여기도 고쳐야 한다.
 // 테마 변수(--ac 등)를 쓰지 않고 이 페이지 전용 색을 쓴다 — 방문자 테마(유리 등)에 따라 글씨가 흐려지지 않게.
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { loadStudioProfile, mapLinks, EMPTY_STUDIO } from '../../lib/studioProfile'
 
 const K = {
   bg: '#FAF5EC',      // 미색 바탕
@@ -46,6 +47,21 @@ const FAQ = [
 export default function IntroPage() {
   const [faq, setFaq] = useState(-1)
   const [sheet, setSheet] = useState(false)
+  const [studio, setStudio] = useState(EMPTY_STUDIO)
+  const [photoIdx, setPhotoIdx] = useState(0)
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => { loadStudioProfile().then(({ profile }) => setStudio(profile)) }, [])
+  const links = mapLinks(studio)
+
+  async function shareLocation() {
+    const text = [studio.address, studio.address_detail].filter(Boolean).join(' ')
+    try {
+      if (navigator.share) { await navigator.share({ title: '2호선 스튜디오 오시는 길', text, url: links.naver }); return }
+      await navigator.clipboard.writeText(text)
+      setCopied(true); setTimeout(() => setCopied(false), 1600)
+    } catch {}
+  }
 
   return (
     <div style={{ background: K.bg, minHeight: '100vh', color: K.ink, paddingBottom: 110,
@@ -66,6 +82,26 @@ export default function IntroPage() {
           드로잉·색채·유화·조소를<br />4~5명 소수로 차근차근 배우는<br />작은 미술 스튜디오입니다.
         </p>
       </section>
+
+      {/* 화실 사진 — 관리자 「화실소개」에서 올린 사진 */}
+      {studio.photos.length > 0 && (
+        <section style={{ padding: '0 0 6px' }}>
+          <div onScroll={e => { const el = e.currentTarget; setPhotoIdx(Math.round(el.scrollLeft / (el.clientWidth * 0.84))) }}
+            style={{ display: 'flex', gap: 10, overflowX: 'auto', scrollSnapType: 'x mandatory', padding: '0 24px', scrollbarWidth: 'none' }}>
+            {studio.photos.map((ph, i) => (
+              <figure key={ph.url} style={{ margin: 0, flex: '0 0 84%', scrollSnapAlign: 'center' }}>
+                <img src={ph.url} alt={ph.caption || '화실 사진'} style={{ width: '100%', aspectRatio: '4 / 3', objectFit: 'cover', borderRadius: 18, display: 'block' }} />
+                {ph.caption && <figcaption style={{ fontSize: 14, color: K.sub, marginTop: 8 }}>{ph.caption}</figcaption>}
+              </figure>
+            ))}
+          </div>
+          {studio.photos.length > 1 && (
+            <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginTop: 10 }}>
+              {studio.photos.map((ph, i) => <span key={ph.url} style={{ width: 6, height: 6, borderRadius: 9, background: i === photoIdx ? K.accent : K.line }} />)}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* 이런 곳이에요 */}
       <Section title="이런 곳이에요">
@@ -137,6 +173,25 @@ export default function IntroPage() {
           수업별 시간표 보기
         </button>
       </Section>
+
+      {/* 오시는 길 — 관리자 「화실소개」에서 입력 */}
+      {studio.address && (
+        <Section title="오시는 길">
+          <div style={{ background: K.card, border: `1px solid ${K.line}`, borderRadius: 18, overflow: 'hidden' }}>
+            <iframe title="화실 위치 지도" src={links.embed} loading="lazy" style={{ width: '100%', height: 200, border: 0, display: 'block' }} />
+            <div style={{ padding: '16px 18px' }}>
+              <div style={{ fontSize: 18, fontWeight: 800, lineHeight: 1.5 }}>{studio.address}</div>
+              {studio.address_detail && <div style={{ ...bodyText, color: K.ink }}>{studio.address_detail}</div>}
+              {studio.directions && <div style={{ ...bodyText, marginTop: 8, whiteSpace: 'pre-line' }}>{studio.directions}</div>}
+              <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                <a href={links.naver} target="_blank" rel="noreferrer" style={mapBtn}>네이버 지도</a>
+                <a href={links.kakao} target="_blank" rel="noreferrer" style={mapBtn}>카카오맵</a>
+                <button onClick={shareLocation} style={{ ...mapBtn, border: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>{copied ? '복사됨' : '공유'}</button>
+              </div>
+            </div>
+          </div>
+        </Section>
+      )}
 
       {/* 자주 묻는 질문 */}
       <Section title="자주 묻는 질문">
@@ -210,4 +265,5 @@ function Section({ title, children }) {
   )
 }
 
+const mapBtn = { flex: 1, textAlign: 'center', padding: '12px 0', borderRadius: 12, background: K.accentSoft, color: K.accent, fontSize: 15, fontWeight: 800, textDecoration: 'none' }
 const bodyText = { fontSize: 16, lineHeight: 1.7, color: K.sub }
