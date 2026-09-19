@@ -465,7 +465,7 @@ export default function AdminMembersPage() {
           const isOpen   = expanded === m.id
           const daysLeft = getDaysLeft(ticket)
           const status   = getStatus(ticket)
-          const st       = MST[status]
+          const st       = MST[status] || MST['수강중'] // 모르는 상태가 와도 화면이 멈추지 않게
           const remainColor = !ticket || ticket.remain === 0 ? '#9B453D' : ticket.remain <= 2 ? '#B5650E' : 'var(--acTx)'
           const pct      = ticket && ticket.total ? Math.min(1, ticket.remain / ticket.total) : 0
           const R = 17.5, CIRC = 2 * Math.PI * R
@@ -528,7 +528,7 @@ export default function AdminMembersPage() {
                     </span>
                     {status !== '수강중' ? (
                       <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:8, background: st.soft, color: st.tx }}>
-                        {status === '일시정지' ? '❚❚ 정지' : daysLeft <= 0 ? '만료됨' : `${daysLeft}일`}
+                        {status === '일시정지' ? '❚❚ 정지' : status === '시작 전' ? `${Number(ticket.start_date.slice(5, 7))}/${Number(ticket.start_date.slice(8, 10))} 시작` : daysLeft <= 0 ? '만료됨' : `${daysLeft}일`}
                       </span>
                     ) : (
                       <span style={{ fontSize:10, fontWeight:600, color:'#a2aaa1' }}>{daysLeft}일 남음</span>
