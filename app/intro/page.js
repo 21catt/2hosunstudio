@@ -42,6 +42,41 @@ const TIMES = [
   ['원데이 체험', [['수', '2시 · 7시'], ['토', '11시 30분']]],
 ]
 
+// 요일 기준 표는 위 TIMES 에서 파생한다 — 시간을 두 곳에 적으면 언젠가 갈린다.
+const DAYS = ['화', '수', '목', '토', '일']
+const OFF_DAYS = '월 · 금'
+
+function parseTime(s) {            // '11시 30분' → 11.5 · '2시' → 14 (1~10시는 오후로 읽는다)
+  const m = s.match(/(\d+)\s*시(?:\s*(\d+)\s*분)?/)
+  if (!m) return 99
+  let h = Number(m[1])
+  const min = Number(m[2] || 0)
+  if (h <= 10) h += 12
+  return h + min / 60
+}
+function timeLabel(v, withPeriod = true) {
+  const h = Math.floor(v), min = Math.round((v - h) * 60)
+  const period = h < 12 ? '오전' : h === 12 ? '낮' : h < 18 ? '오후' : '저녁'
+  const h12 = h > 12 ? h - 12 : h
+  return `${withPeriod ? period + ' ' : ''}${h12}시${min ? ` ${min}분` : ''}`
+}
+
+const WEEK = (() => {
+  const byDay = {}
+  DAYS.forEach(d => { byDay[d] = new Map() })
+  TIMES.forEach(([name, rows]) => rows.forEach(([dayStr, timeStr]) => {
+    dayStr.split('·').map(x => x.trim()).forEach(day => {
+      if (!byDay[day]) return
+      timeStr.split('·').map(x => x.trim()).forEach(t => {
+        const v = parseTime(t)
+        if (!byDay[day].has(v)) byDay[day].set(v, [])
+        byDay[day].get(v).push(name)
+      })
+    })
+  }))
+  return DAYS.map(day => [day, [...byDay[day].entries()].sort((a, b) => a[0] - b[0])])
+})()
+
 const POINTS = [
   ['👀', '원리로 배워요', '따라 그리기가 아니라, 왜 그렇게 보이는지부터 알려 드려요.'],
   ['🤝', '한 사람씩 봐요', '한 수업에 4~5명. 매번 내 그림에 대한 이야기를 들어요.'],
@@ -66,6 +101,8 @@ const FAQ = [
 export default function IntroPage() {
   const [faq, setFaq] = useState(-1)
   const [sheet, setSheet] = useState(false)
+  const [sheetMode, setSheetMode] = useState('day')  // 시간표 보는 방법 — 요일이 기본
+  const [day, setDay] = useState(DAYS[0])
   const [tab, setTab] = useState('all')          // 수업 필터: 전체 / 처음 / 더 깊이
   const [studio, setStudio] = useState(EMPTY_STUDIO)
   const [photoIdx, setPhotoIdx] = useState(0)
@@ -246,21 +283,35 @@ export default function IntroPage() {
         </div>
       </Section>
 
-      {/* ── 여는 시간 ── */}
-      <Section title="여는 시간">
-        <div style={{ ...cardBox, padding: '4px 18px' }}>
-          {[['화 · 수 · 목', '오후 2시 · 4시 · 저녁 7시'], ['토 · 일', '낮 11시 ~ 오후'], ['월 · 금', '쉬어요']].map(([d, t], i) => (
-            <div key={d} style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 0',
-              borderTop: i ? `1px solid ${K.line}` : 'none', fontSize: 16.5 }}>
-              <span style={{ fontWeight: 800 }}>{d}</span>
-              <span style={{ color: i === 2 ? K.sub : K.ink, fontWeight: 600 }}>{t}</span>
+      {/* ── 시간표(요일별) ── */}
+      <Section title="언제 갈 수 있나요">
+        <p style={{ ...bodyText, margin: '0 0 12px' }}>
+          요일마다 여는 시간이에요. 이 중에서 원하는 날을 골라 신청해요.
+        </p>
+        <div style={{ ...cardBox, padding: '4px 16px' }}>
+          {WEEK.map(([day, slots], i) => (
+            <div key={day} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '13px 0',
+              borderTop: i ? `1px solid ${K.line}` : 'none' }}>
+              <span style={{ width: 26, height: 26, borderRadius: 999, background: K.sageSoft, color: K.sage,
+                fontSize: 14, fontWeight: 800, display: 'grid', placeItems: 'center', flexShrink: 0 }}>{day}</span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {slots.map(([v]) => (
+                  <span key={v} style={{ fontSize: 13.5, fontWeight: 700, color: K.ink,
+                    background: K.bg, border: `1px solid ${K.line}`, borderRadius: 999, padding: '5px 10px' }}>{timeLabel(v)}</span>
+                ))}
+              </div>
             </div>
           ))}
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '13px 0', borderTop: `1px solid ${K.line}` }}>
+            <span style={{ width: 26, height: 26, borderRadius: 999, background: K.bg, color: K.sub, border: `1px solid ${K.line}`,
+              fontSize: 12, fontWeight: 800, display: 'grid', placeItems: 'center', flexShrink: 0 }}>휴</span>
+            <span style={{ fontSize: 14.5, color: K.sub, fontWeight: 600 }}>{OFF_DAYS}요일은 쉬어요</span>
+          </div>
         </div>
         <button onClick={() => setSheet(true)} style={{ display: 'block', width: '100%', marginTop: 10, padding: '14px',
           borderRadius: 14, border: `1px solid ${K.line}`, background: '#fff', color: K.ink, fontSize: 15.5, fontWeight: 800,
           fontFamily: 'inherit', cursor: 'pointer', boxShadow: SHADOW }}>
-          수업별 시간표 보기
+          그 시간에 어떤 수업이 있는지 보기
         </button>
       </Section>
 
@@ -314,30 +365,78 @@ export default function IntroPage() {
         <button onClick={() => setSheet(true)} style={{ ...ghost, marginTop: 8, marginBottom: 0 }}>먼저 시간표만 볼게요</button>
       </div>
 
-      {/* ── 시간표 한눈에 보기 — 아래에서 올라오는 시트 ── */}
+      {/* ── 시간표 — 아래에서 올라오는 시트(요일별 / 수업별) ── */}
       {sheet && (
         <div onClick={() => setSheet(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(36,31,26,0.4)', zIndex: 50,
           display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-          <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 390, maxHeight: '86vh', overflowY: 'auto', background: K.bg,
+          <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 390, maxHeight: '88vh', overflowY: 'auto', background: K.bg,
             borderRadius: '24px 24px 0 0', padding: '12px 22px 22px' }}>
             <div style={{ width: 40, height: 5, borderRadius: 9, background: K.line, margin: '0 auto 16px' }} />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
               <h2 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>시간표</h2>
               <button onClick={() => setSheet(false)} style={{ border: 'none', background: 'none', fontSize: 15, fontWeight: 700, color: K.sub, fontFamily: 'inherit', cursor: 'pointer' }}>닫기</button>
             </div>
-            <p style={{ fontSize: 14.5, color: K.sub, margin: '6px 0 14px' }}>월·금은 쉬어요. 원하는 날짜·시간을 골라 신청해요.</p>
-            {TIMES.map(([name, rows]) => (
-              <div key={name} style={{ ...cardBox, padding: '13px 16px', marginBottom: 10 }}>
-                <div style={{ fontSize: 16.5, fontWeight: 800, marginBottom: 5 }}>{name}</div>
-                {rows.map(([d, t]) => (
-                  <div key={d} style={{ display: 'flex', gap: 12, fontSize: 15.5, padding: '3px 0' }}>
-                    <span style={{ width: 86, fontWeight: 700, color: K.accent, flexShrink: 0 }}>{d}</span>
-                    <span style={{ color: K.sub, fontWeight: 600 }}>{t}</span>
+
+            {/* 보는 방법 — 요일부터 고르는 쪽이 기본 */}
+            <div style={{ display: 'flex', gap: 4, background: '#EFE6D6', borderRadius: 12, padding: 4, margin: '12px 0 14px' }}>
+              {[['day', '요일로 보기'], ['class', '수업으로 보기']].map(([v, label]) => (
+                <button key={v} onClick={() => setSheetMode(v)} style={{
+                  flex: 1, padding: '9px 0', borderRadius: 9, border: 'none', fontFamily: 'inherit', fontSize: 14.5, fontWeight: 800,
+                  cursor: 'pointer', background: sheetMode === v ? '#fff' : 'transparent', color: sheetMode === v ? K.ink : K.sub,
+                  boxShadow: sheetMode === v ? '0 1px 3px rgba(80,58,40,0.12)' : 'none' }}>{label}</button>
+              ))}
+            </div>
+
+            {sheetMode === 'day' ? (
+              <>
+                {/* 요일 고르기 */}
+                <div style={{ display: 'flex', gap: 7, marginBottom: 14 }}>
+                  {WEEK.map(([d]) => (
+                    <button key={d} onClick={() => setDay(d)} style={{
+                      flex: 1, padding: '11px 0', borderRadius: 13, fontFamily: 'inherit', fontSize: 16, fontWeight: 800, cursor: 'pointer',
+                      border: `1px solid ${day === d ? K.ink : K.line}`,
+                      background: day === d ? K.ink : '#fff', color: day === d ? '#fff' : K.ink }}>{d}</button>
+                  ))}
+                </div>
+
+                {(WEEK.find(([d]) => d === day)?.[1] || []).map(([v, names]) => (
+                  <div key={v} style={{ ...cardBox, padding: '13px 15px', marginBottom: 9 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 9 }}>
+                      <span style={{ fontSize: 17, fontWeight: 800 }}>{timeLabel(v)}</span>
+                      <span style={{ fontSize: 12.5, fontWeight: 700, color: K.sub }}>수업 {names.length}개</span>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {names.map(n => {
+                        const one = n === '원데이 체험'
+                        return (
+                          <span key={n} style={{ fontSize: 14, fontWeight: 700, borderRadius: 999, padding: '7px 12px',
+                            color: one ? K.accent : K.ink, background: one ? K.accentSoft : K.sageSoft }}>{n}</span>
+                        )
+                      })}
+                    </div>
                   </div>
                 ))}
-              </div>
-            ))}
-            <div style={{ position: 'sticky', bottom: -22, margin: '0 -22px -22px', padding: '12px 22px 22px',
+                <p style={{ fontSize: 14, color: K.sub, margin: '12px 0 0', lineHeight: 1.6 }}>
+                  {OFF_DAYS}요일은 쉬어요. 한 시간대에 여러 수업이 함께 열려요 — 내가 신청한 수업으로 가면 돼요.
+                </p>
+              </>
+            ) : (
+              <>
+                {TIMES.map(([name, rows]) => (
+                  <div key={name} style={{ ...cardBox, padding: '13px 16px', marginBottom: 10 }}>
+                    <div style={{ fontSize: 16.5, fontWeight: 800, marginBottom: 5 }}>{name}</div>
+                    {rows.map(([d, t]) => (
+                      <div key={d} style={{ display: 'flex', gap: 12, fontSize: 15.5, padding: '3px 0' }}>
+                        <span style={{ width: 86, fontWeight: 700, color: K.accent, flexShrink: 0 }}>{d}</span>
+                        <span style={{ color: K.sub, fontWeight: 600 }}>{t}</span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </>
+            )}
+
+            <div style={{ position: 'sticky', bottom: -22, margin: '14px -22px -22px', padding: '12px 22px 22px',
               background: `linear-gradient(rgba(251,246,238,0), ${K.bg} 30%)` }}>
               <Link href="/student" style={cta}>수업 신청하러 가기</Link>
             </div>
