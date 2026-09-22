@@ -8,6 +8,7 @@ import { loadTeachingScope } from '../../lib/teaching'
 import TeacherNav from '../../components/TeacherNav'
 import { NavIcon } from '../../components/NavIcons'
 import LoadingCat from '../../components/LoadingCat'
+import { ensureUserRow } from '../../lib/ensureUserRow'
 
 // 강사 홈 — "내 수업"을 중심으로 오늘 수업·예약 학생·담당 회원을 본다.
 // 담당 학생은 별도 컬럼 없이 파생된다: 내 수업(class_courses.teacher_id = 나)에
@@ -29,6 +30,7 @@ export default function TeacherHomePage() {
       if (!data.user) { router.push('/login'); return }
       if (await staffBlocked(data.user)) { alert('아직 오너 승인 전이에요 🐾'); router.push('/login'); return }
       if (!isTeacher(data.user)) { router.push('/student'); return }
+      await ensureUserRow(data.user)
       setUser(data.user)
       loadData(data.user.id).catch(e => { console.error('load failed', e); setLoading(false) })
     })

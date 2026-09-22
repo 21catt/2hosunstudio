@@ -19,6 +19,7 @@ import { fetchLockedDates, fetchLockedSlots, slotLocked } from '../../lib/locked
 import LoadingCat from '../../components/LoadingCat'
 import ShotViewer from '../../components/ShotViewer'
 import NoticePopup from '../../components/NoticePopup'
+import { ensureUserRow } from '../../lib/ensureUserRow'
 
 const CELL_W = 56
 const CELL_GAP = 8
@@ -81,6 +82,7 @@ export default function StudentHomePage() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user || null)
+      if (data.user) ensureUserRow(data.user)
       loadData(data.user?.id || null).catch(e => { console.error('load failed', e); setLoading(false) })
     })
   }, [])

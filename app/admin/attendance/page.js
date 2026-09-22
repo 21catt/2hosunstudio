@@ -11,6 +11,7 @@ import { HEADER_BG, PRIMARY, T, OK } from '../../../lib/adminTheme'
 import { sendPushToUser } from '../../../lib/pushNotify'
 import { useSpaceTheme } from '../../../lib/useFreshTheme'
 import SpaceBg from '../../../components/SpaceBg'
+import { ensureUserRow } from '../../../lib/ensureUserRow'
 
 const DOW = ['일','월','화','수','목','금','토']
 
@@ -72,9 +73,10 @@ export default function AdminAttendancePage() {
   }
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) { router.push('/login'); return }
       if (!isTeacher(data.user)) { router.push('/student'); return }
+      await ensureUserRow(data.user)   // 행이 없으면 RLS 가 저장을 조용히 막는다
       setUser(data.user)
     })
   }, [])
@@ -98,14 +100,22 @@ export default function AdminAttendancePage() {
   }, [user, selectedDate])
 
   // 저장 — attended_by 컬럼이 없으면 빼고 다시 시도
+  // ⚠️ 바뀐 행 수를 반드시 확인한다: 권한이 없으면 RLS 가 error 없이 0행만 바꾼다(조용한 무동작).
+  //    예전엔 그래서 화면엔 체크됐다가 새로고침하면 풀려 있었다(2026-09-22 실사고).
   async function saveAttendance(ids, next, now) {
     const base = { attended: next, attended_at: next ? now : null }
-    let res = await supabase.from('bookings').update({ ...base, attended_by: next ? user.id : null }).in('id', ids)
-    if (res.error && /attended_by/.test(res.error.message || '')) {
-      res = await supabase.from('bookings').update(base).in('id', ids)
-      return { error: res.error, update: base }
+    const verify = res => {
+      if (res.error) return res.error
+      const n = (res.data || []).length
+      if (n < ids.length) return { message: `저장 권한이 없어요 (${n}/${ids.length}건). 로그아웃 후 다시 로그인해 보고, 계속 안 되면 오너에게 알려 주세요.` }
+      return null
     }
-    return { error: res.error, update: { ...base, attended_by: next ? user.id : null } }
+    let res = await supabase.from('bookings').update({ ...base, attended_by: next ? user.id : null }).in('id', ids).select('id')
+    if (res.error && /attended_by/.test(res.error.message || '')) {
+      res = await supabase.from('bookings').update(base).in('id', ids).select('id')
+      return { error: verify(res), update: base }
+    }
+    return { error: verify(res), update: { ...base, attended_by: next ? user.id : null } }
   }
 
   // 누르는 순간 서버의 최신 값 — 화면이 오래돼도 남이 이미 체크한 걸 되돌리거나 알림을 두 번 보내지 않게

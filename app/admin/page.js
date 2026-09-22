@@ -15,6 +15,7 @@ import LoadingCat from '../../components/LoadingCat'
 import GlassAdminHome from '../../components/GlassAdminHome'
 import { useSpaceTheme } from '../../lib/useFreshTheme'
 import SpaceBg from '../../components/SpaceBg'
+import { ensureUserRow } from '../../lib/ensureUserRow'
 
 const DOW = ['일', '월', '화', '수', '목', '금', '토']
 
@@ -44,8 +45,9 @@ export default function AdminHomePage() {
       if (!data.user) { router.push('/login'); return }
       if (data.user.user_metadata?.role !== 'admin') { router.push('/student'); return }
       // 승인 전 관리자는 막는다 — 가입만으로 운영 전권이 열리면 안 된다(로그인 화면과 같은 규칙)
-      staffBlocked(data.user).then(blocked => {
+      staffBlocked(data.user).then(async blocked => {
         if (blocked) { alert('아직 오너 승인 전이에요 🐾'); router.push('/login'); return }
+        await ensureUserRow(data.user)
         setUser(data.user)
         loadData(data.user.id).catch(e => { console.error('load failed', e); setLoading(false) })
       })
