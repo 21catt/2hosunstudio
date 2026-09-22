@@ -923,7 +923,7 @@ export default function StudentHomePage() {
                 <div style={{ fontSize:13.5, fontWeight:900, color:'var(--td)', marginBottom:5 }}>📍 어디로 가면 되나요?</div>
                 <div style={{ fontSize:11.5, lineHeight:1.65, color:'var(--tm)', fontWeight:600 }}>
                   <b style={{ color:'var(--acTx)' }}>신도림역 1번 출구</b>에서 3분 거리예요.<br/>
-                  경인로 72길 3, 고동경양 <b style={{ color:'var(--acTx)' }}>3층 녹색문</b>으로 오시면 돼요.
+                  경인로72길 3-4, 고동경양 <b style={{ color:'var(--acTx)' }}>3층 녹색문</b>으로 오시면 돼요.
                 </div>
                 <a href="https://map.naver.com/p/search/2호선%20스튜디오?searchType=place&c=17.00,0,0,0,dh" target="_blank" rel="noopener noreferrer"
                   style={{ display:'inline-block', marginTop:9, fontSize:11.5, fontWeight:900, background:'var(--acBg)', color:'var(--acTx)', border:'2px solid rgb(var(--ac-rgb) / 0.4)', borderRadius:18, padding:'7px 13px', cursor:'pointer', fontFamily:'Nunito,sans-serif', textDecoration:'none' }}>
