@@ -85,8 +85,13 @@ export default function LoginPage() {
 
   async function handleReset() {
     if (!resetEmail) return
+    // 비밀번호 재설정 메일의 돌아올 주소.
+    // ⚠️ 여기서 보낸 주소가 Supabase 「Redirect URLs」 허용 목록에 없으면
+    //    Supabase 가 조용히 「Site URL」(기본값 localhost)로 바꿔 보낸다 —
+    //    메일 링크가 localhost 로 열리면 코드가 아니라 그 설정을 먼저 볼 것.
+    const base = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
     const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-      redirectTo: `${window.location.origin}/reset-password`
+      redirectTo: `${base}/reset-password`
     })
     if (error) { setError('이메일을 확인해 주세요.'); return }
     setResetSent(true)
