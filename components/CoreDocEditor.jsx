@@ -2,6 +2,8 @@
 import { useState, useRef } from 'react'
 import { CORE_DOC_SAMPLES, normalizeDoc, CORE_PALETTES } from '../lib/coreDoc'
 import CoreDocView from './CoreDocView'
+// ⚠️ 히어로·CTA 이미지 입력란 없음 — CoreDocView 가 그 슬롯을 안 그린다(2026-10-05).
+//    올려도 화면에 안 나오는 죽은 컨트롤이 되므로 같이 뺐다. 저장된 값은 보존.
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -191,7 +193,6 @@ export default function CoreDocEditor({ initialDoc, onUploadImage, onSave, savin
           <div style={{ flex:1 }}><Field label="강조 끝말" value={d.hero.titleAccent} onChange={v => edit(x => { x.hero.titleAccent = v; return x })}/></div>
         </div>
         <Area label="설명" value={d.hero.desc} onChange={v => edit(x => { x.hero.desc = v; return x })}/>
-        <ImgField label="히어로 이미지" value={d.hero.image} onChange={v => edit(x => { x.hero.image = v; return x })} onUploadImage={onUploadImage}/>
       </Section>
 
       <Section title="정보(메타)">
@@ -279,7 +280,6 @@ export default function CoreDocEditor({ initialDoc, onUploadImage, onSave, savin
         <Area label="제목 (줄바꿈 허용)" value={d.cta.title} onChange={v => edit(x => { x.cta.title = v; return x })} rows={2}/>
         <Area label="설명" value={d.cta.desc} onChange={v => edit(x => { x.cta.desc = v; return x })} rows={2}/>
         <Field label="버튼 문구" value={d.cta.buttonText} onChange={v => edit(x => { x.cta.buttonText = v; return x })}/>
-        <ImgField label="CTA 이미지" value={d.cta.image} onChange={v => edit(x => { x.cta.image = v; return x })} onUploadImage={onUploadImage}/>
       </Section>
 
       <button

@@ -22,14 +22,11 @@ function paletteToC(theme) {
 const MONO = "'Space Mono', ui-monospace, monospace"
 const SANS = "'Pretendard', -apple-system, sans-serif"
 
-// 템플릿 기본값으로 박혀 있던 장식용 픽셀 고양이는 더 이상 그리지 않는다(사용자 확정 2026-10-05).
-// 관리자가 올린 실제 이미지는 그대로 보여 준다 — 판정은 경로 하나로.
+// 히어로·CTA 이미지 슬롯은 그리지 않는다(사용자 확정 2026-10-05 — "고양이 이미지는 빼자").
+// ⚠️ 경로로 거르려 했다가 틀렸다: 저장된 6건은 로컬 /pixel-cats/ 든 관리자가 업로드한 storage URL 이든
+//    전부 같은 픽셀 고양이 캐릭터였다. 그래서 슬롯째 뺀다.
+// 교육 자료인 모듈·접근 이미지(실제 작업 사진 30건)는 그대로 보여 주고 탭하면 확대된다.
 // ⚠️ 저장된 값은 지우지 않는다(데이터 무손실). 렌더에서만 건너뛴다.
-const DECOR_PREFIX = ['/pixel-cats/', '/farm/', '/cats/']
-function showsImage(src) {
-  if (!src) return false
-  return !DECOR_PREFIX.some(p => src.startsWith(p))
-}
 
 // ─── 확대 오버레이용 상세 카드 ───────────────────────────
 function ModuleCard({ m, C }) {
@@ -153,11 +150,6 @@ export default function CoreDocView({ doc, sample = false, onCta }) {
           {d.hero.title}<span style={{ color:C.blue }}>{d.hero.titleAccent}</span>
         </h1>
         {d.hero.desc && <p style={{ fontSize:14.5, lineHeight:1.75, color:C.ink, margin:0, opacity:.92 }}>{d.hero.desc}</p>}
-        {showsImage(d.hero.image) && (
-          <div style={{ marginTop:20, borderRadius:12, overflow:'hidden' }}>
-            <img src={d.hero.image} alt="" style={{ width:'100%', display:'block' }}/>
-          </div>
-        )}
       </section>
 
       {/* META — 히어로 바로 아래 2열 */}
@@ -198,6 +190,11 @@ export default function CoreDocView({ doc, sample = false, onCta }) {
                   {a.en && <div style={{ fontFamily:MONO, fontSize:9.5, letterSpacing:1.5, color:C.mut, marginBottom:8 }}>{a.en}</div>}
                   <p style={{ fontSize:13.5, lineHeight:1.7, color:C.body, margin:0 }}>{a.desc}</p>
                 </div>
+                {a.image && (
+                  <div style={{ flex:'0 0 72px', width:72, height:72, borderRadius:8, overflow:'hidden', border:`1px solid ${C.sand}`, background:'#fff' }}>
+                    <img src={a.image} alt="" loading="lazy" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}/>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -265,6 +262,11 @@ export default function CoreDocView({ doc, sample = false, onCta }) {
                     </div>
                   )}
                 </div>
+                {m.image && (
+                  <div style={{ flex:'0 0 72px', width:72, height:72, borderRadius:8, overflow:'hidden', border:`1px solid ${C.sand}`, background:'#fff' }}>
+                    <img src={m.image} alt="" loading="lazy" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}/>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -302,11 +304,6 @@ export default function CoreDocView({ doc, sample = false, onCta }) {
           style={{ display:'inline-flex', alignItems:'center', gap:9, background:C.yellow, color:C.dark, fontWeight:800, fontSize:14, padding:'13px 22px', borderRadius:9, border:'none', letterSpacing:-0.2, cursor: onCta ? 'pointer' : 'default', fontFamily:SANS }}>
           {d.cta.buttonText} →
         </button>
-        {showsImage(d.cta.image) && (
-          <div style={{ marginTop:22, borderRadius:12, overflow:'hidden' }}>
-            <img src={d.cta.image} alt="" style={{ width:'100%', display:'block' }}/>
-          </div>
-        )}
       </section>
 
       {/* 확대 오버레이 — 탭하면 크게, 다시 탭하면 닫힘 */}
