@@ -3,13 +3,12 @@ import { Suspense, useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
-import { NavIcon } from '../../../components/NavIcons'
 import LoadingCat from '../../../components/LoadingCat'
 import SpaceBg from '../../../components/SpaceBg'
 import { useSpaceTheme } from '../../../lib/useFreshTheme'
-import CoreDocView from '../../../components/CoreDocView'
+import CoreCourseCard from '../../../components/CoreCourseCard'
 import { compressImage } from '../../../lib/imageCompress'
-import { hasRichDoc, DEFAULT_CORE_DOC } from '../../../lib/coreDoc'
+import { hasRichDoc } from '../../../lib/coreDoc'
 
 const ACCENT = 'var(--ac)'
 const ACCENT_BG = 'var(--acBg)'
@@ -21,47 +20,6 @@ const CAT_LABEL = { drawing:'드로잉', painting:'페인팅', sculpture:'조소
 const CAT_ORDER = ['drawing', 'painting', 'sculpture', 'oneday', 'free', 'meeting']
 
 // 해당 수업만의 주간 시간표 — 수업이 있는 요일만 행으로(요일 배지 + 시작~종료 시간 칩)
-const DOW_KO = ['일', '월', '화', '수', '목', '금', '토']
-function CourseWeeklyTimetable({ schedules, onPickTime }) {
-  if (!schedules || schedules.length === 0) return null
-  const byDow = {}
-  const seen = new Set()
-  for (const s of schedules) {
-    const dw = s.day_of_week ?? 0
-    const k = `${dw}|${s.start_time}|${s.end_time}`
-    if (seen.has(k)) continue
-    seen.add(k)
-    ;(byDow[dw] = byDow[dw] || []).push(s)
-  }
-  Object.values(byDow).forEach(a => a.sort((x, y) => (x.start_time || '').localeCompare(y.start_time || '')))
-  const order = [1, 2, 3, 4, 5, 6, 0].filter(d => byDow[d]?.length) // 월~일 순, 수업 있는 요일만
-  if (order.length === 0) return null
-  return (
-    <div style={{ marginTop: 14 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 8, flexWrap: 'wrap' }}>
-        <NavIcon name="calendar" color={ACCENT} size={13} />
-        <span style={{ fontSize: 11.5, fontWeight: 800, color: ACCENT_TEXT }}>주간 시간표</span>
-        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--tmu)' }}>주 {order.length}일 · 시간을 누르면 가장 가까운 날 예약으로 →</span>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {order.map(dw => (
-          <div key={dw} style={{ display: 'flex', alignItems: 'center', gap: 10, background: ACCENT_BG, border: '1.5px solid rgb(var(--ac-rgb) / 0.25)', borderRadius: 13, padding: '8px 11px' }}>
-            <span style={{ width: 28, height: 28, flexShrink: 0, borderRadius: '50%', background: ACCENT, color: '#fff', fontSize: 12, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{DOW_KO[dw]}</span>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-              {byDow[dw].map((s, k) => (
-                <button key={k} onClick={() => onPickTime && onPickTime(dw, s.start_time)} title="이 시간으로 예약하러 가기"
-                  style={{ fontSize: 11, fontWeight: 700, color: ACCENT_TEXT, background: 'var(--surf)', border: '1px solid rgb(var(--ac-rgb) / 0.28)', borderRadius: 8, padding: '4px 10px', fontVariantNumeric: 'tabular-nums', cursor: 'pointer', fontFamily: 'Nunito,sans-serif' }}>
-                  {(s.start_time || '').slice(0, 5)}~{(s.end_time || '').slice(0, 5)}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 // ─────────────────────────────────────────────
 // Record bottom sheet
 // ─────────────────────────────────────────────
@@ -776,87 +734,19 @@ function CurriculumInner() {
                   </div>
                   {group.courses.map(course => {
                     const key = `${group.category}__${course.name}`
-                    const isOpen = expandedCore === key
-                    // 저장된 리치 문서 우선 → 없고 텍스트/사진도 없으면 기본 샘플 폼(예시) 노출
-                    const savedRich = hasRichDoc(course.coreDoc)
-                    const emptyCore = !savedRich && !course.coreContent && course.coreImages.length === 0
-                    const richDoc = savedRich ? course.coreDoc : (emptyCore ? DEFAULT_CORE_DOC : null)
-                    // ⚠️ 카드의 overflow 는 hidden 이 아니라 clip — hidden 은 이 카드를 스크롤 컨테이너로
-                    //    만들어 안쪽 CoreDocView 의 모듈 카테고리 스티키 헤더를 조용히 죽인다(2026-10-05).
                     return (
-                      <div key={course.name} ref={el => { if (el) coreCardRefs.current[key] = el }}
-                        style={{ borderRadius:12, marginBottom:8, border:`1px solid ${isOpen ? ACCENT : BORDER}`, background:'var(--surf)', overflow:'clip',
-                          boxShadow: isOpen ? `0 2px 14px rgb(var(--ac-rgb) / 0.1)` : 'none', transition:'border-color 0.15s' }}>
-                        {/* 헤더 — 클릭해서 펼치고 접기 */}
-                        <div onClick={() => setExpandedCore(isOpen ? null : key)}
-                          style={{ padding:'14px 15px', display:'flex', alignItems:'center', cursor:'pointer', gap:10 }}>
-                          <div style={{ flex:1, minWidth:0 }}>
-                            <div style={{ display:'flex', alignItems:'center', gap:7, flexWrap:'wrap' }}>
-                              <span style={{ fontSize:14.5, fontWeight:800, color: isOpen ? ACCENT_TEXT : 'var(--td)', letterSpacing:-0.35 }}>{course.name}</span>
-                              {course.isEnrolled && (
-                                <span style={{ fontSize:9.5, fontWeight:800, letterSpacing:0.5, color:'var(--surf)', background:ACCENT, borderRadius:4, padding:'2px 6px', flexShrink:0 }}>수강 중</span>
-                              )}
-                            </div>
-                            <div style={{ fontSize:11.5, color:'var(--tmu)', fontWeight:600, marginTop:3, fontVariantNumeric:'tabular-nums' }}>
-                              {course.steps.length}회차{course.teacher ? ` · 강사 ${course.teacher}` : ''}
-                            </div>
-                          </div>
-                          <span style={{ fontSize:18, color: isOpen ? ACCENT : 'var(--tl)', display:'inline-block', transition:'transform 0.18s', transform: isOpen ? 'rotate(90deg)' : 'none', flexShrink:0 }}>›</span>
-                        </div>
-
-                        {/* 펼친 내용 — 리치 문서(있으면 실제, 없으면 예시 샘플), 아니면 텍스트+이미지
-                            ⚠️ overflow:hidden 을 걸지 말 것 — 모듈 카테고리 스티키 헤더가 죽는다. */}
-                        {isOpen && richDoc && (
-                          <div style={{ borderTop:`1px solid ${BORDER}`, margin:'0 -15px' }}>
-                            <CoreDocView doc={richDoc} sample={!savedRich}
-                              onCta={() => { setExpandedCourse(key); handleTabSwitch('browse') }}/>
-                            <div style={{ display:'flex', gap:8, padding:'15px 15px 4px', flexWrap:'wrap' }}>
-                              <button
-                                onClick={() => router.push(`/student/calendar?course=${encodeURIComponent(course.name)}`)}
-                                style={{ fontSize:12.5, padding:'9px 16px', borderRadius:9, background:ACCENT, color:'#fff', border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:800, letterSpacing:-0.2 }}>
-                                이 수업 예약하기
-                              </button>
-                              <button
-                                onClick={() => { setExpandedCourse(key); handleTabSwitch('browse') }}
-                                style={{ fontSize:12.5, padding:'9px 15px', borderRadius:9, background:'transparent', color:'var(--tm)', border:`1px solid ${BORDER}`, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:800, letterSpacing:-0.2 }}>
-                                회차 보기
-                              </button>
-                            </div>
-                            <div style={{ padding:'0 15px 15px' }}>
-                              <CourseWeeklyTimetable schedules={course.schedules} onPickTime={(dw, start) => router.push(`/student/calendar?course=${encodeURIComponent(course.name)}&dow=${dw}&start=${encodeURIComponent(start)}`)} />
-                            </div>
-                          </div>
-                        )}
-                        {isOpen && !richDoc && (
-                          <div style={{ borderTop:`1px solid ${BORDER}`, padding:'15px' }}>
-                            <div style={{ fontSize:10.5, fontWeight:800, color:'var(--tm)', letterSpacing:1.2, textTransform:'uppercase', marginBottom:7 }}>핵심 내용</div>
-                            <div style={{ fontSize:13.5, lineHeight:1.8, whiteSpace:'pre-wrap', color: course.coreContent ? 'var(--td)' : 'var(--tmu)' }}>
-                              {course.coreContent || '핵심 내용을 준비 중이에요 🐾'}
-                            </div>
-                            {course.coreImages.length > 0 && (
-                              <div style={{ marginTop:12 }}>
-                                {course.coreImages.map((url, i) => (
-                                  <img key={url + i} src={url} alt="" loading="lazy"
-                                    style={{ width:'100%', borderRadius:10, border:`1px solid ${BORDER}`, display:'block', marginBottom:8, boxSizing:'border-box' }}/>
-                                ))}
-                              </div>
-                            )}
-                            <div style={{ display:'flex', gap:8, marginTop:14, flexWrap:'wrap' }}>
-                              <button
-                                onClick={() => router.push(`/student/calendar?course=${encodeURIComponent(course.name)}`)}
-                                style={{ fontSize:12.5, padding:'9px 16px', borderRadius:9, background:ACCENT, color:'#fff', border:'none', cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:800, letterSpacing:-0.2 }}>
-                                이 수업 예약하기
-                              </button>
-                              <button
-                                onClick={() => { setExpandedCourse(key); handleTabSwitch('browse') }}
-                                style={{ fontSize:12.5, padding:'9px 15px', borderRadius:9, background:'transparent', color:'var(--tm)', border:`1px solid ${BORDER}`, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:800, letterSpacing:-0.2 }}>
-                                회차 보기
-                              </button>
-                            </div>
-                            <CourseWeeklyTimetable schedules={course.schedules} onPickTime={(dw, start) => router.push(`/student/calendar?course=${encodeURIComponent(course.name)}&dow=${dw}&start=${encodeURIComponent(start)}`)} />
-                          </div>
-                        )}
-                      </div>
+                      <CoreCourseCard
+                        key={course.name}
+                        course={course}
+                        isOpen={expandedCore === key}
+                        cardRef={el => { if (el) coreCardRefs.current[key] = el }}
+                        onToggle={() => setExpandedCore(expandedCore === key ? null : key)}
+                        onBook={(dw, start) => {
+                          const q = `/student/calendar?course=${encodeURIComponent(course.name)}`
+                          router.push(dw === undefined ? q : `${q}&dow=${dw}&start=${encodeURIComponent(start)}`)
+                        }}
+                        onSteps={() => { setExpandedCourse(key); handleTabSwitch('browse') }}
+                      />
                     )
                   })}
                 </div>
