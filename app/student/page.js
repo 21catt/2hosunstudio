@@ -19,6 +19,7 @@ import { fetchLockedDates, fetchLockedSlots, slotLocked } from '../../lib/locked
 import LoadingCat from '../../components/LoadingCat'
 import ShotViewer from '../../components/ShotViewer'
 import NoticePopup from '../../components/NoticePopup'
+import DailyArtworkTeaser from '../../components/DailyArtworkTeaser'
 import { ensureUserRow } from '../../lib/ensureUserRow'
 
 const CELL_W = 56
@@ -977,6 +978,8 @@ export default function StudentHomePage() {
 
       {/* 휴무·행사 안내 — 스킨 분기 밖(세 스킨 공통), 로그인 여부 무관 */}
       <NoticePopup />
+      {/* 오늘의 그림 — 공지와 같은 자리(스킨 분기 밖). 하단 네비가 없는 스킨은 더 아래로 */}
+      <DailyArtworkTeaser bottom={activeTheme !== 'fresh' && activeTheme !== 'space' ? 68 : 18} />
       <ShotViewer shot={shotOpen} onClose={()=>setShotOpen(null)} />
       {activeTheme !== 'fresh' && activeTheme !== 'space' && <StudentNav active="home" />}
     </>
