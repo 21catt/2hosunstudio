@@ -19,17 +19,27 @@ import { activePopupNotice, noticeDismissed } from '../lib/notices'
 const MONO = "'Space Mono', ui-monospace, monospace"
 const hideKey = d => `2hs_art_hide_${d}`
 
-// 노트의 **강조** 를 굵게. (dangerouslySetInnerHTML 안 쓴다 — 관리자 입력이 들어올 자리라서.)
-function Note({ text, color }) {
+// 노트 = 빈 줄로 나뉜 문단. **강조** 는 굵게.
+// (dangerouslySetInnerHTML 안 쓴다 — 관리자 입력이 들어올 자리라서.)
+function Para({ text, color }) {
   const parts = String(text || '').split(/(\*\*[^*]+\*\*)/g)
   return (
-    <p style={{ margin: 0, fontSize: 14, lineHeight: 1.72, color, letterSpacing: '-0.2px' }}>
-      {parts.map((p, i) =>
-        p.startsWith('**') && p.endsWith('**')
-          ? <b key={i} style={{ fontWeight: 800, color: 'var(--ac)' }}>{p.slice(2, -2)}</b>
-          : <span key={i}>{p}</span>
+    <p style={{ margin: 0, fontSize: 14.5, lineHeight: 1.78, color, letterSpacing: '-0.2px' }}>
+      {parts.map((t, i) =>
+        t.startsWith('**') && t.endsWith('**')
+          ? <b key={i} style={{ fontWeight: 800, color: 'var(--ac)' }}>{t.slice(2, -2)}</b>
+          : <span key={i}>{t}</span>
       )}
     </p>
+  )
+}
+
+function Note({ text, color }) {
+  const paras = String(text || '').split(/\n{2,}/).filter(p => p.trim())
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
+      {paras.map((p, i) => <Para key={i} text={p} color={color} />)}
+    </div>
   )
 }
 
@@ -203,11 +213,27 @@ export default function DailyArtworkTeaser({ bottom = 68 }) {
                 ))}
               </div>
 
-              <div style={{ height: 1, background: 'var(--line, #e6e8ee)', margin: '16px 0 14px' }} />
+              <div style={{ height: 1, background: 'var(--line, #e6e8ee)', margin: '16px 0 16px' }} />
+
+              {d.quote && (
+                <div style={{ marginBottom: 18 }}>
+                  <p style={{
+                    margin: 0, fontSize: 16.5, fontWeight: 700, lineHeight: 1.62,
+                    color: 'var(--td)', letterSpacing: '-0.45px',
+                  }}>“{d.quote}”</p>
+                  {d.quoteBy && (
+                    <div style={{ fontSize: 11.5, color: 'var(--tmu)', marginTop: 8 }}>— {d.quoteBy}</div>
+                  )}
+                </div>
+              )}
 
               <Note text={d.note} color="var(--tm)" />
 
-              <div style={{ fontSize: 10.5, color: 'var(--tl)', marginTop: 14, lineHeight: 1.6 }}>
+              <div style={{ fontSize: 12.5, color: 'var(--ac)', marginTop: 18, fontWeight: 600 }}>
+                #예술 #작품 #명화 #그림 #소개
+              </div>
+
+              <div style={{ fontSize: 10.5, color: 'var(--tl)', marginTop: 10, lineHeight: 1.6 }}>
                 퍼블릭 도메인 · 메트로폴리탄 미술관 공개 소장품(CC0)
                 {d.source && <>{' · '}<a href={d.source} target="_blank" rel="noreferrer" style={{ color: 'var(--tl)' }}>원본 보기</a></>}
               </div>
