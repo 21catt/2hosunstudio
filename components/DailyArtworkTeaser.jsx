@@ -234,7 +234,7 @@ export default function DailyArtworkTeaser({ bottom = 68 }) {
               </div>
 
               <div style={{ fontSize: 10.5, color: 'var(--tl)', marginTop: 10, lineHeight: 1.6 }}>
-                퍼블릭 도메인 · 메트로폴리탄 미술관 공개 소장품(CC0)
+                {d.credit || '메트로폴리탄 미술관'} 공개 소장품 · 퍼블릭 도메인
                 {d.source && <>{' · '}<a href={d.source} target="_blank" rel="noreferrer" style={{ color: 'var(--tl)' }}>원본 보기</a></>}
               </div>
             </div>
