@@ -231,6 +231,7 @@ await supabase.from('notifications')
   if (type === 'booking_confirmed_admin') return { emoji:'✅', bg:'var(--g1)', color:'var(--g5)' }
   if (type === 'booking_request_dismissed') return { emoji:'✖', bg:'var(--bg)', color:'var(--tmu)' }
   if (type === 'teacher_signup') return { emoji:'🧑‍🏫', bg:'#FFF3E0', color:'#E65100' }
+  if (type === 'weed_reward') return { emoji:'🎁', bg:'#FFF3E0', color:'#E65100' }
   return { emoji:'🔔', bg:'var(--bg)', color:'var(--tm)' }
 }
 

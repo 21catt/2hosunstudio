@@ -8,6 +8,7 @@ import TeacherNav from '../../../components/TeacherNav'
 import { NavIcon } from '../../../components/NavIcons'
 import { FARM_CATS, getSavedFarmCat, isValidFarmCat, CROP_STAGES, cropImg, getSavedHarvest, saveHarvestLocal } from '../../../lib/farmCats'
 import { WEED, weedImg, weedStage, tickWeeds } from '../../../lib/weeds'
+import { notifyStaff } from '../../../lib/adminNotify'
 import LoadingCat from '../../../components/LoadingCat'
 import SpaceBg from '../../../components/SpaceBg'
 import { useSpaceTheme } from '../../../lib/useFreshTheme'
@@ -317,8 +318,27 @@ export default function FarmPage() {
     const state = { ...s, weeds: nextWeeds, removed, rewarded: s.rewarded || removed >= WEED.REWARD_AT }
     weedRef.current = state
     setWeeds(nextWeeds); setWeedRemoved(removed); setPileBump(Date.now())
-    if (gotReward) setWeedReward(true)
+    if (gotReward) { setWeedReward(true); notifyWeedReward(removed) }
     persistWeeds(state)
+  }
+
+  // 잡초 500개 → 운영진에게 알림(선물을 실제로 건네야 하는 사람은 스튜디오다).
+  // ⚠️ 여기 한 곳에서만 보낸다 — gotReward 는 rewarded 플래그가 처음 켜질 때만 참이라
+  //    뽑을 때마다 다시 가지 않는다. 실패해도 잡초 뽑기는 그대로 진행(알림은 부수 효과).
+  async function notifyWeedReward(count) {
+    try {
+      let nm = user?.user_metadata?.name
+      if (!nm && user?.id) {
+        const { data } = await supabase.from('users').select('name').eq('id', user.id).maybeSingle()
+        nm = data?.name
+      }
+      const who = nm || '수강생'
+      await notifyStaff({
+        type: 'weed_reward',
+        title: '🎁 잡초 500개 달성',
+        body: `${who}님이 냥밭 잡초 ${count}개를 뽑았어요.\n드로잉노트 + 연필을 준비해 주세요.`,
+      })
+    } catch {}
   }
 
 
