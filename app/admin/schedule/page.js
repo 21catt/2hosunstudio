@@ -8,7 +8,7 @@ import { NavIcon } from '../../../components/NavIcons'
 import { HEADER_BG, PRIMARY, T, OK, WARN, BAD } from '../../../lib/adminTheme'
 import { sortCoursesByCategory } from '../../../lib/courseSort'
 import { fetchLockedDates, fetchLockedSlots, slotKey } from '../../../lib/lockedDates'
-import { consumeClassTicket, refundsClassTicket } from '../../../lib/booking'
+import { consumeClassTicket, restoreClassTicket, refundsClassTicket } from '../../../lib/booking'
 import { notifyStaff } from '../../../lib/adminNotify'
 import { sendPushToAdmins, sendPushToStaff } from '../../../lib/pushNotify'
 import { sendKakaoToAdmins } from '../../../lib/kakaoNotify'
@@ -45,30 +45,44 @@ const DEFAULT_SLOTS = [
   { start:'19:00', end:'21:00' },
 ]
 
+// 관리자가 예약을 지울 때의 수강권 복구 — 학생 취소와 같은 규칙(예약 = 차감, 취소 = 복구).
+// ⚠️ 출석 여부와 상관없이 차감이 원칙이라, 이미 시작했거나 출석 체크된 예약은 지워도 복구하지 않는다
+//    (결석한 수업을 정리하려고 지웠는데 회차가 되살아나면 안 된다).
+// 일반 수강권 = refundsClassTicket 카테고리만(자율창작·원데이는 예약 때 차감이 없다), 모임 = 모임권.
+function bookingStarted(b, now = new Date()) {
+  const start = (b.class_time || '00:00').split('~')[0] || '00:00'
+  return now >= new Date(`${b.class_date}T${start}:00`)
+}
+function refundableBooking(b) {
+  return b.attended !== true && b.status !== 'attended' && !bookingStarted(b)
+}
 async function refundAndDeleteBookings(bookings, todayStr) {
   if (!bookings.length) return
-  // 유저별 환급 횟수 집계
+  const courseIds = [...new Set(bookings.map(b => b.course_id).filter(Boolean))]
+  const catOf = {}
+  if (courseIds.length) {
+    const { data: cs } = await supabase.from('class_courses').select('id, category').in('id', courseIds)
+    for (const c of (cs || [])) catOf[c.id] = c.category
+  }
+  // 유저별 환급 횟수 집계(일반·모임 따로)
   const refundMap = {}
   for (const b of bookings) {
-    if (!refundMap[b.user_id]) refundMap[b.user_id] = { count: 0, isMeeting: b.class_name === '모임' }
-    refundMap[b.user_id].count++
+    if (!refundableBooking(b)) continue
+    const cat = catOf[b.course_id]
+    const isMeeting = cat === 'meeting'
+    if (!isMeeting && !refundsClassTicket(cat)) continue
+    const r = refundMap[b.user_id] || (refundMap[b.user_id] = { classCount: 0, meetingCount: 0 })
+    if (isMeeting) r.meetingCount++; else r.classCount++
   }
-  // 유저별 환급 (개별 UPDATE이지만 유저 수만큼만 실행)
-  await Promise.all(Object.entries(refundMap).map(async ([userId, { count, isMeeting }]) => {
-    if (isMeeting) {
+  await Promise.all(Object.entries(refundMap).map(async ([userId, { classCount, meetingCount }]) => {
+    if (meetingCount > 0) {
       const { data: mt } = await supabase.from('meeting_tickets').select('id,remain')
         .eq('user_id', userId).eq('status','confirmed')
         .gte('expires_at', todayStr).order('expires_at',{ascending:true}).limit(1)
-      if (mt?.[0]) await supabase.from('meeting_tickets').update({ remain: mt[0].remain + count }).eq('id', mt[0].id)
-    } else {
-      const { data: tks } = await supabase.from('tickets').select('id,remain,total').eq('user_id', userId)
-        .gte('expires_at', todayStr).order('expires_at', { ascending: true }).limit(1)
-      // 관리자 취소 시 차감됐던 수강 횟수 복구(총 횟수 초과 방지)
-      if (tks?.[0]) {
-        const restored = tks[0].total ? Math.min(tks[0].total, tks[0].remain + count) : tks[0].remain + count
-        await supabase.from('tickets').update({ remain: restored }).eq('id', tks[0].id)
-      }
+      if (mt?.[0]) await supabase.from('meeting_tickets').update({ remain: mt[0].remain + meetingCount }).eq('id', mt[0].id)
     }
+    // 일반 수강권 — DB 원자 복구(total 초과 방지)를 횟수만큼
+    for (let i = 0; i < classCount; i++) await restoreClassTicket({ userId })
   }))
   // 예약 일괄 삭제
   const ids = bookings.map(b => b.id)
@@ -577,6 +591,10 @@ const todayStr = `${todayY}-${String(todayM+1).padStart(2,'0')}-${String(todayD)
   const msg = `"${courseName}" ${label}을(를) 완전히 삭제할까요?\n\n예약된 사람이 있으면 함께 삭제됩니다.\n이 작업은 되돌릴 수 없어요.`
   if (!confirm(msg)) return
   
+  // 아직 시작 안 한 예약은 취소로 보고 수강권 복구 후 삭제(학생 취소와 같은 규칙)
+  { const { data: all } = await supabase.from('bookings').select('*').eq('course_id', courseId)
+    const todayStr = new Date().toISOString().split('T')[0]
+    await refundAndDeleteBookings(all || [], todayStr) }
   // 예약, 스케줄, 예외, 수업 순서로 삭제
   await supabase.from('bookings').delete().eq('course_id', courseId)
   await supabase.from('class_schedules').delete().eq('course_id', courseId)
@@ -593,9 +611,12 @@ const todayStr = `${todayY}-${String(todayM+1).padStart(2,'0')}-${String(todayD)
     await supabase.from('bookings').update({ status }).eq('id', bookingId)
     loadData()
   }
-  async function deleteBooking(bookingId, studentName, className) {
-  if (!confirm(`${studentName}님의 ${className} 예약을 삭제할까요?`)) return
-  await supabase.from('bookings').delete().eq('id', bookingId)
+  async function deleteBooking(booking, studentName, className) {
+  const refund = refundableBooking(booking)
+  const note = refund ? '\n\n예약 취소로 처리돼 수강권이 1회 복구돼요.' : '\n\n이미 시작했거나 출석한 수업이라 수강권은 복구되지 않아요.'
+  if (!confirm(`${studentName}님의 ${className} 예약을 삭제할까요?${note}`)) return
+  const todayStr = new Date().toISOString().split('T')[0]
+  await refundAndDeleteBookings([booking], todayStr)
   loadData()
 }
 function monthDiff() {
@@ -927,7 +948,7 @@ const myCourses = sortCoursesByCategory(courses.filter(c => c.category === 'meet
                                     <div style={{ fontSize:9, color:WARN.tx, fontWeight:700 }}>입금 대기중</div>
                                   )}
                                 </div>
-                                <button onClick={() => deleteBooking(b.id, b.users?.name || '수강생', c.name)}
+                                <button onClick={() => deleteBooking(b, b.users?.name || '수강생', c.name)}
                                   style={{ fontSize:9, padding:'4px 10px', borderRadius:8, border:'none',
                                     background:BAD.soft, color:BAD.tx, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:700 }}>
                                   예약삭제
