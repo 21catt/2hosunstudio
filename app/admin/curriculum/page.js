@@ -22,6 +22,7 @@ import { CSS } from '@dnd-kit/utilities'
 import CoreDocEditor from '../../../components/CoreDocEditor'
 import { useSpaceTheme } from '../../../lib/useFreshTheme'
 import SpaceBg from '../../../components/SpaceBg'
+import { compressImage } from '../../../lib/imageCompress'
 
 const ACCENT      = 'var(--ac)'
 const ACCENT_BG   = 'var(--acBg)'
@@ -157,6 +158,30 @@ function SortableCoreImage({ url, onRemove }) {
   )
 }
 
+// ─── 쓰기 = 서버 경유(app/api/admin/curriculum) ─────────────────────────────
+// 브라우저에서 바로 쓰면 DB 정책이 막을 때 화면엔 「저장됐어요」가 떴다(update 는 0줄로 조용히 끝남).
+// 서버가 관리자 여부를 users 표로 확인하고, 바뀐 줄이 없으면 실패로 돌려준다.
+async function authHeader() {
+  const { data } = await supabase.auth.getSession()
+  const t = data?.session?.access_token
+  return t ? { Authorization: `Bearer ${t}` } : {}
+}
+async function curriculumApi(action, payload) {
+  try {
+    const res = await fetch('/api/admin/curriculum', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+      body: JSON.stringify({ action, ...payload }),
+    })
+    const j = await res.json().catch(() => ({}))
+    if (!res.ok || !j.ok) { alert(j.error || `저장하지 못했어요 (${res.status})`); return null }
+    return j
+  } catch (e) {
+    alert('저장하지 못했어요 — 인터넷 연결을 확인해 주세요')
+    return null
+  }
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 function AdminCurriculumInner() {
   const router = useRouter()
@@ -191,11 +216,14 @@ function AdminCurriculumInner() {
     try {
       const raw = file.name.split('.').pop().toLowerCase()
       const ext = /^[a-z0-9]{1,5}$/.test(raw) ? raw : 'jpg'
-      const path = `curriculum/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
-      const { error } = await supabase.storage.from('seat-photos').upload(path, file)
-      if (error) { alert('업로드 실패: ' + error.message); return null }
-      const { data } = supabase.storage.from('seat-photos').getPublicUrl(path)
-      return data.publicUrl
+      // 서버 업로드 한도(약 4MB) 안으로 — 1600px JPEG 로 줄여 보낸다(실패하면 원본)
+      const small = await compressImage(file).catch(() => file)
+      const fd = new FormData()
+      fd.append('file', small, small === file ? `photo.${ext}` : 'photo.jpg')
+      const res = await fetch('/api/admin/curriculum', { method: 'POST', headers: await authHeader(), body: fd })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok || !j.url) { alert(j.error || `업로드 실패 (${res.status})`); return null }
+      return j.url
     } finally {
       setUploading(false)
     }
@@ -251,12 +279,9 @@ function AdminCurriculumInner() {
   async function saveCoreDoc(doc) {
     if (!selectedName) return
     setCoreDocSaving(true)
-    const { error } = await supabase.from('class_courses').update({ core_doc: doc }).eq('name', selectedName)
+    const ok = await curriculumApi('saveCoreDoc', { courseName: selectedName, doc })
     setCoreDocSaving(false)
-    if (error) {
-      alert('리치 핵심내용 저장 실패: ' + error.message + '\n\nclass_courses.core_doc 컬럼이 없으면 migration-course-core-content.sql을 먼저 실행해 주세요.')
-      return
-    }
+    if (!ok) return
     setCoreDoc(doc)
     alert('리치 핵심내용이 저장됐어요!')
   }
@@ -279,14 +304,9 @@ function AdminCurriculumInner() {
   async function saveCore() {
     if (!selectedName) return
     setCoreSaving(true)
-    const { error } = await supabase.from('class_courses')
-      .update({ core_content: coreContent.trim() || null, core_images: coreImages.length ? coreImages : null })
-      .eq('name', selectedName)
+    const ok = await curriculumApi('saveCore', { courseName: selectedName, coreContent, coreImages })
     setCoreSaving(false)
-    if (error) {
-      alert('핵심 내용 저장 실패: ' + error.message + '\n\nclass_courses.core_content / core_images 컬럼이 없으면 migration-course-core-content.sql을 먼저 실행해 주세요.')
-      return
-    }
+    if (!ok) return
     setCoreInitial(coreContent)
     setCoreImagesInitial(coreImages)
   }
@@ -302,14 +322,8 @@ function AdminCurriculumInner() {
   async function handleAdd() {
     if (!newTitle.trim() || !selectedName) return
     setSaving(true)
-    const maxOrder = steps.length > 0 ? Math.max(...steps.map(s => s.step_order)) : 0
-    await supabase.from('course_curriculum').insert({
-      course_name: selectedName,
-      step_order: maxOrder + 1,
-      title: newTitle.trim(),
-      keyword: newKeyword.trim() || null,
-      image_url: newImageUrl || null,
-    })
+    const ok = await curriculumApi('addStep', { courseName: selectedName, title: newTitle, keyword: newKeyword, imageUrl: newImageUrl })
+    if (!ok) { setSaving(false); return }   // 적던 내용은 그대로 둔다
     setNewTitle('')
     setNewKeyword('')
     setNewImageUrl('')
@@ -323,20 +337,9 @@ function AdminCurriculumInner() {
     if (!selectedName || saving) return
     setSaving(true)
     try {
-      const maxOrder = steps.length > 0 ? Math.max(...steps.map(s => s.step_order)) : 0
-      const { data: dup } = await supabase.from('course_curriculum').insert({
-        course_name: selectedName,
-        step_order: maxOrder + 1, // 임시로 맨 뒤 → 아래 재정렬로 원본 뒤에 배치
-        title: step.title,
-        keyword: step.keyword || null,
-        image_url: step.image_url || null,
-      }).select().single()
-      if (dup) {
-        const ids = steps.map(s => s.id)
-        const idx = ids.indexOf(step.id)
-        const newOrder = [...ids.slice(0, idx + 1), dup.id, ...ids.slice(idx + 1)]
-        await supabase.rpc('reorder_curriculum', { p_course_name: selectedName, p_ids: newOrder })
-      }
+      await curriculumApi('addStep', {
+        courseName: selectedName, title: step.title, keyword: step.keyword || '', imageUrl: step.image_url || '', afterId: step.id,
+      })
       await loadSteps(selectedName)
     } finally {
       setSaving(false)
@@ -347,12 +350,8 @@ function AdminCurriculumInner() {
     const e = editing[step.id]
     if (!e || !e.title?.trim()) return
     setSaving(true)
-    await supabase.from('course_curriculum').update({
-      title: e.title.trim(),
-      keyword: e.keyword?.trim() || null,
-      image_url: e.image_url || null,
-      updated_at: new Date().toISOString(),
-    }).eq('id', step.id)
+    const ok = await curriculumApi('updateStep', { courseName: selectedName, id: step.id, title: e.title, keyword: e.keyword || '', imageUrl: e.image_url || '' })
+    if (!ok) { setSaving(false); return }   // 수정 창은 열어 둔다
     setEditing(prev => { const n = { ...prev }; delete n[step.id]; return n })
     setSaving(false)
     await loadSteps(selectedName)
@@ -360,12 +359,7 @@ function AdminCurriculumInner() {
 
   async function handleDelete(stepId) {
     if (!confirm('이 회차를 삭제할까요?')) return
-    await supabase.from('course_curriculum').delete().eq('id', stepId)
-    // re-order remaining sequentially (few rows, no unique conflict risk)
-    const remaining = steps.filter(s => s.id !== stepId)
-    for (let i = 0; i < remaining.length; i++) {
-      await supabase.from('course_curriculum').update({ step_order: i + 1 }).eq('id', remaining[i].id)
-    }
+    await curriculumApi('deleteStep', { courseName: selectedName, id: stepId })   // 남은 회차 번호도 서버가 1..n 으로
     await loadSteps(selectedName)
   }
 
@@ -376,11 +370,8 @@ function AdminCurriculumInner() {
     const newIdx = steps.findIndex(s => s.id === over.id)
     const reordered = arrayMove(steps, oldIdx, newIdx)
     setSteps(reordered) // optimistic
-    const { error } = await supabase.rpc('reorder_curriculum', {
-      p_course_name: selectedName,
-      p_ids: reordered.map(s => s.id),
-    })
-    if (error) await loadSteps(selectedName) // revert on failure
+    const ok = await curriculumApi('reorder', { courseName: selectedName, ids: reordered.map(s => s.id) })
+    if (!ok) await loadSteps(selectedName) // revert on failure
   }
 
   if (loading) return (
