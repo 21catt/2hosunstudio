@@ -11,8 +11,7 @@ import { applyTheme, isValidTheme, getSavedTheme, getSavedThemeRaw, guestTheme, 
 import GlassHome from '../../components/GlassHome'
 import SpaceHome from '../../components/SpaceHome'
 import { bookClass, requestBookingApproval, hasValidTicket, cancelBooking, ticketStarted } from '../../lib/booking'
-import { sendPushToAdmins } from '../../lib/pushNotify'
-import { sendKakaoToAdmins } from '../../lib/kakaoNotify'
+import { sendStaffAlert } from '../../lib/staffAlert'
 import { pixelCatImg } from '../../lib/pixelCats'
 import { sortCoursesByCategory } from '../../lib/courseSort'
 import { fetchLockedDates, fetchLockedSlots, slotLocked } from '../../lib/lockedDates'
@@ -392,14 +391,9 @@ export default function StudentHomePage() {
     setInqSending(true)
     try {
       const msg = `${name}님 수업 문의\n연락처: ${phone}\n내용: ${body}`
-      const { data: admins } = await supabase.from('users').select('id').eq('role', 'admin')
-      if (admins?.length) {
-        await supabase.from('notifications').insert(admins.map(a => ({
-          user_id: a.id, type: 'inquiry', title: '💬 수업 문의', body: msg,
-        })))
-      }
-      sendPushToAdmins('💬 수업 문의', `${name} · ${phone} · ${body.slice(0, 60)}`)
-      sendKakaoToAdmins('💬 수업 문의', msg)
+      // 인앱 알림·푸시·카톡을 서버가 한 번에 — 실제로 전달됐을 때만 「전달됐어요」
+      const r = await sendStaffAlert({ kind: 'inquiry', body: msg })
+      if (!r.ok) { alert(`문의를 보내지 못했어요 — ${r.error}\n화실로 직접 연락해 주세요 🐾`); return }
       setInqSent(true)
     } finally {
       setInqSending(false)

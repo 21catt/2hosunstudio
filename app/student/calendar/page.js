@@ -12,6 +12,7 @@ import { consumeClassTicket, restoreClassTicket, refundsClassTicket, ticketStart
 import { sendPushToAdmins, sendPushToStaff } from '../../../lib/pushNotify'
 import { sendKakaoToAdmins } from '../../../lib/kakaoNotify'
 import { notifyStaff } from '../../../lib/adminNotify'
+import { sendStaffAlert } from '../../../lib/staffAlert'
 import { applyTheme, isValidTheme, getSavedTheme, DEFAULT_THEME } from '../../../lib/theme'
 import MoodIndicator from '../../../components/MoodIndicator'
 import LoadingCat from '../../../components/LoadingCat'
@@ -445,7 +446,7 @@ export default function CalendarPage() {
     const pushMsg = `${profile?.name || '학생'}님 ${course.name} ${dateStr} ${schedule.start_time} 예약`
     await notifyStaff({ courseId: course.id, scheduleId: schedule.id, type: 'booking_created', title: '새 예약', body: pushMsg, related_id: newBooking?.id })
     sendPushToStaff(course.id, '🐾 새 예약', pushMsg, schedule.id)
-    sendKakaoToAdmins('🐾 새 예약', pushMsg)
+    // 카톡은 예약 행 INSERT 웹훅(/api/kakao/send)이 이미 보낸다 — 여기서 또 보내면 두 번 간다
     setSelCat(null); setSelCourse(null); setSelSchedule(null)
     loadData(user.id)
   }
@@ -489,7 +490,7 @@ export default function CalendarPage() {
     const msg = `${nm}님이 원데이 "${course.name}" ${dateStr} ${schedule.start_time} 신청. 금액 ${(course.price || 0).toLocaleString()}원. 입금 확인 후 확정 필요. 연락처 ${profile?.phone || '미등록'}`
     await notifyStaff({ courseId: course.id, type: 'meeting_pending', title: '원데이 신청 (입금 대기)', body: msg, related_id: nb?.id })
     sendPushToStaff(course.id, '🎨 원데이 신청', msg)
-    sendKakaoToAdmins('🎨 원데이 신청', msg)
+    // 카톡은 예약 행 INSERT 웹훅(/api/kakao/send)이 이미 보낸다 — 여기서 또 보내면 두 번 간다
     setSelCat(null); setSelCourse(null); setSelSchedule(null)
     alert('원데이 신청 완료! 계약금 입금 확인 후 확정됩니다 🐾')
     loadData(user.id)
@@ -555,9 +556,10 @@ export default function CalendarPage() {
       const { course, schedule, date } = guestReq
       const when = `${date} ${schedule.start_time}~${schedule.end_time}`
       const body = `[미가입 예약요청] ${nm}님\n수업: ${course.name}\n일시: ${when}\n연락처: ${phone}\n※ 미가입자 요청 — 연락 후 확정·안내 필요`
-      await notifyStaff({ courseId: course.id, type: 'guest_booking_request', title: '📩 미가입 예약 요청', body })
-      sendPushToStaff(course.id, '📩 미가입 예약 요청', `${nm} · ${course.name} ${when} · ${phone}`)
-      sendKakaoToAdmins('📩 미가입 예약 요청', body)
+      // ⚠️ 로그인 전 화면이라 브라우저는 운영진 목록을 못 읽는다(예전엔 받는 사람 0명 = 전달 0건).
+      //    서버가 대상 찾기·알림·푸시·카톡을 한 번에 하고, 전달됐을 때만 「전달됐어요」.
+      const r = await sendStaffAlert({ kind: 'guest_booking_request', body, courseId: course.id, scheduleId: schedule.id })
+      if (!r.ok) { alert(`요청을 보내지 못했어요 — ${r.error}\n화실로 직접 연락해 주세요 🐾`); return }
       setGSent(true)
     } catch {} finally { setGSending(false) }
   }

@@ -3,6 +3,7 @@ import { Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import { notifyAllAdmins } from '../../lib/adminNotify'
+import { sendStaffAlert } from '../../lib/staffAlert'
 import { pixelCatImg } from '../../lib/pixelCats'
 
 const CATS = [
@@ -73,6 +74,15 @@ function SignupInner() {
     const base = { id: data.user.id, name, phone, role, categories:[...cats] }
     const { error: insErr } = await supabase.from('users').insert({ ...base, approved: !isStaffRole(role) })
     if (insErr) await supabase.from('users').insert(base)
+    // 새 회원 가입을 운영진에게 알린다 — 예전엔 수강생·작가 가입은 아무에게도 알려지지 않았다.
+    // 알림이 실패해도 가입은 끝난 것이라 기다리지 않는다(회원 관리에는 그대로 보인다).
+    if (role === 'student' || role === 'artist') {
+      const catNames = [...cats].map(id => CATS.find(c => c.id === id)?.name || id).join(', ')
+      sendStaffAlert({
+        kind: 'new_member',
+        body: `${name}님이 ${role === 'artist' ? '전시 참여 작가' : '수강생'}로 가입했어요.\n연락처: ${phone || '미기재'}${catNames ? `\n관심 수업: ${catNames}` : ''}`,
+      })
+    }
     if (role==='student') router.push('/student')
     else if (role==='artist') router.push('/artist')
     else {

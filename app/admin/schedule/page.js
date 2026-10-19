@@ -534,7 +534,7 @@ const todayStr = `${todayY}-${String(todayM+1).padStart(2,'0')}-${String(todayD)
       const msg = `${member.name || '회원'}님 ${course.name} ${dateStr} ${schedule.start_time} 예약 (관리자 대신 예약)`
       await notifyStaff({ courseId: course.id, scheduleId: schedule.id, type: 'booking_created', title: '새 예약 (대신)', body: msg, related_id: nb?.id })
       sendPushToStaff(course.id, '🐾 새 예약 (대신)', msg, schedule.id)
-      sendKakaoToAdmins('🐾 새 예약 (대신)', msg)
+      // 카톡은 예약 행 INSERT 웹훅(/api/kakao/send)이 이미 보낸다 — 여기서 또 보내면 두 번 간다
       setBookForSlot(null); setMemberSearch('')
       await loadData()
     } finally {
