@@ -40,7 +40,7 @@ function lerpColor(a, b, t) { return new THREE.Color(a).lerp(new THREE.Color(b),
 function tri(t, a, b, c) { return t < 0.5 ? lerpColor(a, b, t * 2) : lerpColor(b, c, (t - 0.5) * 2) }
 function triN(t, a, b, c) { return t < 0.5 ? a + (b - a) * t * 2 : b + (c - b) * (t - 0.5) * 2 }
 
-export default function CastleJellyScene({ settingsRef, onPick, commandRef }) {
+export default function CastleJellyScene({ settingsRef, onPick, commandRef, onReady }) {
   const mountRef = useRef(null)
 
   useEffect(() => {
@@ -287,6 +287,30 @@ export default function CastleJellyScene({ settingsRef, onPick, commandRef }) {
     flame.castShadow = false; flame.userData.pick = 'brazier'
     const fireLight = new THREE.PointLight('#ffaa55', 0.6, 3, 1.6); fireLight.position.set(0, 0.35, 0); brazier.add(fireLight)
 
+    // 냥밭 고양이 — 학생이 고른 농부냥이 성 마당에 나와 있다(누르면 냥밭)
+    const catSprite = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false }))
+    catSprite.scale.set(0.42, 0.54, 1)
+    catSprite.position.set(-1.05, P.top + 0.27, -0.5)
+    catSprite.userData.pick = 'cat'
+    catSprite.visible = false
+    block.add(catSprite)
+    let catUrl = null
+    const texLoader = new THREE.TextureLoader()
+    const loadCat = url => {
+      catUrl = url
+      if (!url) { catSprite.visible = false; return }
+      texLoader.load(url, tex => {
+        if (catUrl !== url) { tex.dispose(); return }
+        tex.colorSpace = THREE.SRGBColorSpace
+        catSprite.material.map?.dispose()
+        catSprite.material.map = tex; catSprite.material.needsUpdate = true
+        const a = tex.image.width / tex.image.height
+        catSprite.scale.set(0.54 * a, 0.54, 1)
+        catSprite.visible = true
+      })
+    }
+    let catHop = 0
+
     // 소나무(끌어서 휘기) · 꽃덤불 · 갈대
     const pines = []
     const pineMat = [mat('#5fae7a'), mat('#4f9d6c')]
@@ -469,6 +493,7 @@ export default function CastleJellyScene({ settingsRef, onPick, commandRef }) {
       if (hit.kind === 'tower') { const tw = towers[hit.obj.userData.towerIdx]; if (tw) tw.wobV += 3 }
       if (hit.kind === 'brazier') fireLight.intensity = 2.4
       if (hit.kind === 'ship') bump(ship.position.x, ship.position.z, -0.06)
+      if (hit.kind === 'cat') catHop = 1
       const rect = renderer.domElement.getBoundingClientRect()
       onPick?.(hit.kind, e.clientX - rect.left, e.clientY - rect.top)
     }
@@ -565,7 +590,7 @@ export default function CastleJellyScene({ settingsRef, onPick, commandRef }) {
         if (sprayLife[j] <= 0 || sprayPos[j * 3 + 1] < 0) { sprayLife[j] = 0; sprayPos[j * 3 + 1] = -99 }
       }
       // 범선
-      const sa = time * 0.18
+      const sa = time * (st.reducedMotion ? 0.08 : 0.18)
       const sx = shipPath.cx + Math.cos(sa) * shipPath.r, sz = shipPath.cz + Math.sin(sa) * shipPath.r
       ship.position.set(sx, sampleH(sx, sz), sz)
       ship.rotation.y = -sa
@@ -719,7 +744,8 @@ export default function CastleJellyScene({ settingsRef, onPick, commandRef }) {
         lakeMat.color.set(f.lake); lakeMat.emissive.set(f.lake)
         jellyMat.color.set(f.deep)
       }
-      if (t > 0.8 && time > nextAutoFw) { launch(); nextAutoFw = time + 2 + Math.random() * 2 }
+      if (t > 0.8 && !st.reducedMotion && time > nextAutoFw) { launch(); nextAutoFw = time + 2 + Math.random() * 2 }
+      if ((st.catImg || null) !== catUrl) loadCat(st.catImg || null)
       return t > 0.7
     }
 
@@ -759,13 +785,21 @@ export default function CastleJellyScene({ settingsRef, onPick, commandRef }) {
       block.rotation.x = tiltX; block.rotation.z = tiltZ
       block.scale.set(1 - jiggle * 0.03, 1 + jiggle * 0.06, 1 - jiggle * 0.03)
       flame.scale.y = 1 + Math.sin(time * 14) * 0.15
+      // 고양이: 숨 쉬듯 살짝 · 누르면 폴짝
+      catHop = Math.max(0, catHop - 0.045)
+      catSprite.position.y = P.top + 0.27 + Math.sin(time * 2.2) * 0.008 + Math.sin(catHop * Math.PI) * 0.25
       mist.material.opacity = 0.15 + settingsRef.current.flow * 0.3
       controls.update()
       renderer.render(scene, camera)
     }
-    raf = requestAnimationFrame(frame)
+    let disposed = false
+    const start = () => { if (disposed) return; raf = requestAnimationFrame(t => { frame(t); onReady?.() }) }
+    // 셰이더를 미리 컴파일한다 — 첫 프레임에서 몇 초씩 멈추던 것(굴절·그림자 재질)을 로딩 화면 뒤로 숨긴다
+    if (renderer.compileAsync) renderer.compileAsync(scene, camera).then(start, start)
+    else start()
 
     return () => {
+      disposed = true
       cancelAnimationFrame(raf)
       ro.disconnect()
       renderer.domElement.removeEventListener('pointerdown', onDown)

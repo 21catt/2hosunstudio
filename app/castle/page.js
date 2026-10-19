@@ -12,6 +12,9 @@ import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import { sortCoursesByCategory } from '../../lib/courseSort'
+import { FARM_CATS, getSavedFarmCat } from '../../lib/farmCats'
+import { getSavedTheme } from '../../lib/theme'
+import LoadingCat from '../../components/LoadingCat'
 import s from './castle.module.css'
 
 const CastleJellyScene = dynamic(() => import('../../components/castle/CastleJellyScene'), { ssr: false })
@@ -30,6 +33,24 @@ const PICK_LINK = {
   gate:    { label: '성문 · 예약하기 →', href: '/student/calendar' },
   ship:    { label: '배 · 라운지 →',     href: '/lounge' },
   brazier: { label: '화로 · 냥밭 →',     href: '/student/farm' },
+  cat:     { label: '냥이 · 냥밭 가기 →', href: '/student/farm' },
+}
+// 내 테마 → 장면 첫 모습(저장된 장면 설정이 없을 때만). 스페이스 = 밤, 노을빛 테마 = 노을.
+const THEME_LOOK = {
+  lilac: { flavour: 'lilac' }, liquid: { flavour: 'lilac' }, burgundy: { flavour: 'rose' },
+  palu: { flavour: 'rose', timeOfDay: 0.5 }, ink: { timeOfDay: 0.45 },
+  space: { flavour: 'lilac', timeOfDay: 0.92 }, glass: { flavour: 'glacier' },
+}
+const LOOK_KEY = '2hs_castle_look'
+const DEFAULT_LOOK = { timeOfDay: 0.15, flow: 0.6, firmness: 0.45, damping: 0.5, flavour: 'glacier' }
+function initialLook() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(LOOK_KEY) || 'null')
+    if (saved && typeof saved === 'object') return { ...DEFAULT_LOOK, ...saved }
+  } catch {}
+  let theme = 'ultra'
+  try { theme = getSavedTheme() } catch {}
+  return { ...DEFAULT_LOOK, ...(THEME_LOOK[theme] || {}) }
 }
 const DOW = ['일', '월', '화', '수', '목', '금', '토']
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -52,9 +73,23 @@ export default function CastlePage() {
   const [courses, setCourses] = useState([])
   const [bookings, setBookings] = useState([])
   const [ticket, setTicket] = useState(null)
-  const [look, setLook] = useState({ timeOfDay: 0.15, flow: 0.6, firmness: 0.45, damping: 0.5, flavour: 'glacier' })
+  // 처음 화면은 권한 확인 전 빈 판이라(서버·클라이언트 같은 마크업) 여기서 바로 저장값을 읽어도 된다
+  const [look, setLook] = useState(() => (typeof window === 'undefined' ? DEFAULT_LOOK : initialLook()))
+  const [catImg, setCatImg] = useState(null)
+  const [reducedMotion, setReducedMotion] = useState(false)
+  const [ready, setReady] = useState(false)
+  const [unread, setUnread] = useState(0)
   const settingsRef = useRef(look)
-  settingsRef.current = look
+  settingsRef.current = { ...look, catImg, reducedMotion }
+  // 처음 = 저장된 장면 설정(없으면 내 테마), 내 농부냥, 동작 줄이기
+  useEffect(() => {
+    const fc = FARM_CATS.find(c => c.key === getSavedFarmCat())
+    setCatImg(fc?.img || null)
+    const mq = window.matchMedia?.('(prefers-reduced-motion: reduce)')
+    setReducedMotion(!!mq?.matches)
+  }, [])
+  // 장면 설정 기억 — 다음에 열어도 같은 모습
+  useEffect(() => { try { localStorage.setItem(LOOK_KEY, JSON.stringify(look)) } catch {} }, [look])
   const commandRef = useRef(null)
   const [pick, setPick] = useState(null)
   const [sceneOpen, setSceneOpen] = useState(false)
@@ -70,6 +105,8 @@ export default function CastlePage() {
       if (u.user_metadata?.role !== 'admin') { router.replace('/student'); return }
       setAllowed(true)
       const today = ymd(new Date())
+      supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', u.id).eq('is_read', false)
+        .then(({ count }) => setUnread(count || 0))
       const [{ data: cs }, { data: bs }, { data: tk }] = await Promise.all([
         supabase.from('class_courses').select('id, name, category').eq('is_active', true),
         supabase.from('bookings').select('class_name, class_date, class_time, course_id, status').eq('user_id', u.id).neq('status', 'cancelled').gte('class_date', today).order('class_date'),
@@ -116,7 +153,12 @@ export default function CastlePage() {
   return (
     <div className={`${s.root} ${night ? s.night : ''}`}>
       <link rel="stylesheet" precedence="default" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap" />
-      <CastleJellyScene settingsRef={settingsRef} commandRef={commandRef}
+      {!ready && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+          <LoadingCat label="젤리 성을 굳히는 중…" />
+        </div>
+      )}
+      <CastleJellyScene settingsRef={settingsRef} commandRef={commandRef} onReady={() => setReady(true)}
         onPick={(kind, x, y) => setPick(PICK_LINK[kind] ? { ...PICK_LINK[kind], x, y } : null)} />
 
       <div className={s.badge}>개발 중 미리보기 · 관리자에게만 보여요</div>
@@ -208,10 +250,18 @@ export default function CastlePage() {
 
       {/* 아래 — 기타 기능 */}
       <nav className={`${s.dock} ${s.glass}`} aria-label="기타 기능">
-        {DOCK.map(d => <a key={d.href} href={d.href} className={`${s.dockItem} ${s.glass}`}><Icon d={d.icon} />{d.label}</a>)}
+        {DOCK.map(d => (
+          <a key={d.href} href={d.href} className={`${s.dockItem} ${s.glass}`} aria-label={d.label === '알림' && unread ? `알림 ${unread}개` : d.label}>
+            <span style={{ position: 'relative', display: 'flex' }}>
+              <Icon d={d.icon} />
+              {d.label === '알림' && unread > 0 && <span className={s.badgeDot}>{unread > 99 ? '99+' : unread}</span>}
+            </span>
+            {d.label}
+          </a>
+        ))}
       </nav>
 
-      <div className={s.howto}><b>How to play</b> — 탑·성문·배·화로를 눌러 들어가기 · 물을 끌어 물결 · 블록 옆면을 끌어 기울이기 · 소나무를 끌어 휘기 · 빈 곳을 끌어 돌려 보기</div>
+      <div className={s.howto}><b>How to play</b> — 탑·성문·배·화로·냥이를 눌러 들어가기 · 물을 끌어 물결 · 블록 옆면을 끌어 기울이기 · 소나무를 끌어 휘기 · 빈 곳을 끌어 돌려 보기</div>
     </div>
   )
 }
