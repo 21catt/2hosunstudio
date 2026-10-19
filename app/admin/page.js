@@ -32,6 +32,7 @@ export default function AdminHomePage() {
   const [pendingCnt, setPendingCnt] = useState(0)   // 입금 대기
   const [refundCnt, setRefundCnt] = useState(0)     // 환불 필요
   const [unread, setUnread] = useState(0)
+  const [rentalCnt, setRentalCnt] = useState(0)   // 자리 대관 입금 대기
   const [memberCnt, setMemberCnt] = useState(0)
   const space = useSpaceTheme()
 
@@ -69,6 +70,9 @@ export default function AdminHomePage() {
     setRefundCnt(rc || 0)
     setUnread(uc || 0)
     setMemberCnt(mc || 0)
+    // 자리 대관 입금 대기 — 표가 없으면(마이그레이션 전) 조용히 0
+    supabase.from('rental_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending')
+      .then(({ count, error }) => { if (!error) setRentalCnt(count || 0) })
     // 계정에 저장된 테마가 있으면 기기 저장값보다 우선 (기기 간 동기화)
     if (isValidTheme(pref?.theme) && getSavedTheme() === DEFAULT_THEME) setActiveTheme(applyTheme(pref.theme))
     setLoading(false)
@@ -106,7 +110,8 @@ export default function AdminHomePage() {
     { label: '자리사진', icon: 'photo', href: '/admin/seats' },
     { label: '커리큘럼', icon: 'book', href: '/admin/curriculum' },
     { label: '화실소개', icon: 'pin', href: '/admin/studio' },
-    { label: '자리대관', icon: 'palette', href: '/admin/rental' },
+    { label: '자리대관', icon: 'palette', href: '/admin/rental', badge: rentalCnt },
+    { label: '대관설정', icon: 'pencil', href: '/admin/rental?tab=settings' },
     { label: '라운지', icon: 'chat', href: '/lounge' },
     { label: '강사관리', icon: 'profile', href: '/admin/teachers' },
   ]

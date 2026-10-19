@@ -8,7 +8,8 @@ import { loadRentalSettings, saveRentalSettings, mergeRental, RENTAL_STATUS, pad
 
 export default function AdminRentalPage() {
   const router = useRouter()
-  const [tab, setTab] = useState('requests')
+  // 관리자 홈 「대관설정」 타일은 ?tab=settings 로 들어와 바로 편집 화면을 연다
+  const [tab, setTab] = useState(() => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('tab') === 'settings') ? 'settings' : 'requests')
   const [loading, setLoading] = useState(true)
   const [cfg, setCfg] = useState(() => mergeRental(null))
   const [dirty, setDirty] = useState(false)
