@@ -194,6 +194,11 @@ export default function CastlePage() {
           <button className={`${s.chip} ${s.glass}`} onClick={() => setBridgeUp(commandRef.current?.toggleBridge() ?? false)}>{bridgeUp ? '다리 내리기' : '다리 올리기'}</button>
           <button className={`${s.chip} ${s.glass}`} onClick={() => commandRef.current?.tip()}>흔들기</button>
         </div>
+        <div className={s.row}>
+          <button className={`${s.chip} ${s.glass}`} onClick={() => commandRef.current?.salute()}>왕실 예포</button>
+          <button className={`${s.chip} ${s.glass}`} onClick={() => commandRef.current?.coin()}>소원 동전</button>
+          <button className={`${s.chip} ${s.glass}`} onClick={() => commandRef.current?.ball()}>공 던지기</button>
+        </div>
       </aside>
 
       {/* 누른 곳 → 들어가기 */}
@@ -206,7 +211,7 @@ export default function CastlePage() {
         {DOCK.map(d => <a key={d.href} href={d.href} className={`${s.dockItem} ${s.glass}`}><Icon d={d.icon} />{d.label}</a>)}
       </nav>
 
-      <div className={s.howto}><b>How to play</b> — 탑·성문·배·화로를 눌러 들어가기 · 물을 끌어 물결 · 끌어서 돌려 보기</div>
+      <div className={s.howto}><b>How to play</b> — 탑·성문·배·화로를 눌러 들어가기 · 물을 끌어 물결 · 블록 옆면을 끌어 기울이기 · 소나무를 끌어 휘기 · 빈 곳을 끌어 돌려 보기</div>
     </div>
   )
 }
