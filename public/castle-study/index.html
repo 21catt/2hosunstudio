@@ -480,7 +480,7 @@ for (let k = 0; k < 7; k++) {
   const g = new THREE.BufferGeometry(); const pts = new Float32Array(30 * 3)
   g.setAttribute('position', new THREE.BufferAttribute(pts, 3))
   const line = new THREE.Line(g, new THREE.LineBasicMaterial({ color: '#e9fbff' })); line.frustumCulled = false
-  block.add(line); threads.push({ g, pts, ph: k * 1.37, sp: (k - 3) * 0.12 })
+  block.add(line); threads.push({ g, pts, line, ph: k * 1.37, sp: (k - 3) * 0.12 })
 }
 
 // ───────────────────────── castle ─────────────────────────
@@ -928,6 +928,8 @@ function look() {
   hemi.color.copy(tri(t, '#ffffff', '#ffd5b8', '#3b4080')); hemi.groundColor.copy(tri(t, '#cfc5b5', '#c5a48e', '#1a1828')); hemi.intensity = triN(t, 0.55, 0.45, 0.3)
   scene.environmentIntensity = triN(t, 0.7, 0.45, 0.1)
   floorMat.emissiveIntensity = triN(t, 1.4, 0.8, 0.15)
+  glintMesh.material.opacity = triN(t, 0.85, 0.5, 0.1)
+  for (const th of threads) th.line.material.color.setScalar(triN(t, 1, 0.75, 0.3))
   glass.emissiveIntensity = Math.max(0, (t - 0.4) / 0.6) * 2.4
   stars.m.material.opacity = Math.max(0, (t - 0.62) / 0.38)
   document.body.classList.toggle('night', t > 0.72)
