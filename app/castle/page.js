@@ -17,23 +17,19 @@ import { sortCoursesByCategory } from '../../lib/courseSort'
 import { FARM_CATS, getSavedFarmCat } from '../../lib/farmCats'
 import { getSavedTheme } from '../../lib/theme'
 import LoadingCat from '../../components/LoadingCat'
+import BookingPanel from '../../components/castle/BookingPanel'
+import { CATEGORY_STYLE } from '../../lib/categoryStyle'
 import s from './castle.module.css'
 
 // 장면 = 원본 프롬프트 그대로 만든 시연판(CastleStudyScene, WebGPU). 옛 장면(CastleJellyScene)은 되돌릴 때를 위해 남겨 둔다.
 const CastleJellyScene = dynamic(() => import('../../components/castle/CastleStudyScene'), { ssr: false })
 
-const CAT = {
-  drawing:   { name: '드로잉',     dot: '#f4a9c0' },
-  painting:  { name: '페인팅',     dot: '#b49ae8' },
-  sculpture: { name: '조소',       dot: '#8fb8f0' },
-  oneday:    { name: '원데이 체험', dot: '#ffd27a' },
-  free:      { name: '자율창작',   dot: '#9be3c4' },
-  meeting:   { name: '작가 모임',   dot: '#c9a58e' },
-}
+// 카테고리 색 = 성의 색(lib/categoryStyle — 예약 패널과 한 표)
+const CAT = Object.fromEntries(Object.entries(CATEGORY_STYLE).map(([k, v]) => [k, { name: v.name, dot: v.orb, tint: v.tint, ink: v.ink }]))
 const FLAVOUR_LIST = [['glacier', '빙하', '#8fd3ea'], ['rose', '로즈', '#f4b6cb'], ['lilac', '라일락', '#cdbcf3']]
 const PICK_LINK = {
   tower:   { label: '탑 · 수업 소개 →',  href: '/student/curriculum' },
-  gate:    { label: '성문 · 예약하기 →', href: '/student/calendar' },
+  gate:    { label: '성문 · 예약하기 →', href: '/student/calendar', booking: true },
   ship:    { label: '배 · 라운지 →',     href: '/lounge' },
   brazier: { label: '화로 · 냥밭 →',     href: '/student/farm' },
   cat:     { label: '냥이 · 냥밭 가기 →', href: '/student/farm' },
@@ -101,6 +97,12 @@ export default function CastlePage() {
   const [pick, setPick] = useState(null)
   const [sceneOpen, setSceneOpen] = useState(false)
   const [bridgeUp, setBridgeUp] = useState(false)
+  const [user, setUser] = useState(null)
+  const [booking, setBooking] = useState(null) // null | { date } — 예약 패널
+  // 수업 패널 — 장면을 가리지 않게 기본은 접힘, 펼친 상태는 기억한다
+  const [classesOpen, setClassesOpen] = useState(() => { try { return typeof window !== 'undefined' && localStorage.getItem('2hs_castle_classes') === '1' } catch { return false } })
+  function toggleClasses(on) { setClassesOpen(on); try { localStorage.setItem('2hs_castle_classes', on ? '1' : '0') } catch {} }
+  function openBooking(date) { setBooking({ date: date || ymd(new Date()) }); setPick(null); setSceneOpen(false); if (window.innerWidth <= 760) setClassesOpen(false) }
 
   // 관리자만 — 숨긴 미리보기
   useEffect(() => {
@@ -112,10 +114,15 @@ export default function CastlePage() {
       const admin = u.user_metadata?.role === 'admin'
       if (!admin && u.user_metadata?.castle_beta !== true) { router.replace('/student'); return }
       setIsAdmin(admin)
+      setUser(u)
       setAllowed(true)
-      const today = ymd(new Date())
       supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', u.id).eq('is_read', false)
         .then(({ count }) => setUnread(count || 0))
+      loadMine(u)
+    })
+  }, [])
+  async function loadMine(u) {
+      const today = ymd(new Date())
       const [{ data: cs }, { data: bs }, { data: tk }] = await Promise.all([
         supabase.from('class_courses').select('id, name, category').eq('is_active', true),
         supabase.from('bookings').select('class_name, class_date, class_time, course_id, status').eq('user_id', u.id).neq('status', 'cancelled').gte('class_date', today).order('class_date'),
@@ -124,8 +131,7 @@ export default function CastlePage() {
       setCourses(sortCoursesByCategory(cs || []))
       setBookings(bs || [])
       setTicket(tk || null)
-    })
-  }, [])
+  }
 
   // 이번 주(오늘부터 7일)
   const week = useMemo(() => {
@@ -202,8 +208,8 @@ export default function CastlePage() {
       )}
 
       <div className={s.mast}>
-        <div className={s.mastTitle}>Castle<br />Jelly.</div>
-        <div className={s.mastSub}>2호선 스튜디오 · 화실</div>
+        <div className={s.mastTitle}>2HOSUN<br />STUDIO</div>
+        <div className={s.mastSub}>Castle Jelly · 2호선 스튜디오 화실</div>
       </div>
 
       {/* 위 — 이번 주 일정 */}
@@ -211,19 +217,32 @@ export default function CastlePage() {
         <div className={s.weekHead}><span>이번 주 일정</span><a href="/student/calendar">달력 전체 보기 →</a></div>
         <div className={s.days}>
           {week.map(d => (
-            <a key={d.key} href={`/student/calendar?date=${d.key}`} className={`${s.day} ${d.today ? s.today : ''}`}>
+            <button key={d.key} onClick={() => openBooking(d.key)} aria-label={`${d.num}일 예약하기`} className={`${s.day} ${d.today ? s.today : ''}`}>
               <span className={s.dayDow}>{d.today ? '오늘' : d.dow}</span>
               <span className={s.dayNum}>{d.num}</span>
               <span className={s.dot} style={{ background: d.dot }} />
-            </a>
+            </button>
           ))}
         </div>
       </section>
 
       {/* 왼쪽(모바일 = 아래 시트) — 수업 */}
-      <nav className={`${s.left} ${s.glass}`} aria-label="수업">
+      {!classesOpen && !booking && (
+        <button className={`${s.classesBtn} ${s.glass}`} aria-expanded={false} aria-controls="castle-classes" onClick={() => toggleClasses(true)}>
+          <span className={s.classesDots} aria-hidden="true">{groups.slice(0, 6).map(g => <span key={g.cat} style={{ background: CAT[g.cat]?.dot || '#ccc' }} />)}</span>
+          <span className={s.classesText}><b>수업 둘러보기</b><span>{groups.length ? `${groups.reduce((n, g) => n + g.names.length, 0)}개 수업 · 눌러서 펼치기` : '눌러서 펼치기'}</span></span>
+          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={s.classesChevron}><path d="M9 6l6 6-6 6" /></svg>
+        </button>
+      )}
+      <nav id="castle-classes" className={`${s.left} ${s.glass} ${classesOpen ? '' : s.leftClosed}`} aria-label="수업" aria-hidden={!classesOpen}>
         <div className={s.sheetHandle} />
-        <div className={s.sectionLabel}>수업</div>
+        <div className={s.leftHead}>
+          <div className={s.sectionLabel}>수업</div>
+          <button className={s.foldBtn} aria-label="수업 접기" aria-expanded={true} aria-controls="castle-classes" onClick={() => toggleClasses(false)}>
+            접기
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6" /></svg>
+          </button>
+        </div>
         {groups.length === 0 && <div className={s.muted} style={{ padding: '6px 8px' }}>열린 수업을 불러오는 중…</div>}
         {groups.map(g => (
           <div key={g.cat}>
@@ -237,7 +256,7 @@ export default function CastlePage() {
       <button className={`${s.sceneBtn} ${s.glass}`} aria-label={sceneOpen ? '장면 조절 닫기' : '장면 조절 열기'} aria-expanded={sceneOpen} onClick={() => setSceneOpen(v => !v)}>
         <Icon d={<><path d="M4 7h10M18 7h2M4 17h4M12 17h8" /><circle cx="16" cy="7" r="2" /><circle cx="10" cy="17" r="2" /></>} />
       </button>
-      <aside className={`${s.right} ${s.glass} ${sceneOpen ? s.rightOpen : ''}`} aria-label="오늘과 장면 조절">
+      <aside className={`${s.right} ${s.glass} ${sceneOpen ? s.rightOpen : ''}`} style={booking ? { visibility: 'hidden' } : undefined} aria-label="오늘과 장면 조절">
         <div className={s.todayBlock}>
           <div className={s.sectionLabel} style={{ padding: 0 }}>다음 수업</div>
           {next ? (<>
@@ -245,7 +264,7 @@ export default function CastlePage() {
             <div className={s.muted}>{next.class_date} · {next.class_time}</div>
           </>) : <div className={s.muted}>예약한 수업이 없어요</div>}
           {ticket && <div className={s.muted}>수강권 {ticket.remain}/{ticket.total}회 남음</div>}
-          <a className={s.primary} href="/student/calendar">수업 예약하기</a>
+          <button className={s.primary} onClick={() => openBooking()}>수업 예약하기</button>
           <div className={s.hr} style={{ marginTop: 6 }} />
         </div>
         <div className={s.sectionLabel} style={{ padding: 0 }}>장면</div>
@@ -283,7 +302,13 @@ export default function CastlePage() {
 
       {/* 누른 곳 → 들어가기 */}
       {pick && (
-        <a className={s.pick} href={pick.href} style={{ left: pick.x, top: pick.y }} onClick={() => setPick(null)}>{pick.label}</a>
+        <a className={s.pick} href={pick.href} style={{ left: pick.x, top: pick.y }}
+          onClick={e => { if (pick.booking) { e.preventDefault(); openBooking() } else setPick(null) }}>{pick.label}</a>
+      )}
+
+      {booking && (
+        <BookingPanel key={booking.date} user={user} initialDate={booking.date} onClose={() => setBooking(null)}
+          onBooked={() => { if (user) loadMine(user) }} />
       )}
 
       {/* 아래 — 기타 기능 */}

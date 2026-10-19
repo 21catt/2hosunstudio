@@ -1,0 +1,75 @@
+/* 3D 홈 예약 패널 — 장면 위 반투명 유리(2026-10-19 시안). 데스크탑 = 오른쪽 세로 패널, 모바일 = 아래 시트. */
+.panel { position: absolute; right: 28px; top: 26px; bottom: 26px; width: 440px; z-index: 8; box-sizing: border-box;
+  display: flex; flex-direction: column; gap: 12px; padding: 18px 20px 18px; border-radius: 28px; color: #2b2433;
+  background: linear-gradient(170deg, rgba(255,255,255,0.86) 0%, rgba(255,255,255,0.72) 55%, rgba(234,226,250,0.66) 100%);
+  border: 1px solid rgba(255,255,255,0.95);
+  box-shadow: inset 0 1.5px 0 #fff, 0 18px 48px rgba(60,45,80,0.22);
+  backdrop-filter: blur(22px) saturate(160%); -webkit-backdrop-filter: blur(22px) saturate(160%);
+  animation: rise 0.28s ease-out; }
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .panel { animation: none; } }
+.handle { display: none; }
+.head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; opacity: 0.6; }
+.title { font-family: 'Instrument Serif', serif; font-style: italic; font-size: 28px; line-height: 1.1; }
+.close { width: 44px; height: 44px; flex: 0 0 auto; border-radius: 22px; border: 1px solid rgba(255,255,255,0.95); background: rgba(255,255,255,0.6);
+  display: flex; align-items: center; justify-content: center; cursor: pointer; color: #2b2433; }
+
+.days { display: flex; gap: 6px; overflow-x: auto; padding: 2px 2px 4px; scrollbar-width: none; }
+.days::-webkit-scrollbar { display: none; }
+.day { flex: 0 0 46px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 7px 0; border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.85); background: rgba(255,255,255,0.45); color: inherit; cursor: pointer; font-family: inherit; }
+.dayOn { background: linear-gradient(160deg, #4a4058, #2b2433 60%, #1d1824); color: #fff; border-color: rgba(255,255,255,0.3);
+  box-shadow: inset 0 1.5px 0 rgba(255,255,255,0.3), 0 8px 18px rgba(43,36,51,0.3); }
+.dayDow { font-size: 11px; opacity: 0.75; }
+.dayNum { font-size: 17px; font-weight: 700; }
+.dayDot { width: 6px; height: 6px; border-radius: 3px; }
+
+.steps { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: #8a8094; }
+.step { display: flex; align-items: center; gap: 6px; }
+.stepDot { width: 8px; height: 8px; border-radius: 4px; border: 1.5px solid #b6adbf; }
+.stepLine { width: 22px; height: 1px; background: #c9c2d2; margin-left: 2px; }
+
+.body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 9px; padding: 2px; }
+.label { font-size: 11px; font-weight: 700; letter-spacing: 1px; opacity: 0.65; }
+.labelRow { display: flex; justify-content: space-between; align-items: baseline; margin-top: 4px; }
+.link { font-size: 12px; font-weight: 600; color: #4b3270; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { display: flex; align-items: center; gap: 6px; padding: 9px 12px; border-radius: 14px; outline-offset: 1px;
+  border: 1px solid rgba(255,255,255,0.95); box-shadow: inset 0 1.5px 0 #fff, inset 0 -5px 10px rgba(80,60,110,0.10), 0 5px 12px rgba(60,45,80,0.10);
+  font: 600 13px 'IBM Plex Sans KR', sans-serif; color: #2b2433; cursor: pointer; }
+.orb { width: 12px; height: 12px; border-radius: 6px; box-shadow: inset 0 -3px 4px rgba(0,0,0,0.18), inset 0 2px 3px rgba(255,255,255,0.85); }
+.courses { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.course { text-align: left; padding: 12px 14px; border-radius: 16px; outline-offset: 1px; border: 1px solid rgba(255,255,255,0.9);
+  background: rgba(255,255,255,0.55); font-family: inherit; color: #2b2433; cursor: pointer; display: flex; flex-direction: column; gap: 3px; }
+.place { font-size: 10px; font-weight: 700; }
+.courseName { font-size: 15px; font-weight: 700; }
+.slots { display: flex; flex-direction: column; gap: 7px; }
+.slot { display: grid; grid-template-columns: 48px 1fr auto; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 16px; outline-offset: 1px;
+  border: 1px solid rgba(255,255,255,0.9); background: rgba(255,255,255,0.55); font-family: inherit; color: #2b2433; cursor: pointer; text-align: left; }
+.slotOff { background: rgba(255,255,255,0.32); color: #6e6378; cursor: default; }
+.part { font-size: 11px; font-weight: 700; padding: 4px 0; border-radius: 9px; text-align: center; }
+.time { font-size: 14px; font-weight: 700; }
+.state { font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 7px; }
+.seats { display: flex; gap: 2px; }
+.seats span { width: 5px; height: 5px; border-radius: 3px; }
+.redirect { display: flex; flex-direction: column; gap: 3px; padding: 13px 14px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.95);
+  text-decoration: none; color: #2b2433; font-size: 12px; }
+.redirect b { font-size: 15px; }
+.muted { font-size: 12px; opacity: 0.72; }
+.empty { padding: 28px 0; text-align: center; font-size: 14px; font-weight: 600; opacity: 0.75; }
+.note { padding: 11px 13px; border-radius: 14px; background: rgba(255,255,255,0.75); font-size: 13px; font-weight: 600; }
+
+.foot { display: flex; flex-direction: column; gap: 8px; }
+.ticket { display: flex; gap: 8px; align-items: baseline; font-size: 12px; flex-wrap: wrap; }
+.cta { height: 54px; border-radius: 18px; border: 1px solid rgba(255,255,255,0.25); color: #fff; font: 700 15px 'IBM Plex Sans KR', sans-serif; cursor: pointer;
+  background: linear-gradient(160deg, #4a4058 0%, #2b2433 60%, #1d1824 100%);
+  box-shadow: inset 0 1.5px 0 rgba(255,255,255,0.35), inset 0 -8px 14px rgba(0,0,0,0.25), 0 12px 24px rgba(43,36,51,0.32); }
+.cta:disabled { opacity: 0.55; cursor: default; }
+
+@media (max-width: 760px) {
+  .panel { left: 0; right: 0; top: auto; bottom: 0; width: auto; height: min(82vh, 640px); border-radius: 28px 28px 0 0; padding: 10px 16px 16px;
+    border-left: none; border-right: none; border-bottom: none; box-shadow: inset 0 1.5px 0 #fff, 0 -14px 40px rgba(60,45,80,0.18); }
+  .handle { display: block; width: 40px; height: 5px; border-radius: 3px; background: rgba(43,36,51,0.22); align-self: center; }
+  .title { font-size: 24px; }
+}
