@@ -7,7 +7,7 @@ import PalettePlanner from './PalettePlanner'
 // 색 계획(PIGMENT) 플로팅 버튼 — 로그인된 모든 화면(수강생·작가·강사)에 노란 팔레트 아이콘으로 떠 있고,
 // 스크롤에 반응(내리면 오른쪽으로 살짝 숨고 흐려짐)한다. 탭하면 도구가 열리고, 저장하면 그날 기록에 남는다.
 // 하단 입력바가 있는 화면(기록·라운지)·로그인 계열에서는 겹침/중복 방지로 숨긴다.
-const HIDE = ['/login', '/signup', '/reset-password', '/student/records', '/lounge']
+const HIDE = ['/login', '/signup', '/reset-password', '/student/records', '/lounge', '/rental']
 
 export default function PaletteFab() {
   const pathname = usePathname()

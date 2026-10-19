@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server'
-import webpush from 'web-push'
 import { supabaseAdmin } from '../../../lib/supabaseAdmin'
-import { staffIdsForCourse } from '../../../lib/adminNotify'
-import { sendMemoToAdmins } from '../../../lib/kakao'
+import { deliverToStaff } from '../../../lib/staffDeliver'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,10 +19,6 @@ const KINDS = {
   guest_booking_request: { title: '📩 미가입 예약 요청', anon: true },
   inquiry:               { title: '💬 수업 문의',       anon: false },
   new_member:            { title: '🐾 새 회원 가입',     anon: false },
-}
-
-if (process.env.VAPID_PRIVATE_KEY && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
-  webpush.setVapidDetails(process.env.VAPID_EMAIL, process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY)
 }
 
 // 같은 곳에서 연달아 보내는 것만 막는 얕은 제한(서버 인스턴스 메모리 — 장난 방지용)
@@ -67,39 +61,11 @@ export async function POST(req) {
     const { data: c } = await supabaseAdmin.from('class_courses').select('id').eq('id', courseId).maybeSingle()
     if (!c) courseId = null
   }
-  const ids = await staffIdsForCourse(courseId, body.scheduleId || null, supabaseAdmin)
+  const { notified, pushed, kakao } = await deliverToStaff({
+    type: body.kind, title: kind.title, text, courseId, scheduleId: body.scheduleId || null,
+  })
 
-  const title = kind.title
-  let notified = 0
-  if (ids.length) {
-    const { data, error } = await supabaseAdmin.from('notifications')
-      .insert(ids.map(id => ({ user_id: id, type: body.kind, title, body: text })))
-      .select('id')
-    if (error) console.error('staff-alert notification', error)
-    notified = data?.length || 0
-  }
-
-  // 웹푸시 — 구독한 운영진에게만
-  let pushed = 0
-  if (ids.length && process.env.VAPID_PRIVATE_KEY) {
-    const { data: subs } = await supabaseAdmin.from('push_subscriptions').select('subscription').in('user_id', ids)
-    const payload = JSON.stringify({ title, body: text.slice(0, 120) })
-    for (const s of subs || []) {
-      try { await webpush.sendNotification(s.subscription, payload); pushed++ } catch (e) {
-        if (e.statusCode === 410 || e.statusCode === 404) {
-          await supabaseAdmin.from('push_subscriptions').delete().eq('subscription', s.subscription)
-        }
-      }
-    }
-  }
-
-  // 카톡 — 연결해 둔 관리자 카카오(나에게 보내기)
-  let kakao = { sent: 0, total: 0 }
-  try {
-    kakao = await sendMemoToAdmins(`[${title}]\n${text}`.slice(0, 190), 'https://2hosunstudio.vercel.app/admin/notification')
-  } catch (e) { console.error('staff-alert kakao', e) }
-
-  const delivered = notified + pushed + kakao.sent
+  const delivered = notified + pushed + kakao
   if (!delivered) return NextResponse.json({ error: '운영진에게 전달하지 못했어요' }, { status: 502 })
-  return NextResponse.json({ ok: true, notified, pushed, kakao: kakao.sent })
+  return NextResponse.json({ ok: true, notified, pushed, kakao })
 }
