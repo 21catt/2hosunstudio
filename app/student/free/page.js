@@ -30,6 +30,20 @@ function getRateLabel(date, hour) {
   return '평일 낮'
 }
 
+// 자리 대관 신청(시간 이용·취소 제외) — 지난달 1일 ~ 다음 달 말일. 실패하면 빈 목록(예약 화면은 그대로 동작)
+async function fetchRentalOccupancy() {
+  const n = new Date()
+  const p = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const from = p(new Date(n.getFullYear(), n.getMonth() - 1, 1))
+  const to = p(new Date(n.getFullYear(), n.getMonth() + 2, 0))
+  try {
+    const r = await fetch(`/api/rental?only=rental&from=${from}&to=${to}`, { cache: 'no-store' })
+    if (!r.ok) return []
+    const j = await r.json()
+    return (j.rows || []).map(x => ({ class_date: x.date, class_time: x.time, seat: x.seat }))
+  } catch { return [] }
+}
+
 function FreeInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -105,7 +119,9 @@ function FreeInner() {
       grouped[p.seat_id].push(p)
     })
     setSeatPhotos(grouped)
-    setAllBookings(ab || [])
+    // 자리 대관(/rental) 시간 이용도 같은 자리를 쓴다 — 서버에서 날짜·시간·자리만 받아 예약 목록에 섞는다
+    const rentalRows = await fetchRentalOccupancy()
+    setAllBookings([...(ab || []), ...rentalRows])
     setLockedDates(locked)
     setFreeCourse(courses?.[0] || null)
 
