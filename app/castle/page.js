@@ -19,7 +19,8 @@ import { getSavedTheme } from '../../lib/theme'
 import LoadingCat from '../../components/LoadingCat'
 import s from './castle.module.css'
 
-const CastleJellyScene = dynamic(() => import('../../components/castle/CastleJellyScene'), { ssr: false })
+// 장면 = 원본 프롬프트 그대로 만든 시연판(CastleStudyScene, WebGPU). 옛 장면(CastleJellyScene)은 되돌릴 때를 위해 남겨 둔다.
+const CastleJellyScene = dynamic(() => import('../../components/castle/CastleStudyScene'), { ssr: false })
 
 const CAT = {
   drawing:   { name: '드로잉',     dot: '#f4a9c0' },
