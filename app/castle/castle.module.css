@@ -18,6 +18,12 @@
 .badge { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); z-index: 6; font-size: 11px; font-weight: 700;
   padding: 5px 12px; border-radius: 999px; background: #2b2433; color: #fff; letter-spacing: 0.5px; }
 
+.topActions { position: absolute; right: 28px; bottom: 30px; z-index: 7; display: flex; gap: 6px; }
+.topBtn { padding: 7px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; color: inherit; text-decoration: none; cursor: pointer; font-family: inherit; }
+/* 대체 화면 — 메뉴·패널(z 3)은 그 위에 남아 그대로 누를 수 있다 */
+.fallback { position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: center; padding: 20px; pointer-events: none; }
+.fallbackCard { pointer-events: auto; max-width: 380px; width: 100%; padding: 22px; border-radius: 24px; display: flex; flex-direction: column; gap: 12px; }
+.linkBtn { background: none; border: none; color: inherit; opacity: 0.7; font-size: 12px; text-decoration: underline; cursor: pointer; font-family: inherit; }
 .mast { position: absolute; left: 36px; top: 28px; z-index: 3; pointer-events: none; }
 .mastTitle { font-family: 'Instrument Serif', 'Times New Roman', serif; font-style: italic; font-size: 60px; line-height: 0.86; letter-spacing: -1px; }
 .mastSub { margin-top: 8px; font-size: 12px; font-weight: 600; letter-spacing: 2px; opacity: 0.7; }
@@ -79,7 +85,9 @@
 .sheetHandle { display: none; }
 
 @media (max-width: 760px) {
-  .badge { left: auto; right: 14px; top: 20px; transform: none; max-width: 160px; font-size: 10px; text-align: center; }
+  .badge { display: none; }
+  .topActions { right: 12px; top: 22px; bottom: auto; max-width: 230px; flex-wrap: wrap; justify-content: flex-end; }
+  .topBtn { padding: 6px 10px; font-size: 11px; }
   .mast { left: 18px; top: 18px; }
   .mastTitle { font-size: 36px; }
   .mastSub { display: none; }

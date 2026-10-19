@@ -40,7 +40,7 @@ function lerpColor(a, b, t) { return new THREE.Color(a).lerp(new THREE.Color(b),
 function tri(t, a, b, c) { return t < 0.5 ? lerpColor(a, b, t * 2) : lerpColor(b, c, (t - 0.5) * 2) }
 function triN(t, a, b, c) { return t < 0.5 ? a + (b - a) * t * 2 : b + (c - b) * (t - 0.5) * 2 }
 
-export default function CastleJellyScene({ settingsRef, onPick, commandRef, onReady }) {
+export default function CastleJellyScene({ settingsRef, onPick, commandRef, onReady, onFallback, lite = false }) {
   const mountRef = useRef(null)
 
   useEffect(() => {
@@ -49,9 +49,24 @@ export default function CastleJellyScene({ settingsRef, onPick, commandRef, onRe
     const W = () => mount.clientWidth, H = () => mount.clientHeight
     const narrow = () => W() < 760
 
+    // ── 느린 기기 대비 ───────────────────────────────────────────
+    // ① 3D 를 못 그리는 기기 = 바로 대체 화면(조용히 빈 화면 금지)
+    {
+      const probe = document.createElement('canvas')
+      const gl = probe.getContext('webgl2') || probe.getContext('webgl')
+      if (!gl) { onFallback?.('nowebgl'); return }
+      gl.getExtension('WEBGL_lose_context')?.loseContext()
+    }
+    // ② 처음부터 가벼운 품질: 사용자가 「가벼운 모드」를 골랐거나, 메모리·코어가 적은 기기
+    const nav = typeof navigator !== 'undefined' ? navigator : {}
+    const weak = lite || (nav.deviceMemory && nav.deviceMemory <= 4) || (nav.hardwareConcurrency && nav.hardwareConcurrency <= 4)
+
     // ── 렌더러 · 카메라 ──────────────────────────────────────────
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
-    let pr = Math.min(1.5, window.devicePixelRatio || 1)
+    let renderer
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: !weak, alpha: true, powerPreference: weak ? 'low-power' : 'high-performance' })
+    } catch { onFallback?.('nowebgl'); return }
+    let pr = weak ? 1 : Math.min(1.5, window.devicePixelRatio || 1)
     renderer.setPixelRatio(pr)
     renderer.setSize(W(), H())
     renderer.shadowMap.enabled = true
@@ -82,7 +97,7 @@ export default function CastleJellyScene({ settingsRef, onPick, commandRef, onRe
     scene.add(hemi)
     const sun = new THREE.DirectionalLight('#ffffff', 2.2)
     sun.castShadow = true
-    sun.shadow.mapSize.set(1024, 1024)
+    sun.shadow.mapSize.set(weak ? 512 : 1024, weak ? 512 : 1024)
     Object.assign(sun.shadow.camera, { left: -7, right: 7, top: 7, bottom: -7, near: 1, far: 40 })
     sun.shadow.bias = -0.0008
     scene.add(sun, sun.target)
@@ -326,7 +341,7 @@ export default function CastleJellyScene({ settingsRef, onPick, commandRef, onRe
     for (let i = 0; i < 14; i++) add(new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.3, 4), mat('#7a9a52')), 2.2 + (i % 5) * 0.12, 0.12, -2.4 + Math.floor(i / 5) * 0.15, block).castShadow = false
 
     // ── 폭포 ─────────────────────────────────────────────────────
-    const fallN = 900
+    const fallN = weak ? 450 : 900
     const fallGeo = new THREE.BufferGeometry()
     const fallPos = new Float32Array(fallN * 3), fallVel = new Float32Array(fallN * 3)
     fallGeo.setAttribute('position', new THREE.BufferAttribute(fallPos, 3))
@@ -524,6 +539,11 @@ export default function CastleJellyScene({ settingsRef, onPick, commandRef, onRe
     let acc = 0, last = performance.now(), time = 0, raf = 0, nextAutoFw = 0
     // 자동 품질: 처음 몇 초의 프레임 속도를 보고 느리면 한 단계씩 내린다(해상도 → 굴절 → 그림자)
     let fpsFrames = 0, fpsT0 = 0, quality = 3
+    if (weak) { quality = 1; lakeMat.transmission = 0; lakeMat.opacity = 0.8; lakeMat.needsUpdate = true }
+    // ③ 그리다가 GPU 가 끊기면(메모리 부족 등) 대체 화면으로
+    const onLost = e => { e.preventDefault(); cancelAnimationFrame(raf); onFallback?.('lost') }
+    renderer.domElement.addEventListener('webglcontextlost', onLost)
+    let slowStreak = 0
     let flavourNow = null
 
     function stepPhysics(dt) {
@@ -769,6 +789,11 @@ export default function CastleJellyScene({ settingsRef, onPick, commandRef, onRe
           if (quality === 0) { renderer.shadowMap.enabled = false; scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => { m.needsUpdate = true }) }) }
         } else quality = 0 // 충분히 빠르면 그대로 둔다
         fpsFrames = 0; fpsT0 = now
+      } else if (now - fpsT0 > 3000 && quality === 0) {
+        const fps = fpsFrames / ((now - fpsT0) / 1000)
+        slowStreak = fps < 18 ? slowStreak + 1 : 0
+        if (slowStreak === 3) onFallback?.('slow') // 가장 가벼운 품질로도 9초 내내 느림 → 예전 홈 권유(한 번)
+        fpsFrames = 0; fpsT0 = now
       }
       const night = applyLook()
       updateWaterVisuals(night)
@@ -794,14 +819,21 @@ export default function CastleJellyScene({ settingsRef, onPick, commandRef, onRe
     }
     let disposed = false
     const start = () => { if (disposed) return; raf = requestAnimationFrame(t => { frame(t); onReady?.() }) }
-    // 셰이더를 미리 컴파일한다 — 첫 프레임에서 몇 초씩 멈추던 것(굴절·그림자 재질)을 로딩 화면 뒤로 숨긴다
-    if (renderer.compileAsync) renderer.compileAsync(scene, camera).then(start, start)
-    else start()
+    // 셰이더를 미리 컴파일한다 — 첫 프레임에서 몇 초씩 멈추던 것(굴절·그림자 재질)을 로딩 화면 뒤로 숨긴다.
+    // ⚠️ compileAsync 는 쓰지 않는다: 준비 중에 장면이 정리되면(개발 모드 이중 마운트·빠른 화면 이동) three 내부
+    //    폴링이 사라진 프로그램을 읽어 「isReady of undefined」로 터진다. 로딩 화면이 먼저 그려지게 한 박자 뒤 동기 컴파일.
+    const compileTimer = setTimeout(() => {
+      if (disposed) return
+      try { renderer.compile(scene, camera) } catch {}
+      start()
+    }, 60)
 
     return () => {
       disposed = true
+      clearTimeout(compileTimer)
       cancelAnimationFrame(raf)
       ro.disconnect()
+      renderer.domElement.removeEventListener('webglcontextlost', onLost)
       renderer.domElement.removeEventListener('pointerdown', onDown)
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)

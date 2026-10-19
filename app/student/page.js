@@ -970,6 +970,18 @@ export default function StudentHomePage() {
         </div>
       )}
 
+      {/* 새 3D 홈 미리보기 입구 — 관리자가 미리 열어 준 학생(user_metadata.castle_beta)과 관리자에게만 */}
+      {(user?.user_metadata?.castle_beta === true || user?.user_metadata?.role === 'admin') && (
+        <a href="/castle" onClick={() => { try { localStorage.setItem('2hs_home_mode', 'castle') } catch {} }}
+          style={{ position:'fixed', top:12, right:12, zIndex:60, padding:'8px 14px', borderRadius:999, fontSize:12, fontWeight:800,
+            color:'#2b2433', textDecoration:'none', fontFamily:'inherit',
+            background:'linear-gradient(160deg, rgba(255,255,255,0.95), rgba(255,255,255,0.55) 60%, rgba(220,210,245,0.5))',
+            border:'1px solid rgba(255,255,255,0.95)', boxShadow:'inset 0 1.5px 0 #fff, 0 8px 20px rgba(43,36,51,0.18)',
+            backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)' }}>
+          ✨ 새 3D 홈 미리보기
+        </a>
+      )}
+
       {/* 휴무·행사 안내 — 스킨 분기 밖(세 스킨 공통), 로그인 여부 무관 */}
       <NoticePopup />
       {/* 오늘의 그림 — 공지와 같은 자리(스킨 분기 밖). 하단 네비가 없는 스킨은 더 아래로 */}

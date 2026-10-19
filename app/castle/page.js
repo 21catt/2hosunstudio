@@ -2,7 +2,9 @@
 // /castle — 3D 메인(Castle Jelly) 1단계, **숨긴 미리보기** (2026-10-19)
 //
 // 사용자 지시: "바로 바꾸지 말고 숨겨서 진행하다가 완벽히 교체되면 그때 웹에서 보이게".
-//   · 어디에도 링크하지 않는다 · 관리자(오너)만 열린다 — 그 밖은 원래 홈으로 돌려보낸다.
+//   · 관리자(오너)와 관리자가 「미리 열어 준」 학생(user_metadata.castle_beta — /admin/castle-beta)만 열린다.
+//     그 밖은 원래 홈으로 돌려보낸다. 학생 홈에는 미리보기 대상에게만 입구가 보인다.
+//   · 언제든 「예전 홈으로」(오른쪽 위) · 느린 기기 = 가벼운 모드 / 3D 를 못 그리면 대체 화면.
 //   · 기존 학생 홈(/student)은 무변경.
 // 구성: 가운데 3D 디오라마 · 왼쪽 수업 · 위 이번 주 일정 · 아래 기타 기능 · 오른쪽 유리 패널(오늘 + 장면 조절).
 // 모바일: 위 일정 줄 · 「장면」 동그란 버튼(누르면 조절 패널) · 아래 시트(수업) + 기능 막대.
@@ -79,6 +81,10 @@ export default function CastlePage() {
   const [reducedMotion, setReducedMotion] = useState(false)
   const [ready, setReady] = useState(false)
   const [unread, setUnread] = useState(0)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [fallback, setFallback] = useState(null) // 'nowebgl' | 'lost' | 'slow'
+  const [lite, setLite] = useState(() => { try { return typeof window !== 'undefined' && localStorage.getItem('2hs_castle_lite') === '1' } catch { return false } })
+  const [sceneKey, setSceneKey] = useState(0) // 가벼운 모드로 다시 그릴 때 장면을 새로 만든다
   const settingsRef = useRef(look)
   settingsRef.current = { ...look, catImg, reducedMotion }
   // 처음 = 저장된 장면 설정(없으면 내 테마), 내 농부냥, 동작 줄이기
@@ -102,7 +108,9 @@ export default function CastlePage() {
     supabase.auth.getUser().then(async ({ data }) => {
       const u = data?.user
       if (!u) { router.replace('/login'); return }
-      if (u.user_metadata?.role !== 'admin') { router.replace('/student'); return }
+      const admin = u.user_metadata?.role === 'admin'
+      if (!admin && u.user_metadata?.castle_beta !== true) { router.replace('/student'); return }
+      setIsAdmin(admin)
       setAllowed(true)
       const today = ymd(new Date())
       supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', u.id).eq('is_read', false)
@@ -147,21 +155,50 @@ export default function CastlePage() {
   const next = bookings[0]
   const night = look.timeOfDay > 0.7
   const setL = patch => setLook(prev => ({ ...prev, ...patch }))
+  function switchLite(on) {
+    setLite(on)
+    try { localStorage.setItem('2hs_castle_lite', on ? '1' : '0') } catch {}
+    setFallback(null); setReady(false); setSceneKey(k => k + 1)
+  }
 
   if (!allowed) return <div className={s.root} />
 
   return (
     <div className={`${s.root} ${night ? s.night : ''}`}>
       <link rel="stylesheet" precedence="default" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap" />
-      {!ready && (
+      {!ready && !fallback && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
           <LoadingCat label="젤리 성을 굳히는 중…" />
         </div>
       )}
-      <CastleJellyScene settingsRef={settingsRef} commandRef={commandRef} onReady={() => setReady(true)}
+      <CastleJellyScene key={sceneKey} lite={lite} settingsRef={settingsRef} commandRef={commandRef} onReady={() => setReady(true)}
+        onFallback={reason => { setReady(true); setFallback(reason) }}
         onPick={(kind, x, y) => setPick(PICK_LINK[kind] ? { ...PICK_LINK[kind], x, y } : null)} />
 
-      <div className={s.badge}>개발 중 미리보기 · 관리자에게만 보여요</div>
+      <div className={s.badge}>{isAdmin ? '미리보기 · 관리자와 미리보기 학생에게만 보여요' : '새 홈 미리보기 · 의견을 들려주세요'}</div>
+
+      {/* 언제든 예전 홈으로 · 가벼운 모드 */}
+      <div className={s.topActions}>
+        <button className={`${s.topBtn} ${s.glass}`} aria-pressed={lite} onClick={() => switchLite(!lite)}>{lite ? '가벼운 모드 켜짐' : '가벼운 모드'}</button>
+        {isAdmin && <a className={`${s.topBtn} ${s.glass}`} href="/admin/castle-beta">미리보기 학생</a>}
+        <a className={`${s.topBtn} ${s.glass}`} href="/student" onClick={() => { try { localStorage.setItem('2hs_home_mode', 'classic') } catch {} }}>예전 홈으로</a>
+      </div>
+
+      {fallback && (
+        <div className={s.fallback} role="dialog" aria-label="3D 화면 안내">
+          <div className={`${s.fallbackCard} ${s.glass}`}>
+            <div className={s.todayTitle}>
+              {fallback === 'nowebgl' ? '이 기기에서는 3D 화면을 그릴 수 없어요' : fallback === 'lost' ? '3D 화면이 잠시 멈췄어요' : '이 기기에서는 3D 화면이 조금 느려요'}
+            </div>
+            <div className={s.muted}>예전 홈은 그대로 있어요. 메뉴는 아래에서 그대로 쓸 수 있어요.</div>
+            <div className={s.row}>
+              {fallback !== 'nowebgl' && <button className={`${s.chip} ${s.glass}`} onClick={() => switchLite(true)}>가벼운 모드로 다시</button>}
+              <a className={s.primary} style={{ flex: 1 }} href="/student">예전 홈으로</a>
+            </div>
+            {fallback === 'slow' && <button className={s.linkBtn} onClick={() => setFallback(null)}>그냥 이대로 볼게요</button>}
+          </div>
+        </div>
+      )}
 
       <div className={s.mast}>
         <div className={s.mastTitle}>Castle<br />Jelly.</div>
