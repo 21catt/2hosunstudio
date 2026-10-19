@@ -323,7 +323,9 @@ export default function RentalPage() {
           <div style={{ marginTop: 'auto', paddingTop: 20 }}>
             {step === 'confirm' ? (
               <>
-                <div style={{ fontSize: 12, color: C.sub, lineHeight: 1.5, marginBottom: 10 }}>{cfg.deposit_note}</div>
+                <div style={{ fontSize: 12, color: C.sub, lineHeight: 1.5, marginBottom: 10 }}>
+                  {cfg.deposit_note} <a href="/policy" target="_blank" rel="noreferrer" style={{ color: C.olive, fontWeight: 500 }}>취소·환불 규정 보기</a>
+                </div>
                 <button onClick={submit} disabled={!formReady || sending} style={primary(!!formReady && !sending)}>{sending ? '보내는 중…' : '신청하기'}</button>
               </>
             ) : (
