@@ -64,7 +64,7 @@ function Icon({ d }) {
 const DOCK = [
   { href: '/student', label: '홈', icon: <path d="M4 11l8-7 8 7v9H4z" /> },
   { href: '/student/records', label: '기록', icon: <><rect x="5" y="4" width="14" height="16" rx="2" /><path d="M9 9h6M9 13h6" /></> },
-  { href: '/student/farm', label: '냥밭', icon: <path d="M12 20V10M12 10c0-4 3-6 6-6 0 4-3 6-6 6zM12 13c0-3-2-5-5-5 0 3 2 5 5 5z" /> },
+  { href: '/castle/farm', label: '냥밭', icon: <path d="M12 20V10M12 10c0-4 3-6 6-6 0 4-3 6-6 6zM12 13c0-3-2-5-5-5 0 3 2 5 5 5z" /> },
   { href: '/lounge', label: '라운지', icon: <path d="M5 6h14v9H9l-4 3z" /> },
   { href: '/student/notification', label: '알림', icon: <path d="M6 16V11a6 6 0 0112 0v5l2 2H4zM10 20h4" /> },
   { href: '/student/settings', label: '설정', icon: <><circle cx="12" cy="12" r="3" /><path d="M12 3v3M12 18v3M3 12h3M18 12h3" /></> },

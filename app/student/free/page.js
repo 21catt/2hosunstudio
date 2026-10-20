@@ -8,6 +8,7 @@ import { notifyAllAdmins } from '../../../lib/adminNotify'
 import { fetchLockedDates } from '../../../lib/lockedDates'
 import { isTooLateToBook, bookingCutoffMessage } from '../../../lib/bookingWindow'
 import GlassBg from '../../../components/GlassBg'
+import CastleHero from '../../../components/castle/CastleHero'
 import SpaceBg from '../../../components/SpaceBg'
 import { useFreshTheme, useSpaceTheme } from '../../../lib/useFreshTheme'
 
@@ -310,6 +311,7 @@ function FreeInner() {
         </div>
       )}
 
+      <CastleHero title="Free Studio" />
       <div className="p-header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <button onClick={()=>router.push('/student')}
@@ -320,7 +322,7 @@ function FreeInner() {
         </div>
       </div>
 
-      <div style={{ background: (fresh || space) ? 'transparent' : '#fff', padding:'8px 14px 100px' }}>
+      <div className="castle-sheet" style={{ background: (fresh || space) ? 'transparent' : '#fff', padding:'8px 14px 100px' }}>
 
         <div style={{ marginBottom:14 }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>

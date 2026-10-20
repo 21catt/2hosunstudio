@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { NavIcon, NAV_ACTIVE, NAV_MUTED } from './NavIcons'
+import { castleSkinAllowed, HOME_MODE_KEY } from '../lib/useCastleSkin'
 
 // 하단 내비. 수강생은 6탭(홈·캘린더·기록·냥밭·라운지·설정),
 // 작가도 6탭(홈·회의·기록·냥밭·라운지·설정) — 홈이 /artist(대시보드), 회의 캘린더는 /artist/meetings.
@@ -10,6 +11,13 @@ export default function StudentNav({ active, role: roleProp }) {
   const [role, setRole] = useState(roleProp || '')
   const [unread, setUnread] = useState(0)
   const [loungeNew, setLoungeNew] = useState(0)   // 마지막으로 본 뒤 올라온 라운지 글 수
+  // 3D 모드(미리보기 대상 · 「예전 화면」을 고르지 않음)면 냥밭 탭 = 3D 냥밭
+  const [castle, setCastle] = useState(false)
+  useEffect(() => {
+    let classic = false; try { classic = localStorage.getItem(HOME_MODE_KEY) === 'classic' } catch {}
+    if (classic) return
+    supabase.auth.getSession().then(({ data }) => { if (castleSkinAllowed(data?.session?.user)) setCastle(true) })
+  }, [])
   useEffect(() => {
     if (roleProp) return
     supabase.auth.getUser().then(({ data }) => setRole(data.user?.user_metadata?.role || 'student'))
@@ -80,7 +88,7 @@ export default function StudentNav({ active, role: roleProp }) {
       {items.map(t => {
         const on = active === t.key
         return (
-          <a key={t.key} href={t.href} className={`nav-item ${on ? 'active' : ''}`}>
+          <a key={t.key} href={castle && t.key === 'farm' ? '/castle/farm' : t.href} className={`nav-item ${on ? 'active' : ''}`}>
             <div style={{ position:'relative', display:'flex' }}>
               <NavIcon name={t.icon} active={on} />
               {t.key === 'lounge' && loungeNew > 0 && (

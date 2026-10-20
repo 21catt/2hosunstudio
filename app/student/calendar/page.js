@@ -16,6 +16,7 @@ import { sendStaffAlert } from '../../../lib/staffAlert'
 import { applyTheme, isValidTheme, getSavedTheme, DEFAULT_THEME } from '../../../lib/theme'
 import MoodIndicator from '../../../components/MoodIndicator'
 import LoadingCat from '../../../components/LoadingCat'
+import CastleHero from '../../../components/castle/CastleHero'
 import GlassBg from '../../../components/GlassBg'
 import SpaceBg from '../../../components/SpaceBg'
 import { useFreshTheme, useSpaceTheme } from '../../../lib/useFreshTheme'
@@ -946,6 +947,7 @@ export default function CalendarPage() {
       )}
 
 
+      <CastleHero title="Calendar" />
       <div className="p-header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <NavIcon name="calendar" color="var(--ac)" size={20} />
@@ -958,7 +960,7 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      <div style={{ background: (fresh || space) ? 'transparent' : '#fff', padding:'8px 14px 0' }}>
+      <div className="castle-sheet" style={{ background: (fresh || space) ? 'transparent' : '#fff', padding:'8px 14px 0' }}>
 
         {user && (() => {
           if (upcomingBookings.length > 0) {

@@ -10,6 +10,7 @@ import { WEED, weedImg, weedStage, tickWeeds } from '../../../lib/weeds'
 import { cropProgress, farmTicketValid, pullWeed } from '../../../lib/farmProgress'
 import { notifyStaff } from '../../../lib/adminNotify'
 import LoadingCat from '../../../components/LoadingCat'
+import CastleHero from '../../../components/castle/CastleHero'
 import SpaceBg from '../../../components/SpaceBg'
 import { useSpaceTheme } from '../../../lib/useFreshTheme'
 import ColorMixGame from '../../../components/ColorMixGame'
@@ -395,6 +396,7 @@ export default function FarmPage() {
         .pile-bump { animation: pileBump 0.4s ease; display:inline-block; }
       `}</style>
 
+      <CastleHero title="Farm" extra={{ href: '/castle/farm', label: '3D 냥밭' }} />
       <div className="p-header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <NavIcon name="plant" color="var(--ac)" size={20} />
@@ -407,7 +409,7 @@ export default function FarmPage() {
         </div>
       </div>
 
-      <div style={{ background: 'var(--page)', paddingTop:8, paddingBottom:80 }}>
+      <div className="castle-sheet" style={{ background: 'var(--page)', paddingTop:8, paddingBottom:80 }}>
 
         {/* 농장 메인 씬 — 테마별 픽셀 환경 */}
         <div style={{ position:'relative', overflow:'hidden', background:FARM_ENV[farmTheme].ground }}>
