@@ -27,6 +27,8 @@ const CastleJellyScene = dynamic(() => import('../../components/castle/CastleStu
 
 // 카테고리 색 = 성의 색(lib/categoryStyle — 예약 패널과 한 표)
 const CAT = Object.fromEntries(Object.entries(CATEGORY_STYLE).map(([k, v]) => [k, { name: v.name, dot: v.orb, tint: v.tint, ink: v.ink }]))
+const OCTO_LIST = [['raspberry', '라즈베리', '#d81e4f'], ['blueberry', '블루베리', '#2f56e8'], ['tangerine', '귤', '#ff7a12']]
+const OCTO_ACTS = [['stroll', '산책'], ['curl', '돌돌 말기'], ['wave', '손 흔들기'], ['ink', '먹물'], ['blush', '발그레']]
 const CITRUS_LIST = [['orange', '오렌지', '#f58a1f'], ['blood', '블러드 오렌지', '#b8202e'], ['lemon', '레몬', '#f2d53c']]
 const FLAVOUR_LIST = [['glacier', '빙하', '#8fd3ea'], ['rose', '로즈', '#f4b6cb'], ['lilac', '라일락', '#cdbcf3']]
 const PICK_LINK = {
@@ -90,6 +92,15 @@ export default function CastlePage() {
     try { return { ...d, ...(JSON.parse(localStorage.getItem('2hs_citrus') || 'null') || {}) } } catch { return d }
   })
   const citrusVariety = citrus.variety
+  // 젤리 문어(출석 8회) 세부 설정 — 맛·단단함·출렁임·조명 각도
+  const [octo, setOcto] = useState(() => {
+    const d = { flavour: 'raspberry', firm: 0.45, damp: 0.3, light: 0.5 }
+    try { return { ...d, ...(JSON.parse(localStorage.getItem('2hs_octopus') || 'null') || {}) } } catch { return d }
+  })
+  function setOctoOpt(patch) {
+    setOcto(c => { const n = { ...c, ...patch }; try { localStorage.setItem('2hs_octopus', JSON.stringify(n)) } catch {}; return n })
+    toFrame(patch)
+  }
   function setCitrusOpt(patch) {
     setCitrus(c => { const n = { ...c, ...patch }; try { localStorage.setItem('2hs_citrus', JSON.stringify(n)) } catch {}; return n })
     toFrame(patch)
@@ -105,7 +116,7 @@ export default function CastlePage() {
   }
   // 젤리(iframe) 안을 누르면 이 화면엔 누른 소식이 안 온다 — 젤리가 알려 주면 장면 패널을 닫는다
   useEffect(() => {
-    const onMsg = e => { if (e.origin === window.location.origin && e.data?.citrus === 'touch') { setSceneOpen(false); setPick(null) } }
+    const onMsg = e => { if (e.origin === window.location.origin && (e.data?.citrus === 'touch' || e.data?.scene === 'touch')) { setSceneOpen(false); setPick(null) } }
     window.addEventListener('message', onMsg)
     return () => window.removeEventListener('message', onMsg)
   }, [])
@@ -208,13 +219,13 @@ export default function CastlePage() {
       <link rel="stylesheet" precedence="default" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap" />
       {!ready && !fallback && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-          <LoadingCat label={scene.embed ? '젤리를 굳히는 중…' : '젤리 성을 굳히는 중…'} />
+          <LoadingCat label={scene.key === 'octopus' ? '젤리 문어를 굳히는 중…' : scene.embed ? '젤리를 굳히는 중…' : '젤리 성을 굳히는 중…'} />
         </div>
       )}
       {scene.embed ? (
         // 한 파일로 만든 장면(시트러스 젤리 등) — 자기 화면 글자는 숨기고(?embed=1) 장면만 뒤에 깐다. 잡아 늘리기는 그 안에서 그대로
         <iframe ref={frameRef} key={scene.key} src={scene.embed} title={`3D 배경 · ${scene.name}`} className={s.sceneFrame}
-          onLoad={() => { setReady(true); toFrame(citrus) }} />
+          onLoad={() => { setReady(true); toFrame(scene.key === 'octopus' ? octo : citrus) }} />
       ) : (
         <div style={{ position: 'absolute', inset: 0 }} onPointerDownCapture={() => setSceneOpen(false)}>
           <CastleJellyScene key={sceneKey} lite={lite} settingsRef={settingsRef} commandRef={commandRef} onReady={() => setReady(true)}
@@ -327,7 +338,34 @@ export default function CastlePage() {
         </div>
         {!isAdmin && <div className={s.muted}>수업에 출석할 때마다 새 배경이 열려요 · 지금 출석 {attended}회</div>}
         <div className={s.hr} style={{ marginTop: 2 }} />
-        {scene.embed ? (<>
+        {scene.key === 'octopus' ? (<>
+        <div className={s.sectionLabel} style={{ padding: 0 }}>{scene.name}</div>
+        <div className={s.row} style={{ flexWrap: 'wrap' }}>
+          {OCTO_LIST.map(([id, label, c]) => (
+            <button key={id} className={`${s.chip} ${s.glass} ${octo.flavour === id ? s.chipOn : ''}`} aria-pressed={octo.flavour === id}
+              onClick={() => setOctoOpt({ flavour: id })}>
+              <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 4, background: c, marginRight: 5 }} />{label}
+            </button>
+          ))}
+        </div>
+        <div className={s.row} style={{ flexWrap: 'wrap' }}>
+          {OCTO_ACTS.map(([cmd, label]) => (
+            <button key={cmd} className={`${s.chip} ${s.glass}`} onClick={() => toFrame({ cmd })}>{label}</button>
+          ))}
+        </div>
+        <label className={s.slider}>말랑 ↔ 단단
+          <input type="range" min="0" max="1" step="0.01" value={octo.firm} onChange={e => setOctoOpt({ firm: +e.target.value })} style={{ accentColor: '#d81e4f' }} />
+        </label>
+        <label className={s.slider}>출렁임 잦아듦
+          <input type="range" min="0" max="1" step="0.01" value={octo.damp} onChange={e => setOctoOpt({ damp: +e.target.value })} style={{ accentColor: '#9be3c4' }} />
+        </label>
+        <label className={s.slider}>조명 각도
+          <input type="range" min="0" max="1" step="0.01" value={octo.light} onChange={e => setOctoOpt({ light: +e.target.value })} style={{ accentColor: '#f5c04a' }} />
+        </label>
+        <div className={s.row}>
+          <button className={`${s.chip} ${s.glass}`} onClick={() => toFrame({ cmd: 'reset' })}>제자리로</button>
+        </div>
+        </>) : scene.embed ? (<>
         <div className={s.sectionLabel} style={{ padding: 0 }}>{scene.name}</div>
         <div className={s.row} style={{ flexWrap: 'wrap' }}>
           {CITRUS_LIST.map(([id, label, c]) => (
@@ -406,7 +444,9 @@ export default function CastlePage() {
         ))}
       </nav>
 
-      <div className={s.howto}><b>How to play</b> — {scene.embed
+      <div className={s.howto}><b>How to play</b> — {scene.key === 'octopus'
+        ? '문어를 톡 치면 움찔 · 머리를 꾹 누르면 납작 · 머리를 끌어 들어 올리기 · 다리를 끌어 늘리기 · 접시를 꾹 누르고 있으면 다리가 손가락을 감아요'
+        : scene.embed
         ? '젤리를 잡아 늘렸다가 놓아 보기 · 오른쪽 장면 패널에서 오렌지 · 블러드 오렌지 · 레몬'
         : '탑·성문·배·화로·냥이를 눌러 들어가기 · 물을 끌어 물결 · 블록 옆면을 끌어 기울이기 · 소나무를 끌어 휘기 · 빈 곳을 끌어 돌려 보기'}</div>
     </div>

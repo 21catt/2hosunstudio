@@ -1,0 +1,1631 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Octopus Jelly — Material Studies / Cephalopoda</title>
+<style>
+  :root { --ink: #23201c; --muted: #6f675d; --paper: #efe8dc; --line: rgba(35,32,28,0.16); --glass: rgba(249,245,238,0.74); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--paper); color: var(--ink);
+    font-family: ui-sans-serif, -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+  canvas.grabbing { cursor: grabbing; }
+  .mast { position: fixed; left: max(24px, env(safe-area-inset-left)); top: max(22px, env(safe-area-inset-top)); pointer-events: none; max-width: 46vw; }
+  .kicker { font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+  .title { margin: 10px 0 0; font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; font-weight: 400;
+    font-size: clamp(44px, 7.6vw, 104px); line-height: 0.88; letter-spacing: -0.02em; }
+  .title i { font-style: italic; }
+  .caption { margin: 14px 0 0; max-width: 280px; font-family: "Iowan Old Style", Palatino, Georgia, serif; font-style: italic; font-size: 16px; line-height: 1.35; color: #4a443c; }
+  .chip { display: inline-flex; align-items: center; gap: 8px; margin-top: 14px; padding: 7px 12px 7px 10px; border-radius: 999px; border: 1px solid var(--line);
+    background: var(--glass); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); font-size: 12px; letter-spacing: 0.02em; }
+  .chip .dot { width: 8px; height: 8px; border-radius: 50%; background: #d81e4f; box-shadow: 0 0 0 3px rgba(216,30,79,0.18); animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 6px rgba(216,30,79,0.05); } }
+  .panel { position: fixed; right: max(24px, env(safe-area-inset-right)); top: max(22px, env(safe-area-inset-top)); width: 272px; max-height: calc(100vh - 44px); overflow: auto;
+    display: flex; flex-direction: column; gap: 14px; padding: 16px; border: 1px solid var(--line); border-radius: 18px;
+    background: var(--glass); -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2); box-shadow: 0 18px 40px rgba(60,48,32,0.10); }
+  .grip { display: none; }
+  .cap { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .behav { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .behav button { display: flex; justify-content: space-between; align-items: center; min-height: 38px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line);
+    background: #fbf8f3; color: var(--ink); font: inherit; font-size: 12.5px; cursor: pointer; }
+  .behav button kbd { font: 10px ui-monospace, Menlo, monospace; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 1px 4px; }
+  .behav button[aria-pressed="true"] { background: var(--ink); color: #fbf8f3; border-color: var(--ink); }
+  .behav button[aria-pressed="true"] kbd { color: #d8d0c4; border-color: rgba(255,255,255,0.3); }
+  .row { display: flex; gap: 6px; }
+  .sw { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 4px; border-radius: 12px; border: 1px solid transparent; background: none; cursor: pointer; font: inherit; font-size: 12px; color: var(--ink); min-height: 44px; }
+  .sw span.dot { width: 22px; height: 22px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.12), inset 0 -4px 6px rgba(0,0,0,0.12), inset 0 3px 4px rgba(255,255,255,0.45); }
+  .sw[aria-pressed="true"] { border-color: var(--ink); }
+  label.sl { display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
+  label.sl .top { display: flex; justify-content: space-between; }
+  label.sl .top span:last-child { color: var(--muted); font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: #23201c; }
+  .btns { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+  .btns button { min-height: 38px; border-radius: 10px; border: 1px solid var(--line); background: #fbf8f3; color: var(--ink); font: inherit; font-size: 12px; cursor: pointer; }
+  .btns button[aria-pressed="true"] { background: var(--ink); color: #fbf8f3; }
+  button:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid #6b8fd6; outline-offset: 2px; }
+  .foot { position: fixed; left: max(24px, env(safe-area-inset-left)); bottom: max(22px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 12px; max-width: min(460px, 52vw); }
+  .stats { display: flex; gap: 22px; pointer-events: none; }
+  .stat .k { font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+  .stat .v { font-family: "Iowan Old Style", Palatino, Georgia, serif; font-size: 24px; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  details { font-size: 13px; line-height: 1.5; color: #4a443c; }
+  summary { cursor: pointer; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "+ "; } details[open] summary::before { content: "– "; }
+  details p { margin: 8px 0 0; }
+  details div.body { margin-top: 6px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--glass); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); max-height: 38vh; overflow: auto; }
+  .keys { margin-top: 8px; font-size: 11px; color: var(--muted); }
+  .fallback { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 10px; text-align: center; padding: 24px; }
+  .fallback h2 { margin: 0; font-family: "Iowan Old Style", Palatino, Georgia, serif; font-weight: 400; font-size: 34px; }
+  .fallback p { margin: 0; color: var(--muted); font-size: 14px; }
+  body.nogpu .fallback { display: flex; }
+  body.nogpu canvas, body.nogpu .panel, body.nogpu .foot { display: none; }
+  body.embed .mast, body.embed .panel, body.embed .foot { display: none; }
+  @media (max-width: 720px) {
+    .mast { max-width: 70vw; }
+    .caption { font-size: 14px; max-width: 230px; }
+    .panel { top: auto; right: 0; left: 0; bottom: 0; width: auto; border-radius: 20px 20px 0 0; padding: 8px 14px calc(14px + env(safe-area-inset-bottom)); gap: 12px;
+      max-height: 62vh; transition: max-height .28s ease; }
+    .panel.collapsed { max-height: calc(118px + env(safe-area-inset-bottom)); overflow: hidden; }
+    .grip { display: block; align-self: center; width: 100%; height: 22px; border: 0; background: none; cursor: pointer; }
+    .grip::before { content: ""; display: block; margin: 6px auto 0; width: 40px; height: 5px; border-radius: 3px; background: rgba(35,32,28,0.25); }
+    .behav { grid-template-columns: repeat(5, 1fr); }
+    .behav button { flex-direction: column; justify-content: center; gap: 2px; padding: 4px 2px; font-size: 11.5px; min-height: 48px; }
+    .foot { top: calc(max(22px, env(safe-area-inset-top)) + 230px); bottom: auto; max-width: none; right: 16px; }
+    .stats { gap: 16px; } .stat .v { font-size: 18px; }
+    .foot details { display: none; }
+    .panel details.mob { display: block; }
+  }
+  .panel details.mob { display: none; }
+</style>
+</head>
+<body>
+<canvas id="c" aria-label="A translucent gummy octopus on a plate. Tap, press, drag its head or its arms; hold a finger on the plate near an arm."></canvas>
+<div class="mast">
+  <div class="kicker">Material Studies / Cephalopoda</div>
+  <h1 class="title">Octopus /<br><i>Jelly.</i></h1>
+  <p class="caption">Eight arms, no bones. Every one of them wobbles.</p>
+  <div class="chip" role="status" aria-live="polite"><span class="dot" id="chipDot"></span><span id="status">Resting</span></div>
+</div>
+<section class="panel" id="panel" aria-label="Controls">
+  <button class="grip" id="grip" aria-label="Show more controls" aria-expanded="false"></button>
+  <div>
+    <div class="cap">Behaviour</div>
+    <div class="behav" role="group" aria-label="Behaviour">
+      <button data-b="stroll" aria-pressed="false">Stroll <kbd>1</kbd></button>
+      <button data-b="curl" aria-pressed="false">Curl <kbd>2</kbd></button>
+      <button data-b="wave" aria-pressed="false">Wave <kbd>3</kbd></button>
+      <button data-b="ink" aria-pressed="false">Ink <kbd>4</kbd></button>
+      <button data-b="blush" aria-pressed="false">Blush <kbd>5</kbd></button>
+    </div>
+  </div>
+  <div>
+    <div class="cap">Flavour</div>
+    <div class="row" role="group" aria-label="Flavour">
+      <button class="sw" data-f="raspberry" aria-pressed="true"><span class="dot" style="background:#d81e4f"></span>Raspberry</button>
+      <button class="sw" data-f="blueberry" aria-pressed="false"><span class="dot" style="background:#2f56e8"></span>Blueberry</button>
+      <button class="sw" data-f="tangerine" aria-pressed="false"><span class="dot" style="background:#ff7a12"></span>Tangerine</button>
+    </div>
+  </div>
+  <label class="sl"><span class="top"><span>Firmness</span><span id="firmV">soft 45</span></span><input id="firm" type="range" min="0" max="100" value="45"></label>
+  <label class="sl"><span class="top"><span>Wobble damping</span><span id="dampV">30</span></span><input id="damp" type="range" min="0" max="100" value="30"></label>
+  <label class="sl"><span class="top"><span>Light</span><span id="lightV">0°</span></span><input id="light" type="range" min="0" max="100" value="50"></label>
+  <div class="btns">
+    <button id="reset">Reset</button>
+    <button id="pause" aria-pressed="false">Pause</button>
+    <button id="slow" aria-pressed="false">¼ speed</button>
+  </div>
+  <details class="mob"><summary>Inside the experiment</summary><div class="body" id="notesM"></div></details>
+</section>
+<div class="foot">
+  <details><summary>Inside the experiment</summary><div class="body" id="notes"></div></details>
+  <div class="stats" aria-label="Live measurements">
+    <div class="stat"><div class="k">Volume</div><div class="v" id="sVol">100%</div></div>
+    <div class="stat"><div class="k">Arms down</div><div class="v" id="sArms">8/8</div></div>
+    <div class="stat"><div class="k">Curl</div><div class="v" id="sCurl">0%</div></div>
+    <div class="stat"><div class="k">Frame</div><div class="v" id="sFrame">— ms</div></div>
+  </div>
+</div>
+<div class="fallback"><h2>This octopus needs WebGPU.</h2><p>Try a recent Chrome, Edge or Safari with WebGPU turned on.</p></div>
+
+<template id="notesT">
+  <p><b>The head</b> is a jelly lattice: every cubic cell is pulled back toward its own rigid best-fit shape (shape matching, rotation found by a warm-started polar decomposition), and every cell is split into five tetrahedra that keep their volume. Squash it and it bulges sideways instead of shrinking.</p>
+  <p><b>The arms</b> have no bones — each is a chain of fourteen particles held by soft links with a hard stretch limit. Muscles don't push the body around; they set a target direction for each link, strong at the root and weak at the tip, so a wave sent from the root arrives late and the tips trail.</p>
+  <p><b>One-way roots.</b> An arm hangs from the body but can't drag it, so an arm snagged on the plate doesn't pull the octopus over. Only when you stretch an arm past its limit does it tow the whole animal.</p>
+  <p><b>The look</b>: the scene behind is refracted through the measured thickness of the jelly, light is absorbed with depth (Beer–Lambert), the pupils are slits kept level with gravity, and ink droplets fall as particles that stain the glaze and fade.</p>
+  <p class="keys">Keys — 1–5 behaviours · Space pause · S quarter speed · R reset · drag empty space to orbit · scroll or pinch to zoom.</p>
+</template>
+
+<script>
+'use strict';
+const EMBED = new URLSearchParams(location.search).get('embed') === '1'
+if (EMBED) document.body.classList.add('embed')
+if (matchMedia('(max-width: 720px)').matches) document.getElementById('panel').classList.add('collapsed')
+for (const id of ['notes', 'notesM']) document.getElementById(id).innerHTML = document.getElementById('notesT').innerHTML
+
+// ───────────────────────── small math ─────────────────────────
+const V = {
+  sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]],
+  add: (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]],
+  mul: (a, s) => [a[0] * s, a[1] * s, a[2] * s],
+  dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],
+  cross: (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]],
+  len: a => Math.hypot(a[0], a[1], a[2]),
+  norm: a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l] },
+}
+function mat4Mul(a, b) {
+  const o = new Float32Array(16)
+  for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) { let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k]; o[c * 4 + r] = s }
+  return o
+}
+function perspective(fovy, aspect, near, far) { const f = 1 / Math.tan(fovy / 2), nf = 1 / (near - far); return new Float32Array([f / aspect, 0, 0, 0, 0, f, 0, 0, 0, 0, far * nf, -1, 0, 0, far * near * nf, 0]) }
+function ortho(l, r, b, t, n, f) { return new Float32Array([2 / (r - l), 0, 0, 0, 0, 2 / (t - b), 0, 0, 0, 0, 1 / (n - f), 0, -(r + l) / (r - l), -(t + b) / (t - b), n / (n - f), 1]) }
+function lookAt(eye, at, up) {
+  const z = V.norm(V.sub(eye, at)), x = V.norm(V.cross(up, z)), y = V.cross(z, x)
+  return new Float32Array([x[0], y[0], z[0], 0, x[1], y[1], z[1], 0, x[2], y[2], z[2], 0, -V.dot(x, eye), -V.dot(y, eye), -V.dot(z, eye), 1])
+}
+function invert4(a) {
+  const inv = new Float32Array(16)
+  inv[0] = a[5]*a[10]*a[15]-a[5]*a[11]*a[14]-a[9]*a[6]*a[15]+a[9]*a[7]*a[14]+a[13]*a[6]*a[11]-a[13]*a[7]*a[10]
+  inv[4] = -a[4]*a[10]*a[15]+a[4]*a[11]*a[14]+a[8]*a[6]*a[15]-a[8]*a[7]*a[14]-a[12]*a[6]*a[11]+a[12]*a[7]*a[10]
+  inv[8] = a[4]*a[9]*a[15]-a[4]*a[11]*a[13]-a[8]*a[5]*a[15]+a[8]*a[7]*a[13]+a[12]*a[5]*a[11]-a[12]*a[7]*a[9]
+  inv[12] = -a[4]*a[9]*a[14]+a[4]*a[10]*a[13]+a[8]*a[5]*a[14]-a[8]*a[6]*a[13]-a[12]*a[5]*a[10]+a[12]*a[6]*a[9]
+  inv[1] = -a[1]*a[10]*a[15]+a[1]*a[11]*a[14]+a[9]*a[2]*a[15]-a[9]*a[3]*a[14]-a[13]*a[2]*a[11]+a[13]*a[3]*a[10]
+  inv[5] = a[0]*a[10]*a[15]-a[0]*a[11]*a[14]-a[8]*a[2]*a[15]+a[8]*a[3]*a[14]+a[12]*a[2]*a[11]-a[12]*a[3]*a[10]
+  inv[9] = -a[0]*a[9]*a[15]+a[0]*a[11]*a[13]+a[8]*a[1]*a[15]-a[8]*a[3]*a[13]-a[12]*a[1]*a[11]+a[12]*a[3]*a[9]
+  inv[13] = a[0]*a[9]*a[14]-a[0]*a[10]*a[13]-a[8]*a[1]*a[14]+a[8]*a[2]*a[13]+a[12]*a[1]*a[10]-a[12]*a[2]*a[9]
+  inv[2] = a[1]*a[6]*a[15]-a[1]*a[7]*a[14]-a[5]*a[2]*a[15]+a[5]*a[3]*a[14]+a[13]*a[2]*a[7]-a[13]*a[3]*a[6]
+  inv[6] = -a[0]*a[6]*a[15]+a[0]*a[7]*a[14]+a[4]*a[2]*a[15]-a[4]*a[3]*a[14]-a[12]*a[2]*a[7]+a[12]*a[3]*a[6]
+  inv[10] = a[0]*a[5]*a[15]-a[0]*a[7]*a[13]-a[4]*a[1]*a[15]+a[4]*a[3]*a[13]+a[12]*a[1]*a[7]-a[12]*a[3]*a[5]
+  inv[14] = -a[0]*a[5]*a[14]+a[0]*a[6]*a[13]+a[4]*a[1]*a[14]-a[4]*a[2]*a[13]-a[12]*a[1]*a[6]+a[12]*a[2]*a[5]
+  inv[3] = -a[1]*a[6]*a[11]+a[1]*a[7]*a[10]+a[5]*a[2]*a[11]-a[5]*a[3]*a[10]-a[9]*a[2]*a[7]+a[9]*a[3]*a[6]
+  inv[7] = a[0]*a[6]*a[11]-a[0]*a[7]*a[10]-a[4]*a[2]*a[11]+a[4]*a[3]*a[10]+a[8]*a[2]*a[7]-a[8]*a[3]*a[6]
+  inv[11] = -a[0]*a[5]*a[11]+a[0]*a[7]*a[9]+a[4]*a[1]*a[11]-a[4]*a[3]*a[9]-a[8]*a[1]*a[7]+a[8]*a[3]*a[5]
+  inv[15] = a[0]*a[5]*a[10]-a[0]*a[6]*a[9]-a[4]*a[1]*a[10]+a[4]*a[2]*a[9]+a[8]*a[1]*a[6]-a[8]*a[2]*a[5]
+  const det = 1 / (a[0] * inv[0] + a[1] * inv[4] + a[2] * inv[8] + a[3] * inv[12])
+  for (let i = 0; i < 16; i++) inv[i] *= det
+  return inv
+}
+function mul4(m, v) { const o = [0, 0, 0, 0]; for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) o[r] += m[c * 4 + r] * v[c]; return o }
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v
+const smooth01 = t => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t) }
+let seed = 7341
+const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296)
+
+// ───────────────────────── head shape ─────────────────────────
+// +z faces the viewer; mantle tilts back. y = 0 is the plate.
+const EYES = [[-0.27, 0.66, 0.34], [0.27, 0.66, 0.34]]
+function sdEll(px, py, pz, rx, ry, rz) {
+  const qx = px / rx, qy = py / ry, qz = pz / rz, k0 = Math.hypot(qx, qy, qz), k1 = Math.hypot(qx / rx, qy / ry, qz / rz)
+  return k1 > 1e-9 ? k0 * (k0 - 1) / k1 : -Math.min(rx, ry, rz)
+}
+function smin(a, b, k) { const h = clamp(0.5 + 0.5 * (b - a) / k, 0, 1); return b * (1 - h) + a * h - k * h * (1 - h) }
+const TILT = 0.3, CT = Math.cos(TILT), ST = Math.sin(TILT)
+function headSDF(x, y, z) {
+  const yy = y - 0.82, zz = z + 0.1
+  let d = sdEll(x, CT * yy - ST * zz, ST * yy + CT * zz, 0.6, 0.66, 0.62)
+  d = smin(d, sdEll(x, y - 0.36, z - 0.04, 0.55, 0.33, 0.53), 0.2)
+  for (const e of EYES) d = smin(d, Math.hypot(x - e[0], y - e[1], z - e[2]) - 0.17, 0.1)
+  return Math.max(d, 0.07 - y)
+}
+
+// ───────────────────────── head lattice: cells (shape matching) + tets (volume) ─────────────────────────
+const HC = 0.2, G0 = [-0.9, 0.0, -0.9], GN = [9, 8, 9]
+const cellList = [], cellKey = new Map(), pKey = new Map(), P0 = []
+const pid = (ix, iy, iz) => {
+  const k = ix + '|' + iy + '|' + iz
+  let id = pKey.get(k)
+  if (id === undefined) { id = P0.length / 3; pKey.set(k, id); P0.push(G0[0] + ix * HC, G0[1] + iy * HC, G0[2] + iz * HC) }
+  return id
+}
+for (let iz = 0; iz < GN[2]; iz++) for (let iy = 0; iy < GN[1]; iy++) for (let ix = 0; ix < GN[0]; ix++) {
+  const cx = G0[0] + (ix + 0.5) * HC, cy = G0[1] + (iy + 0.5) * HC, cz = G0[2] + (iz + 0.5) * HC
+  if (headSDF(cx, cy, cz) < 0.07) { cellKey.set(ix + '|' + iy + '|' + iz, cellList.length); cellList.push([ix, iy, iz]) }
+}
+const NC = cellList.length
+const CELL = new Uint32Array(NC * 8)
+cellList.forEach(([ix, iy, iz], c) => { for (let k = 0; k < 8; k++) CELL[c * 8 + k] = pid(ix + (k & 1), iy + ((k >> 1) & 1), iz + ((k >> 2) & 1)) })
+const NP = P0.length / 3
+const X0 = new Float32Array(P0)
+const CORNER = [] // rest offsets of a cube corner from the cell centre (same for every cell)
+for (let k = 0; k < 8; k++) CORNER.push([((k & 1) - 0.5) * HC, (((k >> 1) & 1) - 0.5) * HC, (((k >> 2) & 1) - 0.5) * HC])
+const TSPLIT = [[[0, 1, 2, 4], [1, 3, 2, 7], [1, 7, 4, 5], [2, 4, 7, 6], [1, 2, 4, 7]],
+                [[1, 0, 3, 5], [0, 2, 3, 6], [0, 5, 6, 4], [3, 6, 5, 7], [0, 3, 5, 6]]]
+const tets = []
+cellList.forEach(([ix, iy, iz], c) => { for (const t of TSPLIT[(ix + iy + iz) & 1]) tets.push(t.map(k => CELL[c * 8 + k])) })
+const NT = tets.length
+const TET = new Uint32Array(NT * 4); tets.forEach((t, i) => TET.set(t, i * 4))
+function tetVol(X, a, b, c, d) {
+  const ax = X[b * 3] - X[a * 3], ay = X[b * 3 + 1] - X[a * 3 + 1], az = X[b * 3 + 2] - X[a * 3 + 2]
+  const bx = X[c * 3] - X[a * 3], by = X[c * 3 + 1] - X[a * 3 + 1], bz = X[c * 3 + 2] - X[a * 3 + 2]
+  const cx = X[d * 3] - X[a * 3], cy = X[d * 3 + 1] - X[a * 3 + 1], cz = X[d * 3 + 2] - X[a * 3 + 2]
+  return ((ay * bz - az * by) * cx + (az * bx - ax * bz) * cy + (ax * by - ay * bx) * cz) / 6
+}
+const restVol = new Float32Array(NT); let REST_VOL = 0
+for (let t = 0; t < NT; t++) { restVol[t] = tetVol(X0, TET[t * 4], TET[t * 4 + 1], TET[t * 4 + 2], TET[t * 4 + 3]); REST_VOL += Math.abs(restVol[t]) }
+const REST_C = [0, 0, 0]; for (let i = 0; i < NP; i++) for (let k = 0; k < 3; k++) REST_C[k] += X0[i * 3 + k] / NP
+
+// embed a rest point in a cell (trilinear, extrapolates a little outside)
+function embed(p) {
+  let best = -1, bd = 1e9
+  const ix = Math.floor((p[0] - G0[0]) / HC), iy = Math.floor((p[1] - G0[1]) / HC), iz = Math.floor((p[2] - G0[2]) / HC)
+  const direct = cellKey.get(ix + '|' + iy + '|' + iz)
+  if (direct !== undefined) best = direct
+  else cellList.forEach(([cx, cy, cz], c) => {
+    const d = Math.hypot(p[0] - (G0[0] + (cx + 0.5) * HC), p[1] - (G0[1] + (cy + 0.5) * HC), p[2] - (G0[2] + (cz + 0.5) * HC))
+    if (d < bd) { bd = d; best = c }
+  })
+  const [cx, cy, cz] = cellList[best]
+  return { c: best, u: (p[0] - G0[0]) / HC - cx, v: (p[1] - G0[1]) / HC - cy, w: (p[2] - G0[2]) / HC - cz }
+}
+function interp(X, c, u, v, w, out, o) {
+  const b = c * 8, iu = 1 - u, iv = 1 - v, iw = 1 - w
+  const W0 = iu * iv * iw, W1 = u * iv * iw, W2 = iu * v * iw, W3 = u * v * iw, W4 = iu * iv * w, W5 = u * iv * w, W6 = iu * v * w, W7 = u * v * w
+  for (let k = 0; k < 3; k++) {
+    out[o + k] = X[CELL[b] * 3 + k] * W0 + X[CELL[b + 1] * 3 + k] * W1 + X[CELL[b + 2] * 3 + k] * W2 + X[CELL[b + 3] * 3 + k] * W3 +
+      X[CELL[b + 4] * 3 + k] * W4 + X[CELL[b + 5] * 3 + k] * W5 + X[CELL[b + 6] * 3 + k] * W6 + X[CELL[b + 7] * 3 + k] * W7
+  }
+}
+
+// head render surface — a sphere pushed out onto the SDF, embedded in the lattice
+const NLAT = 30, NLON = 44, HC0 = [0, 0.62, -0.08]
+const headRest = []
+function surf(dir) {
+  let lo = 0, hi = 0.05
+  while (headSDF(HC0[0] + dir[0] * hi, HC0[1] + dir[1] * hi, HC0[2] + dir[2] * hi) < 0 && hi < 2) { lo = hi; hi += 0.05 }
+  for (let k = 0; k < 18; k++) { const m = (lo + hi) / 2; if (headSDF(HC0[0] + dir[0] * m, HC0[1] + dir[1] * m, HC0[2] + dir[2] * m) < 0) lo = m; else hi = m }
+  const t = (lo + hi) / 2
+  return [HC0[0] + dir[0] * t, HC0[1] + dir[1] * t, HC0[2] + dir[2] * t]
+}
+headRest.push(surf([0, 1, 0]))
+for (let i = 1; i < NLAT; i++) { const th = i / NLAT * Math.PI; for (let j = 0; j < NLON; j++) { const ph = j / NLON * Math.PI * 2; headRest.push(surf([Math.sin(th) * Math.cos(ph), Math.cos(th), Math.sin(th) * Math.sin(ph)])) } }
+headRest.push(surf([0, -1, 0]))
+const NHV = headRest.length
+const headIdx = []
+const ring = (i, j) => 1 + (i - 1) * NLON + ((j % NLON) + NLON) % NLON
+for (let j = 0; j < NLON; j++) headIdx.push(0, ring(1, j + 1), ring(1, j))
+for (let i = 1; i < NLAT - 1; i++) for (let j = 0; j < NLON; j++) { const a = ring(i, j), b = ring(i, j + 1), c = ring(i + 1, j), d = ring(i + 1, j + 1); headIdx.push(a, b, c, b, d, c) }
+for (let j = 0; j < NLON; j++) headIdx.push(ring(NLAT - 1, j), ring(NLAT - 1, j + 1), NHV - 1)
+const headEmb = headRest.map(embed)
+
+// ───────────────────────── arms ─────────────────────────
+const NA = 8, NAP = 14, ARM_LEN = 1.6, SEG = ARM_LEN / (NAP - 1)
+const PHI = Array.from({ length: NA }, (_, i) => (i + 0.5) * Math.PI / 4)
+const armR = s => 0.112 * Math.pow(1 - s, 0.85) + 0.022
+const PR = Array.from({ length: NAP }, (_, j) => armR(j / (NAP - 1)))
+const rootEmb = PHI.map(ph => embed([0.24 * Math.cos(ph), 0.2, 0.24 * Math.sin(ph) + 0.02]))
+const CURLCUM = new Float32Array(NAP)
+for (let j = 1; j < NAP; j++) CURLCUM[j] = CURLCUM[j - 1] + 0.2 + 1.3 * Math.pow(j / (NAP - 1), 1.2)
+// tube mesh
+const NS = 36, AR = 13, CAPR = 4, ARM_V = (NS + CAPR) * AR + 1
+const spacingOf = r => Math.max(0.03, 1.75 * r)
+const ringS = [], ringSuck = []
+{ let acc = 0; for (let m = 0; m < NS; m++) { const s = m / (NS - 1); if (m) { const sm = (m - 0.5) / (NS - 1); acc += ARM_LEN / (NS - 1) / spacingOf(armR(sm)) } ringS.push(s); ringSuck.push(acc) } }
+const armIdxLocal = []
+for (let m = 0; m < NS + CAPR - 1; m++) for (let k = 0; k < AR - 1; k++) {
+  const a = m * AR + k, b = a + 1, c = a + AR, d = c + 1
+  armIdxLocal.push(a, b, c, b, d, c)
+}
+{ const last = (NS + CAPR - 1) * AR, tip = ARM_V - 1; for (let k = 0; k < AR - 1; k++) armIdxLocal.push(last + k, last + k + 1, tip) }
+
+// combined render buffers
+const NV = NHV + NA * ARM_V
+const RVB = new Float32Array(NV * 6)       // dynamic: position + normal
+const RATT = new Float32Array(NV * 4)      // static: head = rest pos, w 0 · arm = sucker coord, angle, radius, 1 + s
+headRest.forEach((p, v) => RATT.set([p[0], p[1], p[2], 0], v * 4))
+for (let a = 0; a < NA; a++) {
+  const base = NHV + a * ARM_V
+  for (let m = 0; m < NS + CAPR; m++) for (let k = 0; k < AR; k++) {
+    const s = m < NS ? ringS[m] : 1, sc = m < NS ? ringSuck[m] : ringSuck[NS - 1]
+    RATT.set([sc, k / (AR - 1) * Math.PI * 2, armR(s), 1 + s], (base + m * AR + k) * 4)
+  }
+  RATT.set([ringSuck[NS - 1], 0, armR(1), 2], (base + ARM_V - 1) * 4)
+}
+const IDX = new Uint32Array(headIdx.length + NA * armIdxLocal.length)
+IDX.set(headIdx, 0)
+for (let a = 0; a < NA; a++) IDX.set(armIdxLocal.map(i => i + NHV + a * ARM_V), headIdx.length + a * armIdxLocal.length)
+const HEAD_TRIS = headIdx.length / 3, ARM_TRIS = armIdxLocal.length / 3
+
+// ───────────────────────── simulation state ─────────────────────────
+const hx = new Float32Array(NP * 3), hxp = new Float32Array(NP * 3), hv = new Float32Array(NP * 3), hBounce = new Float32Array(NP)
+const cq = new Float32Array(NC * 4)
+const ax = new Float32Array(NA * NAP * 3), axp = new Float32Array(NA * NAP * 3), av = new Float32Array(NA * NAP * 3)
+const ARMD = new Float32Array(NA * NAP * 3)   // muscle target direction per link (world)
+const ARMM = new Float32Array(NA * NAP)       // muscle strength per link
+const bodyQ = new Float32Array([0, 0, 0, 1])
+const settings = { firm: 0.45, damp: 0.3, light: 0.5, paused: false, slow: false }
+const SUB = 10, DT = 1 / 60, GRAV = -11
+const plateY = r => r < 1.85 ? 0 : Math.min(0.075, (r - 1.85) * 0.25)
+const PLATE_R = 2.08
+
+const frameR = new Float32Array(9) // body rotation (rest → world), columns
+const frameC = [0, 0, 0]
+const drive = { ay: 0, hx: 0, hz: 0, hk: 0, lift: 0, liftY: 0, crouch: 0, squash: null, rot: null, tow: null, breath: 0 }
+let grab = null, armGrab = null, reach = null
+
+function resetSim() {
+  hx.set(X0); hxp.set(X0); hv.fill(0); hBounce.fill(0)
+  for (let c = 0; c < NC; c++) cq.set([0, 0, 0, 1], c * 4)
+  bodyQ.set([0, 0, 0, 1])
+  frameR.set([1, 0, 0, 0, 1, 0, 0, 0, 1]); frameC[0] = REST_C[0]; frameC[1] = REST_C[1]; frameC[2] = REST_C[2]
+  const tmp = [0, 0, 0]
+  for (let a = 0; a < NA; a++) {
+    interp(hx, rootEmb[a].c, rootEmb[a].u, rootEmb[a].v, rootEmb[a].w, tmp, 0)
+    const ca = Math.cos(PHI[a]), sa = Math.sin(PHI[a])
+    let p = tmp.slice()
+    for (let j = 0; j < NAP; j++) {
+      if (j) {
+        const q = j / (NAP - 1), th = -1.05 * (1 - smooth01(q / 0.28)) + 0.08
+        p = [p[0] + SEG * Math.cos(th) * ca, p[1] + SEG * Math.sin(th), p[2] + SEG * Math.cos(th) * sa]
+        p[1] = Math.max(p[1], PR[j] * 0.85)
+      }
+      const k = (a * NAP + j) * 3
+      ax[k] = p[0]; ax[k + 1] = p[1]; ax[k + 2] = p[2]
+    }
+  }
+  axp.set(ax); av.fill(0)
+  grab = null; armGrab = null; reach = null
+}
+
+// rotation extraction — Müller et al. 2016, warm-started
+const A9 = new Float32Array(9), R9 = new Float32Array(9)
+function extractRotation(A, q, o, iters) {
+  for (let it = 0; it < iters; it++) {
+    const qx = q[o], qy = q[o + 1], qz = q[o + 2], qw = q[o + 3]
+    const r00 = 1 - 2 * (qy * qy + qz * qz), r01 = 2 * (qx * qy + qz * qw), r02 = 2 * (qx * qz - qy * qw)
+    const r10 = 2 * (qx * qy - qz * qw), r11 = 1 - 2 * (qx * qx + qz * qz), r12 = 2 * (qy * qz + qx * qw)
+    const r20 = 2 * (qx * qz + qy * qw), r21 = 2 * (qy * qz - qx * qw), r22 = 1 - 2 * (qx * qx + qy * qy)
+    const ox = (r01 * A[2] - r02 * A[1]) + (r11 * A[5] - r12 * A[4]) + (r21 * A[8] - r22 * A[7])
+    const oy = (r02 * A[0] - r00 * A[2]) + (r12 * A[3] - r10 * A[5]) + (r22 * A[6] - r20 * A[8])
+    const oz = (r00 * A[1] - r01 * A[0]) + (r10 * A[4] - r11 * A[3]) + (r20 * A[7] - r21 * A[6])
+    const den = Math.abs(r00 * A[0] + r01 * A[1] + r02 * A[2] + r10 * A[3] + r11 * A[4] + r12 * A[5] + r20 * A[6] + r21 * A[7] + r22 * A[8]) + 1e-9
+    const wx = ox / den, wy = oy / den, wz = oz / den, w = Math.hypot(wx, wy, wz)
+    if (w < 1e-9) break
+    const s = Math.sin(w / 2) / w, dx = wx * s, dy = wy * s, dz = wz * s, dw = Math.cos(w / 2)
+    const nx = dw * qx + dx * qw + dy * qz - dz * qy, ny = dw * qy - dx * qz + dy * qw + dz * qx
+    const nz = dw * qz + dx * qy - dy * qx + dz * qw, nw = dw * qw - dx * qx - dy * qy - dz * qz
+    const l = Math.hypot(nx, ny, nz, nw) || 1
+    q[o] = nx / l; q[o + 1] = ny / l; q[o + 2] = nz / l; q[o + 3] = nw / l
+  }
+}
+function quatCols(q, o, out) {
+  const qx = q[o], qy = q[o + 1], qz = q[o + 2], qw = q[o + 3]
+  out[0] = 1 - 2 * (qy * qy + qz * qz); out[1] = 2 * (qx * qy + qz * qw); out[2] = 2 * (qx * qz - qy * qw)
+  out[3] = 2 * (qx * qy - qz * qw); out[4] = 1 - 2 * (qx * qx + qz * qz); out[5] = 2 * (qy * qz + qx * qw)
+  out[6] = 2 * (qx * qz + qy * qw); out[7] = 2 * (qy * qz - qx * qw); out[8] = 1 - 2 * (qx * qx + qy * qy)
+}
+function rotateHead(axis, ang, c) { // kinematic turn of the whole head (x and x_prev together: no velocity added)
+  const [kx, ky, kz] = axis, co = Math.cos(ang), si = Math.sin(ang)
+  for (const X of [hx, hxp]) for (let i = 0; i < NP; i++) {
+    const o = i * 3, px = X[o] - c[0], py = X[o + 1] - c[1], pz = X[o + 2] - c[2]
+    const d = kx * px + ky * py + kz * pz
+    const cx = ky * pz - kz * py, cy = kz * px - kx * pz, cz = kx * py - ky * px
+    X[o] = c[0] + px * co + cx * si + kx * d * (1 - co)
+    X[o + 1] = c[1] + py * co + cy * si + ky * d * (1 - co)
+    X[o + 2] = c[2] + pz * co + cz * si + kz * d * (1 - co)
+  }
+}
+
+function substep(dt) {
+  const firm = settings.firm
+  const sShape = 0.03 + 0.5 * Math.pow(firm, 1.5)
+  const kd = 0.004 + 0.12 * Math.pow(settings.damp, 1.4)
+  // ── head: predict ──
+  let minY = 1e9, cy = 0, cvx = 0, cvy = 0, cvz = 0
+  for (let i = 0; i < NP; i++) { minY = Math.min(minY, hx[i * 3 + 1]); cy += hx[i * 3 + 1]; cvx += hv[i * 3]; cvy += hv[i * 3 + 1]; cvz += hv[i * 3 + 2] }
+  cy /= NP; cvx /= NP; cvy /= NP; cvz /= NP
+  for (let i = 0; i < NP; i++) {
+    const k = i * 3
+    let ay = GRAV
+    if (drive.lift) ay += drive.lift * (-GRAV * 0.95 + (drive.liftY - cy) * 16 - cvy * 5)
+    if (drive.crouch) ay -= drive.crouch * 26 * Math.max(0, hx[k + 1] - minY)
+    if (drive.breath && X0[k + 1] > 0.75) { hv[k] += (hx[k] - frameC[0]) * drive.breath * dt; hv[k + 2] += (hx[k + 2] - frameC[2]) * drive.breath * dt }
+    if (drive.squash) { const s = drive.squash, d = Math.hypot(hx[k] - s.p[0], hx[k + 2] - s.p[2]); if (d < 0.55 && hx[k + 1] > minY + 0.05) ay -= s.k * (1 - d / 0.55) * (hx[k + 1] - minY) }
+    hv[k + 1] += ay * dt
+    if (drive.hk) { hv[k] += (drive.hx - cvx) * drive.hk * dt; hv[k + 2] += (drive.hz - cvz) * drive.hk * dt }
+    if (drive.tow) { hv[k] += (drive.tow[0] - hv[k]) * 0.08; hv[k + 2] += (drive.tow[1] - hv[k + 2]) * 0.08 }
+    hBounce[i] = hv[k + 1]
+    hxp[k] = hx[k]; hxp[k + 1] = hx[k + 1]; hxp[k + 2] = hx[k + 2]
+    hx[k] += hv[k] * dt; hx[k + 1] += hv[k + 1] * dt; hx[k + 2] += hv[k + 2] * dt
+  }
+  if (drive.rot) rotateHead(drive.rot.axis, drive.rot.w * dt, frameC)
+  // ── cells: shape matching ──
+  for (let c = 0; c < NC; c++) {
+    const b = c * 8
+    let mx = 0, my = 0, mz = 0
+    for (let k = 0; k < 8; k++) { const o = CELL[b + k] * 3; mx += hx[o]; my += hx[o + 1]; mz += hx[o + 2] }
+    mx /= 8; my /= 8; mz /= 8
+    A9.fill(0)
+    for (let k = 0; k < 8; k++) {
+      const o = CELL[b + k] * 3, px = hx[o] - mx, py = hx[o + 1] - my, pz = hx[o + 2] - mz, r = CORNER[k]
+      A9[0] += px * r[0]; A9[1] += py * r[0]; A9[2] += pz * r[0]
+      A9[3] += px * r[1]; A9[4] += py * r[1]; A9[5] += pz * r[1]
+      A9[6] += px * r[2]; A9[7] += py * r[2]; A9[8] += pz * r[2]
+    }
+    extractRotation(A9, cq, c * 4, 2)
+    quatCols(cq, c * 4, R9)
+    for (let k = 0; k < 8; k++) {
+      const o = CELL[b + k] * 3, r = CORNER[k]
+      const gx = mx + R9[0] * r[0] + R9[3] * r[1] + R9[6] * r[2]
+      const gy = my + R9[1] * r[0] + R9[4] * r[1] + R9[7] * r[2]
+      const gz = mz + R9[2] * r[0] + R9[5] * r[1] + R9[8] * r[2]
+      hx[o] += (gx - hx[o]) * sShape; hx[o + 1] += (gy - hx[o + 1]) * sShape; hx[o + 2] += (gz - hx[o + 2]) * sShape
+    }
+  }
+  // ── tets: volume ──
+  for (let t = 0; t < NT; t++) {
+    const i0 = TET[t * 4] * 3, i1 = TET[t * 4 + 1] * 3, i2 = TET[t * 4 + 2] * 3, i3 = TET[t * 4 + 3] * 3
+    const ax_ = hx[i1] - hx[i0], ay_ = hx[i1 + 1] - hx[i0 + 1], az_ = hx[i1 + 2] - hx[i0 + 2]
+    const bx = hx[i2] - hx[i0], by = hx[i2 + 1] - hx[i0 + 1], bz = hx[i2 + 2] - hx[i0 + 2]
+    const cx = hx[i3] - hx[i0], cy_ = hx[i3 + 1] - hx[i0 + 1], cz = hx[i3 + 2] - hx[i0 + 2]
+    const g1x = (by * cz - bz * cy_) / 6, g1y = (bz * cx - bx * cz) / 6, g1z = (bx * cy_ - by * cx) / 6
+    const g2x = (cy_ * az_ - cz * ay_) / 6, g2y = (cz * ax_ - cx * az_) / 6, g2z = (cx * ay_ - cy_ * ax_) / 6
+    const g3x = (ay_ * bz - az_ * by) / 6, g3y = (az_ * bx - ax_ * bz) / 6, g3z = (ax_ * by - ay_ * bx) / 6
+    const g0x = -(g1x + g2x + g3x), g0y = -(g1y + g2y + g3y), g0z = -(g1z + g2z + g3z)
+    const vol = ax_ * g1x + ay_ * g1y + az_ * g1z
+    const w = g0x * g0x + g0y * g0y + g0z * g0z + g1x * g1x + g1y * g1y + g1z * g1z + g2x * g2x + g2y * g2y + g2z * g2z + g3x * g3x + g3y * g3y + g3z * g3z
+    if (w < 1e-14) continue
+    const lam = -(vol - restVol[t]) / w * 0.9
+    hx[i0] += lam * g0x; hx[i0 + 1] += lam * g0y; hx[i0 + 2] += lam * g0z
+    hx[i1] += lam * g1x; hx[i1 + 1] += lam * g1y; hx[i1 + 2] += lam * g1z
+    hx[i2] += lam * g2x; hx[i2 + 1] += lam * g2y; hx[i2 + 2] += lam * g2z
+    hx[i3] += lam * g3x; hx[i3 + 1] += lam * g3y; hx[i3 + 2] += lam * g3z
+  }
+  // ── grab (pick up) ──
+  if (grab) {
+    const g = grab.goal, t = grab.target, dx = g[0] - t[0], dy = g[1] - t[1], dz = g[2] - t[2], l = Math.hypot(dx, dy, dz), mx = 7 * dt
+    if (l > mx) { t[0] += dx / l * mx; t[1] += dy / l * mx; t[2] += dz / l * mx } else { t[0] = g[0]; t[1] = g[1]; t[2] = g[2] }
+    for (let n = 0; n < grab.idx.length; n++) {
+      const k = grab.idx[n] * 3, w = grab.w[n] * 0.14
+      hx[k] += (t[0] + grab.off[n * 3] - hx[k]) * w; hx[k + 1] += (t[1] + grab.off[n * 3 + 1] - hx[k + 1]) * w; hx[k + 2] += (t[2] + grab.off[n * 3 + 2] - hx[k + 2]) * w
+    }
+  }
+  // ── plate (Coulomb friction, weight spread over the touching particles) + rim ──
+  let touching = 0
+  for (let i = 0; i < NP; i++) { const k = i * 3; if (hx[k + 1] < plateY(Math.hypot(hx[k], hx[k + 2]))) touching++ }
+  const wscale = touching ? Math.min(10, NP / touching) : 1
+  for (let i = 0; i < NP; i++) {
+    const k = i * 3
+    const r = Math.hypot(hx[k], hx[k + 2])
+    if (r > PLATE_R) { hx[k] *= PLATE_R / r; hx[k + 2] *= PLATE_R / r }
+    const fy = plateY(Math.min(r, PLATE_R))
+    if (hx[k + 1] < fy) {
+      const pen = (fy - hx[k + 1]) * wscale; hx[k + 1] = fy
+      const tx = hx[k] - hxp[k], tz = hx[k + 2] - hxp[k + 2], tl = Math.hypot(tx, tz)
+      if (tl < 0.8 * pen) { hx[k] = hxp[k]; hx[k + 2] = hxp[k + 2] }
+      else if (tl > 0) { const f = Math.min(0.55 * pen / tl, 1); hx[k] -= tx * f; hx[k + 2] -= tz * f }
+      if (hBounce[i] < -1.5) hBounce[i] = -hBounce[i] * 0.32; else hBounce[i] = 0
+    } else hBounce[i] = 0
+  }
+  // velocities + bounce + wobble damping (toward each cell's mean velocity)
+  for (let i = 0; i < NP; i++) {
+    const k = i * 3
+    hv[k] = (hx[k] - hxp[k]) / dt; hv[k + 1] = (hx[k + 1] - hxp[k + 1]) / dt; hv[k + 2] = (hx[k + 2] - hxp[k + 2]) / dt
+    if (hBounce[i] > 0) hv[k + 1] = Math.max(hv[k + 1], hBounce[i])
+    const sp = Math.hypot(hv[k], hv[k + 1], hv[k + 2]); if (sp > 9) { const f = 9 / sp; hv[k] *= f; hv[k + 1] *= f; hv[k + 2] *= f }
+  }
+  for (let c = 0; c < NC; c++) {
+    const b = c * 8
+    let mx = 0, my = 0, mz = 0
+    for (let k = 0; k < 8; k++) { const o = CELL[b + k] * 3; mx += hv[o]; my += hv[o + 1]; mz += hv[o + 2] }
+    mx /= 8; my /= 8; mz /= 8
+    for (let k = 0; k < 8; k++) { const o = CELL[b + k] * 3; hv[o] += (mx - hv[o]) * kd; hv[o + 1] += (my - hv[o + 1]) * kd; hv[o + 2] += (mz - hv[o + 2]) * kd }
+  }
+  const drag = 1 - 0.3 * dt
+  for (let i = 0; i < NP * 3; i++) hv[i] *= drag
+
+  // ── arms ──
+  const tmp = armTmp
+  const alphaA = 2e-5 / (dt * dt)
+  for (let a = 0; a < NA; a++) {
+    const b = a * NAP
+    interp(hx, rootEmb[a].c, rootEmb[a].u, rootEmb[a].v, rootEmb[a].w, tmp, 0)
+    const k0 = b * 3
+    axp[k0] = ax[k0]; axp[k0 + 1] = ax[k0 + 1]; axp[k0 + 2] = ax[k0 + 2]
+    ax[k0] = tmp[0]; ax[k0 + 1] = tmp[1]; ax[k0 + 2] = tmp[2]    // root rides the body (one-way)
+    for (let j = 1; j < NAP; j++) {
+      const k = (b + j) * 3
+      av[k + 1] += GRAV * dt
+      axp[k] = ax[k]; axp[k + 1] = ax[k + 1]; axp[k + 2] = ax[k + 2]
+      ax[k] += av[k] * dt; ax[k + 1] += av[k + 1] * dt; ax[k + 2] += av[k + 2] * dt
+    }
+    // muscles: each link leans toward its target direction, strong at the root, weak at the tip
+    for (let j = 1; j < NAP; j++) {
+      const k = (b + j) * 3, kp = k - 3, m = ARMM[b + j]
+      ax[k] += (ax[kp] + ARMD[k] * SEG - ax[k]) * m
+      ax[k + 1] += (ax[kp + 1] + ARMD[k + 1] * SEG - ax[k + 1]) * m
+      ax[k + 2] += (ax[kp + 2] + ARMD[k + 2] * SEG - ax[k + 2]) * m
+    }
+    // soft links
+    for (let j = 1; j < NAP; j++) {
+      const k = (b + j) * 3, kp = k - 3, wa = j === 1 ? 0 : 1
+      const dx = ax[k] - ax[kp], dy = ax[k + 1] - ax[kp + 1], dz = ax[k + 2] - ax[kp + 2], l = Math.hypot(dx, dy, dz)
+      if (l < 1e-9) continue
+      const s = -(l - SEG) / (wa + 1 + alphaA) / l
+      ax[k] += dx * s; ax[k + 1] += dy * s; ax[k + 2] += dz * s
+      if (wa) { ax[kp] -= dx * s; ax[kp + 1] -= dy * s; ax[kp + 2] -= dz * s }
+    }
+    // hand on the arm
+    if (armGrab && armGrab.arm === a) {
+      const k = (b + armGrab.j) * 3, g = armGrab.goal
+      ax[k] += (g[0] - ax[k]) * 0.35; ax[k + 1] += (g[1] - ax[k + 1]) * 0.35; ax[k + 2] += (g[2] - ax[k + 2]) * 0.35
+    }
+    // reaching: the tip coils round the fingertip
+    if (reach && reach.arm === a) {
+      const amt = Math.min(1, reach.t * 1.4)
+      for (let n = 0; n < 6; n++) {
+        const j = NAP - 1 - n, k = (b + j) * 3, an = reach.spin + n * 1.35, rr = 0.075 + 0.014 * n
+        const tx = reach.p[0] + Math.cos(an) * rr, ty = reach.p[1] + 0.06 + 0.042 * n, tz = reach.p[2] + Math.sin(an) * rr
+        const w = 0.2 * amt * (1 - n * 0.1)
+        ax[k] += (tx - ax[k]) * w; ax[k + 1] += (ty - ax[k + 1]) * w; ax[k + 2] += (tz - ax[k + 2]) * w
+      }
+    }
+    // stay out of the mantle
+    for (let j = 4; j < NAP; j++) {
+      const k = (b + j) * 3, dx = ax[k] - mantleW[0], dy = ax[k + 1] - mantleW[1], dz = ax[k + 2] - mantleW[2], d = Math.hypot(dx, dy, dz), R = 0.5 + PR[j]
+      if (d < R && d > 1e-6) { const f = (R - d) / d; ax[k] += dx * f; ax[k + 1] += dy * f; ax[k + 2] += dz * f }
+    }
+    // hard stretch limit (root fixed — the arm gives, the body doesn't)
+    for (let j = 1; j < NAP; j++) {
+      const k = (b + j) * 3, kp = k - 3, wa = j === 1 ? 0 : 0.5
+      const dx = ax[k] - ax[kp], dy = ax[k + 1] - ax[kp + 1], dz = ax[k + 2] - ax[kp + 2], l = Math.hypot(dx, dy, dz)
+      const hi = SEG * 1.38
+      if (l > hi) {
+        const s = (l - hi) / l
+        if (wa) { ax[kp] += dx * s * wa; ax[kp + 1] += dy * s * wa; ax[kp + 2] += dz * s * wa; ax[k] -= dx * s * 0.5; ax[k + 1] -= dy * s * 0.5; ax[k + 2] -= dz * s * 0.5 }
+        else { ax[k] -= dx * s; ax[k + 1] -= dy * s; ax[k + 2] -= dz * s }
+      }
+    }
+    // plate: grip
+    for (let j = 1; j < NAP; j++) {
+      const k = (b + j) * 3, r = Math.hypot(ax[k], ax[k + 2])
+      if (r > PLATE_R) { ax[k] *= PLATE_R / r; ax[k + 2] *= PLATE_R / r }
+      const fy = plateY(Math.min(r, PLATE_R)) + PR[j] * 0.85
+      if (ax[k + 1] < fy) {
+        ax[k + 1] = fy
+        const grip = (armGrab && armGrab.arm === a) ? 0.15 : 0.62
+        ax[k] -= (ax[k] - axp[k]) * grip; ax[k + 2] -= (ax[k + 2] - axp[k + 2]) * grip
+      }
+    }
+    for (let j = 1; j < NAP; j++) {
+      const k = (b + j) * 3
+      av[k] = (ax[k] - axp[k]) / dt; av[k + 1] = (ax[k + 1] - axp[k + 1]) / dt; av[k + 2] = (ax[k + 2] - axp[k + 2]) / dt
+      const sp = Math.hypot(av[k], av[k + 1], av[k + 2]); if (sp > 8) { const f = 8 / sp; av[k] *= f; av[k + 1] *= f; av[k + 2] *= f }
+      const dr = 1 - 1.2 * dt; av[k] *= dr; av[k + 1] *= dr; av[k + 2] *= dr
+    }
+  }
+}
+const armTmp = [0, 0, 0], mantleW = [0, 0, 0]
+
+function bodyFrame() {
+  let c = [0, 0, 0]
+  for (let i = 0; i < NP; i++) { c[0] += hx[i * 3]; c[1] += hx[i * 3 + 1]; c[2] += hx[i * 3 + 2] }
+  c = V.mul(c, 1 / NP)
+  A9.fill(0)
+  for (let i = 0; i < NP; i++) {
+    const px = hx[i * 3] - c[0], py = hx[i * 3 + 1] - c[1], pz = hx[i * 3 + 2] - c[2]
+    const rx = X0[i * 3] - REST_C[0], ry = X0[i * 3 + 1] - REST_C[1], rz = X0[i * 3 + 2] - REST_C[2]
+    A9[0] += px * rx; A9[1] += py * rx; A9[2] += pz * rx
+    A9[3] += px * ry; A9[4] += py * ry; A9[5] += pz * ry
+    A9[6] += px * rz; A9[7] += py * rz; A9[8] += pz * rz
+  }
+  extractRotation(A9, bodyQ, 0, 14)
+  quatCols(bodyQ, 0, frameR)
+  frameC[0] = c[0]; frameC[1] = c[1]; frameC[2] = c[2]
+}
+const toW = (p) => [frameC[0] + frameR[0] * (p[0] - REST_C[0]) + frameR[3] * (p[1] - REST_C[1]) + frameR[6] * (p[2] - REST_C[2]),
+  frameC[1] + frameR[1] * (p[0] - REST_C[0]) + frameR[4] * (p[1] - REST_C[1]) + frameR[7] * (p[2] - REST_C[2]),
+  frameC[2] + frameR[2] * (p[0] - REST_C[0]) + frameR[5] * (p[1] - REST_C[1]) + frameR[8] * (p[2] - REST_C[2])]
+const dirW = (d) => [frameR[0] * d[0] + frameR[3] * d[1] + frameR[6] * d[2], frameR[1] * d[0] + frameR[4] * d[1] + frameR[7] * d[2], frameR[2] * d[0] + frameR[5] * d[1] + frameR[8] * d[2]]
+
+// ───────────────────────── render geometry (per frame) ─────────────────────────
+const C = new Float32Array(NS * 3), T = new Float32Array(NS * 3), N = new Float32Array(NS * 3)
+function crPoint(P, n, u, outP, outT, o) {
+  const k = Math.min(n - 2, Math.max(0, Math.floor(u))), f = u - k
+  for (let d = 0; d < 3; d++) {
+    const p1 = P[k * 3 + d], p2 = P[(k + 1) * 3 + d]
+    const p0 = k > 0 ? P[(k - 1) * 3 + d] : 2 * p1 - p2
+    const p3 = k + 2 < n ? P[(k + 2) * 3 + d] : 2 * p2 - p1
+    outP[o + d] = 0.5 * (2 * p1 + (-p0 + p2) * f + (2 * p0 - 5 * p1 + 4 * p2 - p3) * f * f + (-p0 + 3 * p1 - 3 * p2 + p3) * f * f * f)
+    outT[o + d] = 0.5 * ((-p0 + p2) + 2 * (2 * p0 - 5 * p1 + 4 * p2 - p3) * f + 3 * (-p0 + 3 * p1 - 3 * p2 + p3) * f * f)
+  }
+}
+const armP = new Float32Array(NAP * 3)
+function updateRender() {
+  for (let v = 0; v < NHV; v++) { const e = headEmb[v]; interp(hx, e.c, e.u, e.v, e.w, RVB, v * 6); RVB[v * 6 + 3] = RVB[v * 6 + 4] = RVB[v * 6 + 5] = 0 }
+  for (let i = 0; i < headIdx.length; i += 3) {
+    const a = headIdx[i] * 6, b = headIdx[i + 1] * 6, c = headIdx[i + 2] * 6
+    const ux = RVB[b] - RVB[a], uy = RVB[b + 1] - RVB[a + 1], uz = RVB[b + 2] - RVB[a + 2]
+    const vx = RVB[c] - RVB[a], vy = RVB[c + 1] - RVB[a + 1], vz = RVB[c + 2] - RVB[a + 2]
+    const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx
+    RVB[a + 3] += nx; RVB[a + 4] += ny; RVB[a + 5] += nz; RVB[b + 3] += nx; RVB[b + 4] += ny; RVB[b + 5] += nz; RVB[c + 3] += nx; RVB[c + 4] += ny; RVB[c + 5] += nz
+  }
+  for (let v = 0; v < NHV; v++) { const o = v * 6, l = Math.hypot(RVB[o + 3], RVB[o + 4], RVB[o + 5]) || 1; RVB[o + 3] /= l; RVB[o + 4] /= l; RVB[o + 5] /= l }
+  const down = dirW([0, -1, 0])
+  for (let a = 0; a < NA; a++) {
+    for (let j = 0; j < NAP * 3; j++) armP[j] = ax[a * NAP * 3 + j]
+    for (let m = 0; m < NS; m++) {
+      crPoint(armP, NAP, ringS[m] * (NAP - 1), C, T, m * 3)
+      const l = Math.hypot(T[m * 3], T[m * 3 + 1], T[m * 3 + 2]) || 1; T[m * 3] /= l; T[m * 3 + 1] /= l; T[m * 3 + 2] /= l
+    }
+    // rotation-minimising frames (double reflection), starting with the sucker side facing down
+    { const t0 = [T[0], T[1], T[2]]; let n0 = V.sub(down, V.mul(t0, V.dot(down, t0))); if (V.len(n0) < 1e-4) n0 = V.cross(t0, [1, 0, 0]); n0 = V.norm(n0); N[0] = n0[0]; N[1] = n0[1]; N[2] = n0[2] }
+    for (let m = 0; m < NS - 1; m++) {
+      const o = m * 3, o1 = o + 3
+      const v1x = C[o1] - C[o], v1y = C[o1 + 1] - C[o + 1], v1z = C[o1 + 2] - C[o + 2], c1 = v1x * v1x + v1y * v1y + v1z * v1z
+      if (c1 < 1e-12) { N[o1] = N[o]; N[o1 + 1] = N[o + 1]; N[o1 + 2] = N[o + 2]; continue }
+      const dn = 2 * (v1x * N[o] + v1y * N[o + 1] + v1z * N[o + 2]) / c1, dt_ = 2 * (v1x * T[o] + v1y * T[o + 1] + v1z * T[o + 2]) / c1
+      const rLx = N[o] - dn * v1x, rLy = N[o + 1] - dn * v1y, rLz = N[o + 2] - dn * v1z
+      const tLx = T[o] - dt_ * v1x, tLy = T[o + 1] - dt_ * v1y, tLz = T[o + 2] - dt_ * v1z
+      const v2x = T[o1] - tLx, v2y = T[o1 + 1] - tLy, v2z = T[o1 + 2] - tLz, c2 = v2x * v2x + v2y * v2y + v2z * v2z
+      const d2 = c2 > 1e-12 ? 2 * (v2x * rLx + v2y * rLy + v2z * rLz) / c2 : 0
+      let nx = rLx - d2 * v2x, ny = rLy - d2 * v2y, nz = rLz - d2 * v2z
+      const tt = nx * T[o1] + ny * T[o1 + 1] + nz * T[o1 + 2]; nx -= tt * T[o1]; ny -= tt * T[o1 + 1]; nz -= tt * T[o1 + 2]
+      const l = Math.hypot(nx, ny, nz) || 1; N[o1] = nx / l; N[o1 + 1] = ny / l; N[o1 + 2] = nz / l
+    }
+    const base = NHV + a * ARM_V
+    const put = (vi, px, py, pz, nx, ny, nz) => { const o = (base + vi) * 6; RVB[o] = px; RVB[o + 1] = py; RVB[o + 2] = pz; RVB[o + 3] = nx; RVB[o + 4] = ny; RVB[o + 5] = nz }
+    for (let m = 0; m < NS; m++) {
+      const o = m * 3, r = armR(ringS[m])
+      const tx = T[o], ty = T[o + 1], tz = T[o + 2], nx = N[o], ny = N[o + 1], nz = N[o + 2]
+      const bx = ty * nz - tz * ny, by = tz * nx - tx * nz, bz = tx * ny - ty * nx
+      for (let k = 0; k < AR; k++) {
+        const th = k / (AR - 1) * Math.PI * 2, c = Math.cos(th), s = Math.sin(th)
+        const qx = c * nx + s * bx, qy = c * ny + s * by, qz = c * nz + s * bz
+        put(m * AR + k, C[o] + qx * r, C[o + 1] + qy * r, C[o + 2] + qz * r, qx, qy, qz)
+      }
+    }
+    // rounded tip
+    const o = (NS - 1) * 3, re = armR(1)
+    const tx = T[o], ty = T[o + 1], tz = T[o + 2], nx = N[o], ny = N[o + 1], nz = N[o + 2]
+    const bx = ty * nz - tz * ny, by = tz * nx - tx * nz, bz = tx * ny - ty * nx
+    for (let cR = 1; cR <= CAPR; cR++) {
+      const al = cR / (CAPR + 1) * Math.PI / 2, ca = Math.cos(al), sa = Math.sin(al)
+      for (let k = 0; k < AR; k++) {
+        const th = k / (AR - 1) * Math.PI * 2, c = Math.cos(th), s = Math.sin(th)
+        const qx = c * nx + s * bx, qy = c * ny + s * by, qz = c * nz + s * bz
+        const ex = qx * ca + tx * sa, ey = qy * ca + ty * sa, ez = qz * ca + tz * sa
+        put((NS - 1 + cR) * AR + k, C[o] + ex * re, C[o + 1] + ey * re, C[o + 2] + ez * re, ex, ey, ez)
+      }
+    }
+    put(ARM_V - 1, C[o] + tx * re, C[o + 1] + ty * re, C[o + 2] + tz * re, tx, ty, tz)
+  }
+}
+
+// ───────────────────────── flavours ─────────────────────────
+const FLAVOURS = {
+  raspberry: { head: [0.86, 0.09, 0.27], arm: [1.0, 0.36, 0.48], dot: '#d81e4f' },
+  blueberry: { head: [0.14, 0.27, 0.95], arm: [0.34, 0.55, 1.0], dot: '#2f56e8' },
+  tangerine: { head: [1.0, 0.40, 0.03], arm: [1.0, 0.62, 0.18], dot: '#ff7a12' },
+}
+let flavour = 'raspberry'
+
+// ───────────────────────── WGSL ─────────────────────────
+const COMMON = /* wgsl */`
+struct U {
+  viewProj: mat4x4f, lightVP: mat4x4f,
+  cam: vec4f, screen: vec4f,
+  bR0: vec4f, bR1: vec4f, bR2: vec4f,
+  bC: vec4f, rC: vec4f,
+  head: vec4f,     // rgb, w blush
+  arm: vec4f,
+  params: vec4f,   // x firm, y shadow tint, z eye-look amount
+  look: vec4f,
+  keyL: vec4f,
+  sb: vec4f,       // softbox centre (xz)
+  stains: array<vec4f, 32>,
+};
+@group(0) @binding(0) var<uniform> u: U;
+const SB_Y = 6.0; const SB_S = vec2f(4.0, 3.0);
+const PAPER = vec3f(0.93, 0.895, 0.84);
+fn softboxEmit(p: vec3f, d: vec3f) -> f32 {
+  if (d.y <= 0.0) { return 0.0; }
+  let t = (SB_Y - p.y) / d.y; let q = p + d * t;
+  let e = abs(q.xz - u.sb.xy) / (SB_S * 0.5);
+  return 9.0 * (1.0 - smoothstep(0.86, 1.02, max(e.x, e.y)));
+}
+fn stripEmit(p: vec3f, d: vec3f) -> f32 {
+  if (d.x >= 0.0) { return 0.0; }
+  let t = (-3.6 - p.x) / d.x; let q = p + d * t;
+  if (q.z > -0.4 || q.z < -3.4) { return 0.0; }
+  let a = 1.0 - smoothstep(0.35, 0.5, abs(q.z + 1.9) / 3.0);
+  return 7.0 * a * (1.0 - smoothstep(4.2, 4.8, q.y)) * smoothstep(0.2, 0.6, q.y);
+}
+fn fillEmit(p: vec3f, d: vec3f) -> f32 {
+  if (d.z <= 0.0) { return 0.0; }
+  let t = (4.2 - p.z) / d.z; let q = p + d * t;
+  let e = max(abs(q.x - 2.8) / 1.6, abs(q.y - 1.3) / 1.4);
+  return 1.4 * (1.0 - smoothstep(0.8, 1.0, e));
+}
+fn env(p: vec3f, d: vec3f) -> vec3f {
+  let paper = PAPER * mix(0.55, 0.95, clamp(d.y * 0.5 + 0.6, 0.0, 1.0));
+  let warm = vec3f(1.0, 0.97, 0.92);
+  return paper + warm * softboxEmit(p, d) + vec3f(0.95, 0.97, 1.0) * stripEmit(p, d) + warm * fillEmit(p, d);
+}
+`
+
+const STAGE_WGSL = COMMON + /* wgsl */`
+@group(0) @binding(1) var shadowTex: texture_depth_2d;
+@group(0) @binding(2) var shadowSmp: sampler_comparison;
+struct VO { @builtin(position) pos: vec4f, @location(0) wp: vec3f, @location(1) n: vec3f, @location(2) @interpolate(flat) mat: f32 };
+@vertex fn vs(@location(0) p: vec3f, @location(1) n: vec3f, @location(2) m: f32) -> VO {
+  var o: VO; o.pos = u.viewProj * vec4f(p, 1.0); o.wp = p; o.n = n; o.mat = m; return o;
+}
+const POISSON = array<vec2f, 16>(
+  vec2f(-0.94, -0.40), vec2f(0.95, -0.77), vec2f(-0.09, -0.93), vec2f(0.34, 0.29),
+  vec2f(-0.92, 0.46), vec2f(-0.82, 0.14), vec2f(0.97, 0.76), vec2f(0.44, -0.27),
+  vec2f(-0.82, -0.87), vec2f(-0.38, 0.28), vec2f(-0.04, 0.47), vec2f(0.54, 0.58),
+  vec2f(0.08, -0.13), vec2f(0.56, -0.92), vec2f(-0.32, -0.62), vec2f(0.20, 0.92));
+fn shadowVis(wp: vec3f) -> f32 {
+  let lp = u.lightVP * vec4f(wp, 1.0);
+  let uv = vec2f(lp.x * 0.5 + 0.5, 0.5 - lp.y * 0.5);
+  if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) { return 1.0; }
+  let z = lp.z - 0.002;
+  let dim = vec2f(textureDimensions(shadowTex));
+  var bsum = 0.0; var bn = 0.0;
+  for (var i = 0; i < 16; i++) {
+    let s = uv + POISSON[i] * 0.06;
+    let d = textureLoad(shadowTex, vec2i(clamp(s, vec2f(0.0), vec2f(0.999)) * dim), 0);
+    if (d < z) { bsum += d; bn += 1.0; }
+  }
+  if (bn < 1.0) { return 1.0; }
+  let pen = clamp((z - bsum / bn) * 0.9, 0.004, 0.08);
+  var vis = 0.0;
+  for (var i = 0; i < 16; i++) { vis += textureSampleCompareLevel(shadowTex, shadowSmp, uv + POISSON[i] * pen, z); }
+  return vis / 16.0;
+}
+@fragment fn fs(i: VO) -> @location(0) vec4f {
+  let n = normalize(i.n); let p = i.wp;
+  var irr = 0.0;
+  for (var a = 0; a < 4; a++) { for (var b = 0; b < 4; b++) {
+    let q = vec3f(u.sb.x + (f32(a) - 1.5) / 4.0 * SB_S.x, SB_Y, u.sb.y + (f32(b) - 1.5) / 4.0 * SB_S.y);
+    let L = q - p; let d2 = dot(L, L); let l = L * inverseSqrt(d2);
+    irr += max(dot(n, l), 0.0) * max(l.y, 0.0) / d2;
+  } }
+  irr *= SB_S.x * SB_S.y / 16.0 * 0.62;
+  var strip = 0.0;
+  for (var k = 0; k < 5; k++) {
+    let q = vec3f(-3.6, 0.6 + f32(k) * 0.9, -1.9);
+    let L = q - p; let d2 = dot(L, L); let l = L * inverseSqrt(d2);
+    strip += max(dot(n, l), 0.0) * max(dot(-l, normalize(vec3f(1.0, 0.0, 0.55))), 0.0) / d2;
+  }
+  let fq = vec3f(2.8, 1.3, 4.2); let fL = fq - p; let fd = dot(fL, fL); let fl = fL * inverseSqrt(fd);
+  let fill = max(dot(n, fl), 0.0) * max(-fl.z, 0.0) / fd * 2.0;
+  let vis = shadowVis(p);
+  let tint = mix(vec3f(1.0), u.head.rgb * 0.72 + 0.14, u.params.y);
+  let shade = mix(tint * 0.33, vec3f(1.0), vis);
+  let light = irr * 1.9 * shade + strip * 0.7 + fill * 0.45 + 0.42 * mix(0.8, 1.0, vis);
+  if (i.mat < 0.5) {
+    var c = PAPER * light;
+    c *= 1.0 - 0.18 * smoothstep(5.0, 11.0, length(p.xz));
+    return vec4f(c, 1.0);
+  }
+  // glazed plate + ink stains
+  var alb = vec3f(0.965, 0.962, 0.958);
+  if (p.y > -0.03) {
+    for (var k = 0; k < 32; k++) {
+      let s = u.stains[k];
+      if (s.w <= 0.004) { continue; }
+      let dd = p.xz - s.xy; let d = length(dd);
+      if (d > s.z * 1.5) { continue; }
+      let ang = atan2(dd.y, dd.x);
+      let edge = s.z * (1.0 + 0.15 * sin(ang * 7.0 + s.x * 13.0) + 0.08 * sin(ang * 13.0 + s.y * 9.0));
+      let m = 1.0 - smoothstep(edge * 0.8, edge, d);
+      let core = 1.0 - smoothstep(0.0, edge * 0.85, d);
+      let ink = mix(vec3f(0.24, 0.20, 0.30), vec3f(0.03, 0.022, 0.05), 0.45 + 0.55 * core);
+      alb = mix(alb, ink, m * s.w);
+    }
+  }
+  var c = alb * light;
+  let v = normalize(p - u.cam.xyz);
+  let cosi = clamp(-dot(v, n), 0.0, 1.0);
+  let F = 0.04 + 0.96 * pow(1.0 - cosi, 5.0);
+  c = c * (1.0 - F * 0.6) + F * env(p, reflect(v, n)) * 0.55 * mix(0.55, 1.0, vis);
+  let h = normalize(u.keyL.xyz - v);
+  c += vec3f(1.0, 0.98, 0.95) * pow(max(dot(n, h), 0.0), 420.0) * 4.0 * vis;
+  return vec4f(c, 1.0);
+}
+`
+const SHADOW_WGSL = COMMON + /* wgsl */`
+@vertex fn vs(@location(0) p: vec3f) -> @builtin(position) vec4f { return u.lightVP * vec4f(p, 1.0); }
+`
+const BACK_WGSL = COMMON + /* wgsl */`
+struct VO { @builtin(position) pos: vec4f, @location(0) wp: vec3f };
+@vertex fn vs(@location(0) p: vec3f) -> VO { var o: VO; o.pos = u.viewProj * vec4f(p, 1.0); o.wp = p; return o; }
+@fragment fn fs(i: VO) -> @location(0) vec4f { return vec4f(length(i.wp - u.cam.xyz), 0.0, 0.0, 1.0); }
+`
+const DROP_WGSL = COMMON + /* wgsl */`
+struct VO { @builtin(position) pos: vec4f, @location(0) wp: vec3f, @location(1) n: vec3f };
+@vertex fn vs(@location(0) p: vec3f, @location(1) inst: vec4f) -> VO {
+  var o: VO; let w = inst.xyz + p * inst.w; o.pos = u.viewProj * vec4f(w, 1.0); o.wp = w; o.n = p; return o;
+}
+@fragment fn fs(i: VO) -> @location(0) vec4f {
+  let n = normalize(i.n); let v = normalize(i.wp - u.cam.xyz);
+  let F = 0.04 + 0.96 * pow(1.0 - clamp(-dot(v, n), 0.0, 1.0), 5.0);
+  var c = vec3f(0.035, 0.026, 0.05) * (0.4 + 0.6 * max(dot(n, u.keyL.xyz), 0.0));
+  c += F * env(i.wp, reflect(v, n)) * 0.6;
+  c += vec3f(1.0) * pow(max(dot(n, normalize(u.keyL.xyz - v)), 0.0), 120.0) * 3.0;
+  return vec4f(c, 1.0);
+}
+`
+const JELLY_WGSL = COMMON + /* wgsl */`
+@group(0) @binding(1) var sceneTex: texture_2d<f32>;
+@group(0) @binding(2) var backTex: texture_2d<f32>;
+@group(0) @binding(3) var lin: sampler;
+struct VO { @builtin(position) pos: vec4f, @location(0) wp: vec3f, @location(1) n: vec3f, @location(2) a: vec4f };
+@vertex fn vs(@location(0) p: vec3f, @location(1) n: vec3f, @location(2) a: vec4f) -> VO {
+  var o: VO; o.pos = u.viewProj * vec4f(p, 1.0); o.wp = p; o.n = n; o.a = a; return o;
+}
+fn h31(p: vec3f) -> vec3f {
+  return fract(sin(vec3f(dot(p, vec3f(127.1, 311.7, 74.7)), dot(p, vec3f(269.5, 183.3, 246.1)), dot(p, vec3f(113.5, 271.9, 124.6)))) * 43758.5453);
+}
+// chromatophores: little dark spots that swell and pulse when it blushes
+fn spots(p: vec3f, blush: f32, t: f32) -> f32 {
+  let b = floor(p - 0.5);
+  var m = 0.0;
+  for (var z = 0; z < 2; z++) { for (var y = 0; y < 2; y++) { for (var x = 0; x < 2; x++) {
+    let c = b + vec3f(f32(x), f32(y), f32(z));
+    let r3 = h31(c);
+    let q = c + 0.2 + 0.6 * r3;
+    let d = length(p - q);
+    let pulse = 0.5 + 0.5 * sin(t * 4.6 + r3.x * 40.0);
+    let rad = (0.09 + 0.07 * r3.y) * (1.0 + blush * (1.0 + 0.7 * pulse));
+    m = max(m, 1.0 - smoothstep(rad * 0.55, rad, d));
+  } } }
+  return m;
+}
+fn sphereHit(o: vec3f, d: vec3f, c: vec3f, r: f32) -> f32 {
+  let oc = o - c; let b = dot(oc, d); let cc = dot(oc, oc) - r * r; let h = b * b - cc;
+  if (h < 0.0) { return -1.0; }
+  return -b - sqrt(h);
+}
+const EYE0 = vec3f(-0.27, 0.66, 0.34); const EYE1 = vec3f(0.27, 0.66, 0.34); const EYE_R = 0.11;
+const BUBS = array<vec4f, 9>(vec4f(-0.18, 0.95, -0.15, 0.035), vec4f(0.22, 1.05, -0.25, 0.028), vec4f(0.05, 0.50, 0.15, 0.022),
+  vec4f(-0.30, 0.45, -0.10, 0.030), vec4f(0.32, 0.78, -0.05, 0.020), vec4f(0.00, 1.18, -0.32, 0.025), vec4f(-0.10, 0.72, 0.20, 0.018),
+  vec4f(0.18, 0.32, -0.25, 0.026), vec4f(-0.25, 1.00, -0.35, 0.020));
+fn eyeShade(pr: vec3f, c: vec3f, Rb: mat3x3f, rdW: vec3f, L: vec3f) -> vec3f {
+  let nw = normalize(Rb * normalize(pr - c));
+  let cw = Rb * (c - u.rC.xyz) + u.bC.xyz;
+  let fr = normalize(Rb * normalize(vec3f(c.x * 2.2, 0.12, 0.78)));
+  var f = normalize(mix(fr, normalize(u.look.xyz - cw), u.params.z));
+  if (dot(f, fr) < 0.55) { f = normalize(mix(fr, f, 0.5)); }
+  let up = vec3f(0.0, 1.0, 0.0);
+  let uu = normalize(up - f * dot(up, f) + vec3f(0.0, 1e-4, 0.0));
+  let rr = cross(f, uu);
+  let cf = dot(nw, f);
+  let qy = dot(nw, uu); let qx = dot(nw, rr);
+  let ang = atan2(qy, qx);
+  let fib = 0.84 + 0.16 * sin(ang * 23.0) * sin(ang * 7.0 + 1.3);
+  var col = mix(vec3f(0.50, 0.26, 0.04), vec3f(1.0, 0.76, 0.18), smoothstep(-0.2, 0.8, cf)) * fib;
+  // horizontal slit pupil, kept level with gravity
+  let sx = qx / 0.6; let sy = qy / 0.115;
+  let slit = (1.0 - smoothstep(0.8, 1.05, sx * sx + sy * sy)) * smoothstep(0.3, 0.5, cf);
+  col = mix(col, vec3f(0.012, 0.008, 0.018), slit);
+  col *= mix(0.22, 1.0, smoothstep(-0.35, 0.35, cf));
+  col *= 0.5 + 0.65 * max(dot(nw, L), 0.0);
+  let hl = pow(max(dot(reflect(rdW, nw), L), 0.0), 180.0);
+  return col + vec3f(hl * 3.2);
+}
+@fragment fn fs(i: VO) -> @location(0) vec4f {
+  let n = normalize(i.n);
+  let v = normalize(i.wp - u.cam.xyz);
+  let L = u.keyL.xyz;
+  let isArm = i.a.w > 0.5;
+  let cosi = clamp(-dot(v, n), 0.0, 1.0);
+  let F = 0.03 + 0.97 * pow(1.0 - cosi, 5.0);
+  let rdir = refract(v, n, 1.0 / 1.4);
+  let back = textureLoad(backTex, vec2i(i.pos.xy), 0).r;
+  var thick = back - length(i.wp - u.cam.xyz);
+  if (back <= 0.0 || thick <= 0.0) { thick = 0.2; }
+  if (isArm) { thick = min(thick, i.a.z * 2.3 / max(cosi, 0.35)); }
+  thick = clamp(thick, 0.02, 2.4);
+  let exitP = i.wp + rdir * thick * 0.85;
+  let cp = u.viewProj * vec4f(exitP, 1.0);
+  let suv = clamp(vec2f(cp.x / cp.w * 0.5 + 0.5, 0.5 - cp.y / cp.w * 0.5), vec2f(0.002), vec2f(0.998));
+  let behind = textureSampleLevel(sceneTex, lin, suv, 0.0).rgb;
+  let blush = u.head.w; let t = u.cam.w;
+  var base: vec3f; var vent = 0.0; var s = 0.0;
+  if (isArm) {
+    s = i.a.w - 1.0;
+    vent = smoothstep(-0.15, 0.85, cos(i.a.y));
+    let ab = mix(u.head.rgb, u.arm.rgb, 0.3 + 0.45 * s);
+    base = mix(ab, u.arm.rgb * 1.04 + 0.03, vent * 0.8);
+  } else {
+    let low = smoothstep(0.5, 0.12, i.a.y);
+    base = mix(u.head.rgb, mix(u.head.rgb, u.arm.rgb, 0.6), low * 0.55);
+  }
+  base = clamp(mix(base, base * base * 0.85, blush * 0.55), vec3f(0.03), vec3f(1.0));
+  let sig = -log(base) * select(1.7, 5.5, isArm) + 0.05;
+  let Tr = exp(-sig * thick);
+  let glow = 0.4 + 0.5 * max(dot(n, L), 0.0) + 0.9 * pow(max(dot(v, L), 0.0), 4.0) + 0.2;
+  var inner = behind * Tr + base * (1.0 - Tr) * glow * mix(0.85, 1.15, blush);
+  if (!isArm) {
+    let Rb = mat3x3f(u.bR0.xyz, u.bR1.xyz, u.bR2.xyz);
+    let dr = normalize(transpose(Rb) * rdir);
+    let ro = i.a.xyz;
+    let Lr = transpose(Rb) * L;
+    var bub = vec3f(0.0);
+    for (var b = 0; b < 9; b++) {
+      let B = BUBS[b];
+      let tt = sphereHit(ro, dr, B.xyz, B.w);
+      if (tt > 0.0 && tt < thick) {
+        let nb = normalize(ro + dr * tt - B.xyz);
+        let rim = pow(1.0 - abs(dot(nb, dr)), 3.0);
+        let hl = pow(max(dot(reflect(dr, nb), Lr), 0.0), 90.0);
+        bub += (rim * 0.35 + hl * 4.0) * exp(-sig * tt * 0.7);
+      }
+    }
+    inner += bub * 0.7;
+    var te = 1e9; var ec = vec3f(0.0);
+    let t0 = sphereHit(ro, dr, EYE0, EYE_R);
+    if (t0 > 0.0 && t0 < thick * 1.2) { te = t0; ec = eyeShade(ro + dr * t0, EYE0, Rb, rdir, L); }
+    let t1 = sphereHit(ro, dr, EYE1, EYE_R);
+    if (t1 > 0.0 && t1 < thick * 1.2 && t1 < te) { te = t1; ec = eyeShade(ro + dr * t1, EYE1, Rb, rdir, L); }
+    if (te < 1e8) { let at = exp(-sig * te * 0.8); inner = mix(inner, ec * at + base * (1.0 - at) * 0.5, 0.94); }
+  }
+  var col = inner;
+  var sp = 0.0;
+  if (isArm) { let th = i.a.y; sp = spots(vec3f(i.a.x * 0.55, cos(th) * 1.5, sin(th) * 1.5), blush, t) * (1.0 - vent * 0.85); }
+  else { sp = spots(i.a.xyz * 7.0, blush, t); }
+  let spotCol = u.head.rgb * u.head.rgb * 0.3 + vec3f(0.03, 0.01, 0.015);
+  col = mix(col, spotCol, sp * (0.2 + 0.62 * blush));
+  if (isArm && s < 0.96) {
+    let rad = i.a.z;
+    let spacing = max(0.03, 1.75 * rad);
+    var sk = 0.0; var ring = 0.0;
+    for (var r = 0; r < 2; r++) {
+      let off = select(-0.46, 0.46, r == 1);
+      let dth = atan2(sin(i.a.y - off), cos(i.a.y - off));
+      let du = fract(i.a.x + 0.5 * f32(r)) - 0.5;
+      let dv = dth * rad / spacing;
+      let d = length(vec2f(du, dv));
+      sk = max(sk, 1.0 - smoothstep(0.26, 0.33, d));
+      ring = max(ring, smoothstep(0.11, 0.19, d) * (1.0 - smoothstep(0.26, 0.33, d)));
+    }
+    let suckCol = mix(u.arm.rgb, vec3f(1.0, 0.96, 0.92), 0.72);
+    let ndl = max(dot(n, L), 0.0);
+    let cup = mix(suckCol * 0.6, suckCol * (0.8 + 0.5 * ndl), ring);
+    col = mix(col, cup, sk * 0.88);
+  }
+  col += F * env(i.wp, reflect(v, n)) * 1.05;
+  let hv = normalize(L - v); let nh = max(dot(n, hv), 0.0);
+  col += vec3f(1.0, 0.98, 0.95) * (pow(nh, 320.0) * 7.0 + pow(nh, 36.0) * 0.22);
+  return vec4f(col, 1.0);
+}
+`
+const POST_WGSL = /* wgsl */`
+@group(0) @binding(0) var sceneTex: texture_2d<f32>;
+@group(0) @binding(1) var jellyTex: texture_2d<f32>;
+@group(0) @binding(2) var<uniform> post: vec4f;
+@vertex fn vs(@builtin(vertex_index) i: u32) -> @builtin(position) vec4f {
+  let p = array<vec2f, 3>(vec2f(-1.0, -3.0), vec2f(-1.0, 1.0), vec2f(3.0, 1.0));
+  return vec4f(p[i], 0.0, 1.0);
+}
+fn neutral(c0: vec3f) -> vec3f {
+  let start = 0.76; let desat = 0.15;
+  let x = min(c0.r, min(c0.g, c0.b));
+  let off = select(0.04, x - 6.25 * x * x, x < 0.08);
+  var c = c0 - off;
+  let peak = max(c.r, max(c.g, c.b));
+  if (peak < start) { return c; }
+  let d = 1.0 - start;
+  let np = 1.0 - d * d / (peak + d - start);
+  c *= np / peak;
+  let g = 1.0 - 1.0 / (desat * (peak - np) + 1.0);
+  return mix(c, vec3f(np), g);
+}
+fn srgb(c: vec3f) -> vec3f { return select(1.055 * pow(c, vec3f(1.0 / 2.4)) - 0.055, c * 12.92, c <= vec3f(0.0031308)); }
+@fragment fn fs(@builtin(position) pos: vec4f) -> @location(0) vec4f {
+  let p = vec2i(pos.xy);
+  let j = textureLoad(jellyTex, p, 0);
+  var c = mix(textureLoad(sceneTex, p, 0).rgb, j.rgb, j.a);
+  c = srgb(clamp(neutral(max(c * post.x, vec3f(0.0))), vec3f(0.0), vec3f(1.0)));
+  let dn = fract(sin(dot(pos.xy, vec2f(12.9898, 78.233)) + post.y) * 43758.5453) - 0.5;
+  return vec4f(c + dn / 255.0, 1.0);
+}
+`
+
+// ───────────────────────── studio: paper sweep + glazed plate ─────────────────────────
+const FLOOR = -0.13
+function stageMesh() {
+  const v = [], idx = []
+  // paper cyclorama
+  const prof = []
+  for (let z = 9; z > -1.2; z -= 0.5) prof.push([FLOOR, z, 1, 0])
+  const RAD = 3.0, Z0 = -1.2
+  for (let k = 0; k <= 16; k++) { const a = k / 16 * Math.PI / 2; prof.push([FLOOR + RAD - RAD * Math.cos(a), Z0 - RAD * Math.sin(a), Math.cos(a), Math.sin(a)]) }
+  for (let y = FLOOR + RAD + 0.5; y <= 12; y += 0.5) prof.push([y, Z0 - RAD, 0, 1])
+  const XS = []; for (let xx = -14; xx <= 14; xx += 1) XS.push(xx)
+  for (const [y, z, ny, nz] of prof) for (const xx of XS) v.push(xx, y, z, 0, ny, nz, 0)
+  const W = XS.length
+  for (let r = 0; r < prof.length - 1; r++) for (let c = 0; c < W - 1; c++) { const a = r * W + c; idx.push(a, a + 1, a + W, a + 1, a + W + 1, a + W) }
+  // plate (lathe)
+  const pp = []
+  for (let r = 0; r <= 1.85; r += 0.185) pp.push([r, 0])
+  for (let k = 1; k <= 8; k++) { const r = 1.85 + k / 8 * 0.3; pp.push([r, plateY(r)]) }
+  pp.push([2.22, 0.085], [2.28, 0.072], [2.31, 0.035], [2.27, -0.02], [2.16, -0.07], [1.75, -0.11], [1.5, -0.125], [0.0, -0.125])
+  const nrm = pp.map((p, k) => {
+    const a = pp[Math.max(0, k - 1)], b = pp[Math.min(pp.length - 1, k + 1)]
+    const dr = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dr, dy) || 1
+    return [-dy / l, dr / l]
+  })
+  const SEGS = 72, base = v.length / 7
+  for (let k = 0; k < pp.length; k++) for (let j = 0; j <= SEGS; j++) {
+    const ph = j / SEGS * Math.PI * 2, c = Math.cos(ph), s = Math.sin(ph)
+    v.push(pp[k][0] * c, pp[k][1], pp[k][0] * s, nrm[k][0] * c, nrm[k][1], nrm[k][0] * s, 1)
+  }
+  for (let k = 0; k < pp.length - 1; k++) for (let j = 0; j < SEGS; j++) {
+    const a = base + k * (SEGS + 1) + j
+    idx.push(a, a + 1, a + SEGS + 1, a + 1, a + SEGS + 2, a + SEGS + 1)
+  }
+  return { v: new Float32Array(v), i: new Uint32Array(idx) }
+}
+function icosphere() {
+  const t = (1 + Math.sqrt(5)) / 2
+  let vs = [[-1, t, 0], [1, t, 0], [-1, -t, 0], [1, -t, 0], [0, -1, t], [0, 1, t], [0, -1, -t], [0, 1, -t], [t, 0, -1], [t, 0, 1], [-t, 0, -1], [-t, 0, 1]].map(V.norm)
+  let fs = [[0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11], [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8], [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9], [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]]
+  const mid = new Map(), m = (a, b) => { const k = a < b ? a + '_' + b : b + '_' + a; if (!mid.has(k)) { mid.set(k, vs.length); vs.push(V.norm(V.mul(V.add(vs[a], vs[b]), 0.5))) } return mid.get(k) }
+  fs = fs.flatMap(([a, b, c]) => { const ab = m(a, b), bc = m(b, c), ca = m(c, a); return [[a, ab, ca], [b, bc, ab], [c, ca, bc], [ab, bc, ca]] })
+  return { v: new Float32Array(vs.flat()), i: new Uint32Array(fs.flat()) }
+}
+
+// ───────────────────────── ink ─────────────────────────
+const DROPS = [] // {x,y,z,vx,vy,vz,r}
+const STAINS = new Float32Array(32 * 4); let stainHead = 0
+const MAX_DROPS = 160
+function addStain(x, z, r) {
+  for (let k = 0; k < 32; k++) {
+    const o = k * 4; if (STAINS[o + 3] < 0.05) continue
+    const d = Math.hypot(STAINS[o] - x, STAINS[o + 1] - z)
+    if (d < (STAINS[o + 2] + r) * 0.55) { STAINS[o + 2] = Math.min(0.42, Math.hypot(STAINS[o + 2], r)); STAINS[o + 3] = Math.min(0.95, STAINS[o + 3] + 0.25); return }
+  }
+  const o = stainHead * 4; stainHead = (stainHead + 1) % 32
+  STAINS[o] = x; STAINS[o + 1] = z; STAINS[o + 2] = r; STAINS[o + 3] = 0.92
+}
+function updateInk(dt) {
+  for (let n = DROPS.length - 1; n >= 0; n--) {
+    const d = DROPS[n]
+    d.vy += GRAV * dt; const dr = 1 - 0.4 * dt; d.vx *= dr; d.vz *= dr
+    d.x += d.vx * dt; d.y += d.vy * dt; d.z += d.vz * dt
+    const r = Math.hypot(d.x, d.z)
+    if (r < 2.2 && d.y < plateY(r) + d.r) { addStain(d.x, d.z, d.r * (2.4 + rnd() * 1.6)); DROPS.splice(n, 1) }
+    else if (d.y < FLOOR - 0.2) DROPS.splice(n, 1)
+  }
+  for (let k = 0; k < 32; k++) STAINS[k * 4 + 3] *= Math.exp(-dt / 16)
+}
+
+// ───────────────────────── behaviour ─────────────────────────
+const LABEL = { rest: 'Resting', stroll: 'Strolling', curl: 'Curling up', wave: 'Waving hello', ink: 'Inking!', blush: 'Blushing' }
+const DUR = { stroll: 5.6, curl: 4.4, wave: 4.2, ink: 3.6, blush: 4.6 }
+const beh = { name: 'rest', t: 0, goal: null, squirted: false }
+const st = { curl: 0, wave: 0, blush: 0, stroll: 0, crouch: 0, dangle: 0, trail: 0, look: 0.35, flinch: 0 }
+const curlBoost = new Float32Array(NA)
+let lastInteract = -10, restT = 0, righting = 0, flinchLabel = 0, statusOverride = null
+function startBeh(name) {
+  beh.name = name; beh.t = 0; beh.squirted = false
+  if (name === 'stroll') {
+    const c = frameC
+    let best = null
+    for (let k = 0; k < 12; k++) {
+      const a = rnd() * Math.PI * 2, r = 0.35 + rnd() * 0.75, g = [Math.cos(a) * r, Math.sin(a) * r]
+      if (Math.hypot(g[0] - c[0], g[1] - c[2]) > 0.55) { best = g; break }
+    }
+    beh.goal = best || [-c[0] * 0.5, -c[2] * 0.5]
+  }
+  syncBehButtons()
+}
+
+// ───────────────────────── WebGPU ─────────────────────────
+const canvas = document.getElementById('c')
+async function main() {
+  if (!navigator.gpu) throw new Error('nogpu')
+  const adapter = await navigator.gpu.requestAdapter()
+  if (!adapter) throw new Error('nogpu')
+  const device = await adapter.requestDevice()
+  const ctx = canvas.getContext('webgpu')
+  const fmt = navigator.gpu.getPreferredCanvasFormat()
+  ctx.configure({ device, format: fmt, alphaMode: 'opaque' })
+
+  const UF = 84 + 128
+  const ubuf = device.createBuffer({ size: UF * 4, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST })
+  const pbuf = device.createBuffer({ size: 16, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST })
+  const mk = (data, usage) => { const b = device.createBuffer({ size: (data.byteLength + 3) & ~3, usage: usage | GPUBufferUsage.COPY_DST }); device.queue.writeBuffer(b, 0, data); return b }
+  const stage = stageMesh(), ico = icosphere()
+  const stgV = mk(stage.v, GPUBufferUsage.VERTEX), stgI = mk(stage.i, GPUBufferUsage.INDEX)
+  const icoV = mk(ico.v, GPUBufferUsage.VERTEX), icoI = mk(ico.i, GPUBufferUsage.INDEX)
+  const dropB = device.createBuffer({ size: MAX_DROPS * 16, usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST })
+  const dropData = new Float32Array(MAX_DROPS * 4)
+  const jelV = device.createBuffer({ size: RVB.byteLength, usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST })
+  const jelA = mk(RATT, GPUBufferUsage.VERTEX), jelI = mk(IDX, GPUBufferUsage.INDEX)
+
+  const posNor = { arrayStride: 24, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }, { shaderLocation: 1, offset: 12, format: 'float32x3' }] }
+  const posOnly = { arrayStride: 24, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }] }
+  const attrL = { arrayStride: 16, attributes: [{ shaderLocation: 2, offset: 0, format: 'float32x4' }] }
+  const stageL = { arrayStride: 28, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }, { shaderLocation: 1, offset: 12, format: 'float32x3' }, { shaderLocation: 2, offset: 24, format: 'float32' }] }
+  const icoL = { arrayStride: 12, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x3' }] }
+  const instL = { arrayStride: 16, stepMode: 'instance', attributes: [{ shaderLocation: 1, offset: 0, format: 'float32x4' }] }
+  const HDR = 'rgba16float'
+  const mod = code => device.createShaderModule({ code })
+  const depth = (write, cmp, f = 'depth24plus') => ({ format: f, depthWriteEnabled: write, depthCompare: cmp })
+  const stageP = device.createRenderPipeline({ layout: 'auto', vertex: { module: mod(STAGE_WGSL), entryPoint: 'vs', buffers: [stageL] },
+    fragment: { module: mod(STAGE_WGSL), entryPoint: 'fs', targets: [{ format: HDR }] }, primitive: { topology: 'triangle-list', cullMode: 'none' }, depthStencil: depth(true, 'less') })
+  const shadowP = device.createRenderPipeline({ layout: 'auto', vertex: { module: mod(SHADOW_WGSL), entryPoint: 'vs', buffers: [posOnly] },
+    primitive: { topology: 'triangle-list', cullMode: 'none' }, depthStencil: depth(true, 'less', 'depth32float') })
+  const backP = device.createRenderPipeline({ layout: 'auto', vertex: { module: mod(BACK_WGSL), entryPoint: 'vs', buffers: [posOnly] },
+    fragment: { module: mod(BACK_WGSL), entryPoint: 'fs', targets: [{ format: HDR }] }, primitive: { topology: 'triangle-list', cullMode: 'front' }, depthStencil: depth(true, 'greater') })
+  const jellyP = device.createRenderPipeline({ layout: 'auto', vertex: { module: mod(JELLY_WGSL), entryPoint: 'vs', buffers: [posNor, attrL] },
+    fragment: { module: mod(JELLY_WGSL), entryPoint: 'fs', targets: [{ format: HDR }] }, primitive: { topology: 'triangle-list', cullMode: 'back' }, depthStencil: depth(true, 'less') })
+  const dropP = device.createRenderPipeline({ layout: 'auto', vertex: { module: mod(DROP_WGSL), entryPoint: 'vs', buffers: [icoL, instL] },
+    fragment: { module: mod(DROP_WGSL), entryPoint: 'fs', targets: [{ format: HDR }] }, primitive: { topology: 'triangle-list', cullMode: 'back' }, depthStencil: depth(true, 'less') })
+  const postP = device.createRenderPipeline({ layout: 'auto', vertex: { module: mod(POST_WGSL), entryPoint: 'vs' },
+    fragment: { module: mod(POST_WGSL), entryPoint: 'fs', targets: [{ format: fmt }] }, primitive: { topology: 'triangle-list' } })
+
+  const shadowTex = device.createTexture({ size: [1024, 1024], format: 'depth32float', usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING })
+  const cmpSmp = device.createSampler({ compare: 'less', magFilter: 'linear', minFilter: 'linear' })
+  const linSmp = device.createSampler({ magFilter: 'linear', minFilter: 'linear' })
+  const ub = p => device.createBindGroup({ layout: p.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: ubuf } }] })
+  const shadowBG = ub(shadowP), backBG = ub(backP), dropBG = ub(dropP)
+  const stageBG = device.createBindGroup({ layout: stageP.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: ubuf } }, { binding: 1, resource: shadowTex.createView() }, { binding: 2, resource: cmpSmp }] })
+
+  let W = 0, H = 0, sceneT, backT, jellyT, depthA, depthB, jellyBG, postBG
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, innerWidth < 720 ? 1.5 : 2)
+    const w = Math.max(2, Math.floor(innerWidth * dpr)), h = Math.max(2, Math.floor(innerHeight * dpr))
+    if (w === W && h === H) return
+    W = w; H = h; canvas.width = w; canvas.height = h
+    for (const t of [sceneT, backT, jellyT, depthA, depthB]) t?.destroy()
+    const tex = format => device.createTexture({ size: [w, h], format, usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING })
+    sceneT = tex(HDR); backT = tex(HDR); jellyT = tex(HDR); depthA = tex('depth24plus'); depthB = tex('depth24plus')
+    jellyBG = device.createBindGroup({ layout: jellyP.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: ubuf } }, { binding: 1, resource: sceneT.createView() }, { binding: 2, resource: backT.createView() }, { binding: 3, resource: linSmp }] })
+    postBG = device.createBindGroup({ layout: postP.getBindGroupLayout(0), entries: [{ binding: 0, resource: sceneT.createView() }, { binding: 1, resource: jellyT.createView() }, { binding: 2, resource: { buffer: pbuf } }] })
+  }
+  addEventListener('resize', resize); resize()
+
+  // ── camera (orbit) ──
+  const cam = { yaw: 0, pitch: 0.42, zoom: 1 }
+  let viewProj, invVP, eye, lightVP, keyL, sbC
+  function camera() {
+    const asp = W / H, portrait = asp < 1
+    const fov = portrait ? Math.min(1.35, 0.66 / asp) : 0.62
+    const dist = (portrait ? (asp < 0.62 ? 5.7 : 7.4) : 6.8) * cam.zoom
+    const at = [0, portrait ? (EMBED ? -0.15 : (asp < 0.62 ? 0.3 : -0.05)) : 0.4, 0]
+    eye = [at[0] + dist * Math.sin(cam.yaw) * Math.cos(cam.pitch), at[1] + dist * Math.sin(cam.pitch), at[2] + dist * Math.cos(cam.yaw) * Math.cos(cam.pitch)]
+    viewProj = mat4Mul(perspective(fov, asp, 0.1, 60), lookAt(eye, at, [0, 1, 0]))
+    invVP = invert4(viewProj)
+    const a = (settings.light - 0.5) * 2.2
+    sbC = [2.2 * Math.sin(a), 0.2 + 0.7 * Math.cos(a)]
+    keyL = V.norm([sbC[0], 6, sbC[1]])
+    lightVP = mat4Mul(ortho(-2.9, 2.9, -2.9, 2.9, 0.1, 9.0), lookAt([sbC[0], 6, sbC[1]], [0, 0, 0], [0, 0, -1]))
+  }
+  camera()
+
+  // ── picking ──
+  function rayFrom(cx, cy) {
+    const r = canvas.getBoundingClientRect()
+    const nx = (cx - r.left) / r.width * 2 - 1, ny = -((cy - r.top) / r.height * 2 - 1)
+    const p0 = mul4(invVP, [nx, ny, 0, 1]), p1 = mul4(invVP, [nx, ny, 1, 1])
+    const a = [p0[0] / p0[3], p0[1] / p0[3], p0[2] / p0[3]], b = [p1[0] / p1[3], p1[1] / p1[3], p1[2] / p1[3]]
+    return { o: a, d: V.norm(V.sub(b, a)) }
+  }
+  function pickJelly(ray) {
+    let best = 1e9, hit = null
+    for (let i = 0; i < IDX.length; i += 3) {
+      const a = IDX[i] * 6, b = IDX[i + 1] * 6, c = IDX[i + 2] * 6
+      const e1x = RVB[b] - RVB[a], e1y = RVB[b + 1] - RVB[a + 1], e1z = RVB[b + 2] - RVB[a + 2]
+      const e2x = RVB[c] - RVB[a], e2y = RVB[c + 1] - RVB[a + 1], e2z = RVB[c + 2] - RVB[a + 2]
+      const px = ray.d[1] * e2z - ray.d[2] * e2y, py = ray.d[2] * e2x - ray.d[0] * e2z, pz = ray.d[0] * e2y - ray.d[1] * e2x
+      const det = e1x * px + e1y * py + e1z * pz
+      if (Math.abs(det) < 1e-10) continue
+      const tx = ray.o[0] - RVB[a], ty = ray.o[1] - RVB[a + 1], tz = ray.o[2] - RVB[a + 2]
+      const uu = (tx * px + ty * py + tz * pz) / det; if (uu < 0 || uu > 1) continue
+      const qx = ty * e1z - tz * e1y, qy = tz * e1x - tx * e1z, qz = tx * e1y - ty * e1x
+      const vv = (ray.d[0] * qx + ray.d[1] * qy + ray.d[2] * qz) / det; if (vv < 0 || uu + vv > 1) continue
+      const t = (e2x * qx + e2y * qy + e2z * qz) / det
+      if (t > 0 && t < best) { best = t; hit = i / 3 }
+    }
+    if (hit === null) return null
+    const p = V.add(ray.o, V.mul(ray.d, best))
+    if (hit < HEAD_TRIS) return { p, arm: -1 }
+    const arm = Math.floor((hit - HEAD_TRIS) / ARM_TRIS)
+    const vtx = IDX[hit * 3], s = RATT[vtx * 4 + 3] - 1
+    return { p, arm, j: Math.max(2, Math.round(s * (NAP - 1))) }
+  }
+  function platePoint(ray) {
+    if (ray.d[1] > -1e-4) return null
+    const t = -ray.o[1] / ray.d[1], p = V.add(ray.o, V.mul(ray.d, t))
+    return Math.hypot(p[0], p[2]) < 1.95 ? p : null
+  }
+  function nearestArm(p, maxD) {
+    let best = -1, bd = maxD
+    for (let a = 0; a < NA; a++) for (let j = 3; j < NAP; j++) {
+      const k = (a * NAP + j) * 3, d = Math.hypot(ax[k] - p[0], ax[k + 2] - p[2])
+      if (d < bd) { bd = d; best = a }
+    }
+    return best
+  }
+
+  // ── input ──
+  const ptrs = new Map()
+  let mode = null
+  const cancelHands = () => { grab = null; armGrab = null; reach = null; drive.squash = null; canvas.classList.remove('grabbing') }
+  canvas.addEventListener('pointerdown', e => {
+    if (EMBED && window.parent !== window) { try { window.parent.postMessage({ scene: 'touch' }, location.origin) } catch {} }
+    try { canvas.setPointerCapture(e.pointerId) } catch {}
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    lastInteract = time
+    if (ptrs.size === 2) {
+      cancelHands()
+      const [a, b] = [...ptrs.values()]
+      mode = { kind: 'pinch', d0: Math.hypot(a.x - b.x, a.y - b.y), z0: cam.zoom }
+      return
+    }
+    if (ptrs.size > 2) return
+    const ray = rayFrom(e.clientX, e.clientY)
+    const hit = pickJelly(ray)
+    const base = { id: e.pointerId, x0: e.clientX, y0: e.clientY, t0: performance.now() }
+    if (hit && hit.arm < 0) mode = { ...base, kind: 'headPending', p: hit.p }
+    else if (hit) mode = { ...base, kind: 'armPending', hit }
+    else mode = { ...base, kind: 'spacePending', plate: platePoint(ray), yaw0: cam.yaw, pitch0: cam.pitch }
+    e.preventDefault()
+  })
+  function startHeadDrag(p) {
+    const RAD = 0.34, idx = [], w = [], off = []
+    for (let i = 0; i < NP; i++) {
+      const d = Math.hypot(hx[i * 3] - p[0], hx[i * 3 + 1] - p[1], hx[i * 3 + 2] - p[2])
+      if (d < RAD) { idx.push(i); w.push(1 - (d / RAD) ** 2); off.push(hx[i * 3] - p[0], hx[i * 3 + 1] - p[1], hx[i * 3 + 2] - p[2]) }
+    }
+    if (!idx.length) return false
+    grab = { idx, w, off, target: p.slice(), goal: p.slice(), anchor: p.slice(), plane: { n: V.norm(V.sub(p, eye)), p } }
+    drive.squash = null; canvas.classList.add('grabbing'); beh.name = 'rest'; syncBehButtons()
+    return true
+  }
+  function planeHit(ray, pl) {
+    const den = V.dot(pl.n, ray.d); if (Math.abs(den) < 1e-6) return null
+    return V.add(ray.o, V.mul(ray.d, V.dot(V.sub(pl.p, ray.o), pl.n) / den))
+  }
+  canvas.addEventListener('pointermove', e => {
+    if (!ptrs.has(e.pointerId)) return
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    if (!mode) return
+    if (mode.kind === 'pinch') {
+      const [a, b] = [...ptrs.values()]; if (!b) return
+      cam.zoom = clamp(mode.z0 * mode.d0 / Math.max(20, Math.hypot(a.x - b.x, a.y - b.y)), 0.55, 1.7); return
+    }
+    if (e.pointerId !== mode.id) return
+    lastInteract = time
+    const moved = Math.hypot(e.clientX - mode.x0, e.clientY - mode.y0) > 7
+    const ray = rayFrom(e.clientX, e.clientY)
+    if ((mode.kind === 'headPending' || mode.kind === 'squash') && moved) {
+      const p = mode.p; drive.squash = null
+      mode = startHeadDrag(p) ? { ...mode, kind: 'headDrag' } : { ...mode, kind: 'orbit', yaw0: cam.yaw, pitch0: cam.pitch }
+    } else if (mode.kind === 'armPending' && moved) {
+      armGrab = { arm: mode.hit.arm, j: mode.hit.j, goal: mode.hit.p.slice(), y: Math.max(0.14, mode.hit.p[1]) }
+      canvas.classList.add('grabbing'); mode = { ...mode, kind: 'armDrag' }; beh.name = 'rest'; syncBehButtons()
+    } else if (mode.kind === 'spacePending' && moved) mode = { ...mode, kind: 'orbit', yaw0: cam.yaw, pitch0: cam.pitch }
+    if (mode.kind === 'orbit') {
+      cam.yaw = mode.yaw0 - (e.clientX - mode.x0) * 0.006
+      cam.pitch = clamp(mode.pitch0 + (e.clientY - mode.y0) * 0.005, 0.1, 1.2)
+    } else if (mode.kind === 'headDrag' && grab) {
+      let p = planeHit(ray, grab.plane); if (!p) return
+      const d = V.sub(p, grab.anchor), dl = V.len(d); if (dl > 1.8) p = V.add(grab.anchor, V.mul(d, 1.8 / dl))
+      let minY = 1e9; for (let n = 0; n < grab.idx.length; n++) minY = Math.min(minY, p[1] + grab.off[n * 3 + 1])
+      if (minY < 0.02) p[1] += 0.02 - minY
+      grab.goal = p
+    } else if (mode.kind === 'armDrag' && armGrab) {
+      const p = planeHit(ray, { n: [0, 1, 0], p: [0, armGrab.y, 0] })
+      if (p) { const r = Math.hypot(p[0], p[2]); if (r > 2.0) { p[0] *= 2.0 / r; p[2] *= 2.0 / r } armGrab.goal = p }
+    } else if (mode.kind === 'reach' && reach) {
+      const p = platePoint(ray); if (p) reach.p = [p[0], 0, p[2]]
+    }
+  })
+  function flinch(p, arm) {
+    for (let a = 0; a < NA; a++) {
+      let d = 1e9
+      for (let j = 0; j < NAP; j++) { const k = (a * NAP + j) * 3; d = Math.min(d, Math.hypot(ax[k] - p[0], ax[k + 1] - p[1], ax[k + 2] - p[2])) }
+      const amt = a === arm ? 1 : Math.max(0, 1 - d / 0.9)
+      curlBoost[a] = Math.max(curlBoost[a], amt * 0.95)
+    }
+    for (let i = 0; i < NP; i++) {
+      const k = i * 3, dx = hx[k] - p[0], dy = hx[k + 1] - p[1], dz = hx[k + 2] - p[2], d = Math.hypot(dx, dy, dz) + 0.05
+      const f = Math.max(0, 1 - d / 0.8) * 1.4 / d
+      hv[k] += dx * f; hv[k + 1] += dy * f * 0.5 + 0.3; hv[k + 2] += dz * f
+    }
+    flinchLabel = 0.9
+  }
+  const release = e => {
+    ptrs.delete(e.pointerId)
+    if (!mode) return
+    if (mode.kind === 'pinch') { if (ptrs.size < 2) mode = null; return }
+    if (e.pointerId !== mode.id) return
+    const quick = performance.now() - mode.t0 < 260
+    if (mode.kind === 'headPending' && quick) flinch(mode.p, -1)
+    else if (mode.kind === 'armPending' && quick) flinch(mode.hit.p, mode.hit.arm)
+    if (grab) for (let i = 0; i < NP * 3; i++) hv[i] = clamp(hv[i], -3, 3)
+    cancelHands(); mode = null
+  }
+  canvas.addEventListener('pointerup', release); canvas.addEventListener('pointercancel', release)
+  canvas.addEventListener('wheel', e => { e.preventDefault(); cam.zoom = clamp(cam.zoom * Math.exp(e.deltaY * 0.0012), 0.55, 1.7) }, { passive: false })
+  function checkHolds() {
+    if (!mode) return
+    const held = performance.now() - mode.t0
+    if (mode.kind === 'headPending' && held > 230) {
+      mode = { ...mode, kind: 'squash' }
+      drive.squash = { p: mode.p, k: 0 }
+    }
+    if (mode.kind === 'squash' && drive.squash) drive.squash.k = Math.min(60, drive.squash.k + 4)
+    if (mode.kind === 'spacePending' && held > 320 && mode.plate) {
+      const a = nearestArm(mode.plate, 1.25)
+      if (a >= 0) { reach = { arm: a, p: [mode.plate[0], 0, mode.plate[2]], t: 0, spin: rnd() * 6 }; mode = { ...mode, kind: 'reach' }; beh.name = 'rest'; syncBehButtons() }
+    }
+  }
+
+  // ── UI ──
+  const $ = id => document.getElementById(id)
+  window.syncBehButtons = () => document.querySelectorAll('[data-b]').forEach(b => b.setAttribute('aria-pressed', b.dataset.b === beh.name ? 'true' : 'false'))
+  const play = name => { cancelHands(); mode = null; startBeh(name); lastInteract = time }
+  document.querySelectorAll('[data-b]').forEach(b => b.addEventListener('click', () => play(b.dataset.b)))
+  const setFlavour = f => { if (!FLAVOURS[f]) return; flavour = f; document.querySelectorAll('.sw').forEach(o => o.setAttribute('aria-pressed', o.dataset.f === f ? 'true' : 'false')); $('chipDot').style.background = FLAVOURS[f].dot; $('chipDot').style.boxShadow = '0 0 0 3px ' + FLAVOURS[f].dot + '2e' }
+  document.querySelectorAll('.sw').forEach(b => b.addEventListener('click', () => setFlavour(b.dataset.f)))
+  const firmText = v => (v < 35 ? 'soft ' : v > 70 ? 'firm ' : '') + v
+  const setFirm = v => { settings.firm = clamp(v, 0, 1); $('firm').value = Math.round(settings.firm * 100); $('firmV').textContent = firmText(Math.round(settings.firm * 100)) }
+  const setDamp = v => { settings.damp = clamp(v, 0, 1); $('damp').value = Math.round(settings.damp * 100); $('dampV').textContent = Math.round(settings.damp * 100) }
+  const setLight = v => { settings.light = clamp(v, 0, 1); $('light').value = Math.round(settings.light * 100); $('lightV').textContent = Math.round((settings.light - 0.5) * 2.2 * 57.3) + '°' }
+  $('firm').addEventListener('input', e => setFirm(e.target.value / 100))
+  $('damp').addEventListener('input', e => setDamp(e.target.value / 100))
+  $('light').addEventListener('input', e => setLight(e.target.value / 100))
+  const doReset = () => { resetSim(); beh.name = 'rest'; DROPS.length = 0; STAINS.fill(0); syncBehButtons() }
+  $('reset').addEventListener('click', doReset)
+  const setPause = p => { settings.paused = p; $('pause').textContent = p ? 'Play' : 'Pause'; $('pause').setAttribute('aria-pressed', p) }
+  const setSlow = s => { settings.slow = s; $('slow').setAttribute('aria-pressed', s) }
+  $('pause').addEventListener('click', () => setPause(!settings.paused))
+  $('slow').addEventListener('click', () => setSlow(!settings.slow))
+  const panel = $('panel')
+  $('grip').addEventListener('click', () => { const c = panel.classList.toggle('collapsed'); $('grip').setAttribute('aria-expanded', String(!c)) })
+  addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT') return
+    const k = e.key.toLowerCase()
+    if (e.code === 'Space') { e.preventDefault(); setPause(!settings.paused) }
+    else if (k === 's') setSlow(!settings.slow)
+    else if (k === 'r') doReset()
+    else if ('12345'.includes(k) && k) play(['stroll', 'curl', 'wave', 'ink', 'blush'][+k - 1])
+  })
+  addEventListener('message', e => {
+    if (e.origin !== location.origin) return
+    const d = e.data || {}
+    if (d.flavour) setFlavour(d.flavour)
+    if (Number.isFinite(d.firm)) setFirm(d.firm)
+    if (Number.isFinite(d.damp)) setDamp(d.damp)
+    if (Number.isFinite(d.light)) setLight(d.light)
+    if (d.cmd === 'reset') doReset(); else if (DUR[d.cmd]) play(d.cmd)
+  })
+
+  // ── behaviour update (per frame) ──
+  const AUTO = ['stroll', 'curl', 'wave', 'ink', 'blush']
+  let lastAuto = ''
+  function updateBehaviour(dt) {
+    const up = [frameR[3], frameR[4], frameR[5]], fwd = [frameR[6], frameR[7], frameR[8]]
+    let minY = 1e9; for (let i = 0; i < NP; i++) minY = Math.min(minY, hx[i * 3 + 1])
+    const held = !!grab
+    const airborne = minY > (beh.name === 'stroll' ? 0.6 : 0.4)
+    beh.t += dt
+    if (beh.name !== 'rest' && beh.t > DUR[beh.name]) { beh.name = 'rest'; beh.t = 0; syncBehButtons() }
+    if (held || airborne) { if (beh.name !== 'rest') { beh.name = 'rest'; syncBehButtons() } }
+    // autoplay when left alone
+    if (beh.name === 'rest' && !mode && !grab && !armGrab && !reach && righting <= 0) {
+      restT += dt
+      if (time - lastInteract > 4.5 && restT > 3.6) {
+        const pool = AUTO.filter(a => a !== lastAuto); const n = pool[Math.floor(rnd() * pool.length)]
+        lastAuto = n; restT = 0; startBeh(n)
+      }
+    } else restT = 0
+    const b = beh.name, t = beh.t, ease = (x, k) => x + (k - x) * Math.min(1, dt * 4)
+    const inWin = (a, z) => t > a && t < (DUR[b] || 0) - z
+    st.curl = ease(st.curl, b === 'curl' && inWin(0.3, 0.9) ? 1 : 0)
+    st.wave = ease(st.wave, b === 'wave' && inWin(0.2, 0.7) ? 1 : 0)
+    st.blush = st.blush + ((b === 'blush' && inWin(0.2, 1.0) ? 1 : b === 'ink' ? 0.35 : 0) - st.blush) * Math.min(1, dt * 2)
+    st.stroll = ease(st.stroll, b === 'stroll' && inWin(0.35, 0.7) ? 1 : 0)
+    st.crouch = ease(st.crouch, b === 'ink' && t < 0.95 ? 1 : 0)
+    st.trail = ease(st.trail, b === 'ink' && t > 0.9 && t < 2.2 ? 1 : 0)
+    st.dangle += (((held && minY > 0.12) || airborne ? 1 : 0) - st.dangle) * Math.min(1, dt * 5)
+    for (let a = 0; a < NA; a++) curlBoost[a] = Math.max(0, curlBoost[a] - dt * 0.8)
+    flinchLabel = Math.max(0, flinchLabel - dt)
+    if (reach) reach.t += dt
+    // drive (body forces)
+    drive.lift = 0; drive.hk = 0; drive.crouch = st.crouch; drive.tow = null; drive.rot = null
+    drive.breath = (b === 'rest' && !held) ? 0.5 * Math.sin(time * 1.4) : 0
+    if (st.stroll > 0.02 && beh.goal) {
+      const dx = beh.goal[0] - frameC[0], dz = beh.goal[1] - frameC[2], d = Math.hypot(dx, dz)
+      const sp = Math.min(0.6, d * 1.6)
+      drive.lift = st.stroll; drive.liftY = REST_C[1] + 0.2 + 0.04 * Math.sin(time * 6)
+      drive.hk = 3.5 * st.stroll; drive.hx = d > 1e-3 ? dx / d * sp : 0; drive.hz = d > 1e-3 ? dz / d * sp : 0
+      if (d > 0.08) { const turn = Math.atan2(fwd[2] * dx - fwd[0] * dz, fwd[0] * dx + fwd[2] * dz); drive.rot = { axis: [0, 1, 0], w: clamp(-turn * 1.6, -1.1, 1.1) * st.stroll } }
+    }
+    if (b === 'ink' && t > 0.95 && !beh.squirted) {
+      beh.squirted = true
+      const sip = toW([0, 0.32, -0.46]), back = V.norm(V.add(V.mul(fwd, -1), V.mul(up, 0.5)))
+      for (let n = 0; n < 70 && DROPS.length < MAX_DROPS; n++) {
+        const d = V.norm([back[0] + (rnd() - 0.5) * 0.7, back[1] + (rnd() - 0.3) * 0.5, back[2] + (rnd() - 0.5) * 0.7]), s = 2.2 + rnd() * 2.2
+        DROPS.push({ x: sip[0], y: sip[1], z: sip[2], vx: d[0] * s, vy: d[1] * s, vz: d[2] * s, r: 0.016 + rnd() * 0.028 })
+      }
+      const jet = V.norm([fwd[0], 0, fwd[2]])
+      for (let i = 0; i < NP; i++) { hv[i * 3] += jet[0] * 2.6; hv[i * 3 + 1] += 1.1; hv[i * 3 + 2] += jet[2] * 2.6 }
+    }
+    // righting itself
+    if (!held && up[1] < 0.45) righting += dt; else if (up[1] > 0.93 || held) righting = 0
+    if (righting > 0.5) {
+      const axis = V.norm(V.cross(up, [0, 1, 0]))
+      if (V.len(V.cross(up, [0, 1, 0])) > 1e-3) drive.rot = { axis, w: 2.6 }
+      else drive.rot = { axis: [1, 0, 0], w: 2.6 }
+      drive.lift = 0.6; drive.liftY = REST_C[1] + 0.3
+    } else if (!held && up[1] < 0.985 && up[1] > 0.45 && !drive.rot) {
+      const c = V.cross(up, [0, 1, 0]), l = V.len(c); if (l > 1e-3) drive.rot = { axis: V.mul(c, 1 / l), w: 0.9 * Math.asin(Math.min(1, l)) }
+    }
+    // towing: an arm stretched past its limit drags the body
+    let tow = 0
+    if (armGrab) {
+      const kr = (armGrab.arm * NAP) * 3, kj = (armGrab.arm * NAP + armGrab.j) * 3
+      const dx = ax[kj] - ax[kr], dz = ax[kj + 2] - ax[kr + 2], dd = Math.hypot(dx, ax[kj + 1] - ax[kr + 1], dz)
+      const ratio = dd / (armGrab.j * SEG)
+      const gx = armGrab.goal[0] - ax[kr], gz = armGrab.goal[2] - ax[kr + 2], gd = Math.hypot(gx, gz)
+      tow = Math.max(0, ratio - 1.12)
+      if (tow > 0 && gd > 1e-3) { const v = Math.min(1.5, tow * 6); drive.tow = [gx / gd * v, gz / gd * v] }
+      armGrab.ratio = ratio
+    }
+    // eyes
+    let lk = eye, amt = 0.35
+    if (reach) { lk = reach.p; amt = 1 } else if (armGrab) { lk = armGrab.goal; amt = 0.8 } else if (st.wave > 0.3) amt = 0.7
+    st.look = lk; st.lookAmt = amt
+    // status
+    let s = LABEL[b]
+    if (b === 'ink' && t > 0.95) s = 'Jetting away'
+    if (b === 'rest') s = 'Resting'
+    if (flinchLabel > 0) s = 'Flinched'
+    if (righting > 0.5) s = 'Righting itself'
+    if (airborne && !held) s = 'Bouncing'
+    if (held) s = 'Dangling'
+    if (mode && mode.kind === 'squash') s = 'Squashed'
+    if (armGrab) s = tow > 0 ? 'Being towed' : 'Arm stretched'
+    if (reach) s = reach.t > 0.6 ? 'Holding your finger' : 'Reaching for you'
+    if (s !== statusOverride) { statusOverride = s; $('status').textContent = s }
+    // arm muscle targets
+    const Mbase = 0.2 * (0.65 + 0.6 * settings.firm)
+    for (let a = 0; a < NA; a++) {
+      const ca = Math.cos(PHI[a]), sa = Math.sin(PHI[a])
+      const r = dirW([ca, 0, sa]), side = V.cross(up, r)
+      const cA = Math.max(st.curl, curlBoost[a], b === 'ink' ? st.crouch * 0.3 : 0)
+      const wv = (a === 1 || a === 2) ? st.wave : 0
+      let mul = 1 - 0.78 * st.dangle
+      mul *= 1 - 0.62 * st.trail
+      if (armGrab && armGrab.arm === a) mul *= 0.25
+      if (reach && reach.arm === a) mul *= 0.3
+      let sweep = 0
+      if (st.stroll > 0.02) { const mv = [drive.hx, 0, drive.hz]; sweep = -0.9 * V.dot(mv, side) * st.stroll }
+      for (let j = 1; j < NAP; j++) {
+        const q = j / (NAP - 1)
+        let th = -1.05 * (1 - smooth01(q / 0.28)) + 0.08 + 0.3 * q * q * q
+        th += 0.08 * Math.sin(1.7 * time + a * 0.9 - 4 * q)
+        th += st.stroll * (-0.25 * (1 - q) + 0.28 * Math.sin(6 * time + (a % 2) * Math.PI) * (1 - q))
+        th += st.crouch * -0.3 * (1 - q)
+        th += cA * CURLCUM[j]
+        th += st.dangle * 0.55 * Math.sin(2.6 * time + a * 1.7 - 3.2 * q)
+        let ps = 0.16 * Math.sin(0.7 * time + a * 1.3 - 2 * q) * (1 - 0.3 * q) + st.dangle * 0.5 * Math.sin(2.1 * time + a * 2.3 - 2.6 * q) + sweep
+        if (wv > 0.01) {
+          const thw = 1.1 - 0.45 * q + 0.55 * Math.sin(7.5 * time - 5 * q) * q
+          th = th + (thw - th) * wv
+          ps += wv * 0.55 * Math.sin(5 * time + (a === 1 ? 0 : Math.PI)) * (0.4 + q)
+        }
+        const cth = Math.cos(th), sth = Math.sin(th), cps = Math.cos(ps), sps = Math.sin(ps)
+        const k = (a * NAP + j) * 3
+        ARMD[k] = cth * (cps * r[0] + sps * side[0]) + sth * up[0]
+        ARMD[k + 1] = cth * (cps * r[1] + sps * side[1]) + sth * up[1]
+        ARMD[k + 2] = cth * (cps * r[2] + sps * side[2]) + sth * up[2]
+        ARMM[a * NAP + j] = Mbase * mul * (1 - 0.85 * q) * (1 + 0.6 * wv)
+      }
+    }
+    const mw = toW([0, 0.85, -0.12]); mantleW[0] = mw[0]; mantleW[1] = mw[1]; mantleW[2] = mw[2]
+  }
+
+  // ── stats ──
+  let statT = 0, frameMs = 16.7
+  function stats() {
+    let vol = 0; for (let t = 0; t < NT; t++) vol += Math.abs(tetVol(hx, TET[t * 4], TET[t * 4 + 1], TET[t * 4 + 2], TET[t * 4 + 3]))
+    let down = 0, curl = 0
+    for (let a = 0; a < NA; a++) {
+      let c = 0
+      for (let j = 1; j < NAP; j++) { const k = (a * NAP + j) * 3; const r = Math.hypot(ax[k], ax[k + 2]); if (ax[k + 1] < plateY(r) + PR[j] * 0.85 + 0.03) c++ }
+      if (c >= 4) down++
+      let ang = 0
+      for (let j = 1; j < NAP - 1; j++) {
+        const k = (a * NAP + j) * 3
+        const u1 = V.norm([ax[k] - ax[k - 3], ax[k + 1] - ax[k - 2], ax[k + 2] - ax[k - 1]]), u2 = V.norm([ax[k + 3] - ax[k], ax[k + 4] - ax[k + 1], ax[k + 5] - ax[k + 2]])
+        ang += Math.acos(clamp(V.dot(u1, u2), -1, 1))
+      }
+      curl += ang
+    }
+    $('sVol').textContent = Math.round(vol / REST_VOL * 100) + '%'
+    $('sArms').textContent = down + '/8'
+    $('sCurl').textContent = Math.round(clamp((curl / NA - 0.9) / 5.5, 0, 1) * 100) + '%'
+    $('sFrame').textContent = frameMs.toFixed(1) + ' ms'
+  }
+
+  resetSim(); bodyFrame()
+  setFirm(settings.firm); setDamp(settings.damp); setLight(settings.light); setFlavour(flavour)
+  window.__octo = { np: NP, nc: NC, nt: NT, nv: NV, beh: () => beh.name, status: () => statusOverride, play, frame: () => frameMs,
+    centroid: () => frameC.slice(), up: () => frameR[4], drops: () => DROPS.length }
+
+  const U = new Float32Array(UF)
+  let last = performance.now(), acc = 0
+  var time = 0
+  document.addEventListener('visibilitychange', () => { last = performance.now() })
+  function frame(now) {
+    resize(); camera()
+    const dtf = Math.min(0.1, (now - last) / 1000); last = now
+    frameMs += (dtf * 1000 - frameMs) * 0.08
+    checkHolds()
+    if (!settings.paused) {
+      const scale = settings.slow ? 0.25 : 1
+      acc += dtf * scale
+      let steps = 0
+      while (acc >= DT && steps < 3) {
+        time += DT
+        bodyFrame(); updateBehaviour(DT); updateInk(DT)
+        for (let s = 0; s < SUB; s++) substep(DT / SUB)
+        acc -= DT; steps++
+      }
+      if (steps === 3) acc = 0
+      let bad = false
+      for (let i = 0; i < NP * 3; i++) if (!Number.isFinite(hx[i]) || Math.abs(hx[i]) > 40) { bad = true; break }
+      for (let i = 0; i < ax.length && !bad; i++) if (!Number.isFinite(ax[i]) || Math.abs(ax[i]) > 40) bad = true
+      if (bad) resetSim()
+    }
+    bodyFrame()
+    updateRender()
+    statT += dtf; if (statT > 0.25 && !EMBED) { statT = 0; stats() }
+
+    const col = FLAVOURS[flavour]
+    U.set(viewProj, 0); U.set(lightVP, 16)
+    U.set([eye[0], eye[1], eye[2], time], 32); U.set([W, H, 1 / W, 1 / H], 36)
+    U.set([frameR[0], frameR[1], frameR[2], 0], 40); U.set([frameR[3], frameR[4], frameR[5], 0], 44); U.set([frameR[6], frameR[7], frameR[8], 0], 48)
+    U.set([frameC[0], frameC[1], frameC[2], 1], 52); U.set([REST_C[0], REST_C[1], REST_C[2], 0], 56)
+    U.set([...col.head, st.blush], 60); U.set([...col.arm, 0], 64)
+    U.set([settings.firm, 0.6, st.lookAmt ?? 0.35, 0], 68)
+    const lk = st.look && st.look.length ? st.look : eye
+    U.set([lk[0], lk[1], lk[2], 0], 72)
+    U.set([keyL[0], keyL[1], keyL[2], 0], 76); U.set([sbC[0], sbC[1], 0, 0], 80)
+    U.set(STAINS, 84)
+    device.queue.writeBuffer(ubuf, 0, U)
+    device.queue.writeBuffer(pbuf, 0, new Float32Array([1.1, time % 100, 0, 0]))
+    device.queue.writeBuffer(jelV, 0, RVB)
+    const nd = Math.min(DROPS.length, MAX_DROPS)
+    for (let n = 0; n < nd; n++) { const d = DROPS[n]; dropData[n * 4] = d.x; dropData[n * 4 + 1] = d.y; dropData[n * 4 + 2] = d.z; dropData[n * 4 + 3] = d.r }
+    if (nd) device.queue.writeBuffer(dropB, 0, dropData, 0, nd * 4)
+
+    const enc = device.createCommandEncoder()
+    { const p = enc.beginRenderPass({ colorAttachments: [], depthStencilAttachment: { view: shadowTex.createView(), depthClearValue: 1, depthLoadOp: 'clear', depthStoreOp: 'store' } })
+      p.setPipeline(shadowP); p.setBindGroup(0, shadowBG); p.setVertexBuffer(0, jelV); p.setIndexBuffer(jelI, 'uint32'); p.drawIndexed(IDX.length); p.end() }
+    { const p = enc.beginRenderPass({ colorAttachments: [{ view: sceneT.createView(), clearValue: [0.9, 0.86, 0.8, 1], loadOp: 'clear', storeOp: 'store' }],
+        depthStencilAttachment: { view: depthA.createView(), depthClearValue: 1, depthLoadOp: 'clear', depthStoreOp: 'store' } })
+      p.setPipeline(stageP); p.setBindGroup(0, stageBG); p.setVertexBuffer(0, stgV); p.setIndexBuffer(stgI, 'uint32'); p.drawIndexed(stage.i.length)
+      if (nd) { p.setPipeline(dropP); p.setBindGroup(0, dropBG); p.setVertexBuffer(0, icoV); p.setVertexBuffer(1, dropB); p.setIndexBuffer(icoI, 'uint32'); p.drawIndexed(ico.i.length, nd) }
+      p.end() }
+    { const p = enc.beginRenderPass({ colorAttachments: [{ view: backT.createView(), clearValue: [0, 0, 0, 0], loadOp: 'clear', storeOp: 'store' }],
+        depthStencilAttachment: { view: depthB.createView(), depthClearValue: 0, depthLoadOp: 'clear', depthStoreOp: 'store' } })
+      p.setPipeline(backP); p.setBindGroup(0, backBG); p.setVertexBuffer(0, jelV); p.setIndexBuffer(jelI, 'uint32'); p.drawIndexed(IDX.length); p.end() }
+    { const p = enc.beginRenderPass({ colorAttachments: [{ view: jellyT.createView(), clearValue: [0, 0, 0, 0], loadOp: 'clear', storeOp: 'store' }],
+        depthStencilAttachment: { view: depthB.createView(), depthClearValue: 1, depthLoadOp: 'clear', depthStoreOp: 'store' } })
+      p.setPipeline(jellyP); p.setBindGroup(0, jellyBG); p.setVertexBuffer(0, jelV); p.setVertexBuffer(1, jelA); p.setIndexBuffer(jelI, 'uint32'); p.drawIndexed(IDX.length)
+      if (nd) { p.setPipeline(dropP); p.setBindGroup(0, dropBG); p.setVertexBuffer(0, icoV); p.setVertexBuffer(1, dropB); p.setIndexBuffer(icoI, 'uint32'); p.drawIndexed(ico.i.length, nd) }
+      p.end() }
+    { const p = enc.beginRenderPass({ colorAttachments: [{ view: ctx.getCurrentTexture().createView(), clearValue: [0, 0, 0, 1], loadOp: 'clear', storeOp: 'store' }] })
+      p.setPipeline(postP); p.setBindGroup(0, postBG); p.draw(3); p.end() }
+    device.queue.submit([enc.finish()])
+    requestAnimationFrame(frame)
+  }
+  requestAnimationFrame(frame)
+  device.lost.then(() => document.body.classList.add('nogpu'))
+}
+function syncBehButtons() { window.syncBehButtons?.() }
+main().catch(err => { console.error(err); document.body.classList.add('nogpu') })
+</script>
+</body>
+</html>

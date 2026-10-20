@@ -930,3 +930,8 @@ html[data-skin='castle'] .nav-item { border-radius: 16px; padding: 6px 2px; }
 html[data-skin='castle'] .nav-item.active { background: var(--castle-ink); }
 html[data-skin='castle'] .nav-item.active span { color: #fff !important; }
 html[data-skin='castle'] .nav-item.active svg { stroke: #fff; }
+/* 젤리 문어 배경(출석 8회) — 문어가 머리 아래로 보이게 올린다 */
+html[data-skin='castle'][data-scene='octopus'] .castle-bg { background: #d8d5cf url('/castle-bg/octopus.jpg') no-repeat center -200px / 100% auto; }
+@media (min-width: 600px) {
+  html[data-skin='castle'][data-scene='octopus'] .castle-bg { background-size: 780px auto; background-position: center -470px; }
+}
