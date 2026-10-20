@@ -98,6 +98,15 @@ export default function CastlePage() {
     const d = { flavour: 'raspberry', firm: 0.45, damp: 0.3, light: 0.5 }
     try { return { ...d, ...(JSON.parse(localStorage.getItem('2hs_octopus') || 'null') || {}) } } catch { return d }
   })
+  // 설산 기차(출석 12회) 세부 설정 — 눈 양·기차 빠르기
+  const [peak, setPeak] = useState(() => {
+    const d = { snow: 0.6, speed: 0.45 }
+    try { return { ...d, ...(JSON.parse(localStorage.getItem('2hs_peak') || 'null') || {}) } } catch { return d }
+  })
+  function setPeakOpt(patch) {
+    setPeak(c => { const n = { ...c, ...patch }; try { localStorage.setItem('2hs_peak', JSON.stringify(n)) } catch {}; return n })
+    toFrame(patch)
+  }
   function setOctoOpt(patch) {
     setOcto(c => { const n = { ...c, ...patch }; try { localStorage.setItem('2hs_octopus', JSON.stringify(n)) } catch {}; return n })
     toFrame(patch)
@@ -257,13 +266,13 @@ export default function CastlePage() {
       <link rel="stylesheet" precedence="default" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap" />
       {!ready && !fallback && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-          <LoadingCat label={scene.key === 'octopus' ? '젤리 문어를 굳히는 중…' : scene.embed ? '젤리를 굳히는 중…' : '젤리 성을 굳히는 중…'} />
+          <LoadingCat label={scene.key === 'octopus' ? '젤리 문어를 굳히는 중…' : scene.key === 'peak' ? '눈을 쌓는 중…' : scene.embed ? '젤리를 굳히는 중…' : '젤리 성을 굳히는 중…'} />
         </div>
       )}
       {scene.embed ? (
         // 한 파일로 만든 장면(시트러스 젤리 등) — 자기 화면 글자는 숨기고(?embed=1) 장면만 뒤에 깐다. 잡아 늘리기는 그 안에서 그대로
         <iframe ref={frameRef} key={scene.key} src={scene.embed} title={`3D 배경 · ${scene.name}`} className={s.sceneFrame}
-          onLoad={() => { setReady(true); toFrame(scene.key === 'octopus' ? octo : citrus) }} />
+          onLoad={() => { setReady(true); toFrame(scene.key === 'octopus' ? octo : scene.key === 'peak' ? peak : citrus) }} />
       ) : (
         <div style={{ position: 'absolute', inset: 0 }} onPointerDownCapture={() => setSceneOpen(false)}>
           <CastleJellyScene key={sceneKey} lite={lite} settingsRef={settingsRef} commandRef={commandRef} onReady={() => setReady(true)}
@@ -378,7 +387,20 @@ export default function CastlePage() {
         </div>
         {!isAdmin && <div className={s.muted}>수업에 출석할 때마다 새 배경이 열려요 · 지금 출석 {attended}회</div>}
         <div className={s.hr} style={{ marginTop: 2 }} />
-        {scene.key === 'octopus' ? (<>
+        {scene.key === 'peak' ? (<>
+        <div className={s.sectionLabel} style={{ padding: 0 }}>{scene.name}</div>
+        <label className={s.slider}>눈 양
+          <input type="range" min="0" max="1" step="0.01" value={peak.snow} onChange={e => setPeakOpt({ snow: +e.target.value })} style={{ accentColor: '#9fb8d6' }} />
+        </label>
+        <label className={s.slider}>기차 빠르기
+          <input type="range" min="0" max="1" step="0.01" value={peak.speed} onChange={e => setPeakOpt({ speed: +e.target.value })} style={{ accentColor: '#c8323a' }} />
+        </label>
+        <div className={s.row} style={{ flexWrap: 'wrap' }}>
+          <button className={`${s.chip} ${s.glass}`} onClick={() => toFrame({ cmd: 'whistle' })}>기적 울리기</button>
+          <button className={`${s.chip} ${s.glass}`} onClick={() => toFrame({ cmd: 'pause' })}>기차 멈춤·출발</button>
+          <button className={`${s.chip} ${s.glass}`} onClick={() => toFrame({ cmd: 'reset' })}>제자리로</button>
+        </div>
+        </>) : scene.key === 'octopus' ? (<>
         <div className={s.sectionLabel} style={{ padding: 0 }}>{scene.name}</div>
         <div className={s.row} style={{ flexWrap: 'wrap' }}>
           {OCTO_LIST.map(([id, label, c]) => (
@@ -484,7 +506,9 @@ export default function CastlePage() {
         ))}
       </nav>
 
-      <div className={s.howto}><b>How to play</b> — {scene.key === 'octopus'
+      <div className={s.howto}><b>How to play</b> — {scene.key === 'peak'
+        ? '기차를 누르면 기적 · 집을 누르면 불 켜고 끄기 · 소나무를 누르면 눈이 털려요 · 끌어서 섬 돌리기 · 꼬집어 확대'
+        : scene.key === 'octopus'
         ? '문어를 톡 치면 움찔 · 머리를 꾹 누르면 납작 · 머리를 끌어 들어 올리기 · 다리를 끌어 늘리기 · 접시를 꾹 누르고 있으면 다리가 손가락을 감아요'
         : scene.embed
         ? '젤리를 잡아 늘렸다가 놓아 보기 · 오른쪽 장면 패널에서 오렌지 · 블러드 오렌지 · 레몬'

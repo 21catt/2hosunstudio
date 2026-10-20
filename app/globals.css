@@ -950,3 +950,8 @@ html[data-skin='castle'] .cur-tab { flex: 1; padding: 8px 0 !important; border-r
 html[data-skin='castle'] .cur-tab-on { background: #fff !important; color: #2b2433 !important; box-shadow: 0 4px 12px -8px rgba(43,36,51,0.6); }
 html[data-skin='castle'] .cur-tab-line { display: none; }
 html[data-skin='castle'] .cur-cat span:first-child { font-family: 'IBM Plex Sans KR', sans-serif; letter-spacing: 0.14em !important; color: #6d6476 !important; }
+/* 설산 기차 배경(출석 12회) — 다른 화면 위쪽에 깔리는 사진 */
+html[data-skin='castle'][data-scene='peak'] .castle-bg { background: #e6e4df url('/castle-bg/peak.jpg') no-repeat center -160px / 100% auto; }
+@media (min-width: 600px) {
+  html[data-skin='castle'][data-scene='peak'] .castle-bg { background-size: 780px auto; background-position: center -380px; }
+}
