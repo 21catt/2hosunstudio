@@ -14,6 +14,9 @@ import LoadingCat from '../../../components/LoadingCat'
 import GlassBg from '../../../components/GlassBg'
 import SpaceBg from '../../../components/SpaceBg'
 import { useFreshTheme, useSpaceTheme } from '../../../lib/useFreshTheme'
+import CastleHero from '../../../components/castle/CastleHero'
+import { useCastleSkin } from '../../../lib/useCastleSkin'
+import { CASTLE_SCENES, getSavedScene, saveSceneLocal, sceneUnlocked, sceneSelectable } from '../../../lib/castleScenes'
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -26,7 +29,8 @@ export default function SettingsPage() {
   const [harvest, setHarvest] = useState(0)
   const [unlockAll, setUnlockAll] = useState(false) // 관리자가 해금해준 회원은 수확 조건 무시
   const [role, setRole] = useState('')
-  const [attendCount, setAttendCount] = useState(0) // 작가: 회의 참석 수(해금 진행도)
+  const [attendCount, setAttendCount] = useState(0) // 작가: 회의 참석 수(해금 진행도) · 3D 배경: 출석한 수업 수
+  const [sceneKey, setSceneKey] = useState('jelly')  // 3D 홈 배경(미리보기 대상만 — 테마 대신)
   const [pushOn, setPushOn] = useState(false)       // 이 기기 푸시 알림 허용 여부
   const [pushBusy, setPushBusy] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -42,13 +46,15 @@ export default function SettingsPage() {
     setFarmCat(getSavedFarmCat())
     setProfileCat(getSavedProfileCat())
     setHarvest(getSavedHarvest())
+    setSceneKey(getSavedScene())
     supabase.auth.getUser().then(async ({ data }) => {
       const u = data.user || null
       setUser(u)
       if (u) {
         const r = u.user_metadata?.role || 'student'
         setRole(r)
-        if (r === 'artist') { // 작가 해금 진행도 = 참석한 회의 수
+        // 출석한 수 — 작가 = 참석한 회의(해금 진행도), 모두 = 3D 배경이 열리는 기준(4·8·12·16회)
+        {
           const { data: bk } = await supabase.from('bookings').select('attended, status').eq('user_id', u.id)
           setAttendCount((bk || []).filter(b => b.attended === true || b.status === 'attended').length)
         }
@@ -75,6 +81,14 @@ export default function SettingsPage() {
     applyTheme(key)
     // user_prefs.theme 컬럼이 없으면 upsert만 실패하고 기기(localStorage) 저장은 유지됨
     if (user?.id) await supabase.from('user_prefs').upsert({ user_id: user.id, theme: key })
+  }
+
+  // 3D 홈 배경 — 출석 수로 열린 장면만, 만들어진 것만 고른다(user_prefs.castle_scene 컬럼이 없으면 기기 저장만)
+  async function changeScene(key) {
+    if (!sceneSelectable(key, { attended: attendCount, unlockAll })) return
+    setSceneKey(key)
+    saveSceneLocal(key)
+    if (user?.id) supabase.from('user_prefs').upsert({ user_id: user.id, castle_scene: key }).then(() => {}, () => {})
   }
 
   async function changeMood(style) {
@@ -118,6 +132,7 @@ export default function SettingsPage() {
 
   const fresh = useFreshTheme()
   const space = useSpaceTheme()
+  const castle = useCastleSkin()
 
   if (loading) return <LoadingCat />
 
@@ -125,6 +140,7 @@ export default function SettingsPage() {
     <>
       {fresh && <GlassBg />}
       {space && <SpaceBg />}
+      <CastleHero title="Settings" />
       <div className="p-header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <NavIcon name="user" color="var(--ac)" size={20} />
@@ -132,7 +148,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div style={{ background: (fresh || space) ? 'transparent' : '#fff', padding:'8px 16px 90px' }}>
+      <div className="castle-sheet" style={{ background: (fresh || space) ? 'transparent' : '#fff', padding:'8px 16px 90px' }}>
 
         {user ? (
           <div className="p-card" style={{ padding:'14px 16px', display:'flex', alignItems:'center', gap:12, marginBottom:16 }}>
@@ -206,6 +222,51 @@ export default function SettingsPage() {
           })}
         </div>
 
+        {castle ? (<>
+        {/* 3D 홈 배경 — 미리보기 대상은 테마 대신 이걸 고른다. 출석한 수업 4·8·12·16회마다 하나씩 열린다 */}
+        <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:2 }}>3D 배경</div>
+        <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:10 }}>
+          {unlockAll ? '모든 배경이 열려 있어요' : `수업에 출석할 때마다 새 배경이 열려요 (지금 출석 ${attendCount}회)`}
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:20 }}>
+          {CASTLE_SCENES.map(sc => {
+            const on = sceneKey === sc.key
+            const open = sceneUnlocked(sc.key, { attended: attendCount, unlockAll })
+            const can = open && sc.ready
+            const left = Math.max(0, sc.unlock - attendCount)
+            return (
+              <button key={sc.key} type="button" onClick={() => changeScene(sc.key)} disabled={!can} aria-pressed={on}
+                aria-label={can ? `${sc.name} 배경` : open ? `${sc.unlock}회 배경 · 준비 중` : `${sc.unlock}회 배경 · 출석 ${left}회 더`}
+                style={{ textAlign:'left', padding:0, cursor: can ? 'pointer' : 'default', borderRadius:18, overflow:'hidden', fontFamily:'inherit',
+                  background:'rgba(255,255,255,0.88)', border: on ? '2px solid #2b2433' : '1px solid #fff', boxShadow: on ? '0 8px 20px rgba(43,36,51,0.22)' : '0 6px 16px rgba(60,45,80,0.08)' }}>
+                <div style={{ height:92, position:'relative', background: sc.thumb ? `#ece4d6 url(${sc.thumb}) center 30% / 150% auto no-repeat` : 'linear-gradient(135deg, #eee8fd, #fde3ec 55%, #e6effd)' }}>
+                  {!sc.thumb && (
+                    <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                      <svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#574d63" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        {open ? <><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9z" /></>
+                              : <><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 018 0v3" /></>}
+                      </svg>
+                    </div>
+                  )}
+                  {on && <span style={{ position:'absolute', top:7, right:7, fontSize:10, fontWeight:700, color:'#fff', background:'#2b2433', borderRadius:999, padding:'3px 8px' }}>사용 중</span>}
+                  {!sc.unlock ? null : <span style={{ position:'absolute', top:7, left:7, fontSize:10, fontWeight:700, color:'#2b2433', background:'rgba(255,255,255,0.9)', borderRadius:999, padding:'3px 8px' }}>출석 {sc.unlock}회</span>}
+                </div>
+                <div style={{ padding:'9px 11px 10px', display:'flex', flexDirection:'column', gap:4 }}>
+                  <span style={{ fontSize:12.5, fontWeight:700, color:'#2b2433' }}>{can ? sc.name : open ? '준비 중인 배경' : '잠긴 배경'}</span>
+                  {can ? <span style={{ fontSize:10.5, color:'#6e6378' }}>{sc.desc}</span>
+                    : open ? <span style={{ fontSize:10.5, color:'#6e6378' }}>열렸어요 · 곧 고를 수 있어요</span>
+                    : (<>
+                      <span style={{ fontSize:10.5, color:'#6e6378' }}>출석 {left}회 더 하면 열려요</span>
+                      <span aria-hidden="true" style={{ height:4, borderRadius:999, background:'#ece8f1', overflow:'hidden' }}>
+                        <span style={{ display:'block', height:'100%', width:`${Math.min(100, attendCount / sc.unlock * 100)}%`, background:'linear-gradient(90deg, #b7a0ef, #f39fbe)' }} />
+                      </span>
+                    </>)}
+                </div>
+              </button>
+            )
+          })}
+        </div>
+        </>) : (<>
         <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:2 }}>테마 컬러</div>
         <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:10 }}>
           {unlockAll ? '🎁 모든 테마가 열려 있어요!' : isArtist ? '회의에 참석할 때마다 새 테마가 열려요 🖼️' : '작물을 수확할 때마다 새 테마가 열려요 🥕'}
@@ -233,6 +294,8 @@ export default function SettingsPage() {
             )
           })}
         </div>
+
+        </>)}
 
         <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:2 }}>수강권 무드</div>
         <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:10 }}>잔여가 줄면 표정이 바뀌어요 🐾</div>
