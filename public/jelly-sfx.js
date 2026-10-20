@@ -1,6 +1,6 @@
 // 3D 홈 반응 소리 — 젤리를 만지고 물을 끌고 배를 움직일 때 나는 짧은 소리. 음원 파일 없이 그 자리에서 만든다.
 // 한 파일을 3D 홈(Next 화면)·시트러스 젤리·젤리 문어(iframe 한 파일 장면)가 같이 쓴다: <script src="/jelly-sfx.js"> → window.JellySfx
-//   JellySfx.play('boing', { s: 0.8, pitch: 1 })   · 소리 이름 = boing squish stretch pop splash drip chime splat thud
+//   JellySfx.play('boing', { s: 0.8, pitch: 1 })   · 소리 이름 = boing squish stretch pop splash drip chime splat thud whistle
 //   JellySfx.wake(speed)                             · 계속 나는 소리(배 물살) — 매 프레임 속도를 넣으면 크기가 따라간다
 //   켜고 끄기 = localStorage 2hs_castle_sfx ('0' = 끔, 그 밖 = 켬). 같은 기기의 모든 장면이 같은 값을 본다.
 // 휴대폰·브라우저는 사용자가 한 번 누르기 전엔 소리를 못 낸다 — 첫 누름에 저절로 깨운다.
@@ -113,6 +113,25 @@
         env(og, tt, 0.1 * s, 0.005, 0.07); o.connect(og); og.connect(out); o.start(tt); o.stop(tt + 0.1)
       })
     },
+    // 증기 기차 경적 — 「뿌우— 뿌우우—」: 세 음 화음(라·도#·미)이 증기 숨소리와 함께, 짧게 한 번 길게 한 번
+    whistle(t, { s = 1 }) {
+      const blast = (t0, dur) => {
+        const bus = ctx.createGain(), bp = ctx.createBiquadFilter(), lp = ctx.createBiquadFilter()
+        bp.type = 'bandpass'; bp.frequency.value = 900; bp.Q.value = 0.7; lp.type = 'lowpass'; lp.frequency.value = 2600
+        bus.gain.setValueAtTime(0.0001, t0); bus.gain.exponentialRampToValueAtTime(0.16 * s, t0 + 0.07)
+        bus.gain.setValueAtTime(0.16 * s, t0 + dur - 0.12); bus.gain.exponentialRampToValueAtTime(0.0001, t0 + dur + 0.22)
+        bus.connect(bp); bp.connect(lp); lp.connect(out)
+        for (const f of [440, 554.37, 659.25]) {
+          const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sawtooth'
+          o.frequency.setValueAtTime(f * 0.94, t0); o.frequency.exponentialRampToValueAtTime(f, t0 + 0.09)
+          const l = ctx.createOscillator(), lg = ctx.createGain(); l.frequency.value = 5.5 + Math.random(); lg.gain.value = f * 0.004; l.connect(lg); lg.connect(o.frequency)
+          g.gain.value = 0.33; o.connect(g); g.connect(bus); o.start(t0); l.start(t0); o.stop(t0 + dur + 0.3); l.stop(t0 + dur + 0.3)
+        }
+        const n = noise(t0, dur + 0.3), nb = ctx.createBiquadFilter(), ng = ctx.createGain()
+        nb.type = 'bandpass'; nb.frequency.value = 1300; nb.Q.value = 1.4; ng.gain.value = 0.55; n.connect(nb); nb.connect(ng); ng.connect(bus)
+      }
+      blast(t, 0.32); blast(t + 0.46, 1.05)
+    },
     // 떨어져 닿을 때 — 「통」: 나무 실로폰처럼 말랑하게
     thud(t, { s = 1 }) {
       const f = 330, o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sine'
@@ -123,7 +142,7 @@
     },
   }
   // 같은 소리가 너무 촘촘하면 시끄럽다 — 소리마다 최소 간격
-  const GAP = { boing: 0.09, squish: 0.12, stretch: 0.075, pop: 0.05, splash: 0.12, drip: 0.035, chime: 0.25, splat: 0.3, thud: 0.08 }
+  const GAP = { boing: 0.09, squish: 0.12, stretch: 0.075, pop: 0.05, splash: 0.12, drip: 0.035, chime: 0.25, splat: 0.3, thud: 0.08, whistle: 1.6 }
 
   window.JellySfx = {
     get enabled() { return enabled() },

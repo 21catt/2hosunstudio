@@ -316,7 +316,7 @@ const st = { speed: 0.45, theta: 0, lap: 1, paused: false, whistle: 0, shakeMtn:
 const elStatus = document.getElementById('status')
 function setSnow(v) { snowMat.uniforms.uAmt.value = v; document.getElementById('snow').value = v }
 function setSpeed(v) { st.speed = v; document.getElementById('speed').value = v }
-function whistle() { st.whistle = 1.2; sfx('chime'); for (let k = 0; k < 8; k++) setTimeout(() => trainPuff(1.6), k * 60) }
+function whistle() { st.whistle = 1.2; sfx('whistle'); for (let k = 0; k < 8; k++) setTimeout(() => trainPuff(1.6), k * 60) }
 function reset() { cam.az = 0.55; cam.el = 0.2; cam.dist = 1; setSnow(0.6); setSpeed(0.45); st.paused = false }
 document.getElementById('snow').oninput = e => setSnow(+e.target.value)
 document.getElementById('speed').oninput = e => setSpeed(+e.target.value)
