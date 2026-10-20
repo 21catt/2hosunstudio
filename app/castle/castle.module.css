@@ -105,8 +105,8 @@
 
 
 /* 왼쪽 — 수업 아이콘(3D 홈과 같은 파스텔 3D 그림 + 유리 받침) */
-/* 위 날짜 줄과 아래 메뉴(홈·기록…) 사이 왼쪽 가운데 — 상자는 높이를 채우지만 빈 곳은 장면을 그대로 누르게 한다 */
-.classRail { position: absolute; left: 28px; top: 150px; bottom: 104px; z-index: 4; display: flex; flex-direction: column; justify-content: center; gap: 22px; pointer-events: none; }
+/* 왼쪽 위 — 날짜 줄 아래에서 시작. 빈 곳은 장면을 그대로 누르게 한다 */
+.classRail { position: absolute; left: 28px; top: 200px; z-index: 4; display: flex; flex-direction: column; gap: 16px; pointer-events: none; }
 .classItem { position: relative; pointer-events: auto; }
 .classIco { all: unset; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; width: 54px; -webkit-tap-highlight-color: transparent; }
 .classTile { width: 54px; height: 54px; border-radius: 30%; display: grid; place-items: center;
@@ -165,7 +165,7 @@
   .classesBtn:hover { transform: translateX(-50%); }
   .classesChevron { transform: rotate(-90deg); }
   .foldBtn svg { transform: rotate(-90deg); }
-  .classRail { left: 10px; top: 166px; bottom: 84px; gap: 18px; }
+  .classRail { left: 10px; top: 186px; gap: 13px; }
   .classIco, .classTile { width: 38px; }
   .classTile { height: 38px; }
   .classLabel { font-size: 9.5px; }
