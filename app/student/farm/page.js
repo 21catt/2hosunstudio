@@ -2,12 +2,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
-import { ticketStarted } from '../../../lib/booking'
 import StudentNav from '../../../components/StudentNav'
 import TeacherNav from '../../../components/TeacherNav'
 import { NavIcon } from '../../../components/NavIcons'
 import { FARM_CATS, getSavedFarmCat, isValidFarmCat, CROP_STAGES, cropImg, getSavedHarvest, saveHarvestLocal } from '../../../lib/farmCats'
 import { WEED, weedImg, weedStage, tickWeeds } from '../../../lib/weeds'
+import { cropProgress, farmTicketValid, pullWeed } from '../../../lib/farmProgress'
 import { notifyStaff } from '../../../lib/adminNotify'
 import LoadingCat from '../../../components/LoadingCat'
 import SpaceBg from '../../../components/SpaceBg'
@@ -260,7 +260,7 @@ export default function FarmPage() {
     // 수강권 유효성 → 잡초 기능 on/off
     const t = tk?.[0]
     // 냥밭은 만료일이 없어도 유효로 본다(기존 관용도 유지). 시작일 규칙만 공유한다.
-    const valid = !!(t && t.remain > 0 && (!t.expires_at || t.expires_at >= todayStr) && ticketStarted(t, todayStr))
+    const valid = farmTicketValid(t, todayStr)
     setTicketValid(valid); ticketValidRef.current = valid
 
     // 잡초 상태 로드 + 경과 시간만큼 스폰/성장·페널티 반영
@@ -309,15 +309,12 @@ export default function FarmPage() {
   //    같은 잡초가 두 번 처리되지 않도록 id 존재 여부로 가드한다.
   function removeWeed(w) {
     const s = weedRef.current
-    if (!s) return
-    if (!s.weeds.some(x => x.id === w.id)) return
-    if (weedStage(w, Date.now()) < WEED.REMOVABLE_STAGE) return
-    const nextWeeds = s.weeds.filter(x => x.id !== w.id)
-    const removed = s.removed + 1
-    const gotReward = !s.rewarded && removed >= WEED.REWARD_AT
-    const state = { ...s, weeds: nextWeeds, removed, rewarded: s.rewarded || removed >= WEED.REWARD_AT }
+    const r = pullWeed(s, w, Date.now())
+    if (!r) return
+    const { state, gotReward } = r
+    const removed = state.removed
     weedRef.current = state
-    setWeeds(nextWeeds); setWeedRemoved(removed); setPileBump(Date.now())
+    setWeeds(state.weeds); setWeedRemoved(removed); setPileBump(Date.now())
     if (gotReward) { setWeedReward(true); notifyWeedReward(removed) }
     persistWeeds(state)
   }
@@ -347,12 +344,11 @@ export default function FarmPage() {
   const activeCat = FARM_CATS.find(c => c.key === farmCat) || FARM_CATS[0]
   // 참여작가는 모임 출석 1회당 2pt → 출석 2회면 작물 1개(4pt) 수확 가능. 수강생은 1회당 1pt.
   const isArtist = user?.user_metadata?.role === 'artist'
+  // 남은 포인트(포인트 - 수확×4)가 앞칸부터 4점씩 순서대로 작물을 채운다(lib/farmProgress — 3D 냥밭과 한 규칙).
+  // 수확하면 4점 소모 → 뒷칸 작물이 한 칸씩 앞으로 당겨진 것처럼 보인다.
   const ptsPerAttend = isArtist ? 2 : 1
   const cropAttended = attended * ptsPerAttend
-  // 남은 포인트(포인트 - 수확×4)가 앞칸부터 4점씩 순서대로 작물을 채운다.
-  // 수확하면 4점 소모 → 뒷칸 작물이 한 칸씩 앞으로 당겨진 것처럼 보인다.
-  const cropPoints = Math.max(0, cropAttended - harvest * CROP_STAGES)
-  const cropReady = cropPoints >= CROP_STAGES
+  const { cropPoints, cropReady, plotStage } = cropProgress({ attended, isArtist, harvest })
 
   const space = useSpaceTheme()
 
@@ -497,7 +493,7 @@ export default function FarmPage() {
             { bottom: 272, size: 58, z: 4 },
             { bottom: 348, size: 46, z: 3 },
           ].map((plot, i) => {
-            const stage = Math.max(0, Math.min(CROP_STAGES, cropPoints - i * CROP_STAGES))
+            const stage = plotStage(i)
             const isFront = i === 0
             return (
               <div key={i} onClick={isFront ? harvestCrop : undefined}

@@ -32,7 +32,7 @@ const PICK_LINK = {
   gate:    { label: '성문 · 예약하기 →', href: '/student/calendar', booking: true },
   ship:    { label: '배 · 라운지 →',     href: '/lounge' },
   brazier: { label: '화로 · 냥밭 →',     href: '/student/farm' },
-  cat:     { label: '냥이 · 냥밭 가기 →', href: '/student/farm' },
+  cat:     { label: '냥이 · 3D 냥밭 →',  href: '/castle/farm' },
 }
 // 내 테마 → 장면 첫 모습(저장된 장면 설정이 없을 때만). 스페이스 = 밤, 노을빛 테마 = 노을.
 const THEME_LOOK = {
