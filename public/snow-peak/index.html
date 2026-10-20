@@ -27,6 +27,8 @@
   input[type=range] { width:100%; accent-color:var(--red); }
   .btns { display:flex; gap:6px; flex-wrap:wrap; }
   .btns button { min-height:36px; padding:0 12px; border-radius:10px; border:1px solid var(--line); background:#fbfaf8; color:var(--ink); font:inherit; font-size:12.5px; cursor:pointer; }
+  body.night { --ink:#eef0f8; --muted:#a8afc8; } body.night .panel { --ink:#25232b; --muted:#6c6878; } .panel { color:var(--ink); } body.night .caption { color:#c9cde0; } body.night .chip { color:#25232b; }
+  .btns button[aria-pressed="true"] { background:var(--ink); color:#fff; }
   .btns button:focus-visible, input:focus-visible { outline:2px solid var(--red); outline-offset:2px; }
   .notes { position:fixed; left:max(24px, env(safe-area-inset-left)); bottom:max(20px, env(safe-area-inset-bottom)); max-width:360px; font-size:12px; color:var(--muted); line-height:1.5; }
   .fail { position:fixed; inset:0; display:none; place-items:center; text-align:center; padding:24px; font-size:14px; color:var(--muted); }
@@ -46,6 +48,7 @@
   <div class="cap">Weather &amp; rails</div>
   <label class="sl">Snowfall <input id="snow" type="range" min="0" max="1" step="0.01" value="0.6"></label>
   <label class="sl">Train speed <input id="speed" type="range" min="0" max="1" step="0.01" value="0.45"></label>
+  <div class="btns"><button data-time="auto" aria-pressed="true">Clock</button><button data-time="day" aria-pressed="false">Day</button><button data-time="night" aria-pressed="false">Night</button></div>
   <div class="btns"><button id="gift">Gifts</button><button id="whistle">Whistle</button><button id="pause">Pause</button><button id="reset">Reset</button></div>
 </div>
 <div class="notes">Drag to turn the island · drag Santa's sleigh to steer it, tap it for gifts · tap the train, a house, a pine or the mountain.</div>
@@ -72,13 +75,18 @@ document.body.prepend(renderer.domElement)
 
 const scene = new THREE.Scene()
 // 하늘 — 위는 푸른 회색(흰 눈이 보이게), 아래는 3D 홈 종이색
-{ const c = document.createElement('canvas'); c.width = 2; c.height = 256; const g = c.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 256)
-  gr.addColorStop(0, '#aebfd2'); gr.addColorStop(0.42, '#d3dbe3'); gr.addColorStop(0.78, '#ece7df'); gr.addColorStop(1, '#efe8dc'); g.fillStyle = gr; g.fillRect(0, 0, 2, 256)
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; scene.background = t }
+// 밤이 되면 남색 하늘에 별 · 달빛 · 집과 기차 창에 불 · 루돌프 코가 빛난다(nt = 0 낮 … 1 밤)
+const SKY_DAY = ['#aebfd2', '#d3dbe3', '#ece7df', '#efe8dc'], SKY_NIGHT = ['#0d1530', '#1f2b52', '#3a3f63', '#4a4560']
+const skyCanvas = document.createElement('canvas'); skyCanvas.width = 2; skyCanvas.height = 256
+const skyTex = new THREE.CanvasTexture(skyCanvas); skyTex.colorSpace = THREE.SRGBColorSpace; scene.background = skyTex
+function paintSky(nt) { const g = skyCanvas.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 256)
+  ;[0, 0.42, 0.78, 1].forEach((st0, i) => gr.addColorStop(st0, '#' + new THREE.Color(SKY_DAY[i]).lerp(new THREE.Color(SKY_NIGHT[i]), nt).getHexString()))
+  g.fillStyle = gr; g.fillRect(0, 0, 2, 256); skyTex.needsUpdate = true }
+paintSky(0)
 scene.fog = new THREE.Fog(0xe3e3e1, 36, 75)
 
 const camera = new THREE.PerspectiveCamera(34, innerWidth / innerHeight, 0.1, 200)
-scene.add(new THREE.HemisphereLight(0xeef3fa, 0xcbb9a2, 1.35))
+const hemi = new THREE.HemisphereLight(0xeef3fa, 0xcbb9a2, 1.35); scene.add(hemi)
 const sun = new THREE.DirectionalLight(0xffeedb, 1.9); sun.position.set(-9, 17, 9); sun.castShadow = true
 sun.shadow.mapSize.set(small ? 1024 : 2048, small ? 1024 : 2048); Object.assign(sun.shadow.camera, { left: -10, right: 10, top: 10, bottom: -10, near: 1, far: 50 }); sun.shadow.bias = -0.0008
 scene.add(sun)
@@ -198,6 +206,11 @@ const placed = []
 const slopeAt = (x, z) => { const e = 0.25; return Math.hypot(groundAt(x + e, z) - groundAt(x - e, z), groundAt(x, z + e) - groundAt(x, z - e)) / (2 * e) }
 const free = (x, z, r) => { const d = Math.hypot(x, z), a = Math.atan2(z, x); if (Math.abs(d - trackR(a)) < 0.62 || d < 3.1 || d > edge(a) * 0.9 || slopeAt(x, z) > 0.75) return false; return placed.every(p => Math.hypot(p[0] - x, p[1] - z) > p[2] + r) }
 const chimneys = []
+const houses = []
+const glowTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32)
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.25, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64)
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t })()
+function glowSprite(color, size) { const s0 = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 })); s0.scale.setScalar(size); return s0 }
 function house(x, z, rot, wall, sc) {
   const g = new THREE.Group(); g.position.set(x, groundAt(x, z), z); g.rotation.y = rot; g.scale.setScalar(sc)
   const w = 0.62 + hash(x, z) * 0.3, d = 0.55, h = 0.42 + hash(z, x) * 0.2
@@ -215,7 +228,9 @@ function house(x, z, rot, wall, sc) {
   for (const sx of [-w / 4, w / 4]) { const win = new THREE.Mesh(new THREE.PlaneGeometry(0.13, 0.13), winMat); win.position.set(sx, h * 0.55, d / 2 + 0.002); g.add(win) }
   const door = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 0.2), new THREE.MeshStandardMaterial({ color: '#6e4b3a' })); door.position.set(0, 0.1, d / 2 + 0.003); g.add(door)
   const chim = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.24, 0.09), new THREE.MeshStandardMaterial({ color: '#8a6553' })); chim.position.set(w * 0.22, h + 0.3, 0); g.add(chim)
-  g.userData = { kind: 'house', win: winMat }
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: '#ffbf66', transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }))
+  glow.position.set(0, h * 0.55, d / 2 + 0.12); glow.scale.setScalar(0.9); g.add(glow)
+  g.userData = { kind: 'house', win: winMat, glow, on: true }; houses.push(g)
   g.traverse(o => { o.userData.root = g }); clickables.push(g); island.add(g); placed.push([x, z, 0.5 * sc])
   if (hash(x * 3, z) > 0.45) chimneys.push({ g, local: new THREE.Vector3(w * 0.22, h + 0.45, 0), t: hash(x, z) * 3 })
 }
@@ -256,20 +271,22 @@ for (let i = 0, tries = 0; i < 42 && tries < 1400; tries++) {
 const train = new THREE.Group(); island.add(train)
 const red = new THREE.MeshStandardMaterial({ color: '#c8323a', roughness: 0.45, metalness: 0.15 }), black = new THREE.MeshStandardMaterial({ color: '#25232b', roughness: 0.6, metalness: 0.3 })
 const gold = new THREE.MeshStandardMaterial({ color: '#d9b25a', metalness: 0.7, roughness: 0.3 }), roofMat = new THREE.MeshStandardMaterial({ color: '#4a2b2e', roughness: 0.7 })
-const cars = []
+const cars = [], trainLights = [], trainGlows = []
 function wheels(g, xs) { for (const x of xs) for (const z of [-0.2, 0.2]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.05, 14), black); w.rotation.x = Math.PI / 2; w.position.set(x, 0.14, z); g.add(w) } }
 // 기관차(앞이 +x)
 const loco = new THREE.Group()
 { const boiler = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.72, 18), red); boiler.rotation.z = Math.PI / 2; boiler.position.set(0.12, 0.42, 0); loco.add(boiler)
   const band = new THREE.Mesh(new THREE.CylinderGeometry(0.205, 0.205, 0.04, 18), gold); band.rotation.z = Math.PI / 2; band.position.set(0.2, 0.42, 0); loco.add(band)
   const front = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.08, 18), black); front.rotation.z = Math.PI / 2; front.position.set(0.52, 0.42, 0); loco.add(front)
-  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), new THREE.MeshStandardMaterial({ color: '#fff3c4', emissive: '#ffd36b', emissiveIntensity: 1.2 })); lamp.position.set(0.57, 0.6, 0); loco.add(lamp)
+  const lampMat = new THREE.MeshStandardMaterial({ color: '#fff3c4', emissive: '#ffd36b', emissiveIntensity: 1.2 }), lamp = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), lampMat); lamp.position.set(0.57, 0.6, 0); loco.add(lamp)
+  trainLights.push({ mat: lampMat, base: 1.2, night: 4 }); const lg = glowSprite('#ffe6a8', 1.4); lg.position.set(0.7, 0.6, 0); loco.add(lg); trainGlows.push({ s: lg, max: 0.9 })
   const stack = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.05, 0.24, 12), black); stack.position.set(0.38, 0.72, 0); loco.add(stack)
   const stackTop = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.07, 0.06, 12), black); stackTop.position.set(0.38, 0.86, 0); loco.add(stackTop)
   const dome = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), gold); dome.position.set(0.1, 0.6, 0); loco.add(dome)
   const cab = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.42, 0.46), red); cab.position.set(-0.36, 0.5, 0); loco.add(cab)
   const cabRoof = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.05, 0.54), roofMat); cabRoof.position.set(-0.36, 0.74, 0); loco.add(cabRoof)
-  const win = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.13, 0.47), new THREE.MeshStandardMaterial({ color: '#ffe3a0', emissive: '#ffb84a', emissiveIntensity: 0.5 })); win.position.set(-0.34, 0.58, 0); loco.add(win)
+  const cabMat = new THREE.MeshStandardMaterial({ color: '#ffe3a0', emissive: '#ffb84a', emissiveIntensity: 0.5 }), win = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.13, 0.47), cabMat); win.position.set(-0.34, 0.58, 0); loco.add(win)
+  trainLights.push({ mat: cabMat, base: 0.5, night: 2.6 })
   const base = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.1, 0.44), black); base.position.set(0, 0.22, 0); loco.add(base)
   const cow = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.22, 4, 1), black); cow.rotation.z = -Math.PI / 2; cow.rotation.y = Math.PI / 4; cow.position.set(0.66, 0.2, 0); cow.scale.set(1, 1, 1.2); loco.add(cow)
   wheels(loco, [-0.36, 0, 0.3])
@@ -285,7 +302,8 @@ function car(len, kind) {
   } else {
     const b = new THREE.Mesh(new THREE.BoxGeometry(len, 0.38, 0.44), red); b.position.y = 0.42; g.add(b)
     const r = new THREE.Mesh(new THREE.BoxGeometry(len + 0.08, 0.06, 0.52), roofMat); r.position.y = 0.64; g.add(r)
-    const strip = new THREE.Mesh(new THREE.BoxGeometry(len * 0.86, 0.12, 0.45), new THREE.MeshStandardMaterial({ color: '#ffe3a0', emissive: '#ffb84a', emissiveIntensity: 0.45 })); strip.position.y = 0.48; g.add(strip)
+    const stripMat = new THREE.MeshStandardMaterial({ color: '#ffe3a0', emissive: '#ffb84a', emissiveIntensity: 0.45 }), strip = new THREE.Mesh(new THREE.BoxGeometry(len * 0.86, 0.12, 0.45), stripMat); strip.position.y = 0.48; g.add(strip)
+    trainLights.push({ mat: stripMat, base: 0.45, night: 2.6 }); for (const zz of [-0.3, 0.3]) { const cg = glowSprite('#ffc26e', 0.9); cg.position.set(0, 0.48, zz); g.add(cg); trainGlows.push({ s: cg, max: 0.55 }) }
     const trim = new THREE.Mesh(new THREE.BoxGeometry(len + 0.01, 0.03, 0.452), gold); trim.position.y = 0.32; g.add(trim)
   }
   const base = new THREE.Mesh(new THREE.BoxGeometry(len, 0.08, 0.4), black); base.position.y = 0.2; g.add(base)
@@ -309,7 +327,7 @@ makePuffPool(90, '#f1f1f1'); makePuffPool(40, '#e9ecf0')
 function emit(kind, pos, vel, life, size) {
   const p = puffs.find(q => q.life <= 0); if (!p) return
   p.kind = kind; p.life = p.max = life; p.v.copy(vel); p.g = size; p.s.position.copy(pos); p.s.scale.setScalar(size * 0.4); p.s.visible = true
-  p.s.material.color.set(kind === 'train' ? '#b9b8c0' : kind === 'chim' ? '#d7d4d0' : '#dfe3e9')
+  p.s.material.color.set(kind === 'train' ? '#b9b8c0' : kind === 'chim' ? '#d7d4d0' : '#dfe3e9'); if (kind !== 'flake' && typeof dayNight !== 'undefined') p.s.material.color.lerp(new THREE.Color('#5b6488'), dayNight.nt * 0.75)
 }
 
 // ── 내리는 눈: 위에서는 잘 보이고 아래로 갈수록 옅어진다 ──
@@ -356,7 +374,7 @@ document.getElementById('reset').onclick = reset
 document.getElementById('pause').onclick = e => { st.paused = !st.paused; e.target.textContent = st.paused ? 'Play' : 'Pause' }
 addEventListener('message', e => { if (e.origin !== location.origin) return; const m = e.data || {}
   if (typeof m.snow === 'number') setSnow(m.snow); if (typeof m.speed === 'number') setSpeed(m.speed)
-  if (m.cmd === 'whistle') whistle(); if (m.cmd === 'gift') giftShower(); if (m.cmd === 'reset') reset(); if (m.cmd === 'pause') st.paused = !st.paused })
+  if (typeof m.time === 'string') setTimeMode(m.time); if (m.cmd === 'whistle') whistle(); if (m.cmd === 'gift') giftShower(); if (m.cmd === 'reset') reset(); if (m.cmd === 'pause') st.paused = !st.paused })
 addEventListener('keydown', e => { if (e.key === ' ') st.paused = !st.paused; if (e.key === 'w' || e.key === 'W') whistle(); if (e.key === 'r' || e.key === 'R') reset() })
 
 // ── 누르기·끌기 ──
@@ -377,6 +395,7 @@ function reindeer(rudolph) {
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.075, 12, 10), fur); head.scale.set(1.35, 1, 1); head.position.set(0.29, 0.2, 0); g.add(head)
   const nose = new THREE.Mesh(new THREE.SphereGeometry(rudolph ? 0.035 : 0.022, 10, 8), rudolph ? new THREE.MeshStandardMaterial({ color: '#ff3b3b', emissive: '#ff2020', emissiveIntensity: 1.6 }) : hoof)
   nose.position.set(0.38, 0.19, 0); g.add(nose)
+  if (rudolph) { g.userData.nose = nose.material; const ng = glowSprite('#ff4040', 0.55); ng.position.copy(nose.position); g.add(ng); g.userData.noseGlow = ng }
   for (const zz of [-0.04, 0.04]) { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 6), hoof); eye.position.set(0.33, 0.24, zz); g.add(eye)
     const ear = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.06, 6), fur); ear.position.set(0.25, 0.27, zz * 1.6); ear.rotation.x = zz > 0 ? 0.6 : -0.6; g.add(ear)
     const an = new THREE.Group(); an.position.set(0.26, 0.27, zz * 0.8)
@@ -437,7 +456,7 @@ function trailPoint(dist) { // 맨 앞에서 dist 만큼 뒤의 자리와 그 �
   const a = fly.trail[fly.trail.length - 2], b = fly.trail[fly.trail.length - 1]; return { p: b.clone(), dir: a.clone().sub(b).normalize() }
 }
 const _up2 = new THREE.Vector3(0, 1, 0), _s2 = new THREE.Vector3(), _y2 = new THREE.Vector3(), _m2 = new THREE.Matrix4()
-function orient(obj, dir) { _s2.crossVectors(dir, _up2).normalize(); _y2.crossVectors(_s2, dir).normalize(); _m2.makeBasis(dir, _y2, _s2.clone().negate()); obj.quaternion.setFromRotationMatrix(_m2) }
+function orient(obj, dir) { _s2.crossVectors(dir, _up2).normalize(); _y2.crossVectors(_s2, dir).normalize(); _m2.makeBasis(dir, _y2, _s2) /* 오른손 좌표계(x × y = z) — 뒤집으면 순록·썰매가 거꾸로 선다 */; obj.quaternion.setFromRotationMatrix(_m2) }
 // 선물
 const gifts = [], GIFT_COLS = [['#d42a35', '#f4d35e'], ['#3c7be0', '#ffffff'], ['#2f9e6b', '#d42a35'], ['#f4b6cb', '#ffffff'], ['#f4d35e', '#3c7be0'], ['#9b7be0', '#f4d35e']]
 function dropGift() {
@@ -526,9 +545,43 @@ function tap(e) {
   const root = hit.object.userData.root || hit.object, kind = root.userData.kind
   if (kind === 'sleigh') { giftShower(); sfx('chime') }
   else if (kind === 'train') whistle()
-  else if (kind === 'house') { const on = root.userData.win.emissiveIntensity > 0.3; root.userData.win.emissiveIntensity = on ? 0.05 : 1.2; root.userData.win.color.set(on ? '#7d7a86' : '#ffd27a'); sfx('pop') }
+  else if (kind === 'house') { root.userData.on = !root.userData.on; sfx('pop') }
   else if (kind === 'pine') { root.userData.shake = 1; sfx('squish', { s: 0.6 }); for (let k = 0; k < 6; k++) emit('flake', root.position.clone().applyMatrix4(island.matrixWorld).add(new THREE.Vector3((Math.random() - 0.5) * 0.5, 1 + Math.random() * 0.4, (Math.random() - 0.5) * 0.5)), new THREE.Vector3((Math.random() - 0.5) * 0.4, -0.3, (Math.random() - 0.5) * 0.4), 1.1, 0.5) }
   else if (kind === 'mountain') { st.shakeMtn = 1; sfx('drip'); const p = hit.point; for (let k = 0; k < 10; k++) emit('flake', p.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.6, Math.random() * 0.3, (Math.random() - 0.5) * 0.6)), new THREE.Vector3((Math.random() - 0.5) * 0.8, 0.6 + Math.random() * 0.6, (Math.random() - 0.5) * 0.8), 1.4, 0.7) }
+}
+
+// ── 낮과 밤 — 「시계 따라」(저녁 6시~아침 6시 = 밤) · 낮 · 밤. 바뀔 땐 몇 초에 걸쳐 천천히 ──
+const dayNight = { mode: 'auto', nt: 0, target: 0, painted: -1 }
+const clockNight = () => { const h = new Date().getHours(); return h >= 18 || h < 6 ? 1 : 0 }
+function setTimeMode(m) { if (!['auto', 'day', 'night'].includes(m)) return; dayNight.mode = m; document.querySelectorAll('[data-time]').forEach(b => b.setAttribute('aria-pressed', b.dataset.time === m)) }
+document.querySelectorAll('[data-time]').forEach(b => b.onclick = () => setTimeMode(b.dataset.time))
+// 별 — 밤에만
+const STAR = 700, starPos = new Float32Array(STAR * 3)
+for (let i = 0; i < STAR; i++) { const u = Math.random(), v = 0.15 + Math.random() * 0.85, th = u * Math.PI * 2, ph = Math.acos(v), r = 90; starPos[i * 3] = Math.sin(ph) * Math.cos(th) * r; starPos[i * 3 + 1] = Math.cos(ph) * r * 0.9 + 6; starPos[i * 3 + 2] = Math.sin(ph) * Math.sin(th) * r }
+const starGeo = new THREE.BufferGeometry(); starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3))
+const starMat = new THREE.PointsMaterial({ color: '#fff8e6', size: 1.6, sizeAttenuation: false, transparent: true, opacity: 0, depthWrite: false, fog: false })
+const stars = new THREE.Points(starGeo, starMat); scene.add(stars)
+const moon = new THREE.Mesh(new THREE.SphereGeometry(1.6, 24, 16), new THREE.MeshBasicMaterial({ color: '#fff6dc', transparent: true, opacity: 0, fog: false })); moon.position.set(-34, 21, -30); scene.add(moon)
+const moonGlow = glowSprite('#fff1c8', 22); moonGlow.material.fog = false; moonGlow.position.copy(moon.position); scene.add(moonGlow)
+const C = (h) => new THREE.Color(h), lerpC = (a, b, t) => C(a).lerp(C(b), t)
+function stepNight(dt, now) {
+  dayNight.target = dayNight.mode === 'auto' ? clockNight() : dayNight.mode === 'night' ? 1 : 0
+  dayNight.nt += (dayNight.target - dayNight.nt) * (1 - Math.exp(-dt * 1.4))
+  const nt = dayNight.nt
+  if (Math.abs(nt - dayNight.painted) > 0.004) { dayNight.painted = nt; paintSky(nt)
+    hemi.color.copy(lerpC('#eef3fa', '#9fb0e0', nt)); hemi.groundColor.copy(lerpC('#cbb9a2', '#4a4766', nt)); hemi.intensity = 1.35 - nt * 0.6
+    sun.color.copy(lerpC('#ffeedb', '#b9c9ff', nt)); sun.intensity = 1.9 - nt * 1.2
+    renderer.toneMappingExposure = 1.12 - nt * 0.12; scene.fog.color.copy(lerpC('#e3e3e1', '#232b4a', nt))
+    starMat.opacity = Math.max(0, nt * 1.15 - 0.15); moon.material.opacity = nt; moonGlow.material.opacity = nt * 0.35
+    document.body.classList.toggle('night', nt > 0.5) }
+  // 집 창 — 켜 둔 집은 밤에 더 따뜻하게, 끈 집은 어둡게
+  for (const h of houses) { const on = h.userData.on, m = h.userData.win
+    m.emissiveIntensity = on ? 0.9 + nt * 2.4 : 0.03; m.color.set(on ? '#ffd98a' : '#6f6c7a'); h.userData.glow.material.opacity = on ? nt * 0.75 : 0 }
+  for (const l of trainLights) l.mat.emissiveIntensity = l.base + nt * l.night
+  for (const g of trainGlows) g.s.material.opacity = nt * g.max
+  // 루돌프 코 — 늘 빨갛고, 밤엔 두근두근 빛난다
+  const beat = 0.75 + 0.25 * Math.sin(now * 0.006)
+  for (const d0 of deer) if (d0.userData.nose) { d0.userData.nose.emissiveIntensity = 1.6 + nt * 4 * beat; d0.userData.noseGlow.material.opacity = 0.15 + nt * 0.85 * beat; d0.userData.noseGlow.scale.setScalar(0.45 + nt * 0.35 * beat) }
 }
 
 // ── 움직임 ──
@@ -552,7 +605,7 @@ function loop(now) {
     if (!cam.drag) { cam.autoz = Math.min(1, cam.autoz + dt * 0.3); cam.az += dt * 0.035 * cam.autoz }
   }
   for (const c of cars) placeCar(c.g, st.theta - c.back)
-  stepSanta(dt, now)
+  stepSanta(dt, now); stepNight(dt, now)
   // 기차 연기
   puffT -= dt; if (run && puffT <= 0) { puffT = 0.16 / (0.5 + st.speed); trainPuff() }
   // 집 굴뚝 연기 — 가늘게
@@ -580,7 +633,7 @@ function loop(now) {
   requestAnimationFrame(loop)
 }
 document.addEventListener('visibilitychange', () => { last = performance.now() })
-window.__peak = { gifts: () => gifts.map(q => [q.landed, +q.g.position.y.toFixed(2)]), lead: () => fly.lead.toArray().map(v => +v.toFixed(2)), sleighScreen: () => { const v = sleigh.getWorldPosition(new THREE.Vector3()).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight] }, st, cam, play: n => (n === 'whistle' ? whistle() : 0), cars: () => cars.map(c => c.g.position.toArray().map(v => +v.toFixed(2))) }
+window.__peak = { night: () => ({ ...dayNight }), dirs: () => { const fwd = o => new THREE.Vector3(1, 0, 0).applyQuaternion(o.quaternion); const toLead = deer[0].position.clone().sub(sleigh.position).normalize(); const motion = fly.trail[0].clone().sub(fly.trail[6]).normalize(); const tp = trailPoint(SPOT[5]); return { trailDirMotion: +tp.dir.dot(motion).toFixed(2), trailLen: fly.trail.length, sleighFwdToLead: +fwd(sleigh).dot(toLead).toFixed(2), deerFwdMotion: +fwd(deer[0]).dot(motion).toFixed(2), sleighFwdMotion: +fwd(sleigh).dot(motion).toFixed(2) } }, gifts: () => gifts.map(q => [q.landed, +q.g.position.y.toFixed(2)]), lead: () => fly.lead.toArray().map(v => +v.toFixed(2)), sleighScreen: () => { const v = sleigh.getWorldPosition(new THREE.Vector3()).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight] }, st, cam, play: n => (n === 'whistle' ? whistle() : 0), cars: () => cars.map(c => c.g.position.toArray().map(v => +v.toFixed(2))) }
 requestAnimationFrame(loop)
 </script>
 </body>

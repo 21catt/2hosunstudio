@@ -100,7 +100,7 @@ export default function CastlePage() {
   })
   // 설산 기차(출석 12회) 세부 설정 — 눈 양·기차 빠르기
   const [peak, setPeak] = useState(() => {
-    const d = { snow: 0.6, speed: 0.45 }
+    const d = { snow: 0.6, speed: 0.45, time: 'auto' }
     try { return { ...d, ...(JSON.parse(localStorage.getItem('2hs_peak') || 'null') || {}) } } catch { return d }
   })
   function setPeakOpt(patch) {
@@ -389,6 +389,11 @@ export default function CastlePage() {
         <div className={s.hr} style={{ marginTop: 2 }} />
         {scene.key === 'peak' ? (<>
         <div className={s.sectionLabel} style={{ padding: 0 }}>{scene.name}</div>
+        <div className={s.row} style={{ flexWrap: 'wrap' }}>
+          {[['auto', '시계 따라'], ['day', '☀️ 낮'], ['night', '🌙 밤']].map(([id, label]) => (
+            <button key={id} className={`${s.chip} ${s.glass} ${peak.time === id ? s.chipOn : ''}`} aria-pressed={peak.time === id} onClick={() => setPeakOpt({ time: id })}>{label}</button>
+          ))}
+        </div>
         <label className={s.slider}>눈 양
           <input type="range" min="0" max="1" step="0.01" value={peak.snow} onChange={e => setPeakOpt({ snow: +e.target.value })} style={{ accentColor: '#9fb8d6' }} />
         </label>
@@ -508,7 +513,7 @@ export default function CastlePage() {
       </nav>
 
       <div className={s.howto}><b>How to play</b> — {scene.key === 'peak'
-        ? '산타 썰매를 끌어 하늘을 날기 · 썰매를 누르면 선물이 내려요 · 기차를 누르면 뿌뿌! · 집을 누르면 불 켜고 끄기 · 소나무를 누르면 눈이 털려요 · 빈 곳을 끌어 섬 돌리기'
+        ? '저녁 6시가 되면 밤 — 집과 기차 창에 불이 켜지고 루돌프 코가 빛나요 · 산타 썰매를 끌어 하늘을 날기 · 썰매를 누르면 선물이 내려요 · 기차를 누르면 뿌뿌! · 집을 누르면 불 켜고 끄기 · 소나무를 누르면 눈이 털려요 · 빈 곳을 끌어 섬 돌리기'
         : scene.key === 'octopus'
         ? '문어를 톡 치면 움찔 · 머리를 꾹 누르면 납작 · 머리를 끌어 들어 올리기 · 다리를 끌어 늘리기 · 접시를 꾹 누르고 있으면 다리가 손가락을 감아요'
         : scene.embed
