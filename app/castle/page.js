@@ -29,15 +29,15 @@ const CastleJellyScene = dynamic(() => import('../../components/castle/CastleStu
 // 카테고리 색 = 성의 색(lib/categoryStyle — 예약 패널과 한 표)
 const CAT = Object.fromEntries(Object.entries(CATEGORY_STYLE).map(([k, v]) => [k, { name: v.name, dot: v.orb, tint: v.tint, ink: v.ink }]))
 // 왼쪽 수업 아이콘 — 분류마다 3D 아이콘(public/castle-icons, 3D 홈과 같은 파스텔로 구워 둔 그림)
-// 수업이 하나뿐인 분류는 누르면 바로 수업 내용으로, 둘 이상이면 옆에 목록이 펼쳐진다. 작가 모임·자율창작은 메뉴에 두지 않는다.
+// 누르면 옆에 그 분류의 수업 목록이 펼쳐진다(하나뿐이어도). 작가 모임·자율창작은 메뉴에 두지 않는다.
 const CLASS_MENU = [
   { key: 'drawing', label: '드로잉', title: '드로잉 수업', tint: '#fbd3e2', ring: '#f39fbe', match: c => c.category === 'drawing' && !/재봉/.test(c.name),
     order: ['기초 드로잉', '인체 드로잉'], sub: { '기초 드로잉': '선과 형태부터', '인체 드로잉': '뼈와 근육으로 보는 몸' } },
   { key: 'painting', label: '페인팅', title: '페인팅 수업', tint: '#e2d8fc', ring: '#b7a0ef', match: c => c.category === 'painting',
     order: ['명암의 이해', '색채 기초', '인물화', '임정아'], sub: { '명암의 이해': '빛과 그림자', '색채 기초': '색 섞기와 배색', '인물화': '얼굴을 그리기' } },
-  { key: 'sculpture', label: '조소', title: '조소 수업', tint: '#d6e5fc', ring: '#93b8f2', match: c => c.category === 'sculpture' },
-  { key: 'sewing', label: '재봉틀', title: '재봉틀 수업', tint: '#f5e1d4', ring: '#d9a98a', match: c => /재봉/.test(c.name) },
-  { key: 'oneday', label: '원데이', title: '원데이 수업', tint: '#fdecc4', ring: '#f2c55c', match: c => c.category === 'oneday' },
+  { key: 'sculpture', label: '조소', title: '조소 수업', tint: '#d6e5fc', ring: '#93b8f2', match: c => c.category === 'sculpture', sub: { '조소 기초 두상': '흙으로 머리 빚기' } },
+  { key: 'sewing', label: '재봉틀', title: '재봉틀 수업', tint: '#f5e1d4', ring: '#d9a98a', match: c => /재봉/.test(c.name), sub: { '재봉틀': '박음질부터 소품까지' } },
+  { key: 'oneday', label: '원데이', title: '원데이 수업', tint: '#fdecc4', ring: '#f2c55c', match: c => c.category === 'oneday', sub: { '원데이': '하루에 한 작품' } },
 ]
 const rankIn = (order, name) => { const i = (order || []).findIndex(o => name.startsWith(o)); return i < 0 ? 99 : i }
 const subOf = (m, name) => { const k = Object.keys(m.sub || {}).find(o => name.startsWith(o)); return k ? m.sub[k] : '' }
@@ -356,20 +356,18 @@ export default function CastlePage() {
         </div>
       </section>
 
-      {/* 왼쪽 — 수업 아이콘(분류) · 둘 이상이면 옆에 목록, 하나면 바로 수업 내용으로 */}
+      {/* 왼쪽 — 수업 아이콘(분류) · 누르면 옆에 그 분류의 수업 목록 */}
       {!booking && classMenu.length > 0 && (
         <nav className={s.classRail} aria-label="수업" data-class-rail>
           {classMenu.map(m => {
-            const open = classPick === m.key, single = m.names.length === 1
+            const open = classPick === m.key
             const tile = (<>
               <span className={s.classTile} style={{ '--tint': m.tint, '--ring': m.ring }}><img src={`/castle-icons/${m.key}.png`} alt="" draggable={false} /></span>
               <span className={s.classLabel}>{m.label}</span>
             </>)
             return (
               <div key={m.key} className={s.classItem}>
-                {single
-                  ? <a className={s.classIco} href={courseHref(m.names[0])} aria-label={`${m.title} · ${m.names[0]}`}>{tile}</a>
-                  : <button className={s.classIco} aria-expanded={open} aria-label={m.title} onClick={() => setClassPick(open ? null : m.key)}>{tile}</button>}
+                <button className={s.classIco} aria-expanded={open} aria-label={m.title} onClick={() => setClassPick(open ? null : m.key)}>{tile}</button>
                 {open && (
                   <div className={`${s.classPop} ${s.glass}`} role="menu" aria-label={m.title}>
                     <div className={s.classPopHead}><span className={s.catDot} style={{ background: m.ring }} />{m.title}<small>{m.names.length}개</small></div>
