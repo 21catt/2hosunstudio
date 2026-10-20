@@ -29,6 +29,9 @@ const CastleJellyScene = dynamic(() => import('../../components/castle/CastleStu
 // 카테고리 색 = 성의 색(lib/categoryStyle — 예약 패널과 한 표)
 const CAT = Object.fromEntries(Object.entries(CATEGORY_STYLE).map(([k, v]) => [k, { name: v.name, dot: v.orb, tint: v.tint, ink: v.ink }]))
 const OCTO_LIST = [['raspberry', '라즈베리', '#d81e4f'], ['blueberry', '블루베리', '#2f56e8'], ['tangerine', '귤', '#ff7a12']]
+// 젤리 문어 먹이 — 던지면 몸속에서 3시간 동안 녹는다(최대 4마리 · 배가 비고 1시간이면 꼬르륵)
+const fmtFoodLeft = ms => { const m = Math.max(1, Math.ceil(ms / 60e3)); return m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분` : `${m}분` }
+const OCTO_FOODS = [['crab', '꽃게', '🦀'], ['shrimp', '새우', '🦐'], ['sardine', '정어리', '🐟']]
 const OCTO_ACTS = [['stroll', '산책'], ['curl', '돌돌 말기'], ['wave', '손 흔들기'], ['ink', '먹물'], ['blush', '발그레']]
 const CITRUS_LIST = [['orange', '오렌지', '#f58a1f'], ['blood', '블러드 오렌지', '#b8202e'], ['lemon', '레몬', '#f2d53c']]
 const FLAVOUR_LIST = [['glacier', '빙하', '#8fd3ea'], ['rose', '로즈', '#f4b6cb'], ['lilac', '라일락', '#cdbcf3']]
@@ -98,6 +101,8 @@ export default function CastlePage() {
     const d = { flavour: 'raspberry', firm: 0.45, damp: 0.3, light: 0.5 }
     try { return { ...d, ...(JSON.parse(localStorage.getItem('2hs_octopus') || 'null') || {}) } } catch { return d }
   })
+  // 젤리 문어 배 속(장면이 알려 준다) — { hungry, full, items: [{ name, left(ms) }] }
+  const [octoBelly, setOctoBelly] = useState(null)
   // 설산 기차(출석 12회) 세부 설정 — 눈 양·기차 빠르기
   const [peak, setPeak] = useState(() => {
     const d = { snow: 0.6, speed: 0.45, time: 'auto' }
@@ -126,7 +131,11 @@ export default function CastlePage() {
   }
   // 젤리(iframe) 안을 누르면 이 화면엔 누른 소식이 안 온다 — 젤리가 알려 주면 장면 패널을 닫는다
   useEffect(() => {
-    const onMsg = e => { if (e.origin === window.location.origin && (e.data?.citrus === 'touch' || e.data?.scene === 'touch')) { setSceneOpen(false); setPick(null) } }
+    const onMsg = e => {
+      if (e.origin !== window.location.origin) return
+      if (e.data?.scene === 'belly') { setOctoBelly(e.data); return }
+      if (e.data?.citrus === 'touch' || e.data?.scene === 'touch') { setSceneOpen(false); setPick(null) }
+    }
     window.addEventListener('message', onMsg)
     return () => window.removeEventListener('message', onMsg)
   }, [])
@@ -409,6 +418,17 @@ export default function CastlePage() {
         </>) : scene.key === 'octopus' ? (<>
         <div className={s.sectionLabel} style={{ padding: 0 }}>{scene.name}</div>
         <div className={s.row} style={{ flexWrap: 'wrap' }}>
+          {OCTO_FOODS.map(([id, label, icon]) => (
+            <button key={id} className={`${s.chip} ${s.glass}`} disabled={!!octoBelly?.full} onClick={() => toFrame({ feed: id })}>{icon} {label} 주기</button>
+          ))}
+        </div>
+        <div style={{ fontSize: 12, lineHeight: 1.5, opacity: 0.8 }}>
+          {!octoBelly ? '먹이를 던져 주면 몸속에서 3시간 동안 녹아요'
+            : octoBelly.hungry ? '꼬르륵… 배고파요. 먹이를 던져 주세요'
+            : octoBelly.items?.length ? `배 속 ${octoBelly.items.length}/${octoBelly.max || 4} · ` + octoBelly.items.map(f => `${f.name} ${fmtFoodLeft(f.left)}`).join(' · ')
+            : '배가 비었어요 · 1시간 지나면 배고파져요'}
+        </div>
+        <div className={s.row} style={{ flexWrap: 'wrap' }}>
           {OCTO_LIST.map(([id, label, c]) => (
             <button key={id} className={`${s.chip} ${s.glass} ${octo.flavour === id ? s.chipOn : ''}`} aria-pressed={octo.flavour === id}
               onClick={() => setOctoOpt({ flavour: id })}>
@@ -515,7 +535,7 @@ export default function CastlePage() {
       <div className={s.howto}><b>How to play</b> — {scene.key === 'peak'
         ? '저녁 6시가 되면 밤 — 집과 기차 창에 불이 켜지고 루돌프 코가 빛나요 · 산타 썰매를 끌어 하늘을 날기 · 썰매를 누르면 선물이 내려요 · 기차를 누르면 뿌뿌! · 집을 누르면 불 켜고 끄기 · 소나무를 누르면 눈이 털려요 · 빈 곳을 끌어 섬 돌리기'
         : scene.key === 'octopus'
-        ? '문어를 톡 치면 움찔 · 머리를 꾹 누르면 납작 · 머리를 끌어 들어 올리기 · 다리를 끌어 늘리기 · 접시를 꾹 누르고 있으면 다리가 손가락을 감아요'
+        ? '장면 패널에서 꽃게·새우·정어리를 던져 주면 몸속에서 3시간 동안 녹아요 · 배가 비면 꼬르륵 · 문어를 톡 치면 움찔 · 머리를 꾹 누르면 납작 · 머리를 끌어 들어 올리기 · 다리를 끌어 늘리기 · 접시를 꾹 누르고 있으면 다리가 손가락을 감아요'
         : scene.embed
         ? '젤리를 잡아 늘렸다가 놓아 보기 · 오른쪽 장면 패널에서 오렌지 · 블러드 오렌지 · 레몬'
         : '탑·성문·배·화로·냥이를 눌러 들어가기 · 물을 끌어 물결 · 블록 옆면을 끌어 기울이기 · 소나무를 끌어 휘기 · 빈 곳을 끌어 돌려 보기'}</div>
