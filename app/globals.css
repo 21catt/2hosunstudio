@@ -955,3 +955,42 @@ html[data-skin='castle'][data-scene='peak'] .castle-bg { background: #e6e4df url
 @media (min-width: 600px) {
   html[data-skin='castle'][data-scene='peak'] .castle-bg { background-size: 780px auto; background-position: center -380px; }
 }
+
+/* 캘린더 날짜판 — 3D 홈 위 「이번 주」 날짜 띠와 같은 느낌: 유리 띠 위 둥근 칸, 고른 날 = 진한 잉크 칸, 오늘 = 「오늘」 */
+.cal-today-label { display: none; }
+html[data-skin='castle'] .cal-month { padding: 6px 8px; border-radius: 999px; background: linear-gradient(160deg, rgba(255,255,255,0.88), rgba(255,255,255,0.6));
+  border: 1px solid #fff; box-shadow: 0 8px 18px rgba(60,45,80,0.10), inset 0 1.5px 0 #fff; }
+html[data-skin='castle'] .cal-month span { font-family: 'IBM Plex Sans KR', sans-serif !important; letter-spacing: 0.5px; }
+html[data-skin='castle'] .cal-board { padding: 10px 8px 8px; margin-bottom: 12px; border-radius: 22px;
+  background: linear-gradient(160deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.5) 55%, rgba(220,210,245,0.32) 100%);
+  border: 1px solid #fff; box-shadow: inset 0 1.5px 0 #fff, inset 0 -8px 14px rgba(120,100,170,0.10), 0 12px 26px rgba(70,50,40,0.12); }
+html[data-skin='castle'] .cal-dows div { font-family: 'IBM Plex Sans KR', sans-serif; font-weight: 600 !important; font-size: 11px !important; }
+html[data-skin='castle'] .cal-grid { gap: 4px !important; margin-bottom: 0 !important; }
+html[data-skin='castle'] .cal-day { height: 50px !important; border-radius: 16px !important; border: none !important; background: transparent !important; }
+html[data-skin='castle'] .cal-day:not(.cal-day-off):not(.cal-day-sel):hover { background: rgba(255,255,255,0.65) !important; }
+html[data-skin='castle'] .cal-num { font-family: 'IBM Plex Sans KR', sans-serif; font-size: 15px !important; font-weight: 700 !important; }
+html[data-skin='castle'] .cal-num--small { font-size: 10px !important; }
+/* 오늘 = 둥근 칸 테두리 + 「오늘」 (고르지 않았을 때) */
+html[data-skin='castle'] .cal-day-today:not(.cal-day-sel) { box-shadow: inset 0 0 0 1.5px rgba(43,36,51,0.55); }
+html[data-skin='castle'] .cal-today-num { width: auto !important; height: auto !important; background: none !important; color: #2b2433 !important;
+  font: 700 15px 'IBM Plex Sans KR', sans-serif !important; }
+html[data-skin='castle'] .cal-today-label { display: block; position: absolute; top: 4px; left: 0; right: 0; text-align: center; font-size: 9px; font-weight: 700; opacity: 0.7; line-height: 1; }
+/* 고른 날 = 홈의 「오늘」 칸과 같은 진한 잉크 */
+html[data-skin='castle'] .cal-day-sel { background: linear-gradient(160deg, #4a4058, #2b2433 60%, #1d1824) !important;
+  box-shadow: inset 0 1.5px 0 rgba(255,255,255,0.3), 0 8px 18px rgba(43,36,51,0.3) !important; }
+html[data-skin='castle'] .cal-day-sel .cal-num, html[data-skin='castle'] .cal-day-sel .cal-today-num, html[data-skin='castle'] .cal-day-sel .cal-today-label { color: #fff !important; }
+/* 예약 없이 고르기만 한 날은 고양이 대신 홈 날짜 띠처럼 숫자(+오늘)만 — 예약한 날의 고양이는 그대로 */
+html[data-skin='castle'] .cal-day-today .cal-num--small { margin-top: 8px !important; }
+html[data-skin='castle'] .cal-day-today.cal-day-booked .cal-num--small { margin-top: 2px !important; }
+/* 오늘 날씨 = 칸 오른쪽 위 작은 그림(가운데 위는 「오늘」 자리) */
+html[data-skin='castle'] .cal-weather { top: -6px !important; left: auto !important; right: -2px; transform: none !important; font-size: 12px !important; }
+/* 예약한 날 = 3D 홈 날짜 띠처럼 숫자 아래 수업 분류 색 동그라미(한 날 여러 수업이면 여러 개) — 예약 가능 점은 그날 숨긴다 */
+.cal-cat-dots { display: none; }
+html[data-skin='castle'] .cal-cat-dots { display: flex; gap: 3px; position: absolute; bottom: 7px; left: 0; right: 0; justify-content: center; z-index: 1; }
+html[data-skin='castle'] .cal-cat-dots i { width: 6px; height: 6px; border-radius: 3px; box-shadow: inset 0 -1px 2px rgba(0,0,0,0.16), inset 0 1px 1.5px rgba(255,255,255,0.8); }
+html[data-skin='castle'] .cal-day-sel .cal-cat-dots i { box-shadow: 0 0 0 1.5px rgba(255,255,255,0.85); }
+html[data-skin='castle'] .cal-day-booked .cal-av-dot { display: none; }
+/* 3D 모양에선 홈 날짜 띠처럼 숫자 + 분류 색 점만(고양이 그림은 예전 화면 모드에서 그대로) */
+html[data-skin='castle'] .cal-day img { display: none; }
+html[data-skin='castle'] .cal-num--small { font-size: 15px !important; margin-top: 0 !important; }
+html[data-skin='castle'] .cal-day-booked .cal-num--small, html[data-skin='castle'] .cal-day-booked .cal-num { margin-top: -6px !important; }

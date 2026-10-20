@@ -6,6 +6,7 @@ import { useTodayWeather } from '../../../components/WeatherBar'
 import StudentNav from '../../../components/StudentNav'
 import { NavIcon } from '../../../components/NavIcons'
 import { sortCoursesByCategory } from '../../../lib/courseSort'
+import { catStyle } from '../../../lib/categoryStyle'
 import { fetchLockedDates, fetchLockedSlots, slotLocked } from '../../../lib/lockedDates'
 import { isTooLateToBook, bookingCutoffMessage } from '../../../lib/bookingWindow'
 import { consumeClassTicket, restoreClassTicket, refundsClassTicket, ticketStarted } from '../../../lib/booking'
@@ -279,6 +280,17 @@ export default function CalendarPage() {
 
   function bookedDays() {
     return new Set(bookingsInView().map(b => new Date(b.class_date).getDate()))
+  }
+  // 날짜 → 예약한 수업의 분류 색(3D 홈 날짜 띠의 동그란 점과 같은 색) · 한 날에 여럿이면 앞에서 셋까지
+  function bookedDots() {
+    const m = {}
+    for (const b of bookingsInView()) {
+      const d = new Date(b.class_date).getDate()
+      const c = classes.find(x => x.id === b.course_id) || classes.find(x => x.name === b.class_name)
+      const col = catStyle(c?.category).orb
+      ;(m[d] = m[d] || []); if (!m[d].includes(col) && m[d].length < 3) m[d].push(col)
+    }
+    return m
   }
 
   // 관리자 수업현황과 동일하게 예외 요일·운영 기간을 반영 (동기화)
@@ -744,6 +756,7 @@ export default function CalendarPage() {
   const daysInMonth = new Date(year, month+1, 0).getDate()
   const firstDow = new Date(year, month, 1).getDay()
   const bd = bookedDays()
+  const bdots = bookedDots()
   const dc = dayClasses(selectedDay)
   const selDateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`
   const selLocked = lockedDates.has(selDateStr)
@@ -1015,7 +1028,7 @@ export default function CalendarPage() {
           <WeeklyTimetableView classes={classes} onPick={openCourseFromTimetable} />
         ) : (
         <>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
+        <div className="cal-month" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
           <button onClick={() => changeMonth(-1)} disabled={monthDiff() <= -3} style={{ background:'transparent', border:'none', cursor:'pointer', fontSize:20, color:'var(--g4)', padding:'4px 10px', opacity: monthDiff() <= -3 ? 0.3 : 1 }}>‹</button>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
             <span style={{ fontSize:18, fontWeight:800, color:'var(--td)' }}>{year}.{String(month+1).padStart(2,'0')}</span>
@@ -1026,13 +1039,14 @@ export default function CalendarPage() {
           <button onClick={() => changeMonth(1)} disabled={monthDiff() >= 3} style={{ background:'transparent', border:'none', cursor:'pointer', fontSize:20, color:'var(--g4)', padding:'4px 10px', opacity: monthDiff() >= 3 ? 0.3 : 1 }}>›</button>
         </div>
 
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', textAlign:'center', marginBottom:4 }}>
+        <div className="cal-board">
+        <div className="cal-dows" style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', textAlign:'center', marginBottom:4 }}>
           {['일','월','화','수','목','금','토'].map((d,i)=>(
             <div key={d} style={{ fontSize:10, fontWeight:700, padding:'3px 0', color:i===0?'#b05050':i===6?'#5070a0':'var(--tmu)' }}>{d}</div>
           ))}
         </div>
 
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:2, marginBottom:6 }}>
+        <div className="cal-grid" style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:2, marginBottom:6 }}>
           {Array(firstDow).fill(null).map((_,i)=><div key={`e${i}`} style={{ height:52 }}/>)}
           {Array(daysInMonth).fill(null).map((_,i)=>{
             const d = i+1
@@ -1047,31 +1061,34 @@ export default function CalendarPage() {
             const isLocked = lockedDates.has(dLockStr)
 
             return (
-              <div key={d} ref={el => cellRefs.current[d] = el} onClick={()=>handleDayClick(d)} className={isSel ? 'cal-day cal-day-sel' : 'cal-day'} style={{ height:52, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:isMon?'default':'pointer', borderRadius:12, opacity:isMon?0.3:(isLocked?0.6:1), position:'relative', background:isSel?'var(--ac2)':'transparent', border:isSel?'2px solid var(--ac)':'2px solid transparent' }}>
+              <div key={d} ref={el => cellRefs.current[d] = el} onClick={()=>handleDayClick(d)} className={`cal-day${isSel ? ' cal-day-sel' : ''}${isT ? ' cal-day-today' : ''}${isMon ? ' cal-day-off' : ''}${isB ? ' cal-day-booked' : ''}`} style={{ height:52, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:isMon?'default':'pointer', borderRadius:12, opacity:isMon?0.3:(isLocked?0.6:1), position:'relative', background:isSel?'var(--ac2)':'transparent', border:isSel?'2px solid var(--ac)':'2px solid transparent' }}>
                 {isT && todayWeather && (
-                  <div style={{ position:'absolute', top:-2, left:'50%', transform:'translateX(-50%)', fontSize:13, zIndex:1 }}>{todayWeather.icon}</div>
+                  <div className="cal-weather" style={{ position:'absolute', top:-2, left:'50%', transform:'translateX(-50%)', fontSize:13, zIndex:1 }}>{todayWeather.icon}</div>
                 )}
                 {isLocked && <span style={{ position:'absolute', bottom:1, right:4, fontSize:10, zIndex:1 }} title="예약 잠금">🔒</span>}
                 {(() => {
                   if (isMon || isLocked || dLockStr < todayStr) return null
                   const av = dayAvailability(d)
                   if (!av) return null
-                  return <span style={{ position:'absolute', bottom:4, left:'50%', transform:'translateX(-50%)', width:5, height:5, borderRadius:'50%', zIndex:1,
+                  return <span className="cal-av-dot" style={{ position:'absolute', bottom:4, left:'50%', transform:'translateX(-50%)', width:5, height:5, borderRadius:'50%', zIndex:1,
                     background: av === 'open' ? '#3b6d11' : 'transparent', border: av === 'open' ? 'none' : '1.5px solid #c9b9a0', boxSizing:'border-box' }} title={av === 'open' ? '예약 가능' : '마감'} />
                 })()}
                 {isB || isSel ? (
                   <div className={isAnim?'cat-anim':''} style={{ display:'flex', flexDirection:'column', alignItems:'center', lineHeight:1 }}>
                     <img src={getCatImage(d)} alt="" style={{ width:34, height:34, objectFit:'contain' }}/>
-                    <span style={{ fontSize:9, fontWeight:800, color:'var(--td)', marginTop:-1 }}>{d}</span>
+                    <span className="cal-num cal-num--small" style={{ fontSize:9, fontWeight:800, color:'var(--td)', marginTop:-1 }}>{d}</span>
                   </div>
                 ) : isT ? (
-                  <div style={{ width:28, height:28, borderRadius:'50%', background:'var(--g4)', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800 }}>{d}</div>
+                  <div className="cal-today-num" style={{ width:28, height:28, borderRadius:'50%', background:'var(--g4)', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800 }}>{d}</div>
                 ) : (
-                  <div style={{ fontSize:12, fontWeight:700, color:dow===0?'#b05050':dow===6?'#5070a0':'var(--td)' }}>{d}</div>
+                  <div className="cal-num" style={{ fontSize:12, fontWeight:700, color:dow===0?'#b05050':dow===6?'#5070a0':'var(--td)' }}>{d}</div>
                 )}
+                {isT && <span className="cal-today-label" aria-hidden="true">오늘</span>}
+                {bdots[d] && <span className="cal-cat-dots" aria-hidden="true">{bdots[d].map(c => <i key={c} style={{ background: c }} />)}</span>}
               </div>
             )
           })}
+        </div>
         </div>
         </>
         )}

@@ -81,11 +81,11 @@ function Icon({ d }) {
 }
 const DOCK = [
   { href: '/student', label: '홈', icon: <path d="M4 11l8-7 8 7v9H4z" /> },
+  { href: '/student/calendar', label: '캘린더', icon: <><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M4 10h16M9 3v4M15 3v4" /></> },
   { href: '/student/records', label: '기록', icon: <><rect x="5" y="4" width="14" height="16" rx="2" /><path d="M9 9h6M9 13h6" /></> },
   { href: '/castle/farm', label: '냥밭', icon: <path d="M12 20V10M12 10c0-4 3-6 6-6 0 4-3 6-6 6zM12 13c0-3-2-5-5-5 0 3 2 5 5 5z" /> },
   { href: '/lounge', label: '라운지', icon: <path d="M5 6h14v9H9l-4 3z" /> },
   { href: '/student/notification', label: '알림', icon: <path d="M6 16V11a6 6 0 0112 0v5l2 2H4zM10 20h4" /> },
-  { href: '/student/settings', label: '설정', icon: <><circle cx="12" cy="12" r="3" /><path d="M12 3v3M12 18v3M3 12h3M18 12h3" /></> },
 ]
 
 export default function CastlePage() {
@@ -535,6 +535,8 @@ export default function CastlePage() {
           <button className={`${s.chip} ${s.glass}`} onClick={() => commandRef.current?.ball()}>공 던지기</button>
         </div>
         </>)}
+        {/* 하단 메뉴에서 설정을 뺐다(캘린더 자리) — 설정은 이 패널 맨 아래에서 */}
+        <a href="/student/settings" className={`${s.chip} ${s.glass}`} style={{ textAlign: 'center', textDecoration: 'none', color: 'inherit' }}>설정 열기</a>
       </aside>
 
       {/* 누른 곳 → 들어가기 */}
