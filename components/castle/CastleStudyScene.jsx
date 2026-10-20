@@ -593,6 +593,12 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
       const crown = new THREE.Mesh(new THREE.TorusGeometry(0.018, 0.006, 6, 10), gold); crown.position.set(-0.02, 0.9, 0.006); crown.rotation.y = Math.PI / 2; hull.add(crown)
     }
     const SHIP_PATH = { cx: 1.15, cz: 1.15, r: 1.25 }
+    // 배 — 평소엔 스스로 호수를 돈다(lap). 손가락으로 끌면 따라오고(drag), 놓으면 미끄러지다 멈추고(free),
+    // 한동안 가만두면 제 길로 돌아가(back) 다시 돈다. **물 위에서만** — 땅·성벽·가장자리에 닿으면 그 앞에서 멈춘다.
+    const SHIP_CLEAR = 0.3  // 배 반 폭 — 땅에서 이만큼 떨어진 물만 다닌다
+    const shipClear = (x, z) => Math.abs(x) < HALF - SHIP_CLEAR && Math.abs(z) < HALF - SHIP_CLEAR && plateauSDF(x, 0, z) > SHIP_CLEAR
+    const shipVel = new THREE.Vector3(), shipTarget = new THREE.Vector3()
+    let shipMode = 'lap', lapA = 0, shipIdle = 0, shipYaw = -Math.PI / 2, shipTurn = 0
 
     // ───────────────────────── stars, fireworks, coins, balls, shots ─────────────────────────
     const stars = pool(320, new THREE.IcosahedronGeometry(0.06, 0), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0 }))
@@ -650,6 +656,24 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
     // ───────────────────────── input ─────────────────────────
     const ray = new THREE.Raycaster(), ndc = new THREE.Vector2()
     let mode = null, downAt = null, dragStart = null, heldPine = null, lastRipple = 0
+    const waterPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), invBlock = new THREE.Matrix4(), localRay = new THREE.Ray()
+    // 화면 점 → 호수 수면(y = 0, 섬 기준 좌표) 위의 점. 섬이 기울어 있어도 맞다.
+    function waterPointAt(cx, cy) {
+      const r = renderer.domElement.getBoundingClientRect()
+      ndc.set((cx - r.left) / r.width * 2 - 1, -(cy - r.top) / r.height * 2 + 1)
+      ray.setFromCamera(ndc, camera)
+      invBlock.copy(block.matrixWorld).invert()
+      localRay.copy(ray.ray).applyMatrix4(invBlock)
+      return localRay.intersectPlane(waterPlane, new THREE.Vector3())
+    }
+    // 배를 끌 때의 목표 — 손가락이 땅 위로 가면 배에서 손가락 쪽으로 가다가 마지막 물 자리에서 멈춘다
+    function shipAim(p) {
+      if (shipClear(p.x, p.z)) return shipTarget.set(p.x, 0, p.z)
+      const sx = ship.position.x, sz = ship.position.z
+      let bx = sx, bz = sz
+      for (let k = 1; k <= 24; k++) { const t = k / 24, x = sx + (p.x - sx) * t, z = sz + (p.z - sz) * t; if (!shipClear(x, z)) break; bx = x; bz = z }
+      shipTarget.set(bx, 0, bz)
+    }
     let tiltX = 0, tiltZ = 0, tiltVX = 0, tiltVZ = 0, tiltTX = 0, tiltTZ = 0, jiggle = 0, jiggleV = 0
     const pickables = []
     block.traverse(o => { if ((o.isMesh && !o.isInstancedMesh) || o.isSprite) pickables.push(o) })
@@ -672,6 +696,7 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
       if (hit?.kind === 'lake') { mode = 'lake'; controls.enabled = false; const p = block.worldToLocal(hit.point.clone()); bump(p.x, p.z, -0.06) }
       else if (hit?.kind === 'block') { mode = 'tilt'; controls.enabled = false; dragStart = { x: e.clientX, y: e.clientY } }
       else if (hit?.kind === 'pine') { mode = 'pine'; controls.enabled = false; heldPine = pines[hit.obj.userData.pine]; heldPine.held = true; dragStart = { x: e.clientX, y: e.clientY } }
+      else if (hit?.kind === 'ship') { mode = 'ship'; controls.enabled = false; dragStart = { x: e.clientX, y: e.clientY } }
     })
     const onMove = e => {
       if (mode === 'lake') {
@@ -680,6 +705,11 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
         if (hit?.kind === 'lake') { const p = block.worldToLocal(hit.point.clone()); bump(p.x, p.z, -0.045, 2.2); addFoam(p.x, p.z, 0.1, 1.1) }
       } else if (mode === 'tilt') {
         tiltTZ = Math.max(-0.25, Math.min(0.25, -(e.clientX - dragStart.x) / 800)); tiltTX = Math.max(-0.25, Math.min(0.25, (e.clientY - dragStart.y) / 800))
+      } else if (mode === 'ship') {
+        // 살짝 누른 건 그냥 누르기(라운지 안내) — 4px 넘게 움직여야 끌기
+        if (shipMode !== 'drag' && Math.hypot(e.clientX - dragStart.x, e.clientY - dragStart.y) < 4) return
+        const p = waterPointAt(e.clientX, e.clientY)
+        if (p) { if (shipMode !== 'drag') { shipMode = 'drag'; shipVel.set(0, 0, 0) } shipAim(p) }
       } else if (mode === 'pine' && heldPine) {
         heldPine.bz = Math.max(-0.8, Math.min(0.8, -(e.clientX - dragStart.x) / 160)); heldPine.bx = Math.max(-0.8, Math.min(0.8, (e.clientY - dragStart.y) / 160))
       }
@@ -687,6 +717,7 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
     addEventListener('pointermove', onMove)
     const onUp = e => {
       const was = mode; mode = null; controls.enabled = true; tiltTX = tiltTZ = 0
+      if (was === 'ship' && shipMode === 'drag') { shipMode = 'free'; shipIdle = 0 }
       if (heldPine) { heldPine.held = false; heldPine = null }
       if (!downAt) return
       const moved = Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y), quick = performance.now() - downAt.t < 450
@@ -724,6 +755,70 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
       plateauRecolour(f.strata)
     }
 
+    // ───────────────────────── ship motion + wake ─────────────────────────
+    const lapPoint = a => [SHIP_PATH.cx + Math.cos(a) * SHIP_PATH.r, SHIP_PATH.cz + Math.sin(a) * SHIP_PATH.r]
+    function shipStep(dt) {
+      const px = ship.position.x, pz = ship.position.z
+      let nx, nz
+      if (shipMode === 'lap') {
+        lapA += dt * (S.calm ? 0.06 : 0.15)
+        ;[nx, nz] = lapPoint(lapA)
+        shipVel.set((nx - px) / dt, 0, (nz - pz) / dt)
+        if (shipVel.length() > 3) shipVel.set(0, 0, 0) // 첫 프레임(제자리에서 출발) 튐 방지
+      } else {
+        // drag = 손가락 쪽으로 감쇠 용수철 · free = 놓은 자리까지 미끄러져 멈춤 · back = 제 길 가장 가까운 점으로 천천히
+        let K = 0, D = 1.6, vmax = 2.4
+        if (shipMode === 'drag') { K = 34; D = 10 }
+        else if (shipMode === 'free') {
+          // 손을 뗀 자리까지 미끄러져 가서 멈춘다. 멈춘 뒤 7초 가만두면 제 길로
+          K = 7; D = 4.5
+          const near = Math.hypot(shipTarget.x - px, shipTarget.z - pz) < 0.08 && shipVel.length() < 0.08
+          shipIdle = near ? shipIdle + dt : 0
+          if (shipIdle > 7) shipMode = 'back'
+        }
+        if (shipMode === 'back') {
+          const a = Math.atan2(pz - SHIP_PATH.cz, px - SHIP_PATH.cx), [tx, tz] = lapPoint(a)
+          shipTarget.set(tx, 0, tz); K = 3; D = 3.2; vmax = 0.45
+          if (Math.hypot(tx - px, tz - pz) < 0.05 && shipVel.length() < 0.3) { lapA = a; shipMode = 'lap' }
+        }
+        if (K) shipVel.add(new THREE.Vector3((shipTarget.x - px) * K, 0, (shipTarget.z - pz) * K).multiplyScalar(dt))
+        shipVel.multiplyScalar(Math.max(0, 1 - D * dt))
+        if (shipVel.length() > vmax) shipVel.setLength(vmax)
+        nx = px + shipVel.x * dt; nz = pz + shipVel.z * dt
+        // 물 밖으로는 못 간다 — 한 축만이라도 되면 기슭을 따라 미끄러지고, 둘 다 막히면 멈춘다(부딪힌 물결 하나)
+        if (!shipClear(nx, nz)) {
+          if (shipClear(nx, pz)) { nz = pz; shipVel.z = 0 }
+          else if (shipClear(px, nz)) { nx = px; shipVel.x = 0 }
+          else { if (shipVel.length() > 0.4) bump(px, pz, -0.02 * shipVel.length(), 1.6); nx = px; nz = pz; shipVel.set(0, 0, 0) }
+        }
+      }
+      ship.position.set(nx, sampleH(nx, nz) - 0.025, nz)
+      const speed = shipVel.length()
+      // 뱃머리는 가는 쪽으로(느릴 땐 그대로) — 가장 짧은 쪽으로 돌고, 도는 만큼 옆으로 기운다
+      if (speed > 0.06) {
+        let d = Math.atan2(-shipVel.z, shipVel.x) - shipYaw
+        d = Math.atan2(Math.sin(d), Math.cos(d))
+        const turn = d * Math.min(1, dt * (shipMode === 'lap' ? 6 : 5))
+        shipYaw += turn; shipTurn += ((turn / Math.max(dt, 1e-3)) - shipTurn) * Math.min(1, dt * 4)
+      } else shipTurn *= Math.max(0, 1 - dt * 3)
+      ship.rotation.y = shipYaw
+      ship.rotation.z = Math.sin(time * 1.5) * 0.035 + (sampleH(nx + 0.15, nz) - sampleH(nx - 0.15, nz)) * 2 - Math.max(-0.25, Math.min(0.25, shipTurn * speed * 0.18))
+      ship.rotation.x = (sampleH(nx, nz + 0.15) - sampleH(nx, nz - 0.15)) * 1.5 - Math.min(0.08, speed * 0.03)
+      // 물결 — 빠를수록 뱃머리 물결이 크고 촘촘하고, 뒤로 V 자 물결과 하얀 거품 꼬리가 길어진다
+      const sp = Math.min(1, speed / 1.6)
+      const f = fwd(), side = new THREE.Vector3(-f.z, 0, f.x)
+      if (speed > 0.03) addFoam(nx - f.x * 0.45, nz - f.z * 0.45, 0.06 + sp * 0.5, 1.2 + sp * 0.8)
+      wakeT -= dt
+      if (wakeT <= 0 && speed > 0.03) {
+        wakeT = 0.12 - sp * 0.08
+        bump(nx + f.x * 0.4, nz + f.z * 0.4, 0.006 + sp * 0.05, 1.4 + sp * 0.8)
+        if (sp > 0.12) for (const sgn of [-1, 1]) {
+          const bx = nx - f.x * 0.3 + side.x * sgn * (0.22 + sp * 0.12), bz = nz - f.z * 0.3 + side.z * sgn * (0.22 + sp * 0.12)
+          bump(bx, bz, -0.03 * sp, 1.3); addFoam(bx, bz, 0.12 * sp, 1)
+        }
+      }
+    }
+
     // ───────────────────────── simulation ─────────────────────────
     let time = 0, pulse = 0, nextAutoFw = 0, wakeT = 0
     const tmpM = new THREE.Matrix4()
@@ -744,14 +839,8 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
       if (pulse <= 0 && flow > 0.03) { pulse = 0.5 - flow * 0.22; bump(IMPACT.x + 0.08, IMPACT.z, -(0.025 + flow * 0.045), 2.4) }
       if (Math.random() < flow * 0.9) emit(spray, IMPACT.x, 0.02, IMPACT.z, 2, 1.2 + flow * 1.4, 0.55, 0.9, 1)
       addFoam(IMPACT.x + 0.05 + Math.random() * 0.5, IMPACT.z + (Math.random() - 0.5) * 0.6, 0.015 + flow * 0.035, 1.3)
-      // galleon laps and leaves a wake
-      const sa = time * (S.calm ? 0.06 : 0.15)
-      const sx = SHIP_PATH.cx + Math.cos(sa) * SHIP_PATH.r, sz = SHIP_PATH.cz + Math.sin(sa) * SHIP_PATH.r
-      ship.position.set(sx, sampleH(sx, sz) - 0.025, sz)
-      ship.rotation.y = -sa - Math.PI / 2
-      ship.rotation.z = Math.sin(time * 1.5) * 0.035 + (sampleH(sx + 0.15, sz) - sampleH(sx - 0.15, sz)) * 2
-      ship.rotation.x = (sampleH(sx, sz + 0.15) - sampleH(sx, sz - 0.15)) * 1.5
-      { const f = fwd(); addFoam(sx - f.x * 0.45, sz - f.z * 0.45, 0.13, 1.3); wakeT -= dt; if (wakeT <= 0) { wakeT = 0.12; bump(sx + f.x * 0.4, sz + f.z * 0.4, 0.008, 1.4) } }
+      // galleon — laps by itself, or follows a finger on the water; the wake grows with its speed
+      shipStep(dt)
       for (let i = 0; i < N * N; i++) foam[i] = foam[i] > 0.003 ? foam[i] * 0.9965 : 0
       simStep(0.996 - S.damp * 0.03)
       // falling water particles along the ribbon
