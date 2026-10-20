@@ -220,7 +220,9 @@ export default function CastlePage() {
     document.addEventListener('pointerdown', off); document.addEventListener('keydown', esc)
     return () => { document.removeEventListener('pointerdown', off); document.removeEventListener('keydown', esc) }
   }, [classPick])
-  function openBooking(date) { setBooking({ date: date || ymd(new Date()) }); setPick(null); setSceneOpen(false); setClassPick(null) }
+  function openBooking(date) {
+    if (!user) { router.push(`/student/calendar?date=${date || ymd(new Date())}`); return } // 비가입자 = 캘린더에서 예약 요청·가입 안내
+    setBooking({ date: date || ymd(new Date()) }); setPick(null); setSceneOpen(false); setClassPick(null) }
 
   // 관리자만 — 숨긴 미리보기
   useEffect(() => {
@@ -228,7 +230,8 @@ export default function CastlePage() {
     if (process.env.NODE_ENV === 'development' && new URLSearchParams(window.location.search).get('dev') === '1') { setAllowed(true); return }
     supabase.auth.getUser().then(async ({ data }) => {
       const u = data?.user
-      if (!u) { router.replace('/login'); return }
+      // 비가입자도 3D 홈을 본다(2026-10-20) — 수업 목록만 불러오고, 예약·기록은 가입 안내로
+      if (!u) { setAllowed(true); loadPublic(); return }
       const admin = u.user_metadata?.role === 'admin'
       try { if (localStorage.getItem('2hs_home_mode') !== 'castle') localStorage.setItem('2hs_home_mode', 'castle') } catch {} // 3D 홈에 들어오면 3D 모드
       setIsAdmin(admin)
@@ -239,6 +242,10 @@ export default function CastlePage() {
       loadMine(u)
     })
   }, [])
+  async function loadPublic() {
+    const { data: cs } = await supabase.from('class_courses').select('id, name, category').eq('is_active', true)
+    setCourses(sortCoursesByCategory(cs || []))
+  }
   async function loadMine(u) {
       const today = ymd(new Date())
       supabase.from('bookings').select('id', { count: 'exact', head: true }).eq('user_id', u.id).eq('attended', true)
@@ -310,6 +317,7 @@ export default function CastlePage() {
 
       {/* 언제든 예전 홈으로 · 가벼운 모드 */}
       <div className={s.topActions}>
+        {allowed && !user && <a href="/login" className={`${s.topBtn} ${s.glass}`}>로그인 / 가입</a>}
         <button data-music-btn className={`${s.topBtn} ${s.glass}`} aria-pressed={musicOn} onClick={toggleMusic} aria-label={musicOn ? '배경음악 끄기' : '배경음악 켜기'}>{musicOn ? '♪ 음악' : '♪ 음악 끔'}</button>
         <button className={`${s.topBtn} ${s.glass}`} aria-pressed={sfxOn} onClick={toggleSfx} aria-label={sfxOn ? '반응 소리 끄기' : '반응 소리 켜기'}>{sfxOn ? '🔊 소리' : '🔇 소리 끔'}</button>
         {!scene.embed && <button className={`${s.topBtn} ${s.glass}`} aria-pressed={lite} onClick={() => switchLite(!lite)}>{lite ? '가벼운 모드 켜짐' : '가벼운 모드'}</button>}
@@ -394,7 +402,7 @@ export default function CastlePage() {
           {next ? (<>
             <div className={s.todayTitle}>{next.class_name}</div>
             <div className={s.muted}>{next.class_date} · {next.class_time}</div>
-          </>) : <div className={s.muted}>예약한 수업이 없어요</div>}
+          </>) : <div className={s.muted}>{user ? '예약한 수업이 없어요' : '가입하고 수업을 신청하면 여기에 보여요'}</div>}
           {ticket && <div className={s.muted}>수강권 {ticket.remain}/{ticket.total}회 남음</div>}
           <button className={s.primary} onClick={() => openBooking()}>수업 예약하기</button>
           <div className={s.hr} style={{ marginTop: 6 }} />

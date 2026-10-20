@@ -83,7 +83,7 @@ export default function Farm3DPage() {
     }
     supabase.auth.getUser().then(({ data }) => {
       const u = data?.user
-      if (!u) { router.replace('/login'); return }
+      if (!u) { window.location.replace('/student/farm'); return } // 비가입자 = 냥밭 안내(가입 후 수업 신청)
       setUser(u); userRef.current = u
       setIsArtist(u.user_metadata?.role === 'artist')
       setAllowed(true)

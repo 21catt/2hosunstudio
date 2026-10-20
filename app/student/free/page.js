@@ -11,6 +11,7 @@ import GlassBg from '../../../components/GlassBg'
 import CastleHero from '../../../components/castle/CastleHero'
 import SpaceBg from '../../../components/SpaceBg'
 import { useFreshTheme, useSpaceTheme } from '../../../lib/useFreshTheme'
+import GuestGuide from '../../../components/GuestGuide'
 
 
 const DEPOSIT = { bank: '국민은행', account: '392801-04-209666', holder: '양승민 (2호선스튜디오)' }
@@ -67,6 +68,7 @@ function FreeInner() {
   const [freeCourse, setFreeCourse] = useState(null)
   const [lockedDates, setLockedDates] = useState(new Map())
   const [loading, setLoading] = useState(true)
+  const [guest, setGuest] = useState(false)
   const [depositModal, setDepositModal] = useState(null)
 
   const [year, setYear] = useState(initDate ? initDate.getFullYear() : todayY)
@@ -98,7 +100,7 @@ function FreeInner() {
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) { router.push('/login'); return }
+      if (!data.user) { setGuest(true); return } // 비가입자 = 무엇을 하는 곳인지 + 가입 안내
       setUser(data.user)
       const { data: profile } = await supabase.from('users').select('name').eq('id', data.user.id).single()
       setUserName(profile?.name || '')
@@ -243,6 +245,7 @@ function FreeInner() {
   const fresh = useFreshTheme()
   const space = useSpaceTheme()
 
+  if (guest) return <GuestGuide kind="free" />
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh' }}>
       <div style={{ fontSize:32 }}>🎨</div>

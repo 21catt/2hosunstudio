@@ -12,6 +12,7 @@ import { useFreshTheme, useSpaceTheme } from '../../../lib/useFreshTheme'
 import PalettePlanner from '../../../components/PalettePlanner'
 import { compressImage } from '../../../lib/imageCompress'
 import { pixelCatImg, DEFAULT_PROFILE_CAT, isValidPixelCat, getSavedProfileCat } from '../../../lib/pixelCats'
+import GuestGuide from '../../../components/GuestGuide'
 
 // 날짜 중심 기록 — 월 달력에서 날짜를 고르면 그날의 기록(사진·메모·강사 피드백)이 다이어리처럼 펼쳐진다.
 // 하단 입력바로 '선택한 날짜'에 바로 기록. 사진 라이트박스·색 계획·라운지 공유는 그대로.
@@ -104,6 +105,7 @@ function RecordsInner() {
   const [user, setUser] = useState(null)
   const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(true)
+  const [guest, setGuest] = useState(false)
   const [signedUrls, setSignedUrls] = useState({})
   const [catMap, setCatMap] = useState({})       // user_id → profile_cat (개인설정 프로필)
   const [nameMap, setNameMap] = useState({})     // teacher_id → 이름
@@ -147,7 +149,7 @@ function RecordsInner() {
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) { router.push('/login'); return }
+      if (!data.user) { setGuest(true); return } // 비가입자 = 무엇을 하는 곳인지 + 가입 안내
       setUser(data.user)
       loadRecords(data.user.id)
     })
@@ -392,6 +394,7 @@ function RecordsInner() {
   const fresh = useFreshTheme()
   const space = useSpaceTheme()
 
+  if (guest) return <GuestGuide kind="records" />
   if (loading) return <LoadingCat />
 
   // 달력 셀 계산 + 기록 있는 날 표시

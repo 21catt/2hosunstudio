@@ -17,6 +17,7 @@ import ColorMixGame from '../../../components/ColorMixGame'
 import ColorTetrisGame from '../../../components/ColorTetrisGame'
 import { topGameScores } from '../../../lib/gameScore'
 import { useTodayWeather } from '../../../components/WeatherBar'
+import GuestGuide from '../../../components/GuestGuide'
 
 // 테마별 픽셀 냥밭 환경 — ground는 이미지 하단 지면 픽셀 색과 동일(이음매 방지)
 const FARM_ENV = {
@@ -132,6 +133,7 @@ export default function FarmPage() {
   const [harvestAnim, setHarvestAnim] = useState(null)
   const [history, setHistory] = useState([])
   const [loading, setLoading] = useState(true)
+  const [guest, setGuest] = useState(false)
   // 하늘 구성: 구름 4개(모양 5종 중)·새 2마리 — 방향/속도/높이 랜덤, 마운트 시 1회 결정
   const [sky] = useState(() => {
     const shapes = [0, 1, 2, 3, 4].sort(() => Math.random() - 0.5)
@@ -231,7 +233,7 @@ export default function FarmPage() {
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) { router.push('/login'); return }
+      if (!data.user) { setGuest(true); return } // 비가입자 = 무엇을 하는 곳인지 + 가입 안내
       setUser(data.user)
       loadData(data.user.id).catch(e => { console.error('load failed', e); setLoading(false) })
     })
@@ -353,6 +355,7 @@ export default function FarmPage() {
 
   const space = useSpaceTheme()
 
+  if (guest) return <GuestGuide kind="farm" />
   if (loading) return <LoadingCat />
 
   return (

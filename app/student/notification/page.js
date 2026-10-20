@@ -11,6 +11,7 @@ import { NavIcon } from '../../../components/NavIcons'
 import LoadingCat from '../../../components/LoadingCat'
 import SpaceBg from '../../../components/SpaceBg'
 import { useSpaceTheme } from '../../../lib/useFreshTheme'
+import GuestGuide from '../../../components/GuestGuide'
 
 export default function StudentNotificationPage() {
   const router = useRouter()
@@ -19,11 +20,12 @@ export default function StudentNotificationPage() {
   const [bookings, setBookings] = useState([])
   const [doneClasses, setDoneClasses] = useState([])
   const [loading, setLoading] = useState(true)
+  const [guest, setGuest] = useState(false)
  const [notifs, setNotifs] = useState([])
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) { router.push('/login'); return }
+      if (!data.user) { setGuest(true); return } // 비가입자 = 무엇을 하는 곳인지 + 가입 안내
       setUser(data.user)
       loadData(data.user.id).catch(e => { console.error('load failed', e); setLoading(false) })
     })
@@ -88,6 +90,7 @@ export default function StudentNotificationPage() {
 
   const space = useSpaceTheme()
 
+  if (guest) return <GuestGuide kind="notification" />
   if (loading) return <LoadingCat />
 
   return (
