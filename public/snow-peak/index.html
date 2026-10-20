@@ -88,6 +88,12 @@ const hash = (x, y) => { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
 const vnoise = (x, y) => { const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf)
   const a = hash(xi, yi), b = hash(xi + 1, yi), c = hash(xi, yi + 1), d = hash(xi + 1, yi + 1); return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v }
 const fbm = (x, y) => vnoise(x, y) * 0.6 + vnoise(x * 2.1, y * 2.1) * 0.28 + vnoise(x * 4.3, y * 4.3) * 0.12
+// 3차원 값 잡음 — 산 위 눈 덩어리용(각도 이음매 없음)
+const hash3 = (x, y, z) => { const s = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453; return s - Math.floor(s) }
+const vnoise3 = (x, y, z) => { const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z), xf = x - xi, yf = y - yi, zf = z - zi
+  const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf), w = zf * zf * (3 - 2 * zf), L = (a, b, t) => a + (b - a) * t
+  const c = (dx, dy, dz) => hash3(xi + dx, yi + dy, zi + dz)
+  return L(L(L(c(0,0,0), c(1,0,0), u), L(c(0,1,0), c(1,1,0), u), v), L(L(c(0,0,1), c(1,0,1), u), L(c(0,1,1), c(1,1,1), u), v), w) }
 const sst = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t) }
 const col = h => new THREE.Color(h)
 
@@ -125,7 +131,14 @@ const SNOWLINE = a => 4.9 + 0.5 * Math.sin(a * 3 + 0.4) + 0.35 * Math.sin(a * 7 
 let mountain
 { const seg = 220, rings = 110, pos = [], cols = [], idx = []
   for (let j = 0; j <= rings; j++) for (let i = 0; i < seg; i++) {
-    const a = i / seg * Math.PI * 2, u = j / rings, re = edge(a), r = re * Math.pow(u, 1.55), x = Math.cos(a) * r, z = Math.sin(a) * r, y = groundH(r, a)
+    const a = i / seg * Math.PI * 2, u = j / rings, re = edge(a), r = re * Math.pow(u, 1.55), y0 = groundH(r, a)
+    let x = Math.cos(a) * r, z = Math.sin(a) * r
+    // 꼭대기로 갈수록 볼록볼록 쌓인 눈 덩어리 — 둥근 혹을 바깥으로 밀어낸다(위로 갈수록 크게)
+    const sx = Math.cos(a) * r, sz = Math.sin(a) * r
+    const lump = sst(0.38, 0.8, vnoise3(sx * 2.3, y0 * 1.5, sz * 2.3)) * 0.62 + sst(0.4, 0.82, vnoise3(sx * 4.6 + 3, y0 * 3.0 + 1, sz * 4.6)) * 0.38
+    const amp = sst(3.0, 8.2, y0) * (1 - sst(0.25, 0.62, 0.62 - r) * 0.7) * 0.34
+    const y = y0 + amp * lump * 0.35
+    if (r > 0.05) { const k = (r + amp * lump) / r; x *= k; z *= k }
     pos.push(x, y, z)
     // 색 — 뽀얀 눈이 기본. 봉우리 가운데엔 옅은 푸른 바위 줄기, 자락엔 연한 풀·마을 땅 얼룩
     const sl = SNOWLINE(a)
@@ -133,7 +146,7 @@ let mountain
     const rockBand = sst(2.4, 3.6, y) * (1 - sst(sl - 0.3, sl + 0.3, y)) * sst(0.38, 0.62, fbm(a * 5 + 3, y * 0.5))
     const rock = Math.max(rockBand * 0.9, streak * 0.75)
     const meadow = sst(0.5, 0.66, fbm(x * 0.32 + 3, z * 0.32)) * (1 - sst(1.7, 2.6, y)) * 0.55
-    const c = col('#fbfbfd').lerp(col('#d9e1d0'), meadow).lerp(col('#a8b2c7'), rock)
+    const c = col('#fbfbfd').lerp(col('#d9e1d0'), meadow).lerp(col('#a8b2c7'), rock).lerp(col('#dde3ee'), sst(3.0, 8.2, y0) * (1 - lump) * 0.5)
     cols.push(...c.toArray())
   }
   for (let j = 0; j < rings; j++) for (let i = 0; i < seg; i++) { const a = j * seg + i, b = j * seg + (i + 1) % seg, c = a + seg, d = b + seg; idx.push(a, b, d, a, d, c) }
