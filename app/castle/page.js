@@ -28,6 +28,20 @@ const CastleJellyScene = dynamic(() => import('../../components/castle/CastleStu
 
 // 카테고리 색 = 성의 색(lib/categoryStyle — 예약 패널과 한 표)
 const CAT = Object.fromEntries(Object.entries(CATEGORY_STYLE).map(([k, v]) => [k, { name: v.name, dot: v.orb, tint: v.tint, ink: v.ink }]))
+// 왼쪽 수업 아이콘 — 분류마다 3D 아이콘(public/castle-icons, 3D 홈과 같은 파스텔로 구워 둔 그림)
+// 수업이 하나뿐인 분류는 누르면 바로 수업 내용으로, 둘 이상이면 옆에 목록이 펼쳐진다. 작가 모임·자율창작은 메뉴에 두지 않는다.
+const CLASS_MENU = [
+  { key: 'drawing', label: '드로잉', title: '드로잉 수업', tint: '#fbd3e2', ring: '#f39fbe', match: c => c.category === 'drawing' && !/재봉/.test(c.name),
+    order: ['기초 드로잉', '인체 드로잉'], sub: { '기초 드로잉': '선과 형태부터', '인체 드로잉': '뼈와 근육으로 보는 몸' } },
+  { key: 'painting', label: '페인팅', title: '페인팅 수업', tint: '#e2d8fc', ring: '#b7a0ef', match: c => c.category === 'painting',
+    order: ['명암의 이해', '색채 기초', '인물화', '임정아'], sub: { '명암의 이해': '빛과 그림자', '색채 기초': '색 섞기와 배색', '인물화': '얼굴을 그리기' } },
+  { key: 'sculpture', label: '조소', title: '조소 수업', tint: '#d6e5fc', ring: '#93b8f2', match: c => c.category === 'sculpture' },
+  { key: 'sewing', label: '재봉틀', title: '재봉틀 수업', tint: '#f5e1d4', ring: '#d9a98a', match: c => /재봉/.test(c.name) },
+  { key: 'oneday', label: '원데이', title: '원데이 수업', tint: '#fdecc4', ring: '#f2c55c', match: c => c.category === 'oneday' },
+]
+const rankIn = (order, name) => { const i = (order || []).findIndex(o => name.startsWith(o)); return i < 0 ? 99 : i }
+const subOf = (m, name) => { const k = Object.keys(m.sub || {}).find(o => name.startsWith(o)); return k ? m.sub[k] : '' }
+const courseHref = name => `/student/curriculum?course=${encodeURIComponent(name)}`
 const OCTO_LIST = [['raspberry', '라즈베리', '#d81e4f'], ['blueberry', '블루베리', '#2f56e8'], ['tangerine', '귤', '#ff7a12']]
 // 젤리 문어 먹이 — 던지면 몸속에서 3시간 동안 녹는다(최대 4마리 · 배가 비고 1시간이면 꼬르륵)
 const fmtFoodLeft = ms => { const m = Math.max(1, Math.ceil(ms / 60e3)); return m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분` : `${m}분` }
@@ -134,7 +148,7 @@ export default function CastlePage() {
     const onMsg = e => {
       if (e.origin !== window.location.origin) return
       if (e.data?.scene === 'belly') { setOctoBelly(e.data); return }
-      if (e.data?.citrus === 'touch' || e.data?.scene === 'touch') { setSceneOpen(false); setPick(null) }
+      if (e.data?.citrus === 'touch' || e.data?.scene === 'touch') { setSceneOpen(false); setPick(null); setClassPick(null) }
     }
     window.addEventListener('message', onMsg)
     return () => window.removeEventListener('message', onMsg)
@@ -198,9 +212,15 @@ export default function CastlePage() {
   const [user, setUser] = useState(null)
   const [booking, setBooking] = useState(null) // null | { date } — 예약 패널
   // 수업 패널 — 장면을 가리지 않게 기본은 접힘, 펼친 상태는 기억한다
-  const [classesOpen, setClassesOpen] = useState(() => { try { return typeof window !== 'undefined' && localStorage.getItem('2hs_castle_classes') === '1' } catch { return false } })
-  function toggleClasses(on) { setClassesOpen(on); try { localStorage.setItem('2hs_castle_classes', on ? '1' : '0') } catch {} }
-  function openBooking(date) { setBooking({ date: date || ymd(new Date()) }); setPick(null); setSceneOpen(false); if (window.innerWidth <= 760) setClassesOpen(false) }
+  const [classPick, setClassPick] = useState(null) // 펼친 수업 분류(아이콘)
+  useEffect(() => {
+    if (!classPick) return
+    const off = e => { if (!e.target.closest?.('[data-class-rail]')) setClassPick(null) }
+    const esc = e => { if (e.key === 'Escape') setClassPick(null) }
+    document.addEventListener('pointerdown', off); document.addEventListener('keydown', esc)
+    return () => { document.removeEventListener('pointerdown', off); document.removeEventListener('keydown', esc) }
+  }, [classPick])
+  function openBooking(date) { setBooking({ date: date || ymd(new Date()) }); setPick(null); setSceneOpen(false); setClassPick(null) }
 
   // 관리자만 — 숨긴 미리보기
   useEffect(() => {
@@ -247,17 +267,13 @@ export default function CastlePage() {
     return out
   }, [bookings, courses])
 
-  // 수업 — 카테고리별 묶음(이름이 같은 수업은 하나로)
-  const groups = useMemo(() => {
-    const g = []
-    for (const c of courses) {
-      const cat = c.category || 'etc'
-      let grp = g.find(x => x.cat === cat)
-      if (!grp) { grp = { cat, names: [] }; g.push(grp) }
-      if (!grp.names.includes(c.name)) grp.names.push(c.name)
-    }
-    return g
-  }, [courses])
+  // 수업 — 아이콘 분류별 묶음(이름이 같은 수업은 하나로). 열린 수업이 없는 분류는 아이콘을 숨긴다
+  const classMenu = useMemo(() => CLASS_MENU.map(m => {
+    const names = []
+    for (const c of courses) if (m.match(c) && !names.includes(c.name)) names.push(c.name)
+    names.sort((a, b) => rankIn(m.order, a) - rankIn(m.order, b))
+    return { ...m, names }
+  }).filter(m => m.names.length), [courses])
 
   const next = bookings[0]
   const night = !scene.embed && look.timeOfDay > 0.7
@@ -340,31 +356,35 @@ export default function CastlePage() {
         </div>
       </section>
 
-      {/* 왼쪽(모바일 = 아래 시트) — 수업 */}
-      {!classesOpen && !booking && (
-        <button className={`${s.classesBtn} ${s.glass}`} aria-expanded={false} aria-controls="castle-classes" onClick={() => toggleClasses(true)}>
-          <span className={s.classesDots} aria-hidden="true">{groups.slice(0, 6).map(g => <span key={g.cat} style={{ background: CAT[g.cat]?.dot || '#ccc' }} />)}</span>
-          <span className={s.classesText}><b>수업 둘러보기</b><span>{groups.length ? `${groups.reduce((n, g) => n + g.names.length, 0)}개 수업 · 눌러서 펼치기` : '눌러서 펼치기'}</span></span>
-          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={s.classesChevron}><path d="M9 6l6 6-6 6" /></svg>
-        </button>
+      {/* 왼쪽 — 수업 아이콘(분류) · 둘 이상이면 옆에 목록, 하나면 바로 수업 내용으로 */}
+      {!booking && classMenu.length > 0 && (
+        <nav className={s.classRail} aria-label="수업" data-class-rail>
+          {classMenu.map(m => {
+            const open = classPick === m.key, single = m.names.length === 1
+            const tile = (<>
+              <span className={s.classTile} style={{ '--tint': m.tint, '--ring': m.ring }}><img src={`/castle-icons/${m.key}.png`} alt="" draggable={false} /></span>
+              <span className={s.classLabel}>{m.label}</span>
+            </>)
+            return (
+              <div key={m.key} className={s.classItem}>
+                {single
+                  ? <a className={s.classIco} href={courseHref(m.names[0])} aria-label={`${m.title} · ${m.names[0]}`}>{tile}</a>
+                  : <button className={s.classIco} aria-expanded={open} aria-label={m.title} onClick={() => setClassPick(open ? null : m.key)}>{tile}</button>}
+                {open && (
+                  <div className={`${s.classPop} ${s.glass}`} role="menu" aria-label={m.title}>
+                    <div className={s.classPopHead}><span className={s.catDot} style={{ background: m.ring }} />{m.title}<small>{m.names.length}개</small></div>
+                    {m.names.map(n => (
+                      <a key={n} role="menuitem" className={s.classPopItem} href={courseHref(n)}>
+                        <span><b>{n}</b>{subOf(m, n) && <small>{subOf(m, n)}</small>}</span><span aria-hidden="true">›</span>
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </nav>
       )}
-      <nav id="castle-classes" className={`${s.left} ${s.glass} ${classesOpen ? '' : s.leftClosed}`} aria-label="수업" aria-hidden={!classesOpen}>
-        <div className={s.sheetHandle} />
-        <div className={s.leftHead}>
-          <div className={s.sectionLabel}>수업</div>
-          <button className={s.foldBtn} aria-label="수업 접기" aria-expanded={true} aria-controls="castle-classes" onClick={() => toggleClasses(false)}>
-            접기
-            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6" /></svg>
-          </button>
-        </div>
-        {groups.length === 0 && <div className={s.muted} style={{ padding: '6px 8px' }}>열린 수업을 불러오는 중…</div>}
-        {groups.map(g => (
-          <div key={g.cat}>
-            <div className={s.cat}><span className={s.catDot} style={{ background: CAT[g.cat]?.dot || '#ccc' }} />{CAT[g.cat]?.name || g.cat}</div>
-            {g.names.map(n => <a key={n} className={s.course} href={`/student/curriculum?course=${encodeURIComponent(n)}`}>{n}</a>)}
-          </div>
-        ))}
-      </nav>
 
       {/* 오른쪽 — 오늘 + 장면 (모바일: 「장면」 버튼으로 펼침) */}
       <button className={`${s.sceneBtn} ${s.glass}`} aria-label={sceneOpen ? '장면 조절 닫기' : '장면 조절 열기'} aria-expanded={sceneOpen} onClick={() => setSceneOpen(v => !v)}>
