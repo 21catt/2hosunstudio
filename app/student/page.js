@@ -82,6 +82,10 @@ export default function StudentHomePage() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user || null)
+      // 3D 모드를 켜 둔 미리보기 대상은 홈으로 오면 3D 홈으로(오른쪽 위 단추로 언제든 끔)
+      const m = data.user?.user_metadata || {}
+      let mode = null; try { mode = localStorage.getItem('2hs_home_mode') } catch {}
+      if ((m.castle_beta === true || m.role === 'admin') && mode === 'castle') { window.location.replace('/castle'); return }
       if (data.user) ensureUserRow(data.user)
       loadData(data.user?.id || null).catch(e => { console.error('load failed', e); setLoading(false) })
     })
@@ -972,13 +976,15 @@ export default function StudentHomePage() {
 
       {/* 새 3D 홈 미리보기 입구 — 관리자가 미리 열어 준 학생(user_metadata.castle_beta)과 관리자에게만 */}
       {(user?.user_metadata?.castle_beta === true || user?.user_metadata?.role === 'admin') && (
-        <a href="/castle" onClick={() => { try { localStorage.setItem('2hs_home_mode', 'castle') } catch {} }}
+        <a href="/castle" aria-label="3D 모드 켜기" onClick={() => { try { localStorage.setItem('2hs_home_mode', 'castle') } catch {} }}
           style={{ position:'fixed', top:12, right:12, zIndex:60, padding:'8px 14px', borderRadius:999, fontSize:12, fontWeight:800,
             color:'#2b2433', textDecoration:'none', fontFamily:'inherit',
             background:'linear-gradient(160deg, rgba(255,255,255,0.95), rgba(255,255,255,0.55) 60%, rgba(220,210,245,0.5))',
             border:'1px solid rgba(255,255,255,0.95)', boxShadow:'inset 0 1.5px 0 #fff, 0 8px 20px rgba(43,36,51,0.18)',
             backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)' }}>
-          ✨ 새 3D 홈 미리보기
+          3D 모드 <span aria-hidden="true" style={{ display:'inline-block', width:26, height:15, borderRadius:999, background:'rgba(43,36,51,0.18)', verticalAlign:'-3px', marginLeft:5, position:'relative' }}>
+            <span style={{ position:'absolute', top:2, left:2, width:11, height:11, borderRadius:'50%', background:'#fff', boxShadow:'0 1px 3px rgba(0,0,0,0.25)' }} />
+          </span>
         </a>
       )}
 
