@@ -298,7 +298,7 @@ export default function CastlePage() {
       <link rel="stylesheet" precedence="default" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap" />
       {!ready && !fallback && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-          <LoadingCat label={scene.key === 'octopus' ? '젤리 문어를 굳히는 중…' : scene.key === 'peak' ? '눈을 쌓는 중…' : scene.embed ? '젤리를 굳히는 중…' : '젤리 성을 굳히는 중…'} />
+          <LoadingCat label={<span style={{ display: 'block', textAlign: 'center', lineHeight: 1.6 }}>잠시만 기다려주세요<br />젤리성을 불러오는 중입니다.</span>} />
         </div>
       )}
       {scene.embed ? (
