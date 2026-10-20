@@ -15,7 +15,7 @@ const B = [
 
 export default function LiquidGlassBg() {
   return (
-    <div aria-hidden style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none', overflow: 'hidden', background: '#EAE7F0' }}>
+    <div aria-hidden className="theme-bg" style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none', overflow: 'hidden', background: '#EAE7F0' }}>
       {/* 앱 열과 같은 폭·중앙 정렬 — 번짐이 항상 카드 뒤에 오도록 */}
       <div style={{ position: 'relative', width: '100%', maxWidth: 390, height: '100%', margin: '0 auto' }}>
         {B.map((b, i) => (

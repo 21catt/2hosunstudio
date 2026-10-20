@@ -1000,9 +1000,9 @@ export default function CalendarPage() {
 
         {/* 월 / 주간 보기 토글 */}
         <div style={{ display:'flex', justifyContent:'center', marginBottom:12 }}>
-          <div style={{ display:'inline-flex', background:'var(--g1)', borderRadius:20, padding:3, gap:2 }}>
+          <div className="cal-seg" style={{ display:'inline-flex', background:'var(--g1)', borderRadius:20, padding:3, gap:2 }}>
             {['month','week'].map(m => (
-              <button key={m} onClick={() => setViewMode(m)}
+              <button key={m} className={viewMode===m ? 'cal-seg-on' : ''} onClick={() => setViewMode(m)}
                 style={{ border:'none', cursor:'pointer', borderRadius:16, padding:'6px 18px', fontSize:12, fontWeight:800, fontFamily:'Nunito,sans-serif',
                   background: viewMode===m ? 'var(--ac)' : 'transparent', color: viewMode===m ? '#fff' : 'var(--tmu)' }}>
                 {m==='month' ? '월' : '주간'}
@@ -1047,7 +1047,7 @@ export default function CalendarPage() {
             const isLocked = lockedDates.has(dLockStr)
 
             return (
-              <div key={d} ref={el => cellRefs.current[d] = el} onClick={()=>handleDayClick(d)} style={{ height:52, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:isMon?'default':'pointer', borderRadius:12, opacity:isMon?0.3:(isLocked?0.6:1), position:'relative', background:isSel?'var(--ac2)':'transparent', border:isSel?'2px solid var(--ac)':'2px solid transparent' }}>
+              <div key={d} ref={el => cellRefs.current[d] = el} onClick={()=>handleDayClick(d)} className={isSel ? 'cal-day cal-day-sel' : 'cal-day'} style={{ height:52, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:isMon?'default':'pointer', borderRadius:12, opacity:isMon?0.3:(isLocked?0.6:1), position:'relative', background:isSel?'var(--ac2)':'transparent', border:isSel?'2px solid var(--ac)':'2px solid transparent' }}>
                 {isT && todayWeather && (
                   <div style={{ position:'absolute', top:-2, left:'50%', transform:'translateX(-50%)', fontSize:13, zIndex:1 }}>{todayWeather.icon}</div>
                 )}

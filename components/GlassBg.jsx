@@ -10,7 +10,7 @@ const B = [
 
 export default function GlassBg() {
   return (
-    <div aria-hidden style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none', overflow: 'hidden', background: '#dfeaf2' }}>
+    <div aria-hidden className="theme-bg" style={{ position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none', overflow: 'hidden', background: '#dfeaf2' }}>
       {B.map((b, i) => (
         <div key={i} style={{ position: 'absolute', top: b.top, bottom: b.bottom, left: b.left, right: b.right, width: b.size, height: b.size, borderRadius: '50%', background: `radial-gradient(circle, ${b.c}, transparent 65%)`, filter: `blur(${b.blur}px)` }} />
       ))}

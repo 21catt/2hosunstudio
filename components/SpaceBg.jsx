@@ -25,7 +25,7 @@ const STARS = Array.from({ length: 76 }, () => {
 
 export default function SpaceBg() {
   return (
-    <div aria-hidden style={{ position: 'fixed', inset: 0, zIndex: -1, overflow: 'hidden', pointerEvents: 'none' }}>
+    <div aria-hidden className="theme-bg" style={{ position: 'fixed', inset: 0, zIndex: -1, overflow: 'hidden', pointerEvents: 'none' }}>
       <style>{`
         @keyframes spTwinkle{0%,100%{opacity:var(--b);transform:scale(1)}50%{opacity:calc(var(--b)*0.22);transform:scale(0.6)}}
         @keyframes spDrift{from{transform:translateY(0)}to{transform:translateY(-16px)}}
