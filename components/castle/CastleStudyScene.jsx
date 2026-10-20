@@ -298,7 +298,7 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
     }
 
     // ───────────────────────── jelly lake (refraction) ─────────────────────────
-    const h = new Float32Array(N * N), v = new Float32Array(N * N), solid = new Uint8Array(N * N), foam = new Float32Array(N * N)
+    const h = new Float32Array(N * N), v = new Float32Array(N * N), solid = new Uint8Array(N * N), foam = new Float32Array(N * N), wakeFoam = new Float32Array(N * N) // 배 뒤 물보라 = 따로, 빨리 사라진다
     for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) solid[r * N + c] = inPlateau(-HALF + c * CELL, -HALF + r * CELL) ? 1 : 0
     const jellyMat = new THREE.MeshPhysicalMaterial({
       color: FLAVOURS.glacier.tint, transmission: 1, thickness: 1.1, ior: 1.33, roughness: 0.05,
@@ -345,12 +345,12 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
         h[i] += amt * Math.exp(-((r - rr) ** 2 + (c - cc) ** 2) / (rad * rad))
       }
     }
-    function addFoam(x, z, amt, rad = 1.5) {
+    function addFoam(x, z, amt, rad = 1.5, buf = foam) {
       const cc = gx(x), rr = gz(z), R = Math.ceil(rad * 1.8)
       for (let r = rr - R; r <= rr + R; r++) for (let c = cc - R; c <= cc + R; c++) {
         if (r < 0 || c < 0 || r >= N || c >= N) continue
         const i = r * N + c; if (solid[i]) continue
-        foam[i] = Math.min(1, foam[i] + amt * Math.exp(-((r - rr) ** 2 + (c - cc) ** 2) / (rad * rad)))
+        buf[i] = Math.min(1, buf[i] + amt * Math.exp(-((r - rr) ** 2 + (c - cc) ** 2) / (rad * rad)))
       }
     }
     function sampleH(x, z) {
@@ -768,7 +768,7 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
       } else {
         // drag = 손가락 쪽으로 감쇠 용수철 · free = 놓은 자리까지 미끄러져 멈춤 · back = 제 길 가장 가까운 점으로 천천히
         let K = 0, D = 1.6, vmax = 2.4
-        if (shipMode === 'drag') { K = 34; D = 10 }
+        if (shipMode === 'drag') { K = 110; D = 19; vmax = 5 }
         else if (shipMode === 'free') {
           // 손을 뗀 자리까지 미끄러져 가서 멈춘다. 멈춘 뒤 7초 가만두면 제 길로
           K = 7; D = 4.5
@@ -805,16 +805,18 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
       ship.rotation.z = Math.sin(time * 1.5) * 0.035 + (sampleH(nx + 0.15, nz) - sampleH(nx - 0.15, nz)) * 2 - Math.max(-0.25, Math.min(0.25, shipTurn * speed * 0.18))
       ship.rotation.x = (sampleH(nx, nz + 0.15) - sampleH(nx, nz - 0.15)) * 1.5 - Math.min(0.08, speed * 0.03)
       // 물결 — 빠를수록 뱃머리 물결이 크고 촘촘하고, 뒤로 V 자 물결과 하얀 거품 꼬리가 길어진다
-      const sp = Math.min(1, speed / 1.6)
+      const sp = Math.min(1, speed / 2.2)
       const f = fwd(), side = new THREE.Vector3(-f.z, 0, f.x)
-      if (speed > 0.03) addFoam(nx - f.x * 0.45, nz - f.z * 0.45, 0.06 + sp * 0.5, 1.2 + sp * 0.8)
+      if (speed > 0.03) addFoam(nx - f.x * 0.45, nz - f.z * 0.45, 0.05 + sp * 0.35, 1.1 + sp * 0.6, wakeFoam)
       wakeT -= dt
       if (wakeT <= 0 && speed > 0.03) {
-        wakeT = 0.12 - sp * 0.08
-        bump(nx + f.x * 0.4, nz + f.z * 0.4, 0.006 + sp * 0.05, 1.4 + sp * 0.8)
+        wakeT = 0.1 - sp * 0.07
+        // 입체 물결을 세게 — 뱃머리가 물을 들어 올리고 바로 뒤가 꺼진다
+        bump(nx + f.x * 0.4, nz + f.z * 0.4, 0.014 + sp * 0.13, 1.5 + sp * 1.0)
+        if (sp > 0.08) bump(nx - f.x * 0.35, nz - f.z * 0.35, -(0.01 + sp * 0.09), 1.6 + sp * 0.8)
         if (sp > 0.12) for (const sgn of [-1, 1]) {
           const bx = nx - f.x * 0.3 + side.x * sgn * (0.22 + sp * 0.12), bz = nz - f.z * 0.3 + side.z * sgn * (0.22 + sp * 0.12)
-          bump(bx, bz, -0.03 * sp, 1.3); addFoam(bx, bz, 0.12 * sp, 1)
+          bump(bx, bz, -0.075 * sp, 1.5); addFoam(bx, bz, 0.09 * sp, 0.9, wakeFoam)
         }
       }
     }
@@ -841,7 +843,8 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
       addFoam(IMPACT.x + 0.05 + Math.random() * 0.5, IMPACT.z + (Math.random() - 0.5) * 0.6, 0.015 + flow * 0.035, 1.3)
       // galleon — laps by itself, or follows a finger on the water; the wake grows with its speed
       shipStep(dt)
-      for (let i = 0; i < N * N; i++) foam[i] = foam[i] > 0.003 ? foam[i] * 0.9965 : 0
+      const wk = Math.exp(-dt * 2.6) // 배 물보라 반감 ≈ 0.27초
+      for (let i = 0; i < N * N; i++) { foam[i] = foam[i] > 0.003 ? foam[i] * 0.9965 : 0; wakeFoam[i] = wakeFoam[i] > 0.003 ? wakeFoam[i] * wk : 0 }
       simStep(0.996 - S.damp * 0.03)
       // falling water particles along the ribbon
       const active = Math.floor(fallP.n * (0.12 + flow * 0.88))
@@ -969,7 +972,7 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
       foamGeo.attributes.position.needsUpdate = true
       for (let k = 0; k < wallTop.length; k += 2) wp[wallTop[k] * 3 + 1] = solid[wallTop[k + 1]] ? 0 : h[wallTop[k + 1]]
       wallGeo.attributes.position.needsUpdate = true
-      for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) { const i = r * N + c, o = ((N - 1 - r) * N + c) * 4, f = Math.round(foam[i] * 255); foamData[o] = foamData[o + 1] = foamData[o + 2] = f; foamData[o + 3] = 255 }
+      for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) { const i = r * N + c, o = ((N - 1 - r) * N + c) * 4, f = Math.round(Math.max(foam[i], wakeFoam[i]) * 255); foamData[o] = foamData[o + 1] = foamData[o + 2] = f; foamData[o + 3] = 255 }
       foamTex.needsUpdate = true
       // caustics: procedural net + light gathered by the wave lenses
       const tc = time * 0.5

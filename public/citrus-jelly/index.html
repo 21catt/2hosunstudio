@@ -967,6 +967,7 @@ async function main() {
   }
   let dragPlane = null
   canvas.addEventListener('pointerdown', e => {
+    if (EMBED && window.parent !== window) { try { window.parent.postMessage({ citrus: 'touch' }, location.origin) } catch {} }
     const ray = rayFrom(e.clientX, e.clientY)
     const h = pick(ray)
     if (!h) return
@@ -1036,6 +1037,8 @@ async function main() {
   addEventListener('message', e => {
     const d = e.data || {}
     if (VARIETIES[d.variety]) variety = d.variety
+    if (Number.isFinite(d.firm)) { settings.firm = Math.max(0, Math.min(1, d.firm)); $('firm').value = Math.round(settings.firm * 100); $('firmV').textContent = $('firm').value }
+    if (Number.isFinite(d.damp)) { settings.damp = Math.max(0, Math.min(1, d.damp)); $('damp').value = Math.round(settings.damp * 100); $('dampV').textContent = $('damp').value }
     if (d.cmd === 'nudge') nudge(); else if (d.cmd === 'reset') resetSim(false)
   })
 

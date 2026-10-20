@@ -84,7 +84,16 @@ export default function CastlePage() {
   // 3D 배경 — 설정과 같은 값(lib/castleScenes). 출석 4·8·12·16회마다 하나씩 열린다
   const [bgScene, setBgScene] = useState('jelly')
   const [attended, setAttended] = useState(0)
-  const [citrusVariety, setCitrusVariety] = useState('orange')
+  // 시트러스 젤리 세부 설정(품종·흐물거림·내부 감쇠) — 이 기기에 기억, 젤리가 뜨면 그대로 보낸다
+  const [citrus, setCitrus] = useState(() => {
+    const d = { variety: 'orange', firm: 0.5, damp: 0.35 }
+    try { return { ...d, ...(JSON.parse(localStorage.getItem('2hs_citrus') || 'null') || {}) } } catch { return d }
+  })
+  const citrusVariety = citrus.variety
+  function setCitrusOpt(patch) {
+    setCitrus(c => { const n = { ...c, ...patch }; try { localStorage.setItem('2hs_citrus', JSON.stringify(n)) } catch {}; return n })
+    toFrame(patch)
+  }
   const frameRef = useRef(null)
   useEffect(() => { setBgScene(getSavedScene()) }, [])
   const scene = sceneOf(bgScene)
@@ -94,6 +103,12 @@ export default function CastlePage() {
     setBgScene(key); saveSceneLocal(key); setReady(false); setFallback(null); setPick(null)
     if (user?.id) supabase.from('user_prefs').upsert({ user_id: user.id, castle_scene: key }).then(() => {}, () => {})
   }
+  // 젤리(iframe) 안을 누르면 이 화면엔 누른 소식이 안 온다 — 젤리가 알려 주면 장면 패널을 닫는다
+  useEffect(() => {
+    const onMsg = e => { if (e.origin === window.location.origin && e.data?.citrus === 'touch') { setSceneOpen(false); setPick(null) } }
+    window.addEventListener('message', onMsg)
+    return () => window.removeEventListener('message', onMsg)
+  }, [])
   const toFrame = msg => { try { frameRef.current?.contentWindow?.postMessage(msg, window.location.origin) } catch {} }
   const [fallback, setFallback] = useState(null) // 'nowebgl' | 'lost' | 'slow'
   const [lite, setLite] = useState(() => { try { return typeof window !== 'undefined' && localStorage.getItem('2hs_castle_lite') === '1' } catch { return false } })
@@ -199,11 +214,13 @@ export default function CastlePage() {
       {scene.embed ? (
         // 한 파일로 만든 장면(시트러스 젤리 등) — 자기 화면 글자는 숨기고(?embed=1) 장면만 뒤에 깐다. 잡아 늘리기는 그 안에서 그대로
         <iframe ref={frameRef} key={scene.key} src={scene.embed} title={`3D 배경 · ${scene.name}`} className={s.sceneFrame}
-          onLoad={() => { setReady(true); toFrame({ variety: citrusVariety }) }} />
+          onLoad={() => { setReady(true); toFrame(citrus) }} />
       ) : (
-        <CastleJellyScene key={sceneKey} lite={lite} settingsRef={settingsRef} commandRef={commandRef} onReady={() => setReady(true)}
-          onFallback={reason => { setReady(true); setFallback(reason) }}
-          onPick={(kind, x, y) => setPick(PICK_LINK[kind] ? { ...PICK_LINK[kind], x, y } : null)} />
+        <div style={{ position: 'absolute', inset: 0 }} onPointerDownCapture={() => setSceneOpen(false)}>
+          <CastleJellyScene key={sceneKey} lite={lite} settingsRef={settingsRef} commandRef={commandRef} onReady={() => setReady(true)}
+            onFallback={reason => { setReady(true); setFallback(reason) }}
+            onPick={(kind, x, y) => setPick(PICK_LINK[kind] ? { ...PICK_LINK[kind], x, y } : null)} />
+        </div>
       )}
 
       <div className={s.badge}>{isAdmin ? '미리보기 · 관리자와 미리보기 학생에게만 보여요' : '새 홈 미리보기 · 의견을 들려주세요'}</div>
@@ -311,11 +328,17 @@ export default function CastlePage() {
         <div className={s.row} style={{ flexWrap: 'wrap' }}>
           {CITRUS_LIST.map(([id, label, c]) => (
             <button key={id} className={`${s.chip} ${s.glass} ${citrusVariety === id ? s.chipOn : ''}`} aria-pressed={citrusVariety === id}
-              onClick={() => { setCitrusVariety(id); toFrame({ variety: id }) }}>
+              onClick={() => setCitrusOpt({ variety: id })}>
               <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 4, background: c, marginRight: 5 }} />{label}
             </button>
           ))}
         </div>
+        <label className={s.slider}>흐물거림 ↔ 단단함
+          <input type="range" min="0" max="1" step="0.01" value={citrus.firm} onChange={e => setCitrusOpt({ firm: +e.target.value })} style={{ accentColor: '#f5a04a' }} />
+        </label>
+        <label className={s.slider}>출렁임 잦아듦(내부 감쇠)
+          <input type="range" min="0" max="1" step="0.01" value={citrus.damp} onChange={e => setCitrusOpt({ damp: +e.target.value })} style={{ accentColor: '#9be3c4' }} />
+        </label>
         <div className={s.row}>
           <button className={`${s.chip} ${s.glass}`} onClick={() => toFrame({ cmd: 'nudge' })}>살짝 튕기기</button>
           <button className={`${s.chip} ${s.glass}`} onClick={() => toFrame({ cmd: 'reset' })}>제자리로</button>
