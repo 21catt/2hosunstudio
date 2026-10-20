@@ -16,10 +16,10 @@ import { useSpaceTheme } from '../../../lib/useFreshTheme'
 import SpaceBg from '../../../components/SpaceBg'
 
 const DAYS = ['일','월','화','수','목','금','토']
-const CATS = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', oneday:'원데이', free:'자율창작', meeting:'모임' }
-const CAT_ICON = { drawing:'pencil', painting:'palette', sculpture:'box', oneday:'calendar', free:'photo', meeting:'users' }
-const CAT_COLORS = { drawing:'#e8f5e0', painting:'#EDE7F6', sculpture:'#FFF3E0', oneday:'#FCE4EC', free:'#E3F2FD', meeting:'#FFF8E1' }
-const CAT_TEXT = { drawing:'var(--g5)', painting:'#4A148C', sculpture:'#E65100', oneday:'#AD1457', free:'#0D47A1', meeting:'#F57F17' }
+const CATS = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', oneday:'원데이', etc:'기타 수업', free:'자율창작', meeting:'모임' }
+const CAT_ICON = { drawing:'pencil', painting:'palette', sculpture:'box', oneday:'calendar', etc:'palette', free:'photo', meeting:'users' }
+const CAT_COLORS = { drawing:'#e8f5e0', painting:'#EDE7F6', sculpture:'#FFF3E0', oneday:'#FCE4EC', etc:'#FBE9E1', free:'#E3F2FD', meeting:'#FFF8E1' }
+const CAT_TEXT = { drawing:'var(--g5)', painting:'#4A148C', sculpture:'#E65100', oneday:'#AD1457', etc:'#8D4A2B', free:'#0D47A1', meeting:'#F57F17' }
 // 자유 입력 시간 정규화 — "1030"·"10:30"·"9:5" 등을 "10:30"/"09:05"로. 실패 시 null.
 function parseTime(v) {
   const s = String(v || '').trim().replace(/[.;]/g, ':')
@@ -633,8 +633,8 @@ function changeMonth(delta) {
   setExpanded(null)
 }
 // 카테고리 순(드로잉→페인팅→조소→자율창작→모임) — 달력 하단 목록·목록 뷰 모두 이 순서
-// 원데이는 특정 강사 배정 과목이 아니라 스튜디오 공통 → 모임처럼 항상 관리 목록에 포함
-const myCourses = sortCoursesByCategory(courses.filter(c => c.category === 'meeting' || c.category === 'oneday' || adminCats.includes(c.category)))
+// 원데이·기타 수업은 특정 강사 배정 과목이 아니라 스튜디오 공통 → 모임처럼 항상 관리 목록에 포함
+const myCourses = sortCoursesByCategory(courses.filter(c => c.category === 'meeting' || c.category === 'oneday' || c.category === 'etc' || adminCats.includes(c.category)))
 
   // 특정 날짜에 열리는 수업
   function getCoursesForDay(day) {

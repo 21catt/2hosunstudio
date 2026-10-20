@@ -17,8 +17,8 @@ const ACCENT_TEXT = 'var(--acTx)'
 const CARD = 'var(--card)'
 const BORDER = 'var(--line)'
 
-const CAT_LABEL = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', oneday:'원데이', free:'자율창작', meeting:'모임' }
-const CAT_ORDER = ['drawing', 'painting', 'sculpture', 'oneday', 'free', 'meeting']
+const CAT_LABEL = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', oneday:'원데이', etc:'기타 수업', free:'자율창작', meeting:'모임' }
+const CAT_ORDER = ['drawing', 'painting', 'sculpture', 'oneday', 'etc', 'free', 'meeting']
 
 // 해당 수업만의 주간 시간표 — 수업이 있는 요일만 행으로(요일 배지 + 시작~종료 시간 칩)
 // ─────────────────────────────────────────────

@@ -92,10 +92,15 @@ export default function AdminTeachersPage() {
     setCourses(prev => prev.map(c => c.id === course.id ? { ...c, co_teacher_ids: next } : c))
   }
 
+  // 주담당 지정 = 담당 기록(teacher_id)과 학생 화면에 나오는 이름(teacher)을 함께 바꾼다.
+  //   예전엔 teacher_id 만 바뀌어 학생 화면·예약·알림에는 옛 강사 이름이 계속 나왔다.
+  //   해제(teacherId 없음)할 때는 이름 칸을 비우지 않는다 — 수업 수정 화면에서 직접 고칠 수 있게.
   async function setCourseTeacher(courseId, teacherId) {
-    const { error } = await supabase.from('class_courses').update({ teacher_id: teacherId }).eq('id', courseId)
+    const name = teacherId ? (teachers.find(t => t.id === teacherId)?.name || '') : null
+    const patch = name ? { teacher_id: teacherId, teacher: name } : { teacher_id: teacherId }
+    const { error } = await supabase.from('class_courses').update(patch).eq('id', courseId)
     if (error) { alert('저장 실패: ' + error.message); return }
-    setCourses(prev => prev.map(c => c.id === courseId ? { ...c, teacher_id: teacherId } : c))
+    setCourses(prev => prev.map(c => c.id === courseId ? { ...c, ...patch } : c))
   }
 
   // 타임별 담당 지정/해제 (비우면 수업 담당을 따름)

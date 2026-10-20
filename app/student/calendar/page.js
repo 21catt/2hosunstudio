@@ -21,10 +21,10 @@ import GlassBg from '../../../components/GlassBg'
 import SpaceBg from '../../../components/SpaceBg'
 import { useFreshTheme, useSpaceTheme } from '../../../lib/useFreshTheme'
 
-const CAT_ICON = { drawing:'pencil', painting:'palette', sculpture:'box', oneday:'calendar', free:'photo', meeting:'users' }
-const CAT_NAME = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', oneday:'원데이', free:'자율창작', meeting:'모임' }
-const CAT_COLOR = { drawing:'#e8f5e0', painting:'#EDE7F6', sculpture:'#FFF3E0', free:'#E3F2FD', meeting:'#FFF8E1' }
-const CAT_TEXT = { drawing:'var(--g5)', painting:'#4A148C', sculpture:'#E65100', oneday:'#AD1457', free:'#0D47A1', meeting:'#F57F17' }
+const CAT_ICON = { drawing:'pencil', painting:'palette', sculpture:'box', oneday:'calendar', etc:'palette', free:'photo', meeting:'users' }
+const CAT_NAME = { drawing:'드로잉', painting:'페인팅', sculpture:'조소', oneday:'원데이', etc:'기타 수업', free:'자율창작', meeting:'모임' }
+const CAT_COLOR = { drawing:'#e8f5e0', painting:'#EDE7F6', sculpture:'#FFF3E0', etc:'#FBE9E1', free:'#E3F2FD', meeting:'#FFF8E1' }
+const CAT_TEXT = { drawing:'var(--g5)', painting:'#4A148C', sculpture:'#E65100', oneday:'#AD1457', etc:'#8D4A2B', free:'#0D47A1', meeting:'#F57F17' }
 
 const DEPOSIT = { bank: '국민은행', account: '392801-04-209666', holder: '양승민 (2호선스튜디오)' }
 
