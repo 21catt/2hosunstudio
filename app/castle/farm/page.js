@@ -210,6 +210,7 @@ export default function Farm3DPage() {
     if (kind === 'shed') return setShedOpen(true)
     if (kind === 'cat') return showTag(`${activeCat.name} · 오늘도 밭일 중`, x, y)
     if (kind === 'cloud') return showTag('비가 와요 (꾸밈 · 작물은 출석으로 자라요)', x, y)
+    if (kind === 'sun') return showTag(night ? '달빛이 번져요' : '햇살이 번져요 ☀️', x, y)
   }
 
   // 잡초 500개 → 운영진 알림(선물을 건네는 쪽이 스튜디오다). 보상 플래그가 처음 켜질 때 한 번만.

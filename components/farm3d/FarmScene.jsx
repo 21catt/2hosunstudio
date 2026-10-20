@@ -9,7 +9,7 @@
 //   weeds   [{ id, stage, removable, x, y }] — x·y = 기존 냥밭의 % 좌표(같은 상태를 그대로 섬 위 자리로 옮긴다)
 //   night   밤 장면
 //   rainKey 바뀔 때마다 비(꾸밈 — 작물 성장은 출석으로만)
-//   onPick(kind, data, clientX, clientY) — kind = 'plot' | 'weed' | 'cat' | 'shed' | 'cloud'
+//   onPick(kind, data, clientX, clientY) — kind = 'plot' | 'weed' | 'cat' | 'shed' | 'cloud' | 'sun'
 //   onFail() — 3D 를 그릴 수 없는 기기
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
@@ -258,13 +258,38 @@ export default function FarmScene(props) {
     // ── 구름·비(꾸밈) ──
     const clouds = []
     const cloudMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, transparent: true, opacity: 0.94 })
-    for (const [x, z, s] of [[-1.4, -0.4, 1], [1.6, 1.2, 0.8]]) {
+    for (const [x, z, s, y] of [[-1.4, -0.4, 1, 3.0], [1.6, 1.2, 0.8, 3.2], [3.4, -1.8, 0.7, 3.5], [-3.2, 1.9, 0.9, 2.8], [0.2, -3.0, 0.6, 3.7]]) {
       const g = new THREE.Group()
       for (const [dx, dy, r] of [[0, 0, 0.42], [0.42, -0.06, 0.32], [-0.4, -0.08, 0.3], [0.15, 0.2, 0.3]]) {
         const b = new THREE.Mesh(new THREE.SphereGeometry(r, 18, 14), cloudMat); b.position.set(dx, dy, 0); g.add(b); pickable(b, 'cloud')
       }
-      g.position.set(x, 3.0, z); g.scale.setScalar(s); g.userData.base = { x, z, ph: Math.random() * 6 }; scene.add(g); clouds.push(g)
+      g.position.set(x, y, z); g.scale.setScalar(s); g.userData.base = { x, y, z, ph: Math.random() * 6, v: 0.18 + Math.random() * 0.14 }; scene.add(g); clouds.push(g)
     }
+    // ── 해 ──
+    const glowTex = (rays) => {
+      const c = document.createElement('canvas'); c.width = c.height = 256
+      const x = c.getContext('2d')
+      if (!rays) {
+        const gr = x.createRadialGradient(128, 128, 0, 128, 128, 128)
+        gr.addColorStop(0, 'rgba(255,240,190,1)'); gr.addColorStop(0.25, 'rgba(255,214,130,0.55)'); gr.addColorStop(1, 'rgba(255,200,120,0)')
+        x.fillStyle = gr; x.fillRect(0, 0, 256, 256)
+      } else {
+        x.translate(128, 128)
+        for (let i = 0; i < 12; i++) {
+          x.rotate(Math.PI / 6)
+          const gr = x.createLinearGradient(0, 0, 0, -128); gr.addColorStop(0, 'rgba(255,235,170,0.9)'); gr.addColorStop(1, 'rgba(255,220,150,0)')
+          x.fillStyle = gr; x.beginPath(); x.moveTo(-7, 0); x.lineTo(0, -128); x.lineTo(7, 0); x.fill()
+        }
+      }
+      const tx = new THREE.CanvasTexture(c); tx.colorSpace = THREE.SRGBColorSpace; return tx
+    }
+    const spriteMat = (map) => new THREE.SpriteMaterial({ map, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending })
+    const sunDisc = pickable(new THREE.Mesh(new THREE.SphereGeometry(0.55, 24, 18), new THREE.MeshBasicMaterial({ color: 0xffd36b, toneMapped: false })), 'sun')
+    const sunHalo = new THREE.Sprite(spriteMat(glowTex(false))), sunRays = new THREE.Sprite(spriteMat(glowTex(true)))
+    sunDisc.renderOrder = 2; sunHalo.renderOrder = 1; sunRays.renderOrder = 0
+    sunDisc.add(sunHalo, sunRays); scene.add(sunDisc)
+    const sunScreen = new THREE.Vector3()
+    let sunGlow = 0
     const DROPS = 320
     const rain = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.008, 0.008, 0.16, 3),
       new THREE.MeshBasicMaterial({ color: 0x8fb8f0, transparent: true, opacity: 0.75 }), DROPS)
@@ -310,6 +335,7 @@ export default function FarmScene(props) {
       const { kind, ...data } = hit.object.userData
       if (kind === 'cloud') startRain()
       if (kind === 'cat') catSprite.userData.hop = 1
+      if (kind === 'sun') sunGlow = 1
       propsRef.current.onPick?.(kind, data, e.clientX, e.clientY)
     }
     const onMove = e => { renderer.domElement.style.cursor = hitAt(e) ? 'pointer' : 'grab' }
@@ -350,7 +376,29 @@ export default function FarmScene(props) {
           tmpM.makeTranslation(d.x, d.y, d.z); rain.setMatrixAt(i, tmpM) })
         rain.instanceMatrix.needsUpdate = true
       }
-      for (const g of clouds) { const b = g.userData.base; g.position.x = b.x + Math.sin(t * 0.25 + b.ph) * 0.7; g.position.y = 3 + Math.sin(t * 0.6 + b.ph) * 0.08 }
+      // 구름 = 바람 따라 섬 위를 천천히 흘러가고, 끝까지 가면 반대편에서 다시 들어온다
+      for (const g of clouds) {
+        const b = g.userData.base
+        if (!reduce) { b.x += b.v * dt; if (b.x > 5.2) b.x = -5.2 }
+        g.position.x = b.x; g.position.z = b.z + Math.sin(t * 0.2 + b.ph) * 0.25
+        g.position.y = b.y + Math.sin(t * 0.6 + b.ph) * 0.08
+        // 섬 가장자리 밖에선 옅어진다(갑자기 사라지지 않게)
+        const fade = Math.max(0, Math.min(1, (5.2 - Math.abs(b.x)) / 1.4))
+        g.children.forEach(m => { m.visible = fade > 0.02 })
+        g.scale.setScalar(g.userData.s0 ?? (g.userData.s0 = g.scale.x)); g.scale.multiplyScalar(0.6 + 0.4 * fade)
+      }
+      // 해(밤엔 달) — 화면 오른쪽 위(단추 아래)에 늘 떠 있다. 누르면 빛이 번진다
+      sunGlow = Math.max(0, sunGlow - dt * 0.55)
+      sunDisc.position.copy(sunScreen.set(camera.aspect < 1 ? 0.5 : 0.7, camera.aspect < 1 ? 0.6 : 0.62, 0.5).unproject(camera)).sub(camera.position).setLength(16).add(camera.position)
+      const g2 = sunGlow * sunGlow
+      sunDisc.material.color.setRGB(1, 0.86 - nightMix * 0.02 + g2 * 0.1, 0.42 + nightMix * 0.5 + g2 * 0.3)
+      sunDisc.scale.setScalar((1 - nightMix * 0.25) * (1 + Math.sin(sunGlow * Math.PI) * 0.18))
+      sunHalo.material.opacity = (0.55 - nightMix * 0.3) + g2 * 0.45 + Math.sin(t * 1.3) * 0.04
+      sunHalo.scale.setScalar((2.6 + g2 * 4.5) * (1 - nightMix * 0.3))
+      sunRays.material.opacity = (0.35 - nightMix * 0.3) + g2 * 0.6
+      sunRays.material.rotation = reduce ? 0 : t * 0.08 + sunGlow * 1.2
+      sunRays.scale.setScalar(3.4 + g2 * 6)
+      sun.intensity += g2 * 1.4; hemi.intensity += g2 * 0.6
 
       // 냥이 — 밭 사이를 오가며 일한다
       const to = catGoal.clone().sub(cat.position); to.y = 0
