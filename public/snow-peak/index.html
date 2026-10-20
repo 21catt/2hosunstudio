@@ -46,9 +46,9 @@
   <div class="cap">Weather &amp; rails</div>
   <label class="sl">Snowfall <input id="snow" type="range" min="0" max="1" step="0.01" value="0.6"></label>
   <label class="sl">Train speed <input id="speed" type="range" min="0" max="1" step="0.01" value="0.45"></label>
-  <div class="btns"><button id="whistle">Whistle</button><button id="pause">Pause</button><button id="reset">Reset</button></div>
+  <div class="btns"><button id="gift">Gifts</button><button id="whistle">Whistle</button><button id="pause">Pause</button><button id="reset">Reset</button></div>
 </div>
-<div class="notes">Drag to turn the island · pinch or scroll to zoom · tap the train, a house, a pine or the mountain.</div>
+<div class="notes">Drag to turn the island · drag Santa's sleigh to steer it, tap it for gifts · tap the train, a house, a pine or the mountain.</div>
 <div class="fail" id="fail">이 기기에서는 3D 장면을 그릴 수 없어요.</div>
 <script type="module">
 import * as THREE from 'three'
@@ -135,9 +135,11 @@ let mountain
     let x = Math.cos(a) * r, z = Math.sin(a) * r
     // 꼭대기로 갈수록 볼록볼록 쌓인 눈 덩어리 — 둥근 혹을 바깥으로 밀어낸다(위로 갈수록 크게)
     const sx = Math.cos(a) * r, sz = Math.sin(a) * r
-    const lump = sst(0.38, 0.8, vnoise3(sx * 2.3, y0 * 1.5, sz * 2.3)) * 0.62 + sst(0.4, 0.82, vnoise3(sx * 4.6 + 3, y0 * 3.0 + 1, sz * 4.6)) * 0.38
-    const amp = sst(3.0, 8.2, y0) * (1 - sst(0.25, 0.62, 0.62 - r) * 0.7) * 0.34
-    const y = y0 + amp * lump * 0.35
+    const lump = sst(0.32, 0.86, vnoise3(sx * 1.6, y0 * 1.05, sz * 1.6)) * 0.72 + sst(0.38, 0.84, vnoise3(sx * 3.4 + 3, y0 * 2.2 + 1, sz * 3.4)) * 0.28
+    const amp = sst(2.6, 7.4, y0) * sst(0.5, 2.0, r) * 0.5   // 위로 갈수록 크게 — 다만 봉우리가 가늘어지는 곳에선 작게(삐뚤어지지 않게)
+    const nearTrack = 1 - sst(0.45, 1.0, Math.abs(r - trackR(a)))
+    const pillow = sst(0.4, 0.85, vnoise3(sx * 0.9 + 7, 0.5, sz * 0.9)) * (1 - sst(2.4, 3.4, y0)) * (1 - nearTrack) * sst(3.4, 4.2, r) * 0.13  // 자락의 소복한 둔덕
+    const y = y0 + amp * lump * 0.5 + pillow
     if (r > 0.05) { const k = (r + amp * lump) / r; x *= k; z *= k }
     pos.push(x, y, z)
     // 색 — 뽀얀 눈이 기본. 봉우리 가운데엔 옅은 푸른 바위 줄기, 자락엔 연한 풀·마을 땅 얼룩
@@ -204,6 +206,10 @@ function house(x, z, rot, wall, sc) {
   const roofShape = new THREE.Shape(); roofShape.moveTo(-w / 2 - 0.08, 0); roofShape.lineTo(0, 0.4); roofShape.lineTo(w / 2 + 0.08, 0); roofShape.lineTo(-w / 2 - 0.08, 0)
   const roof = new THREE.Mesh(new THREE.ExtrudeGeometry(roofShape, { depth: d + 0.16, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.03, bevelSegments: 2 }), new THREE.MeshStandardMaterial({ color: '#fdfdfe', roughness: 0.75 }))
   roof.position.set(0, h, -(d + 0.16) / 2); roof.castShadow = true; g.add(roof)
+  const snowMat = new THREE.MeshStandardMaterial({ color: '#fdfdff', roughness: 0.7 })
+  const ridge = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 10), snowMat); ridge.scale.set(w * 0.42, 0.1, (d + 0.2) * 0.56); ridge.position.y = h + 0.37; ridge.castShadow = true; g.add(ridge)
+  for (const zz of [-(d + 0.16) / 2 - 0.01, (d + 0.16) / 2 + 0.01]) { const roll = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, w + 0.06, 4, 10), snowMat); roll.rotation.z = Math.PI / 2; roll.position.set(0, h + 0.2, zz); roll.scale.set(1, 1, 0.8); g.add(roll) }
+  for (const sx of [-1, 1]) { const side = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, d + 0.1, 4, 10), snowMat); side.rotation.x = Math.PI / 2; side.position.set(sx * (w / 2 + 0.06), h + 0.03, 0); g.add(side) }
   const eave = new THREE.Mesh(new THREE.BoxGeometry(w + 0.2, 0.05, d + 0.18), new THREE.MeshStandardMaterial({ color: hash(x, 5) > 0.5 ? '#9a4a3c' : '#5f6f8a' })); eave.position.y = h + 0.01; g.add(eave)
   const winMat = new THREE.MeshStandardMaterial({ color: '#ffd98a', emissive: '#ffb04a', emissiveIntensity: 0.9 })
   for (const sx of [-w / 4, w / 4]) { const win = new THREE.Mesh(new THREE.PlaneGeometry(0.13, 0.13), winMat); win.position.set(sx, h * 0.55, d / 2 + 0.002); g.add(win) }
@@ -220,7 +226,9 @@ function pine(x, z, s) {
   const green = new THREE.MeshStandardMaterial({ color: '#4d7563', roughness: 0.9, flatShading: true }), white = new THREE.MeshStandardMaterial({ color: '#fbfcfd', roughness: 0.8, flatShading: true })
   ;[[0.42, 0.55, 0.42], [0.33, 0.45, 0.72], [0.22, 0.36, 0.98]].forEach(([r, h, y]) => {
     const c = new THREE.Mesh(new THREE.ConeGeometry(r, h, 7), green); c.position.y = y; c.castShadow = true; g.add(c)
-    const cap = new THREE.Mesh(new THREE.ConeGeometry(r * 0.62, h * 0.45, 7), white); cap.position.y = y + h * 0.29; g.add(cap) })
+    const cap = new THREE.Mesh(new THREE.ConeGeometry(r * 0.62, h * 0.45, 7), white); cap.position.y = y + h * 0.29; g.add(cap)
+    for (let q = 0; q < 3; q++) { const b = new THREE.Mesh(new THREE.SphereGeometry(r * 0.32, 10, 8), white); const qa = q / 3 * Math.PI * 2 + y * 3; b.position.set(Math.cos(qa) * r * 0.62, y - h * 0.22, Math.sin(qa) * r * 0.62); b.scale.y = 0.62; g.add(b) } })
+  const top = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), white); top.position.y = 1.18; top.scale.y = 0.8; g.add(top)
   g.userData = { kind: 'pine', shake: 0 }
   g.traverse(o => { o.userData.root = g }); clickables.push(g); island.add(g); placed.push([x, z, 0.3 * s]); pines.push(g)
 }
@@ -234,6 +242,15 @@ const walls = ['#f1e4d3', '#e3ebf1', '#f5e2d8', '#e9ecdf', '#f4ead2']
 for (let i = 0, tries = 0; i < 42 && tries < 1400; tries++) {
   const a = hash(tries, 11) * Math.PI * 2, r = 3.1 + hash(tries, 23) * (edge(a) * 0.9 - 3.1), x = Math.cos(a) * r, z = Math.sin(a) * r, s = 0.42 + hash(tries, 37) * 0.38
   if (free(x, z, 0.24 * s)) { pine(x, z, s); i++ } }
+
+// 소복한 눈 더미 — 집·나무 발치와 자락 곳곳에 둥글게
+{ const N = 90, m = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 16, 10), new THREE.MeshStandardMaterial({ color: '#fdfdff', roughness: 0.85 }), N), o = new THREE.Object3D()
+  let k = 0
+  const put = (x, z, sx, sy) => { if (k >= N) return; const a = Math.atan2(z, x), d = Math.hypot(x, z); if (Math.abs(d - trackR(a)) < 0.5 || d > edge(a) * 0.93 || d < 3.0) return
+    o.position.set(x, groundAt(x, z) - sy * 0.25, z); o.scale.set(sx, sy, sx * (0.7 + hash(x, z) * 0.5)); o.rotation.set(0, hash(z, x) * 3, 0); o.updateMatrix(); m.setMatrixAt(k++, o.matrix) }
+  for (const p of placed) for (let q = 0; q < 2; q++) { const qa = hash(p[0] * 7, q) * Math.PI * 2, rr = p[2] * 0.9 + 0.12; put(p[0] + Math.cos(qa) * rr, p[1] + Math.sin(qa) * rr, 0.16 + hash(q, p[0]) * 0.14, 0.07 + hash(p[1], q) * 0.05) }
+  for (let t = 0; k < N && t < 400; t++) { const a = hash(t, 91) * Math.PI * 2, r = 3.2 + hash(t, 93) * 4.4; put(Math.cos(a) * r, Math.sin(a) * r, 0.25 + hash(t, 95) * 0.35, 0.06 + hash(t, 97) * 0.07) }
+  m.count = k; m.receiveShadow = true; island.add(m) }
 
 // ── 붉은 옛날 증기 기차 ──
 const train = new THREE.Group(); island.add(train)
@@ -334,19 +351,155 @@ function reset() { cam.az = 0.55; cam.el = 0.2; cam.dist = 1; setSnow(0.6); setS
 document.getElementById('snow').oninput = e => setSnow(+e.target.value)
 document.getElementById('speed').oninput = e => setSpeed(+e.target.value)
 document.getElementById('whistle').onclick = whistle
+document.getElementById('gift').onclick = () => giftShower()
 document.getElementById('reset').onclick = reset
 document.getElementById('pause').onclick = e => { st.paused = !st.paused; e.target.textContent = st.paused ? 'Play' : 'Pause' }
 addEventListener('message', e => { if (e.origin !== location.origin) return; const m = e.data || {}
   if (typeof m.snow === 'number') setSnow(m.snow); if (typeof m.speed === 'number') setSpeed(m.speed)
-  if (m.cmd === 'whistle') whistle(); if (m.cmd === 'reset') reset(); if (m.cmd === 'pause') st.paused = !st.paused })
+  if (m.cmd === 'whistle') whistle(); if (m.cmd === 'gift') giftShower(); if (m.cmd === 'reset') reset(); if (m.cmd === 'pause') st.paused = !st.paused })
 addEventListener('keydown', e => { if (e.key === ' ') st.paused = !st.paused; if (e.key === 'w' || e.key === 'W') whistle(); if (e.key === 'r' || e.key === 'R') reset() })
 
 // ── 누르기·끌기 ──
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), pointers = new Map()
+// ── 하늘의 산타 썰매 — 루돌프(빨간 코)가 앞장서고 순록 넷이 붉은 썰매를 끈다 ──
+// 혼자서는 산을 크게 돌고, 끌면 손가락을 따라 날고(놓으면 천천히 제 길로), 누르면 선물을 떨어뜨린다.
+const sleighTeam = new THREE.Group(); world.add(sleighTeam)
+const TEAM_SCALE = 1.25
+const fur = new THREE.MeshStandardMaterial({ color: '#8a5a3c', roughness: 0.85 }), furLight = new THREE.MeshStandardMaterial({ color: '#d9b896', roughness: 0.9 })
+const antlerMat = new THREE.MeshStandardMaterial({ color: '#cdb594', roughness: 0.8 }), hoof = new THREE.MeshStandardMaterial({ color: '#3a2a22' })
+const santaRed = new THREE.MeshStandardMaterial({ color: '#d42a35', roughness: 0.55 }), white2 = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.7 })
+const goldM = new THREE.MeshStandardMaterial({ color: '#e0b84f', metalness: 0.7, roughness: 0.3 })
+function reindeer(rudolph) {
+  const g = new THREE.Group(), legs = []
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.26, 6, 12), fur); body.rotation.z = Math.PI / 2; g.add(body)
+  const belly = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), furLight); belly.scale.set(1.3, 0.6, 0.9); belly.position.set(0, -0.05, 0); g.add(belly)
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.18, 8), fur); neck.position.set(0.2, 0.1, 0); neck.rotation.z = -0.6; g.add(neck)
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.075, 12, 10), fur); head.scale.set(1.35, 1, 1); head.position.set(0.29, 0.2, 0); g.add(head)
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(rudolph ? 0.035 : 0.022, 10, 8), rudolph ? new THREE.MeshStandardMaterial({ color: '#ff3b3b', emissive: '#ff2020', emissiveIntensity: 1.6 }) : hoof)
+  nose.position.set(0.38, 0.19, 0); g.add(nose)
+  for (const zz of [-0.04, 0.04]) { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 6), hoof); eye.position.set(0.33, 0.24, zz); g.add(eye)
+    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.06, 6), fur); ear.position.set(0.25, 0.27, zz * 1.6); ear.rotation.x = zz > 0 ? 0.6 : -0.6; g.add(ear)
+    const an = new THREE.Group(); an.position.set(0.26, 0.27, zz * 0.8)
+    const s1 = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.012, 0.14, 5), antlerMat); s1.position.y = 0.07; s1.rotation.z = -0.25; an.add(s1)
+    const s2 = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.008, 0.07, 5), antlerMat); s2.position.set(0.04, 0.09, 0); s2.rotation.z = -1.0; an.add(s2)
+    an.rotation.x = zz > 0 ? 0.35 : -0.35; g.add(an) }
+  const tail = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), white2); tail.position.set(-0.24, 0.05, 0); g.add(tail)
+  for (const [lx, lz] of [[0.12, -0.06], [0.12, 0.06], [-0.12, -0.06], [-0.12, 0.06]]) {
+    const leg = new THREE.Group(); leg.position.set(lx, -0.06, lz)
+    const l = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.015, 0.16, 6), fur); l.position.y = -0.08; leg.add(l)
+    const h = new THREE.Mesh(new THREE.SphereGeometry(0.02, 6, 6), hoof); h.position.y = -0.16; leg.add(h)
+    g.add(leg); legs.push(leg) }
+  const collar = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.015, 6, 14), santaRed); collar.position.set(0.17, 0.06, 0); collar.rotation.y = Math.PI / 2; collar.rotation.x = 0.6; g.add(collar)
+  const bell = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6), goldM); bell.position.set(0.21, 0.0, 0); g.add(bell)
+  g.userData.legs = legs; g.scale.setScalar(TEAM_SCALE)
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; o.userData.root = sleighTeam }); sleighTeam.add(g); return g
+}
+const deer = [reindeer(true), reindeer(false), reindeer(false), reindeer(false), reindeer(false)] // 맨 앞 하나(루돌프) + 둘씩 두 줄
+const sleigh = new THREE.Group()
+{ const sh = new THREE.Shape(); sh.moveTo(-0.42, 0); sh.lineTo(0.32, 0); sh.quadraticCurveTo(0.46, 0, 0.46, 0.14); sh.quadraticCurveTo(0.46, 0.3, 0.34, 0.32); sh.lineTo(0.22, 0.2); sh.lineTo(-0.3, 0.2); sh.lineTo(-0.36, 0.42); sh.quadraticCurveTo(-0.48, 0.44, -0.46, 0.3); sh.lineTo(-0.42, 0)
+  const bodyG = new THREE.ExtrudeGeometry(sh, { depth: 0.36, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.03, bevelSegments: 3 }); bodyG.translate(0, 0, -0.18)
+  const body = new THREE.Mesh(bodyG, santaRed); body.position.y = 0.08; sleigh.add(body)
+  const trim = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.025, 0.42), goldM); trim.position.set(-0.04, 0.29, 0); sleigh.add(trim)
+  for (const zz of [-0.17, 0.17]) { const pts = [new THREE.Vector3(-0.5, 0.05, zz), new THREE.Vector3(-0.3, -0.04, zz), new THREE.Vector3(0.3, -0.04, zz), new THREE.Vector3(0.55, 0.02, zz), new THREE.Vector3(0.62, 0.14, zz), new THREE.Vector3(0.54, 0.2, zz)]
+    sleigh.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 24, 0.018, 6), goldM)) }
+  // 산타 할아버지
+  const santa = new THREE.Group(); santa.position.set(-0.06, 0.32, 0)
+  const sb = new THREE.Mesh(new THREE.SphereGeometry(0.16, 14, 12), santaRed); sb.scale.set(1, 1.05, 1); santa.add(sb)
+  const belt = new THREE.Mesh(new THREE.TorusGeometry(0.155, 0.02, 6, 20), new THREE.MeshStandardMaterial({ color: '#222' })); belt.rotation.x = Math.PI / 2; belt.position.y = -0.02; santa.add(belt)
+  const face = new THREE.Mesh(new THREE.SphereGeometry(0.085, 14, 12), new THREE.MeshStandardMaterial({ color: '#f4cfb2', roughness: 0.7 })); face.position.set(0.02, 0.2, 0); santa.add(face)
+  const beard = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 10), white2); beard.scale.set(0.8, 1, 1.05); beard.position.set(0.07, 0.15, 0); santa.add(beard)
+  const cheekN = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), new THREE.MeshStandardMaterial({ color: '#e8908a' })); cheekN.position.set(0.1, 0.21, 0); santa.add(cheekN)
+  const hat = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.2, 14), santaRed); hat.position.set(0.0, 0.33, 0); hat.rotation.z = 0.5; santa.add(hat)
+  const brim = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.025, 8, 18), white2); brim.rotation.x = Math.PI / 2; brim.position.set(0.02, 0.26, 0); santa.add(brim)
+  const pom = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), white2); pom.position.set(-0.09, 0.4, 0); santa.add(pom)
+  for (const zz of [-0.15, 0.15]) { const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.035, 0.12, 4, 8), santaRed); arm.position.set(0.1, 0.03, zz); arm.rotation.z = -1.1; santa.add(arm)
+    const mit = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), new THREE.MeshStandardMaterial({ color: '#2f6b4f' })); mit.position.set(0.18, 0.0, zz); santa.add(mit) }
+  sleigh.add(santa); sleigh.userData.santa = santa
+  // 선물 자루
+  const sack = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 10), new THREE.MeshStandardMaterial({ color: '#a8743f', roughness: 0.95 })); sack.scale.set(1, 1.15, 1); sack.position.set(-0.32, 0.38, 0); sleigh.add(sack)
+  for (const [gx, gz, c] of [[-0.22, 0.12, '#3c7be0'], [-0.36, -0.12, '#2f9e6b']]) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 0.09), new THREE.MeshStandardMaterial({ color: c })); b.position.set(gx, 0.36, gz); b.rotation.y = 0.5; sleigh.add(b) }
+  sleigh.scale.setScalar(TEAM_SCALE)
+  sleigh.traverse(o => { if (o.isMesh) o.castShadow = true; o.userData.root = sleighTeam }); sleighTeam.add(sleigh) }
+const reins = new THREE.Line(new THREE.BufferGeometry().setFromPoints(Array.from({ length: 12 }, () => new THREE.Vector3())), new THREE.LineBasicMaterial({ color: '#e0b84f' })); world.add(reins)
+sleighTeam.userData.kind = 'sleigh'; clickables.push(sleighTeam)
+// 날기 — 맨 앞(루돌프)이 길을 정하고 나머지는 지나간 자리를 따라온다
+const fly = { phi: 0.8, lead: new THREE.Vector3(), vel: new THREE.Vector3(), trail: [], drag: null, free: 0 }
+const SKY_R = 8.4, SKY_H = 10.2
+const orbitAt = (phi, t) => new THREE.Vector3(Math.cos(phi) * SKY_R, SKY_H + Math.sin(t * 0.0009) * 0.4 + Math.sin(phi * 2) * 0.45, Math.sin(phi) * SKY_R)
+fly.lead.copy(orbitAt(fly.phi, 0))
+for (let i = 0; i < 160; i++) fly.trail.push(orbitAt(fly.phi - i * 0.012, 0))
+const SPOT = [0, 0.75, 0.75, 1.5, 1.5, 2.55] // 루돌프 · 두 줄 · 썰매(길 따라 떨어진 거리)
+const SIDE = [0, -0.22, 0.22, -0.22, 0.22, 0]
+function trailPoint(dist) { // 맨 앞에서 dist 만큼 뒤의 자리와 그 방향
+  let acc = 0
+  for (let i = 1; i < fly.trail.length; i++) { const a = fly.trail[i - 1], b = fly.trail[i], l = a.distanceTo(b)
+    if (acc + l >= dist) { const t = (dist - acc) / Math.max(1e-6, l), p = a.clone().lerp(b, t), dir = a.clone().sub(b).normalize(); return { p, dir } } acc += l }
+  const a = fly.trail[fly.trail.length - 2], b = fly.trail[fly.trail.length - 1]; return { p: b.clone(), dir: a.clone().sub(b).normalize() }
+}
+const _up2 = new THREE.Vector3(0, 1, 0), _s2 = new THREE.Vector3(), _y2 = new THREE.Vector3(), _m2 = new THREE.Matrix4()
+function orient(obj, dir) { _s2.crossVectors(dir, _up2).normalize(); _y2.crossVectors(_s2, dir).normalize(); _m2.makeBasis(dir, _y2, _s2.clone().negate()); obj.quaternion.setFromRotationMatrix(_m2) }
+// 선물
+const gifts = [], GIFT_COLS = [['#d42a35', '#f4d35e'], ['#3c7be0', '#ffffff'], ['#2f9e6b', '#d42a35'], ['#f4b6cb', '#ffffff'], ['#f4d35e', '#3c7be0'], ['#9b7be0', '#f4d35e']]
+function dropGift() {
+  if (gifts.length >= 36) { const old = gifts.shift(); island.remove(old.g) }
+  const [c1, c2] = GIFT_COLS[(Math.random() * GIFT_COLS.length) | 0], s = 0.17 + Math.random() * 0.08
+  const g = new THREE.Group(), box = new THREE.Mesh(new THREE.BoxGeometry(s, s * 0.85, s), new THREE.MeshStandardMaterial({ color: c1, roughness: 0.6 })); g.add(box)
+  const rib = new THREE.MeshStandardMaterial({ color: c2, roughness: 0.5 })
+  const r1 = new THREE.Mesh(new THREE.BoxGeometry(s * 1.02, s * 0.87, s * 0.18), rib), r2 = new THREE.Mesh(new THREE.BoxGeometry(s * 0.18, s * 0.87, s * 1.02), rib); g.add(r1, r2)
+  for (const sgn of [-1, 1]) { const bow = new THREE.Mesh(new THREE.TorusGeometry(s * 0.16, s * 0.05, 6, 10), rib); bow.position.set(sgn * s * 0.12, s * 0.5, 0); bow.rotation.y = Math.PI / 2; bow.rotation.x = sgn * 0.5; g.add(bow) }
+  g.traverse(o => { if (o.isMesh) o.castShadow = true })
+  const from = sleigh.getWorldPosition(new THREE.Vector3()); from.y -= 0.25; island.worldToLocal(from); g.position.copy(from)
+  g.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3); island.add(g)
+  // 썰매는 섬 가장자리 바깥을 날 때가 많다 — 산 쪽으로 살짝 던져 눈 위에 떨어지게
+  const inward = new THREE.Vector3(-from.x, 0, -from.z), dist = inward.length(); inward.normalize()
+  const want = Math.max(0, dist - (2.6 + Math.random() * 4.2)) / 1.7     // 1.7초쯤 떨어지는 동안 갈 거리
+  const vel = inward.multiplyScalar(want).add(new THREE.Vector3((Math.random() - 0.5) * 0.8, 0.6, (Math.random() - 0.5) * 0.8))
+  gifts.push({ g, v: vel, spin: new THREE.Vector3(Math.random() * 4, Math.random() * 4, Math.random() * 4), landed: false, half: s * 0.42, age: 0 })
+  sfx('pop', { pitch: 1.2 })
+}
+function giftShower() { for (let k = 0; k < 4; k++) setTimeout(dropGift, k * 140) }
+function stepSanta(dt, now) {
+  const run = !st.paused
+  if (fly.drag) { fly.lead.lerp(fly.drag.target, 1 - Math.exp(-dt * 8)) }
+  else {
+    if (run) fly.phi += dt * 0.16
+    const home = orbitAt(fly.phi, now)
+    if (fly.free > 0) { fly.free = Math.max(0, fly.free - dt * 0.35); fly.lead.lerp(home, 1 - Math.exp(-dt * (0.6 + (1 - fly.free) * 3))) }
+    else fly.lead.copy(home)
+  }
+  const head = fly.trail[0]; if (head.distanceToSquared(fly.lead) > 0.0004) { fly.trail.unshift(fly.lead.clone()); if (fly.trail.length > 220) fly.trail.pop() }
+  const t = now * 0.012
+  for (let i = 0; i < deer.length; i++) { const { p, dir } = trailPoint(SPOT[i]); _s2.crossVectors(dir, _up2).normalize()
+    deer[i].position.copy(p).addScaledVector(_s2, SIDE[i]); deer[i].position.y += Math.sin(t + i * 1.3) * 0.05; orient(deer[i], dir)
+    deer[i].userData.legs.forEach((l, j) => { l.rotation.z = Math.sin(t * 1.4 + i + (j < 2 ? 0 : Math.PI)) * 0.6 }) }
+  const sp = trailPoint(SPOT[5]); sleigh.position.copy(sp.p); sleigh.position.y -= 0.05; orient(sleigh, sp.dir)
+  sleigh.userData.santa.rotation.z = Math.sin(t * 0.5) * 0.06
+  const r = reins.geometry.attributes.position, fr = sleigh.localToWorld(new THREE.Vector3(0.5, 0.3, 0))
+  for (let i = 0; i < 12; i++) { const k = i / 11, tp = deer[1 + (i % 4)].position; r.setXYZ(i, fr.x + (tp.x - fr.x) * (i % 2 ? 1 : 0), fr.y + (tp.y - fr.y) * (i % 2 ? 1 : 0), fr.z + (tp.z - fr.z) * (i % 2 ? 1 : 0)) }
+  r.needsUpdate = true; reins.geometry.computeBoundingSphere()
+  // 선물 떨어지기 → 눈 위에 톡
+  for (let i = gifts.length - 1; i >= 0; i--) { const q = gifts[i]; q.age += dt
+    if (!q.landed) { q.v.y -= 6.5 * dt; q.g.position.addScaledVector(q.v, dt); q.g.rotation.x += q.spin.x * dt; q.g.rotation.y += q.spin.y * dt; q.g.rotation.z += q.spin.z * dt
+      const p = q.g.position, rr = Math.hypot(p.x, p.z), a = Math.atan2(p.z, p.x)
+      if (rr < edge(a) * 0.97) { const gy = groundAt(p.x, p.z) + q.half; if (p.y <= gy) { p.y = gy; q.landed = true; q.g.rotation.set(0, q.g.rotation.y, 0); q.squash = 1; sfx('thud', { s: 0.35 }) } }
+      else if (p.y < -8) { island.remove(q.g); gifts.splice(i, 1); continue } }
+    else if (q.squash > 0) { q.squash = Math.max(0, q.squash - dt * 4); q.g.scale.set(1 + q.squash * 0.25, 1 - q.squash * 0.3, 1 + q.squash * 0.25) }
+    if (q.age > 40) { const f = Math.min(1, (q.age - 40) / 2); q.g.scale.setScalar(1 - f); if (f >= 1) { island.remove(q.g); gifts.splice(i, 1) } } }
+}
+// 끌기 — 손가락이 가리키는 곳(썰매 높이의 화면 평면)으로 루돌프가 날아간다
+const dragPlane = new THREE.Plane(), _hit = new THREE.Vector3()
+function sleighDragTo(clientX, clientY) {
+  ndc.set(clientX / innerWidth * 2 - 1, -(clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera)
+  if (ray.ray.intersectPlane(dragPlane, _hit)) { _hit.y = Math.min(13.5, Math.max(6.5, _hit.y)); const rr = Math.hypot(_hit.x, _hit.z); if (rr > 13) _hit.multiplyScalar(13 / rr); fly.drag.target.copy(_hit) }
+}
+
 const cv = renderer.domElement
 cv.addEventListener('pointerdown', e => {
   cv.setPointerCapture(e.pointerId); pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
   cam.drag = { x: e.clientX, y: e.clientY, az: cam.az, el: cam.el, moved: 0, t: performance.now() }
+  if (pointers.size === 1) { ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera)
+    const h = ray.intersectObject(sleighTeam, true)[0]
+    if (h) { const n = new THREE.Vector3(); camera.getWorldDirection(n); dragPlane.setFromNormalAndCoplanarPoint(n.negate(), fly.lead); fly.drag = { target: fly.lead.clone(), start: performance.now() }; cam.drag.sleigh = true } }
   if (pointers.size === 2) { const [a, b] = [...pointers.values()]; cam.pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), dist: cam.dist } }
   cv.classList.add('grabbing'); cam.autoz = 0
   if (EMBED && window.parent !== window) { try { window.parent.postMessage({ scene: 'touch' }, location.origin) } catch {} }
@@ -356,11 +509,13 @@ cv.addEventListener('pointermove', e => {
   if (cam.pinch && pointers.size === 2) { const [a, b] = [...pointers.values()]; cam.dist = Math.min(1.45, Math.max(0.6, cam.pinch.dist * cam.pinch.d / Math.max(20, Math.hypot(a.x - b.x, a.y - b.y)))); cam.drag.moved = 99; return }
   if (!cam.drag) return
   const dx = e.clientX - cam.drag.x, dy = e.clientY - cam.drag.y; cam.drag.moved = Math.max(cam.drag.moved, Math.hypot(dx, dy))
+  if (cam.drag.sleigh) { if (cam.drag.moved > 6) sleighDragTo(e.clientX, e.clientY); return }
   cam.az = cam.drag.az + dx * 0.006; cam.el = Math.min(0.62, Math.max(0.05, cam.drag.el + dy * 0.004))
 })
 const up = e => {
   pointers.delete(e.pointerId); if (pointers.size < 2) cam.pinch = null
   if (cam.drag && cam.drag.moved < 6 && performance.now() - cam.drag.t < 450) tap(e)
+  if (fly.drag && pointers.size === 0) { fly.drag = null; fly.free = 1; fly.phi = Math.atan2(fly.lead.z, fly.lead.x) }
   if (pointers.size === 0) { cam.drag = null; cv.classList.remove('grabbing') }
 }
 cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up)
@@ -369,7 +524,8 @@ function tap(e) {
   ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera)
   const hit = ray.intersectObjects(clickables, true)[0]; if (!hit) return
   const root = hit.object.userData.root || hit.object, kind = root.userData.kind
-  if (kind === 'train') whistle()
+  if (kind === 'sleigh') { giftShower(); sfx('chime') }
+  else if (kind === 'train') whistle()
   else if (kind === 'house') { const on = root.userData.win.emissiveIntensity > 0.3; root.userData.win.emissiveIntensity = on ? 0.05 : 1.2; root.userData.win.color.set(on ? '#7d7a86' : '#ffd27a'); sfx('pop') }
   else if (kind === 'pine') { root.userData.shake = 1; sfx('squish', { s: 0.6 }); for (let k = 0; k < 6; k++) emit('flake', root.position.clone().applyMatrix4(island.matrixWorld).add(new THREE.Vector3((Math.random() - 0.5) * 0.5, 1 + Math.random() * 0.4, (Math.random() - 0.5) * 0.5)), new THREE.Vector3((Math.random() - 0.5) * 0.4, -0.3, (Math.random() - 0.5) * 0.4), 1.1, 0.5) }
   else if (kind === 'mountain') { st.shakeMtn = 1; sfx('drip'); const p = hit.point; for (let k = 0; k < 10; k++) emit('flake', p.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.6, Math.random() * 0.3, (Math.random() - 0.5) * 0.6)), new THREE.Vector3((Math.random() - 0.5) * 0.8, 0.6 + Math.random() * 0.6, (Math.random() - 0.5) * 0.8), 1.4, 0.7) }
@@ -396,6 +552,7 @@ function loop(now) {
     if (!cam.drag) { cam.autoz = Math.min(1, cam.autoz + dt * 0.3); cam.az += dt * 0.035 * cam.autoz }
   }
   for (const c of cars) placeCar(c.g, st.theta - c.back)
+  stepSanta(dt, now)
   // 기차 연기
   puffT -= dt; if (run && puffT <= 0) { puffT = 0.16 / (0.5 + st.speed); trainPuff() }
   // 집 굴뚝 연기 — 가늘게
@@ -423,7 +580,7 @@ function loop(now) {
   requestAnimationFrame(loop)
 }
 document.addEventListener('visibilitychange', () => { last = performance.now() })
-window.__peak = { st, cam, play: n => (n === 'whistle' ? whistle() : 0), cars: () => cars.map(c => c.g.position.toArray().map(v => +v.toFixed(2))) }
+window.__peak = { gifts: () => gifts.map(q => [q.landed, +q.g.position.y.toFixed(2)]), lead: () => fly.lead.toArray().map(v => +v.toFixed(2)), sleighScreen: () => { const v = sleigh.getWorldPosition(new THREE.Vector3()).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight] }, st, cam, play: n => (n === 'whistle' ? whistle() : 0), cars: () => cars.map(c => c.g.position.toArray().map(v => +v.toFixed(2))) }
 requestAnimationFrame(loop)
 </script>
 </body>

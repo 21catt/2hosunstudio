@@ -396,6 +396,7 @@ export default function CastlePage() {
           <input type="range" min="0" max="1" step="0.01" value={peak.speed} onChange={e => setPeakOpt({ speed: +e.target.value })} style={{ accentColor: '#c8323a' }} />
         </label>
         <div className={s.row} style={{ flexWrap: 'wrap' }}>
+          <button className={`${s.chip} ${s.glass}`} onClick={() => toFrame({ cmd: 'gift' })}>🎁 선물 내리기</button>
           <button className={`${s.chip} ${s.glass}`} onClick={() => toFrame({ cmd: 'whistle' })}>기적 울리기</button>
           <button className={`${s.chip} ${s.glass}`} onClick={() => toFrame({ cmd: 'pause' })}>기차 멈춤·출발</button>
           <button className={`${s.chip} ${s.glass}`} onClick={() => toFrame({ cmd: 'reset' })}>제자리로</button>
@@ -507,7 +508,7 @@ export default function CastlePage() {
       </nav>
 
       <div className={s.howto}><b>How to play</b> — {scene.key === 'peak'
-        ? '기차를 누르면 기적 · 집을 누르면 불 켜고 끄기 · 소나무를 누르면 눈이 털려요 · 끌어서 섬 돌리기 · 꼬집어 확대'
+        ? '산타 썰매를 끌어 하늘을 날기 · 썰매를 누르면 선물이 내려요 · 기차를 누르면 뿌뿌! · 집을 누르면 불 켜고 끄기 · 소나무를 누르면 눈이 털려요 · 빈 곳을 끌어 섬 돌리기'
         : scene.key === 'octopus'
         ? '문어를 톡 치면 움찔 · 머리를 꾹 누르면 납작 · 머리를 끌어 들어 올리기 · 다리를 끌어 늘리기 · 접시를 꾹 누르고 있으면 다리가 손가락을 감아요'
         : scene.embed
