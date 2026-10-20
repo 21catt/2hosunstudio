@@ -533,11 +533,14 @@ function CurriculumInner() {
     }
 
     setBrowseGroups(groups)
-    // ?course 로 들어온 경우 해당 수업 자동 펼침
+    // ?course 로 들어온 경우 해당 수업 자동 펼침 — ?tab=core 와 함께면(3D 홈 수업 아이콘) 핵심 내용 탭의 그 수업 카드를 펼친다
     const qName = searchParams.get('course')
     if (qName) {
       const g = groups.find(gr => gr.courses.some(c => c.name === qName))
-      if (g) setExpandedCourse(`${g.category}__${qName}`)
+      if (g) {
+        if (searchParams.get('tab') === 'core') setExpandedCore(`${g.category}__${qName}`)
+        else setExpandedCourse(`${g.category}__${qName}`)
+      }
     }
     setBrowseLoaded(true)
     setBrowseLoading(false)

@@ -72,6 +72,10 @@
 /* 오른쪽 — 오늘 + 장면 */
 .right { position: absolute; right: 28px; top: 26px; width: 300px; z-index: 3; padding: 18px; border-radius: 26px;
   display: flex; flex-direction: column; gap: 14px; }
+/* 장면 패널이 화면보다 길면(불꽃놀이·다리 올리기… 버튼이 아래로 가려질 때) 패널 안에서 손가락으로 위아래 스크롤 */
+.right { max-height: calc(100% - 26px - 110px); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin; scrollbar-color: rgba(43,36,51,0.25) transparent; }
+.right > * { flex-shrink: 0; }
 .todayTitle { font-size: 16px; font-weight: 700; }
 .muted { font-size: 12px; opacity: 0.72; }
 .todayBlock { display: flex; flex-direction: column; gap: 6px; }
@@ -153,6 +157,7 @@
   .sceneBtn { display: flex; position: absolute; right: 14px; top: 172px; z-index: 4; width: 48px; height: 48px; border-radius: 24px;
     align-items: center; justify-content: center; cursor: pointer; color: inherit; }
   .right { top: 228px; right: 12px; width: 190px; padding: 12px; gap: 9px; border-radius: 20px; display: none; }
+  .right { max-height: calc(100% - 228px - 96px); padding-bottom: 72px; } /* 맨 아래 줄이 오른쪽 아래 팔레트 단추에 가리지 않게 더 올라온다 */
   .rightOpen { display: flex; }
   .chip { font-size: 11px; padding: 8px 0; }
   .right .todayBlock { display: none; }

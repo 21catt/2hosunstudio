@@ -41,7 +41,7 @@ const CLASS_MENU = [
 ]
 const rankIn = (order, name) => { const i = (order || []).findIndex(o => name.startsWith(o)); return i < 0 ? 99 : i }
 const subOf = (m, name) => { const k = Object.keys(m.sub || {}).find(o => name.startsWith(o)); return k ? m.sub[k] : '' }
-const courseHref = name => `/student/curriculum?course=${encodeURIComponent(name)}`
+const courseHref = name => `/student/curriculum?tab=core&course=${encodeURIComponent(name)}` // 그 수업의 핵심 내용으로
 const OCTO_LIST = [['raspberry', '라즈베리', '#d81e4f'], ['blueberry', '블루베리', '#2f56e8'], ['tangerine', '귤', '#ff7a12']]
 // 젤리 문어 먹이 — 던지면 몸속에서 3시간 동안 녹는다(최대 4마리 · 배가 비고 1시간이면 꼬르륵)
 const fmtFoodLeft = ms => { const m = Math.max(1, Math.ceil(ms / 60e3)); return m >= 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분` : `${m}분` }
