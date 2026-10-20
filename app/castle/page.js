@@ -154,7 +154,7 @@ export default function CastlePage() {
       const u = data?.user
       if (!u) { router.replace('/login'); return }
       const admin = u.user_metadata?.role === 'admin'
-      if (!admin && u.user_metadata?.castle_beta !== true) { router.replace('/student'); return }
+      try { if (localStorage.getItem('2hs_home_mode') !== 'castle') localStorage.setItem('2hs_home_mode', 'castle') } catch {} // 3D 홈에 들어오면 3D 모드
       setIsAdmin(admin)
       setUser(u)
       setAllowed(true)
@@ -234,7 +234,7 @@ export default function CastlePage() {
         </div>
       )}
 
-      <div className={s.badge}>{isAdmin ? '미리보기 · 관리자와 미리보기 학생에게만 보여요' : '새 홈 미리보기 · 의견을 들려주세요'}</div>
+      <div className={s.badge}>{'새 3D 홈 · 오른쪽 위 「3D 모드」로 언제든 예전 화면 · 의견을 들려주세요'}</div>
 
       {/* 언제든 예전 홈으로 · 가벼운 모드 */}
       <div className={s.topActions}>

@@ -83,9 +83,8 @@ export default function StudentHomePage() {
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user || null)
       // 3D 모드를 켜 둔 미리보기 대상은 홈으로 오면 3D 홈으로(오른쪽 위 단추로 언제든 끔)
-      const m = data.user?.user_metadata || {}
       let mode = null; try { mode = localStorage.getItem('2hs_home_mode') } catch {}
-      if ((m.castle_beta === true || m.role === 'admin') && mode === 'castle') { window.location.replace('/castle'); return }
+      if (data.user && mode === 'castle') { window.location.replace('/castle'); return }
       if (data.user) ensureUserRow(data.user)
       loadData(data.user?.id || null).catch(e => { console.error('load failed', e); setLoading(false) })
     })
@@ -974,8 +973,8 @@ export default function StudentHomePage() {
         </div>
       )}
 
-      {/* 새 3D 홈 미리보기 입구 — 관리자가 미리 열어 준 학생(user_metadata.castle_beta)과 관리자에게만 */}
-      {(user?.user_metadata?.castle_beta === true || user?.user_metadata?.role === 'admin') && (
+      {/* 3D 모드 켜기 — 로그인한 학생 누구나(2026-10-20 전체 공개) */}
+      {user && (
         <a href="/castle" aria-label="3D 모드 켜기" onClick={() => { try { localStorage.setItem('2hs_home_mode', 'castle') } catch {} }}
           style={{ position:'fixed', top:12, right:12, zIndex:60, padding:'8px 14px', borderRadius:999, fontSize:12, fontWeight:800,
             color:'#2b2433', textDecoration:'none', fontFamily:'inherit',

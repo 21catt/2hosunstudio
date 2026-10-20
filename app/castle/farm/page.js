@@ -84,8 +84,6 @@ export default function Farm3DPage() {
     supabase.auth.getUser().then(({ data }) => {
       const u = data?.user
       if (!u) { router.replace('/login'); return }
-      const admin = u.user_metadata?.role === 'admin'
-      if (!admin && u.user_metadata?.castle_beta !== true) { router.replace('/student/farm'); return }
       setUser(u); userRef.current = u
       setIsArtist(u.user_metadata?.role === 'artist')
       setAllowed(true)
