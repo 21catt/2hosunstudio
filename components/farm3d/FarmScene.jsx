@@ -389,7 +389,7 @@ export default function FarmScene(props) {
       }
       // 해(밤엔 달) — 화면 오른쪽 위(단추 아래)에 늘 떠 있다. 누르면 빛이 번진다
       sunGlow = Math.max(0, sunGlow - dt * 0.55)
-      sunDisc.position.copy(sunScreen.set(camera.aspect < 1 ? 0.5 : 0.7, camera.aspect < 1 ? 0.6 : 0.62, 0.5).unproject(camera)).sub(camera.position).setLength(16).add(camera.position)
+      sunDisc.position.copy(sunScreen.set(camera.aspect < 1 ? 0.5 : 0.7, camera.aspect < 1 ? 0.78 : 0.8, 0.5).unproject(camera)).sub(camera.position).setLength(16).add(camera.position)
       const g2 = sunGlow * sunGlow
       sunDisc.material.color.setRGB(1, 0.86 - nightMix * 0.02 + g2 * 0.1, 0.42 + nightMix * 0.5 + g2 * 0.3)
       sunDisc.scale.setScalar((1 - nightMix * 0.25) * (1 + Math.sin(sunGlow * Math.PI) * 0.18))
