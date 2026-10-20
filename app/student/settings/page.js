@@ -16,7 +16,7 @@ import SpaceBg from '../../../components/SpaceBg'
 import { useFreshTheme, useSpaceTheme } from '../../../lib/useFreshTheme'
 import CastleHero from '../../../components/castle/CastleHero'
 import { useCastleSkin } from '../../../lib/useCastleSkin'
-import { CASTLE_SCENES, getSavedScene, saveSceneLocal, sceneUnlocked, sceneSelectable } from '../../../lib/castleScenes'
+import { CASTLE_SCENES, getSavedScene, saveSceneLocal, sceneUnlocked, sceneSelectable, longTermStudent } from '../../../lib/castleScenes'
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -30,6 +30,7 @@ export default function SettingsPage() {
   const [unlockAll, setUnlockAll] = useState(false) // 관리자가 해금해준 회원은 수확 조건 무시
   const [role, setRole] = useState('')
   const [attendCount, setAttendCount] = useState(0) // 작가: 회의 참석 수(해금 진행도) · 3D 배경: 출석한 수업 수
+  const [longTerm, setLongTerm] = useState(false) // 첫 출석이 3개월 넘게 전 = 3D 배경 모두 열림
   const [sceneKey, setSceneKey] = useState('jelly')  // 3D 홈 배경(미리보기 대상만 — 테마 대신)
   const [pushOn, setPushOn] = useState(false)       // 이 기기 푸시 알림 허용 여부
   const [pushBusy, setPushBusy] = useState(false)
@@ -55,8 +56,10 @@ export default function SettingsPage() {
         setRole(r)
         // 출석한 수 — 작가 = 참석한 회의(해금 진행도), 모두 = 3D 배경이 열리는 기준(4·8·12·16회)
         {
-          const { data: bk } = await supabase.from('bookings').select('attended, status').eq('user_id', u.id)
-          setAttendCount((bk || []).filter(b => b.attended === true || b.status === 'attended').length)
+          const { data: bk } = await supabase.from('bookings').select('attended, status, class_date').eq('user_id', u.id)
+          const att = (bk || []).filter(b => b.attended === true || b.status === 'attended')
+          setAttendCount(att.length)
+          setLongTerm(longTermStudent(att.map(b => b.class_date).filter(Boolean).sort()[0]))
         }
         const { data: profile } = await supabase.from('users').select('name').eq('id', u.id).single()
         setName(profile?.name || '')
@@ -85,7 +88,7 @@ export default function SettingsPage() {
 
   // 3D 홈 배경 — 출석 수로 열린 장면만, 만들어진 것만 고른다(user_prefs.castle_scene 컬럼이 없으면 기기 저장만)
   async function changeScene(key) {
-    if (!sceneSelectable(key, { attended: attendCount, unlockAll })) return
+    if (!sceneSelectable(key, { attended: attendCount, unlockAll: unlockAll || longTerm })) return
     setSceneKey(key)
     saveSceneLocal(key)
     if (user?.id) supabase.from('user_prefs').upsert({ user_id: user.id, castle_scene: key }).then(() => {}, () => {})
@@ -226,12 +229,12 @@ export default function SettingsPage() {
         {/* 3D 홈 배경 — 미리보기 대상은 테마 대신 이걸 고른다. 출석한 수업 4·8·12·16회마다 하나씩 열린다 */}
         <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:2 }}>3D 배경</div>
         <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:10 }}>
-          {unlockAll ? '모든 배경이 열려 있어요' : `수업에 출석할 때마다 새 배경이 열려요 (지금 출석 ${attendCount}회)`}
+          {unlockAll ? '모든 배경이 열려 있어요' : longTerm ? '3개월 넘게 함께해 주셔서 모든 배경이 열렸어요' : `수업에 출석할 때마다 새 배경이 열려요 (지금 출석 ${attendCount}회 · 다닌 지 3개월이 넘으면 모두 열려요)`}
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:20 }}>
           {CASTLE_SCENES.map(sc => {
             const on = sceneKey === sc.key
-            const open = sceneUnlocked(sc.key, { attended: attendCount, unlockAll })
+            const open = sceneUnlocked(sc.key, { attended: attendCount, unlockAll: unlockAll || longTerm })
             const can = open && sc.ready
             const left = Math.max(0, sc.unlock - attendCount)
             return (

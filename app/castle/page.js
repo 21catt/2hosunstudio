@@ -19,7 +19,7 @@ import { getSavedTheme } from '../../lib/theme'
 import LoadingCat from '../../components/LoadingCat'
 import BookingPanel from '../../components/castle/BookingPanel'
 import { CATEGORY_STYLE } from '../../lib/categoryStyle'
-import { CASTLE_SCENES, getSavedScene, saveSceneLocal, sceneOf, sceneUnlocked, sceneSelectable } from '../../lib/castleScenes'
+import { CASTLE_SCENES, getSavedScene, saveSceneLocal, sceneOf, sceneUnlocked, sceneSelectable, longTermStudent } from '../../lib/castleScenes'
 import s from './castle.module.css'
 import { createCozyMusic } from '../../lib/cozyMusic'
 
@@ -104,6 +104,7 @@ export default function CastlePage() {
   // 3D 배경 — 설정과 같은 값(lib/castleScenes). 출석 4·8·12·16회마다 하나씩 열린다
   const [bgScene, setBgScene] = useState('jelly')
   const [attended, setAttended] = useState(0)
+  const [longTerm, setLongTerm] = useState(false) // 첫 출석이 3개월 넘게 전 = 3D 배경 모두 열림
   // 시트러스 젤리 세부 설정(품종·흐물거림·내부 감쇠) — 이 기기에 기억, 젤리가 뜨면 그대로 보낸다
   const [citrus, setCitrus] = useState(() => {
     const d = { variety: 'orange', firm: 0.5, damp: 0.35 }
@@ -138,7 +139,7 @@ export default function CastlePage() {
   useEffect(() => { setBgScene(getSavedScene()) }, [])
   const scene = sceneOf(bgScene)
   function chooseScene(key) {
-    if (!sceneSelectable(key, { attended, unlockAll: isAdmin })) return
+    if (!sceneSelectable(key, { attended, unlockAll: isAdmin || longTerm })) return
     if (key === bgScene) return
     setBgScene(key); saveSceneLocal(key); setReady(false); setFallback(null); setPick(null)
     if (user?.id) supabase.from('user_prefs').upsert({ user_id: user.id, castle_scene: key }).then(() => {}, () => {})
@@ -250,6 +251,8 @@ export default function CastlePage() {
       const today = ymd(new Date())
       supabase.from('bookings').select('id', { count: 'exact', head: true }).eq('user_id', u.id).eq('attended', true)
         .then(({ count }) => setAttended(count || 0), () => {})
+      supabase.from('bookings').select('class_date').eq('user_id', u.id).eq('attended', true).order('class_date', { ascending: true }).limit(1)
+        .then(({ data }) => setLongTerm(longTermStudent(data?.[0]?.class_date)), () => {})
       const [{ data: cs }, { data: bs }, { data: tk }] = await Promise.all([
         supabase.from('class_courses').select('id, name, category').eq('is_active', true),
         supabase.from('bookings').select('class_name, class_date, class_time, course_id, status').eq('user_id', u.id).neq('status', 'cancelled').gte('class_date', today).order('class_date'),
@@ -410,7 +413,7 @@ export default function CastlePage() {
         <div className={s.sectionLabel} style={{ padding: 0 }}>3D 배경</div>
         <div className={s.row} style={{ flexWrap: 'wrap' }}>
           {CASTLE_SCENES.filter(sc => sc.ready).map(sc => {
-            const open = sceneUnlocked(sc.key, { attended, unlockAll: isAdmin })
+            const open = sceneUnlocked(sc.key, { attended, unlockAll: isAdmin || longTerm })
             return (
               <button key={sc.key} className={`${s.chip} ${s.glass} ${bgScene === sc.key ? s.chipOn : ''}`} aria-pressed={bgScene === sc.key}
                 disabled={!open} onClick={() => chooseScene(sc.key)} style={open ? undefined : { opacity: 0.55 }}
@@ -420,7 +423,7 @@ export default function CastlePage() {
             )
           })}
         </div>
-        {!isAdmin && <div className={s.muted}>수업에 출석할 때마다 새 배경이 열려요 · 지금 출석 {attended}회</div>}
+        {!isAdmin && <div className={s.muted}>{longTerm ? '3개월 넘게 함께해 주셔서 모든 배경이 열렸어요' : `수업에 출석할 때마다 새 배경이 열려요 · 지금 출석 ${attended}회 · 다닌 지 3개월이 넘으면 모두 열려요`}</div>}
         <div className={s.hr} style={{ marginTop: 2 }} />
         {scene.key === 'peak' ? (<>
         <div className={s.sectionLabel} style={{ padding: 0 }}>{scene.name}</div>
