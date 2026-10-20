@@ -50,6 +50,14 @@ export default function AdminTeachersPage() {
       supabase.from('bookings').select('user_id, course_id, schedule_id').neq('status', 'cancelled'),
     ])
     setTeachers(us || [])
+    // 학생 화면에 나오는 강사 이름(teacher)이 담당(teacher_id)과 어긋난 수업은 여기서 맞춘다.
+    //   예전엔 담당을 바꿔도 이름 칸이 그대로였고, 이미 담당인 강사를 다시 골라도 바뀌는 게 없어 고칠 길이 없었다.
+    const nameOf = Object.fromEntries((us || []).map(u => [u.id, u.name]))
+    const stale = (cs || []).filter(c => c.teacher_id && nameOf[c.teacher_id] && nameOf[c.teacher_id] !== c.teacher)
+    for (const c of stale) {
+      const { error } = await supabase.from('class_courses').update({ teacher: nameOf[c.teacher_id] }).eq('id', c.id)
+      if (!error) c.teacher = nameOf[c.teacher_id]
+    }
     setCourses(cs || [])
     setBookings(bs || [])
     // 프로필 고양이(있으면 카드 아바타로)
