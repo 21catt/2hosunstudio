@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import StudentNav from '../../components/StudentNav'
+import CastleHero from '../../components/castle/CastleHero'
 import AdminNav from '../../components/AdminNav'
 import { NavIcon } from '../../components/NavIcons'
 import LoadingCat from '../../components/LoadingCat'
@@ -475,6 +476,7 @@ export default function LoungePage() {
         .viewer-input::placeholder { color: rgba(255,255,255,0.55); }
       `}</style>
 
+      <CastleHero title="Lounge" />
       <div className="header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <NavIcon name="chat" color="#fff" size={20} />
@@ -482,7 +484,7 @@ export default function LoungePage() {
         </div>
       </div>
 
-      <div style={{ background: (fresh || space) ? 'transparent' : '#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'16px 12px 176px', minHeight:'80vh' }}>
+      <div className="castle-sheet" style={{ background: (fresh || space) ? 'transparent' : '#fff', borderRadius:'24px 24px 0 0', marginTop:-8, padding:'16px 12px 176px', minHeight:'80vh' }}>
         {/* 카테고리 칩 — 보낼 때도 이 카테고리로 올라간다 */}
         <div className="no-scrollbar" style={{ display:'flex', gap:7, marginBottom:14, overflowX:'auto', paddingBottom:2 }}>
           {TAGS.map((t,i) => {

@@ -3,6 +3,7 @@ import { Suspense, useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
+import CastleHero from '../../../components/castle/CastleHero'
 import { NavIcon } from '../../../components/NavIcons'
 import LoadingCat from '../../../components/LoadingCat'
 import GlassBg from '../../../components/GlassBg'
@@ -459,6 +460,7 @@ function RecordsInner() {
         .viewer-input::placeholder { color: rgba(255,255,255,0.55); }
       `}</style>
 
+      <CastleHero title="Records" />
       <div className="p-header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <NavIcon name="clipboard" color="var(--ac)" size={20} />
@@ -471,7 +473,7 @@ function RecordsInner() {
         </div>
       </div>
 
-      <div style={{ background: (fresh || space) ? 'transparent' : '#fff', padding: view === 'calendar' ? '12px 12px 150px' : '12px 12px 90px', minHeight:'80vh' }}>
+      <div className="castle-sheet" style={{ background: (fresh || space) ? 'transparent' : '#fff', padding: view === 'calendar' ? '12px 12px 150px' : '12px 12px 90px', minHeight:'80vh' }}>
 
         {/* 보기 전환 — 날짜로 볼지, 그림만 볼지, 받은 말만 볼지 */}
         <div style={{ display:'flex', gap:5, background:'var(--card)', borderRadius:14, padding:4, marginBottom:14 }}>

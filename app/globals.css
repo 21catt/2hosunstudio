@@ -839,3 +839,88 @@ button, a, [role="button"], label, summary { touch-action: manipulation; }
   [data-theme='liquid'] .header,
   [data-theme='liquid'] .bottom-nav { backdrop-filter: none; -webkit-backdrop-filter: none; }
 }
+
+/* ── 3D 홈 모양(castle) — 성 장면 위에 떠 있는 유리 시트 (2026-10-20, 미리보기 대상만) ──
+   켜는 곳 = lib/useCastleSkin(<html data-skin="castle">) · 배경·머리 = components/castle/CastleHero.
+   테마 색을 3D 홈 색으로 덮는다: html[data-skin] 가 [data-theme=…] 보다 구체적이라 어느 테마에서도 같은 모습.
+   카테고리 색 = lib/categoryStyle 과 같은 값. 기존 화면(스킨 없음)은 이 블록에 하나도 안 걸린다. */
+html[data-skin='castle'] {
+  --page: transparent;
+  --bg: rgba(255,255,255,0.82);
+  --surf: rgba(255,255,255,0.86);
+  --card: rgba(43,36,51,0.06);
+  --line: rgba(43,36,51,0.1);
+  --g1: #ece8f1; --g2: #e3dceb; --g3: #b7a0ef; --g4: #45307f; --g5: #2b2433;
+  --td: #2b2433; --tm: #574d63; --tmu: #6e6378; --tl: #c9c2d2;
+  --ac: #2b2433; --ac-rgb: 43 36 51; --ac2: #f39fbe; --acBg: #eee8fd; --acTx: #45307f;
+  --castle-glass: linear-gradient(160deg, rgba(255,255,255,0.9), rgba(255,255,255,0.78) 55%, rgba(234,226,250,0.8));
+  --castle-ink: linear-gradient(160deg, #4a4058, #2b2433 60%, #1d1824);
+}
+html[data-skin='castle'] body { background: #ece4d6; font-family: 'IBM Plex Sans KR', 'Nunito', 'Apple SD Gothic Neo', sans-serif; }
+html[data-skin='castle'] .app-shell { background: transparent; }
+
+/* 배경 = 3D 성 장면 그림. 폰 = 화면 폭에 맞춰 성이 머리 아래로 보이게, 넓은 화면 = 가운데 제 크기 + 종이색 채움 */
+.castle-bg { display: none; }
+html[data-skin='castle'] .castle-bg {
+  display: block; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: #ece4d6 url('/castle-bg/scene.jpg') no-repeat center -120px / 100% auto;
+}
+@media (min-width: 600px) {
+  html[data-skin='castle'] .castle-bg { background-size: 780px auto; background-position: center -330px; }
+}
+
+/* 머리 — 2HOSUN STUDIO · 영어 제목(Instrument Serif) + 「3D 홈」 */
+.castle-hero { position: relative; z-index: 1; height: 228px; padding: 22px 20px 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; color: #2b2433; }
+.castle-hero__mast { display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+.castle-hero__brand { font-family: 'Instrument Serif', 'Times New Roman', serif; font-style: italic; font-size: 22px; line-height: 0.9; }
+.castle-hero__title { font-family: 'Instrument Serif', 'Times New Roman', serif; font-style: italic; font-size: 46px; line-height: 0.9; }
+.castle-hero__label { font-size: 11px; font-weight: 700; letter-spacing: 2px; opacity: 0.7; }
+.castle-hero__actions { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.castle-hero__pill { min-height: 34px; display: inline-flex; align-items: center; padding: 0 13px; border-radius: 999px; font: 700 12px 'IBM Plex Sans KR', sans-serif;
+  color: #2b2433; text-decoration: none; cursor: pointer; background: linear-gradient(160deg, rgba(255,255,255,0.9), rgba(255,255,255,0.72)); border: 1px solid #fff; box-shadow: 0 8px 20px rgba(60,45,80,0.14); }
+.castle-hero__pill--quiet { background: rgba(255,255,255,0.5); box-shadow: none; color: #574d63; font-weight: 600; }
+.castle-hero__pill:focus-visible { outline: 2px solid #8fb8f0; outline-offset: 2px; }
+@media (min-width: 600px) { .castle-hero { height: 400px; } }
+
+/* 시트 — 머리 줄(p-header / header) = 위가 둥근 유리, 본문(.castle-sheet) = 이어지는 유리 */
+html[data-skin='castle'] .p-header,
+html[data-skin='castle'] .header {
+  margin: 0 10px; border-radius: 28px 28px 0 0; background: var(--castle-glass);
+  border: 1px solid #fff; border-bottom: none; box-shadow: inset 0 1.5px 0 #fff;
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+}
+html[data-skin='castle'] .header { padding: 16px 18px 14px; }
+html[data-skin='castle'] .header-title,
+html[data-skin='castle'] .p-title { color: #2b2433; font-family: 'IBM Plex Sans KR', sans-serif; font-weight: 700; }
+html[data-skin='castle'] .header svg { stroke: #2b2433; }
+html[data-skin='castle'] .castle-sheet {
+  margin: 0 10px !important; background: rgba(255,255,255,0.72) !important; border-radius: 0 0 28px 28px !important;
+  border: 1px solid #fff; border-top: none; box-shadow: 0 18px 40px rgba(60,45,80,0.16);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+}
+
+/* 카드 = 흰 유리 */
+html[data-skin='castle'] .p-card,
+html[data-skin='castle'] .p-tile,
+html[data-skin='castle'] .g-glass {
+  background: rgba(255,255,255,0.88) !important; border: 1px solid #fff; box-shadow: 0 6px 16px rgba(60,45,80,0.08);
+}
+
+/* 아래 입력 막대 = 떠 있는 유리 알약 */
+html[data-skin='castle'] .g-glass-bar {
+  bottom: 84px !important; width: calc(100% - 24px) !important; max-width: 366px !important;
+  border-radius: 24px; border-top: none !important; background: rgba(255,255,255,0.94) !important;
+  border: 1px solid #fff; box-shadow: 0 10px 24px rgba(60,45,80,0.18);
+  -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+}
+
+/* 하단 메뉴 = 3D 홈과 같은 떠 있는 유리 막대, 고른 칸 = 진한 잉크 */
+html[data-skin='castle'] .bottom-nav {
+  bottom: 12px; width: calc(100% - 16px); max-width: 374px; padding: 6px; gap: 3px; border-radius: 22px;
+  border: 1px solid #fff; background: linear-gradient(160deg, rgba(255,255,255,0.92), rgba(255,255,255,0.76));
+  box-shadow: 0 12px 28px rgba(60,45,80,0.18); -webkit-backdrop-filter: blur(22px); backdrop-filter: blur(22px);
+}
+html[data-skin='castle'] .nav-item { border-radius: 16px; padding: 6px 2px; }
+html[data-skin='castle'] .nav-item.active { background: var(--castle-ink); }
+html[data-skin='castle'] .nav-item.active span { color: #fff !important; }
+html[data-skin='castle'] .nav-item.active svg { stroke: #fff; }

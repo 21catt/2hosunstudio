@@ -6,6 +6,7 @@ import { restoreClassTicket, refundsClassTicket } from '../../../lib/booking'
 import { notifyStaff } from '../../../lib/adminNotify'
 import { sendPushToStaff } from '../../../lib/pushNotify'
 import StudentNav from '../../../components/StudentNav'
+import CastleHero from '../../../components/castle/CastleHero'
 import { NavIcon } from '../../../components/NavIcons'
 import LoadingCat from '../../../components/LoadingCat'
 import SpaceBg from '../../../components/SpaceBg'
@@ -92,6 +93,7 @@ export default function StudentNotificationPage() {
   return (
     <>
       {space && <SpaceBg />}
+      <CastleHero title="Notice" />
       <div className="p-header">
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
           <NavIcon name="bell" color="var(--ac)" size={20} />
@@ -99,7 +101,7 @@ export default function StudentNotificationPage() {
         </div>
       </div>
 
-      <div style={{ background: 'var(--page)', padding:'8px 14px 80px' }}>
+      <div className="castle-sheet" style={{ background: 'var(--page)', padding:'8px 14px 80px' }}>
         {/* 탭 */}
         <div style={{ display:'flex', borderBottom:'2px solid var(--g1)', marginBottom:14 }}>
           {['내 예약 현황','수업 종료 현황'].map((t,i) => (
