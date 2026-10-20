@@ -2,6 +2,10 @@
 import CoreDocView from './CoreDocView'
 import CourseWeeklyTimetable from './CourseWeeklyTimetable'
 import { hasRichDoc, DEFAULT_CORE_DOC } from '../lib/coreDoc'
+import { useCastleOn } from '../lib/useCastleSkin'
+import { jellyColorFor } from '../lib/jellyColor'
+import JellyCoreDoc from './castle/JellyCoreDoc'
+import j from './castle/jellyCourse.module.css'
 
 // 핵심 내용 화면의 수업 카드 한 장.
 //
@@ -16,6 +20,44 @@ export default function CoreCourseCard({ course, isOpen, onToggle, onBook, onSte
   const savedRich = hasRichDoc(course.coreDoc)
   const emptyCore = !savedRich && !course.coreContent && course.coreImages.length === 0
   const richDoc = savedRich ? course.coreDoc : (emptyCore ? DEFAULT_CORE_DOC : null)
+  // 3D 모드면 3D 홈 모양(흰 유리 카드 · 강좌 젤리 색). 예전 화면은 아래 그대로.
+  const castle = useCastleOn()
+  if (castle) {
+    const color = jellyColorFor(course.name)
+    return (
+      <div ref={cardRef} className={`${j.course} ${isOpen ? j.open : ''}`} style={{ '--c': color }}>
+        <button type="button" className={j.courseHead} onClick={onToggle} aria-expanded={isOpen}>
+          <span className={j.orb} style={{ '--c': color }} aria-hidden="true" />
+          <span style={{ minWidth: 0 }}>
+            <span className={j.courseName}>{course.name}{course.isEnrolled && <span className={j.enrolled}>수강 중</span>}</span>
+            <span className={j.courseSub} style={{ display: 'block' }}>{course.steps.length}회차{course.teacher ? ` · 강사 ${course.teacher}` : ''}</span>
+          </span>
+          <span className={j.chev} aria-hidden="true">›</span>
+        </button>
+        {isOpen && (
+          <>
+            {richDoc
+              ? <JellyCoreDoc doc={richDoc} sample={!savedRich} onCta={onSteps} color={color} />
+              : (
+                <div style={{ padding: '4px 14px 0' }}>
+                  <div style={{ fontSize: 13.5, lineHeight: 1.8, whiteSpace: 'pre-wrap', color: course.coreContent ? '#2b2433' : '#6d6476' }}>
+                    {course.coreContent || '핵심 내용을 준비 중이에요 🐾'}
+                  </div>
+                  {course.coreImages.map((url, i) => (
+                    <img key={url + i} src={url} alt="" loading="lazy" style={{ width: '100%', borderRadius: 16, display: 'block', marginTop: 10 }} />
+                  ))}
+                </div>
+              )}
+            <div className={j.foot}>
+              <CourseWeeklyTimetable schedules={course.schedules} onPickTime={(dw, start) => onBook(dw, start)} />
+              <button type="button" className={j.book} onClick={() => onBook()}>이 수업 예약하기</button>
+              {!richDoc && <button type="button" onClick={onSteps} style={{ display: 'block', margin: '12px auto 0', background: 'none', border: 0, borderBottom: '1.5px solid rgba(43,36,51,0.2)', padding: 0, color: '#6d6476', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>회차 보기</button>}
+            </div>
+          </>
+        )}
+      </div>
+    )
+  }
 
   const btnPrimary = {
     fontSize: 12.5, padding: '10px 18px', borderRadius: 8, background: 'var(--ac)', color: '#fff',

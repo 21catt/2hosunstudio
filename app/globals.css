@@ -944,3 +944,9 @@ html[data-skin='castle'] .cal-seg .cal-seg-on { background: #2b2433 !important; 
 html[data-skin='castle'] .cal-day { transition: transform .15s ease; }
 html[data-skin='castle'] .cal-day:active { transform: scale(0.94); }
 html[data-skin='castle'] .cal-day-sel { background: linear-gradient(160deg, #fff, rgba(255,255,255,0.75)) !important; border: 2px solid #2b2433 !important; box-shadow: 0 8px 18px rgba(60,45,80,0.18), inset 0 1.5px 0 #fff; }
+/* 학습 경로 — 3D 모양의 탭(알약)·강좌 묶음 머리말 */
+html[data-skin='castle'] .cur-tabs { border-bottom: none !important; gap: 6px !important; padding: 4px; margin-bottom: 4px; background: rgba(43,36,51,0.06); border-radius: 999px; }
+html[data-skin='castle'] .cur-tab { flex: 1; padding: 8px 0 !important; border-radius: 999px !important; font-family: 'IBM Plex Sans KR', sans-serif !important; font-weight: 600 !important; color: #6d6476 !important; }
+html[data-skin='castle'] .cur-tab-on { background: #fff !important; color: #2b2433 !important; box-shadow: 0 4px 12px -8px rgba(43,36,51,0.6); }
+html[data-skin='castle'] .cur-tab-line { display: none; }
+html[data-skin='castle'] .cur-cat span:first-child { font-family: 'IBM Plex Sans KR', sans-serif; letter-spacing: 0.14em !important; color: #6d6476 !important; }

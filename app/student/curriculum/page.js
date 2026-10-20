@@ -565,14 +565,14 @@ function CurriculumInner() {
       <div className="castle-top" style={{ background:'var(--surf)', padding:'18px 20px 0' }}>
         <div style={{ fontSize:10.5, fontWeight:800, letterSpacing:1.3, textTransform:'uppercase', color:ACCENT, marginBottom:3 }}>Curriculum</div>
         <h1 style={{ margin:0, fontSize:22, lineHeight:1.15, fontWeight:800, color:'var(--td)', letterSpacing:-0.6 }}>학습 경로</h1>
-        <div style={{ display:'flex', gap:2, marginTop:14, borderBottom:`1px solid ${BORDER}` }}>
+        <div className="cur-tabs" style={{ display:'flex', gap:2, marginTop:14, borderBottom:`1px solid ${BORDER}` }}>
           {[['my','내 경로'], ['core','핵심 내용'], ['browse','둘러보기']].map(([key, label]) => (
-            <button key={key} onClick={() => key === 'my' ? setTab('my') : handleTabSwitch(key)}
+            <button key={key} className={tab === key ? 'cur-tab cur-tab-on' : 'cur-tab'} onClick={() => key === 'my' ? setTab('my') : handleTabSwitch(key)}
               style={{ fontFamily:'Nunito,sans-serif', background:'none', border:'none', cursor:'pointer', padding:'9px 12px 10px',
                 fontSize:13, fontWeight: tab === key ? 800 : 700, color: tab === key ? 'var(--td)' : 'var(--tmu)',
                 position:'relative', letterSpacing:-0.2 }}>
               {label}
-              {tab === key && <span style={{ position:'absolute', left:8, right:8, bottom:-1, height:2, background:ACCENT, borderRadius:2 }}/>}
+              {tab === key && <span className="cur-tab-line" style={{ position:'absolute', left:8, right:8, bottom:-1, height:2, background:ACCENT, borderRadius:2 }}/>}
             </button>
           ))}
         </div>
@@ -729,7 +729,7 @@ function CurriculumInner() {
             ) : (
               browseGroups.map(group => (
                 <div key={group.category} style={{ marginBottom:22 }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:9, margin:'4px 0 11px' }}>
+                  <div className="cur-cat" style={{ display:'flex', alignItems:'center', gap:9, margin:'4px 0 11px' }}>
                     <span style={{ fontSize:10.5, fontWeight:800, letterSpacing:1.2, textTransform:'uppercase', color:'var(--tm)', whiteSpace:'nowrap' }}>{group.label}</span>
                     <span style={{ flex:1, height:1, background:BORDER }}/>
                     <span style={{ fontSize:10.5, fontWeight:800, color:'var(--tl)', fontVariantNumeric:'tabular-nums' }}>{group.courses.length}</span>
@@ -771,7 +771,7 @@ function CurriculumInner() {
             ) : (
               browseGroups.map(group => (
                 <div key={group.category} style={{ marginBottom:22 }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:9, margin:'4px 0 11px' }}>
+                  <div className="cur-cat" style={{ display:'flex', alignItems:'center', gap:9, margin:'4px 0 11px' }}>
                     <span style={{ fontSize:10.5, fontWeight:800, letterSpacing:1.2, textTransform:'uppercase', color:'var(--tm)', whiteSpace:'nowrap' }}>{group.label}</span>
                     <span style={{ flex:1, height:1, background:BORDER }}/>
                     <span style={{ fontSize:10.5, fontWeight:800, color:'var(--tl)', fontVariantNumeric:'tabular-nums' }}>{group.courses.length}</span>
