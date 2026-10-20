@@ -868,6 +868,11 @@ html[data-skin='castle'] .castle-bg {
 @media (min-width: 600px) {
   html[data-skin='castle'] .castle-bg { background-size: 780px auto; background-position: center -330px; }
 }
+/* 시트러스 젤리 배경 — 조각이 머리 아래로 보이게 더 올린다 */
+html[data-skin='castle'][data-scene='citrus'] .castle-bg { background: #d6d3cd url('/castle-bg/citrus.jpg') no-repeat center -238px / 100% auto; }
+@media (min-width: 600px) {
+  html[data-skin='castle'][data-scene='citrus'] .castle-bg { background-size: 780px auto; background-position: center -520px; }
+}
 
 /* 머리 — 2HOSUN STUDIO · 영어 제목(Instrument Serif) + 「3D 홈」 */
 .castle-hero { position: relative; z-index: 1; height: 228px; padding: 22px 20px 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; color: #2b2433; }

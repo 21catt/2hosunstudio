@@ -239,7 +239,7 @@ export default function SettingsPage() {
                 aria-label={can ? `${sc.name} 배경` : open ? `${sc.unlock}회 배경 · 준비 중` : `${sc.unlock}회 배경 · 출석 ${left}회 더`}
                 style={{ textAlign:'left', padding:0, cursor: can ? 'pointer' : 'default', borderRadius:18, overflow:'hidden', fontFamily:'inherit',
                   background:'rgba(255,255,255,0.88)', border: on ? '2px solid #2b2433' : '1px solid #fff', boxShadow: on ? '0 8px 20px rgba(43,36,51,0.22)' : '0 6px 16px rgba(60,45,80,0.08)' }}>
-                <div style={{ height:92, position:'relative', background: sc.thumb ? `#ece4d6 url(${sc.thumb}) center 30% / 150% auto no-repeat` : 'linear-gradient(135deg, #eee8fd, #fde3ec 55%, #e6effd)' }}>
+                <div style={{ height:92, position:'relative', background: sc.thumb ? `#ece4d6 url(${sc.thumb}) ${sc.thumbPos || 'center / cover'} no-repeat` : 'linear-gradient(135deg, #eee8fd, #fde3ec 55%, #e6effd)' }}>
                   {!sc.thumb && (
                     <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
                       <svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#574d63" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">

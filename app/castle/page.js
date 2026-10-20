@@ -19,6 +19,7 @@ import { getSavedTheme } from '../../lib/theme'
 import LoadingCat from '../../components/LoadingCat'
 import BookingPanel from '../../components/castle/BookingPanel'
 import { CATEGORY_STYLE } from '../../lib/categoryStyle'
+import { CASTLE_SCENES, getSavedScene, saveSceneLocal, sceneOf, sceneUnlocked, sceneSelectable } from '../../lib/castleScenes'
 import s from './castle.module.css'
 
 // 장면 = 원본 프롬프트 그대로 만든 시연판(CastleStudyScene, WebGPU). 옛 장면(CastleJellyScene)은 되돌릴 때를 위해 남겨 둔다.
@@ -26,6 +27,7 @@ const CastleJellyScene = dynamic(() => import('../../components/castle/CastleStu
 
 // 카테고리 색 = 성의 색(lib/categoryStyle — 예약 패널과 한 표)
 const CAT = Object.fromEntries(Object.entries(CATEGORY_STYLE).map(([k, v]) => [k, { name: v.name, dot: v.orb, tint: v.tint, ink: v.ink }]))
+const CITRUS_LIST = [['orange', '오렌지', '#f58a1f'], ['blood', '블러드 오렌지', '#b8202e'], ['lemon', '레몬', '#f2d53c']]
 const FLAVOUR_LIST = [['glacier', '빙하', '#8fd3ea'], ['rose', '로즈', '#f4b6cb'], ['lilac', '라일락', '#cdbcf3']]
 const PICK_LINK = {
   tower:   { label: '탑 · 수업 소개 →',  href: '/student/curriculum' },
@@ -79,6 +81,20 @@ export default function CastlePage() {
   const [ready, setReady] = useState(false)
   const [unread, setUnread] = useState(0)
   const [isAdmin, setIsAdmin] = useState(false)
+  // 3D 배경 — 설정과 같은 값(lib/castleScenes). 출석 4·8·12·16회마다 하나씩 열린다
+  const [bgScene, setBgScene] = useState('jelly')
+  const [attended, setAttended] = useState(0)
+  const [citrusVariety, setCitrusVariety] = useState('orange')
+  const frameRef = useRef(null)
+  useEffect(() => { setBgScene(getSavedScene()) }, [])
+  const scene = sceneOf(bgScene)
+  function chooseScene(key) {
+    if (!sceneSelectable(key, { attended, unlockAll: isAdmin })) return
+    if (key === bgScene) return
+    setBgScene(key); saveSceneLocal(key); setReady(false); setFallback(null); setPick(null)
+    if (user?.id) supabase.from('user_prefs').upsert({ user_id: user.id, castle_scene: key }).then(() => {}, () => {})
+  }
+  const toFrame = msg => { try { frameRef.current?.contentWindow?.postMessage(msg, window.location.origin) } catch {} }
   const [fallback, setFallback] = useState(null) // 'nowebgl' | 'lost' | 'slow'
   const [lite, setLite] = useState(() => { try { return typeof window !== 'undefined' && localStorage.getItem('2hs_castle_lite') === '1' } catch { return false } })
   const [sceneKey, setSceneKey] = useState(0) // 가벼운 모드로 다시 그릴 때 장면을 새로 만든다
@@ -123,6 +139,8 @@ export default function CastlePage() {
   }, [])
   async function loadMine(u) {
       const today = ymd(new Date())
+      supabase.from('bookings').select('id', { count: 'exact', head: true }).eq('user_id', u.id).eq('attended', true)
+        .then(({ count }) => setAttended(count || 0), () => {})
       const [{ data: cs }, { data: bs }, { data: tk }] = await Promise.all([
         supabase.from('class_courses').select('id, name, category').eq('is_active', true),
         supabase.from('bookings').select('class_name, class_date, class_time, course_id, status').eq('user_id', u.id).neq('status', 'cancelled').gte('class_date', today).order('class_date'),
@@ -160,7 +178,7 @@ export default function CastlePage() {
   }, [courses])
 
   const next = bookings[0]
-  const night = look.timeOfDay > 0.7
+  const night = !scene.embed && look.timeOfDay > 0.7
   const setL = patch => setLook(prev => ({ ...prev, ...patch }))
   function switchLite(on) {
     setLite(on)
@@ -175,18 +193,24 @@ export default function CastlePage() {
       <link rel="stylesheet" precedence="default" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap" />
       {!ready && !fallback && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-          <LoadingCat label="젤리 성을 굳히는 중…" />
+          <LoadingCat label={scene.embed ? '젤리를 굳히는 중…' : '젤리 성을 굳히는 중…'} />
         </div>
       )}
-      <CastleJellyScene key={sceneKey} lite={lite} settingsRef={settingsRef} commandRef={commandRef} onReady={() => setReady(true)}
-        onFallback={reason => { setReady(true); setFallback(reason) }}
-        onPick={(kind, x, y) => setPick(PICK_LINK[kind] ? { ...PICK_LINK[kind], x, y } : null)} />
+      {scene.embed ? (
+        // 한 파일로 만든 장면(시트러스 젤리 등) — 자기 화면 글자는 숨기고(?embed=1) 장면만 뒤에 깐다. 잡아 늘리기는 그 안에서 그대로
+        <iframe ref={frameRef} key={scene.key} src={scene.embed} title={`3D 배경 · ${scene.name}`} className={s.sceneFrame}
+          onLoad={() => { setReady(true); toFrame({ variety: citrusVariety }) }} />
+      ) : (
+        <CastleJellyScene key={sceneKey} lite={lite} settingsRef={settingsRef} commandRef={commandRef} onReady={() => setReady(true)}
+          onFallback={reason => { setReady(true); setFallback(reason) }}
+          onPick={(kind, x, y) => setPick(PICK_LINK[kind] ? { ...PICK_LINK[kind], x, y } : null)} />
+      )}
 
       <div className={s.badge}>{isAdmin ? '미리보기 · 관리자와 미리보기 학생에게만 보여요' : '새 홈 미리보기 · 의견을 들려주세요'}</div>
 
       {/* 언제든 예전 홈으로 · 가벼운 모드 */}
       <div className={s.topActions}>
-        <button className={`${s.topBtn} ${s.glass}`} aria-pressed={lite} onClick={() => switchLite(!lite)}>{lite ? '가벼운 모드 켜짐' : '가벼운 모드'}</button>
+        {!scene.embed && <button className={`${s.topBtn} ${s.glass}`} aria-pressed={lite} onClick={() => switchLite(!lite)}>{lite ? '가벼운 모드 켜짐' : '가벼운 모드'}</button>}
         {isAdmin && <a className={`${s.topBtn} ${s.glass}`} href="/admin/castle-beta">미리보기 학생</a>}
         <a className={`${s.topBtn} ${s.glass}`} href="/student" onClick={() => { try { localStorage.setItem('2hs_home_mode', 'classic') } catch {} }}>예전 홈으로</a>
       </div>
@@ -267,6 +291,36 @@ export default function CastlePage() {
           <button className={s.primary} onClick={() => openBooking()}>수업 예약하기</button>
           <div className={s.hr} style={{ marginTop: 6 }} />
         </div>
+        <div className={s.sectionLabel} style={{ padding: 0 }}>3D 배경</div>
+        <div className={s.row} style={{ flexWrap: 'wrap' }}>
+          {CASTLE_SCENES.filter(sc => sc.ready).map(sc => {
+            const open = sceneUnlocked(sc.key, { attended, unlockAll: isAdmin })
+            return (
+              <button key={sc.key} className={`${s.chip} ${s.glass} ${bgScene === sc.key ? s.chipOn : ''}`} aria-pressed={bgScene === sc.key}
+                disabled={!open} onClick={() => chooseScene(sc.key)} style={open ? undefined : { opacity: 0.55 }}
+                aria-label={open ? `${sc.name} 배경` : `${sc.name} · 출석 ${sc.unlock}회에 열려요`}>
+                {open ? sc.name : `🔒 출석 ${sc.unlock}회`}
+              </button>
+            )
+          })}
+        </div>
+        {!isAdmin && <div className={s.muted}>수업에 출석할 때마다 새 배경이 열려요 · 지금 출석 {attended}회</div>}
+        <div className={s.hr} style={{ marginTop: 2 }} />
+        {scene.embed ? (<>
+        <div className={s.sectionLabel} style={{ padding: 0 }}>{scene.name}</div>
+        <div className={s.row} style={{ flexWrap: 'wrap' }}>
+          {CITRUS_LIST.map(([id, label, c]) => (
+            <button key={id} className={`${s.chip} ${s.glass} ${citrusVariety === id ? s.chipOn : ''}`} aria-pressed={citrusVariety === id}
+              onClick={() => { setCitrusVariety(id); toFrame({ variety: id }) }}>
+              <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 4, background: c, marginRight: 5 }} />{label}
+            </button>
+          ))}
+        </div>
+        <div className={s.row}>
+          <button className={`${s.chip} ${s.glass}`} onClick={() => toFrame({ cmd: 'nudge' })}>살짝 튕기기</button>
+          <button className={`${s.chip} ${s.glass}`} onClick={() => toFrame({ cmd: 'reset' })}>제자리로</button>
+        </div>
+        </>) : (<>
         <div className={s.sectionLabel} style={{ padding: 0 }}>장면</div>
         <label className={s.slider}>낮 · 노을 · 밤
           <input type="range" min="0" max="1" step="0.01" value={look.timeOfDay} onChange={e => setL({ timeOfDay: +e.target.value })} style={{ accentColor: '#b49ae8' }} />
@@ -298,6 +352,7 @@ export default function CastlePage() {
           <button className={`${s.chip} ${s.glass}`} onClick={() => commandRef.current?.coin()}>소원 동전</button>
           <button className={`${s.chip} ${s.glass}`} onClick={() => commandRef.current?.ball()}>공 던지기</button>
         </div>
+        </>)}
       </aside>
 
       {/* 누른 곳 → 들어가기 */}
@@ -324,7 +379,9 @@ export default function CastlePage() {
         ))}
       </nav>
 
-      <div className={s.howto}><b>How to play</b> — 탑·성문·배·화로·냥이를 눌러 들어가기 · 물을 끌어 물결 · 블록 옆면을 끌어 기울이기 · 소나무를 끌어 휘기 · 빈 곳을 끌어 돌려 보기</div>
+      <div className={s.howto}><b>How to play</b> — {scene.embed
+        ? '젤리를 잡아 늘렸다가 놓아 보기 · 오른쪽 장면 패널에서 오렌지 · 블러드 오렌지 · 레몬'
+        : '탑·성문·배·화로·냥이를 눌러 들어가기 · 물을 끌어 물결 · 블록 옆면을 끌어 기울이기 · 소나무를 끌어 휘기 · 빈 곳을 끌어 돌려 보기'}</div>
     </div>
   )
 }
