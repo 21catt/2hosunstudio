@@ -884,7 +884,8 @@ html[data-skin='castle'] .castle-bg {
 
 /* 시트 — 머리 줄(p-header / header) = 위가 둥근 유리, 본문(.castle-sheet) = 이어지는 유리 */
 html[data-skin='castle'] .p-header,
-html[data-skin='castle'] .header {
+html[data-skin='castle'] .header,
+html[data-skin='castle'] .castle-top {
   margin: 0 10px; border-radius: 28px 28px 0 0; background: var(--castle-glass);
   border: 1px solid #fff; border-bottom: none; box-shadow: inset 0 1.5px 0 #fff;
   -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
@@ -894,7 +895,7 @@ html[data-skin='castle'] .header-title,
 html[data-skin='castle'] .p-title { color: #2b2433; font-family: 'IBM Plex Sans KR', sans-serif; font-weight: 700; }
 html[data-skin='castle'] .header svg { stroke: #2b2433; }
 html[data-skin='castle'] .castle-sheet {
-  margin: 0 10px !important; background: rgba(255,255,255,0.72) !important; border-radius: 0 0 28px 28px !important;
+  margin: 0 10px 96px !important; background: rgba(255,255,255,0.72) !important; border-radius: 0 0 28px 28px !important;
   border: 1px solid #fff; border-top: none; box-shadow: 0 18px 40px rgba(60,45,80,0.16);
   -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
 }

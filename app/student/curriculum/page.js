@@ -3,6 +3,7 @@ import { Suspense, useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import StudentNav from '../../../components/StudentNav'
+import CastleHero from '../../../components/castle/CastleHero'
 import LoadingCat from '../../../components/LoadingCat'
 import SpaceBg from '../../../components/SpaceBg'
 import { useSpaceTheme } from '../../../lib/useFreshTheme'
@@ -560,7 +561,8 @@ function CurriculumInner() {
       {/* 헤더 — 키커 라벨 + 제목 + 밑줄 탭.
           ⚠️ 색은 전부 테마 변수만 쓴다. 예전 '오늘' 표시에 박혀 있던 #FF8F00·#FFF8E1·#FFB300 같은
              하드코딩 주황은 8색 테마 중 어느 것과도 안 맞아 혼자 튀었다(2026-10-05 제거). */}
-      <div style={{ background:'var(--surf)', padding:'18px 20px 0' }}>
+      <CastleHero title="Curriculum" />
+      <div className="castle-top" style={{ background:'var(--surf)', padding:'18px 20px 0' }}>
         <div style={{ fontSize:10.5, fontWeight:800, letterSpacing:1.3, textTransform:'uppercase', color:ACCENT, marginBottom:3 }}>Curriculum</div>
         <h1 style={{ margin:0, fontSize:22, lineHeight:1.15, fontWeight:800, color:'var(--td)', letterSpacing:-0.6 }}>학습 경로</h1>
         <div style={{ display:'flex', gap:2, marginTop:14, borderBottom:`1px solid ${BORDER}` }}>
@@ -576,7 +578,7 @@ function CurriculumInner() {
         </div>
       </div>
 
-      <div style={{ background:'var(--page)', padding:'18px 20px 0', minHeight:'80vh' }}>
+      <div className="castle-sheet" style={{ background:'var(--page)', padding:'18px 20px 0', minHeight:'80vh' }}>
 
         {/* 내 경로 */}
         {tab === 'my' && (
