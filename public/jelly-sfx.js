@@ -30,78 +30,96 @@
   const env = (g, t, peak, a, d) => { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + d) }
   const noise = (t, dur) => { const n = ctx.createBufferSource(); n.buffer = noiseBuf; n.loop = true; n.start(t, Math.random() * 0.5); n.stop(t + dur); return n }
 
+  // 소리 2안(2026-10-20) — 높고 짧고 동글동글, 끝을 살짝 올린다. 음은 도·레·미·솔·라 안에서 골라 겹쳐도 화음처럼 들린다.
+  // 젤리 소리 = 「말캉 쫀득」: 낮고 둥근 몸통이 꿀렁꿀렁 흔들리다 끝에 「쫀」 하고 당겨 붙는다.
+  const NOTE = { C5: 523.25, D5: 587.33, E5: 659.25, G5: 783.99, A5: 880, C6: 1046.5, E6: 1318.5, G6: 1567.98 }
+  // 동그란 한 방울: 낮게 시작 → 쭉 올라갔다(peak) → 제 음(f)에 앉으며 파르르(vib)
+  function blip(t, f, { from = 0.7, peak = 1.4, up = 0.045, settle = 0.12, dur = 0.3, vol = 0.25, vib = 0, depth = 0, oct = 0.12 }) {
+    for (const [mul, v, type] of [[1, vol, 'sine'], [2, vol * oct, 'triangle']]) {
+      const o = ctx.createOscillator(), g = ctx.createGain(); o.type = type
+      o.frequency.setValueAtTime(f * mul * from, t); o.frequency.exponentialRampToValueAtTime(f * mul * peak, t + up); o.frequency.exponentialRampToValueAtTime(f * mul, t + settle)
+      if (vib) { const l = ctx.createOscillator(), lg = ctx.createGain(); l.frequency.value = vib; lg.gain.setValueAtTime(f * mul * depth, t + up); lg.gain.exponentialRampToValueAtTime(0.01, t + dur); l.connect(lg); lg.connect(o.frequency); l.start(t); l.stop(t + dur + 0.05) }
+      env(g, t, v, 0.008, dur); o.connect(g); g.connect(out); o.start(t); o.stop(t + dur + 0.05)
+    }
+  }
+
   const SOUNDS = {
-    // 젤리가 출렁 — 높게 시작해 제 음으로 떨어지며 흔들리는 '뾰요옹'
+    // 젤리 — 「말캉 쫀득」: 낮고 둥근 몸통이 느리게 꿀렁(7→4.5Hz)이다 끝에 「쫀」
     boing(t, { s = 1, pitch = 1 }) {
-      const f0 = 210 * pitch * (1 + 0.25 * s)
-      for (const [mul, vol, type] of [[1, 0.32, 'sine'], [2.01, 0.08, 'triangle']]) {
-        const o = ctx.createOscillator(), g = ctx.createGain(), lfo = ctx.createOscillator(), lg = ctx.createGain()
-        o.type = type; o.frequency.setValueAtTime(f0 * mul * 1.9, t); o.frequency.exponentialRampToValueAtTime(f0 * mul, t + 0.07)
-        lfo.frequency.value = 9; lg.gain.setValueAtTime(f0 * mul * 0.16 * s, t); lg.gain.exponentialRampToValueAtTime(0.01, t + 0.55)
-        lfo.connect(lg); lg.connect(o.frequency)
-        env(g, t, vol * (0.45 + 0.55 * s), 0.006, 0.5 + 0.2 * s)
-        o.connect(g); g.connect(out); o.start(t); lfo.start(t); o.stop(t + 0.8); lfo.stop(t + 0.8)
-      }
+      const f = 392 * pitch * (1 + 0.08 * s), v = 0.3 * (0.55 + 0.45 * s)
+      const o = ctx.createOscillator(), lp = ctx.createBiquadFilter(), g = ctx.createGain(); o.type = 'triangle'
+      o.frequency.setValueAtTime(f * 1.4, t); o.frequency.exponentialRampToValueAtTime(f * 0.82, t + 0.07); o.frequency.exponentialRampToValueAtTime(f, t + 0.16)
+      const l = ctx.createOscillator(), lg = ctx.createGain(); l.frequency.setValueAtTime(7, t); l.frequency.linearRampToValueAtTime(4.5, t + 0.45)
+      lg.gain.setValueAtTime(f * 0.11 * s, t + 0.05); lg.gain.exponentialRampToValueAtTime(0.5, t + 0.45); l.connect(lg); lg.connect(o.frequency)
+      lp.type = 'lowpass'; lp.Q.value = 6; lp.frequency.setValueAtTime(1500, t); lp.frequency.exponentialRampToValueAtTime(650, t + 0.3)
+      const trem = ctx.createGain(), tl = ctx.createOscillator(), tg = ctx.createGain(); trem.gain.value = 1; tl.frequency.value = 6; tg.gain.value = 0.25; tl.connect(tg); tg.connect(trem.gain)
+      env(g, t, v, 0.012, 0.42); o.connect(lp); lp.connect(trem); trem.connect(g); g.connect(out)
+      o.start(t); l.start(t); tl.start(t); o.stop(t + 0.5); l.stop(t + 0.5); tl.stop(t + 0.5)
+      const n = noise(t, 0.05), bp = ctx.createBiquadFilter(), ng = ctx.createGain(); bp.type = 'bandpass'; bp.frequency.value = 700; bp.Q.value = 3
+      env(ng, t, 0.07 * s, 0.004, 0.04); n.connect(bp); bp.connect(ng); ng.connect(out)
+      blip(t + 0.24, f * 1.5, { from: 0.8, peak: 1.45, up: 0.025, settle: 0.05, dur: 0.09, vol: v * 0.42, oct: 0.05 })
     },
-    // 꾹 누를 때 — 말랑하게 눌리는 '뭉' 소리
+    // 꾹 누를 때 — 「뽀옥」: 눌려서 내려갔다 다시 동그랗게 올라옴
     squish(t, { s = 1 }) {
-      const n = noise(t, 0.25), bp = ctx.createBiquadFilter(), g = ctx.createGain()
-      bp.type = 'bandpass'; bp.Q.value = 2.2; bp.frequency.setValueAtTime(1000, t); bp.frequency.exponentialRampToValueAtTime(260, t + 0.2)
-      env(g, t, 0.22 * s, 0.01, 0.2); n.connect(bp); bp.connect(g); g.connect(out)
-      const o = ctx.createOscillator(), og = ctx.createGain(); o.type = 'sine'
-      o.frequency.setValueAtTime(170, t); o.frequency.exponentialRampToValueAtTime(80, t + 0.2)
-      env(og, t, 0.22 * s, 0.01, 0.2); o.connect(og); og.connect(out); o.start(t); o.stop(t + 0.3)
+      const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sine'
+      o.frequency.setValueAtTime(NOTE.E5, t); o.frequency.exponentialRampToValueAtTime(NOTE.C5 * 0.62, t + 0.08); o.frequency.exponentialRampToValueAtTime(NOTE.G5, t + 0.19)
+      env(g, t, 0.24 * s, 0.012, 0.2); o.connect(g); g.connect(out); o.start(t); o.stop(t + 0.26)
+      const n = noise(t, 0.09), lp = ctx.createBiquadFilter(), ng = ctx.createGain(); lp.type = 'lowpass'; lp.frequency.value = 700
+      env(ng, t, 0.05 * s, 0.01, 0.07); n.connect(lp); lp.connect(ng); ng.connect(out)
     },
-    // 잡아 늘릴 때 — 늘어날수록 높아지는 고무 '찌익'
+    // 잡아 늘릴 때 — 「뾰오」: 늘릴수록 높아지는 작은 피리
     stretch(t, { s = 0.5 }) {
-      const o = ctx.createOscillator(), g = ctx.createGain(), f = 260 + 520 * s
-      o.type = 'triangle'; o.frequency.setValueAtTime(f, t); o.frequency.linearRampToValueAtTime(f * 1.06, t + 0.07)
-      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1400
-      env(g, t, 0.07 + 0.05 * s, 0.01, 0.07); o.connect(lp); lp.connect(g); g.connect(out); o.start(t); o.stop(t + 0.12)
+      blip(t, NOTE.C5 * (1 + 1.2 * s), { from: 0.96, peak: 1.06, up: 0.04, settle: 0.09, dur: 0.1, vol: 0.06 + 0.05 * s, vib: 9, depth: 0.025, oct: 0.05 })
     },
-    // 단추·작은 방울 — '뽁'
+    // 단추·작은 방울 — 「뽁」: 더 높고 짧게, 끝에 아주 작은 딸깍
     pop(t, { pitch = 1 }) {
       const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sine'
-      o.frequency.setValueAtTime(520 * pitch, t); o.frequency.exponentialRampToValueAtTime(1300 * pitch, t + 0.05)
-      env(g, t, 0.22, 0.004, 0.08); o.connect(g); g.connect(out); o.start(t); o.stop(t + 0.12)
+      o.frequency.setValueAtTime(NOTE.G5 * pitch, t); o.frequency.exponentialRampToValueAtTime(NOTE.G6 * 1.2 * pitch, t + 0.035)
+      env(g, t, 0.22, 0.003, 0.06); o.connect(g); g.connect(out); o.start(t); o.stop(t + 0.09)
+      const n = noise(t, 0.02), hp = ctx.createBiquadFilter(), ng = ctx.createGain(); hp.type = 'highpass'; hp.frequency.value = 3500
+      env(ng, t, 0.05, 0.001, 0.012); n.connect(hp); hp.connect(ng); ng.connect(out)
     },
-    // 물을 칠 때 — '찰방'
+    // 물을 칠 때 — 「찰랑」: 물소리는 부드럽게, 동그란 방울을 더
     splash(t, { s = 1 }) {
-      const n = noise(t, 0.6), lp = ctx.createBiquadFilter(), g = ctx.createGain()
-      lp.type = 'lowpass'; lp.frequency.setValueAtTime(4200, t); lp.frequency.exponentialRampToValueAtTime(500, t + 0.45)
-      env(g, t, 0.24 * s, 0.006, 0.45); n.connect(lp); lp.connect(g); g.connect(out)
-      for (let k = 0; k < 4; k++) SOUNDS.drip(t + 0.06 + k * 0.055 + Math.random() * 0.04, { s: 0.7 * s })
+      const n = noise(t, 0.4), lp = ctx.createBiquadFilter(), g = ctx.createGain()
+      lp.type = 'lowpass'; lp.frequency.setValueAtTime(2600, t); lp.frequency.exponentialRampToValueAtTime(600, t + 0.3)
+      env(g, t, 0.12 * s, 0.008, 0.3); n.connect(lp); lp.connect(g); g.connect(out)
+      for (let k = 0; k < 5; k++) SOUNDS.drip(t + 0.05 + k * 0.06 + Math.random() * 0.03, { s: 0.75 * s })
     },
-    // 물방울 — 위로 쪼르르 '퐁'
+    // 물방울 — 「퐁」: 동그란 보글
     drip(t, { s = 1 }) {
-      const o = ctx.createOscillator(), g = ctx.createGain(), f = 700 + Math.random() * 1100
-      o.type = 'sine'; o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 2.3, t + 0.06)
-      env(g, t, 0.11 * s, 0.004, 0.08); o.connect(g); g.connect(out); o.start(t); o.stop(t + 0.12)
-    },
-    // 탑·성문·냥이를 눌러 들어갈 때 — 맑은 두 음 '띵동'
-    chime(t) {
-      for (const [f, dt] of [[1318.5, 0], [1975.5, 0.09]]) {
-        const o = ctx.createOscillator(), g = ctx.createGain(), o2 = ctx.createOscillator(), g2 = ctx.createGain()
-        o.type = 'sine'; o.frequency.value = f; o2.type = 'sine'; o2.frequency.value = f * 2.76
-        env(g, t + dt, 0.13, 0.004, 1.1); env(g2, t + dt, 0.03, 0.004, 0.35)
-        o.connect(g); o2.connect(g2); g.connect(out); g2.connect(out); o.start(t + dt); o2.start(t + dt); o.stop(t + dt + 1.3); o2.stop(t + dt + 0.5)
-      }
-    },
-    // 먹물 — 축축하게 '푸슉' 하고 방울이 보글
-    splat(t, { s = 1 }) {
-      const n = noise(t, 0.3), bp = ctx.createBiquadFilter(), g = ctx.createGain()
-      bp.type = 'bandpass'; bp.Q.value = 0.9; bp.frequency.setValueAtTime(1800, t); bp.frequency.exponentialRampToValueAtTime(420, t + 0.22)
-      env(g, t, 0.3 * s, 0.004, 0.24); n.connect(bp); bp.connect(g); g.connect(out)
-      SOUNDS.thud(t, { s: 0.6 * s })
-      for (let k = 0; k < 6; k++) SOUNDS.drip(t + 0.18 + k * 0.07 + Math.random() * 0.05, { s: 0.6 })
-    },
-    // 떨어져 닿을 때 — 말랑한 '퉁'
-    thud(t, { s = 1 }) {
+      const fs = [NOTE.C5, NOTE.D5, NOTE.E5, NOTE.G5, NOTE.A5], f = fs[(Math.random() * fs.length) | 0]
       const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sine'
-      o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(62, t + 0.16)
-      env(g, t, 0.36 * s, 0.004, 0.2); o.connect(g); g.connect(out); o.start(t); o.stop(t + 0.3)
-      const n = noise(t, 0.05), lp = ctx.createBiquadFilter(), ng = ctx.createGain(); lp.type = 'lowpass'; lp.frequency.value = 900
-      env(ng, t, 0.1 * s, 0.002, 0.04); n.connect(lp); lp.connect(ng); ng.connect(out)
+      o.frequency.setValueAtTime(f * 0.8, t); o.frequency.exponentialRampToValueAtTime(f * 2.4, t + 0.05)
+      env(g, t, 0.12 * s, 0.006, 0.07); o.connect(g); g.connect(out); o.start(t); o.stop(t + 0.1)
+    },
+    // 탑·성문·냥이를 눌러 들어갈 때 — 「딩동댕」: 오르골처럼 도·미·솔
+    chime(t) {
+      [NOTE.C6, NOTE.E6, NOTE.G6].forEach((f, k) => {
+        const dt = k * 0.085, o = ctx.createOscillator(), g = ctx.createGain(), o2 = ctx.createOscillator(), g2 = ctx.createGain()
+        o.type = 'triangle'; o.frequency.value = f; o2.type = 'sine'; o2.frequency.value = f * 4.1
+        env(g, t + dt, 0.11, 0.003, 0.7); env(g2, t + dt, 0.025, 0.002, 0.12)
+        o.connect(g); o2.connect(g2); g.connect(out); g2.connect(out); o.start(t + dt); o2.start(t + dt); o.stop(t + dt + 0.8); o2.stop(t + dt + 0.2)
+      })
+    },
+    // 먹물 — 「퓨슉 보글보글」: 짧은 숨 + 방울이 오르내림
+    splat(t, { s = 1 }) {
+      const n = noise(t, 0.16), bp = ctx.createBiquadFilter(), g = ctx.createGain()
+      bp.type = 'bandpass'; bp.Q.value = 1.2; bp.frequency.setValueAtTime(1400, t); bp.frequency.exponentialRampToValueAtTime(600, t + 0.14)
+      env(g, t, 0.14 * s, 0.006, 0.14); n.connect(bp); bp.connect(g); g.connect(out)
+      ;[NOTE.C5, NOTE.E5, NOTE.D5, NOTE.G5, NOTE.E5, NOTE.A5].forEach((f, k) => {
+        const o = ctx.createOscillator(), og = ctx.createGain(), tt = t + 0.12 + k * 0.075; o.type = 'sine'
+        o.frequency.setValueAtTime(f * 0.75, tt); o.frequency.exponentialRampToValueAtTime(f * 1.9, tt + 0.05)
+        env(og, tt, 0.1 * s, 0.005, 0.07); o.connect(og); og.connect(out); o.start(tt); o.stop(tt + 0.1)
+      })
+    },
+    // 떨어져 닿을 때 — 「통」: 나무 실로폰처럼 말랑하게
+    thud(t, { s = 1 }) {
+      const f = 330, o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sine'
+      o.frequency.setValueAtTime(f * 1.25, t); o.frequency.exponentialRampToValueAtTime(f, t + 0.04)
+      env(g, t, 0.3 * s, 0.003, 0.22); o.connect(g); g.connect(out); o.start(t); o.stop(t + 0.3)
+      const o2 = ctx.createOscillator(), g2 = ctx.createGain(); o2.type = 'sine'; o2.frequency.value = f * 3.9
+      env(g2, t, 0.05 * s, 0.002, 0.05); o2.connect(g2); g2.connect(out); o2.start(t); o2.stop(t + 0.08)
     },
   }
   // 같은 소리가 너무 촘촘하면 시끄럽다 — 소리마다 최소 간격
