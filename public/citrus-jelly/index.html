@@ -71,8 +71,10 @@
 </section>
 <div class="fallback"><h2>This slice needs WebGPU.</h2><p>Try a recent Chrome, Edge or Safari with WebGPU turned on.</p></div>
 
+<script src="/jelly-sfx.js"></script>
 <script>
 'use strict';
+const sfx = (n, o) => window.JellySfx?.play(n, o)
 const EMBED = new URLSearchParams(location.search).get('embed') === '1';
 if (EMBED) document.body.classList.add('embed');
 
@@ -981,6 +983,7 @@ async function main() {
     const fwd = V.norm(V.sub(h, eye))
     dragPlane = { n: fwd, p: h }
     grab = { idx, w, off, target: h.slice(), goal: h.slice(), anchor: h.slice() }
+    sfx('squish', { s: 0.8 })
     e.preventDefault()
   })
   canvas.addEventListener('pointermove', e => {
@@ -996,8 +999,10 @@ async function main() {
     let minY = 1e9; for (let n = 0; n < grab.idx.length; n++) minY = Math.min(minY, p[1] + grab.off[n * 3 + 1])
     if (minY < 0.015) p[1] += 0.015 - minY
     grab.goal = p
+    sfx('stretch', { s: Math.min(1, V.len(V.sub(p, grab.anchor)) / 1.25) })
   })
   const release = () => {
+    if (grab) sfx('boing', { s: Math.min(1, 0.35 + V.len(V.sub(grab.goal, grab.anchor)) / 1.1) })
     if (grab) for (let i = 0; i < NP; i++) { // let go softly: a flick shouldn't throw it across the set
       const k = i * 3, sp = Math.hypot(vel[k], vel[k + 1], vel[k + 2])
       if (sp > 2) { const f = 2 / sp; vel[k] *= f; vel[k + 1] *= f; vel[k + 2] *= f }
@@ -1008,6 +1013,7 @@ async function main() {
   function bodyCentroid() { let c = [0, 0, 0]; for (let i = 0; i < NP; i++) { c[0] += x[i * 3]; c[1] += x[i * 3 + 1]; c[2] += x[i * 3 + 2] } return V.mul(c, 1 / NP) }
 
   function nudge() {
+    sfx('boing', { s: 0.9, pitch: 0.85 })
     const c = bodyCentroid(), w = [0.6, 3.6 * (Math.random() < 0.5 ? -1 : 1), 0.4]
     for (let i = 0; i < NP; i++) {
       const r = V.sub(p3(x, i), c), tw = V.cross(w, r)

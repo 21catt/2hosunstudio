@@ -21,7 +21,6 @@ import BookingPanel from '../../components/castle/BookingPanel'
 import { CATEGORY_STYLE } from '../../lib/categoryStyle'
 import { CASTLE_SCENES, getSavedScene, saveSceneLocal, sceneOf, sceneUnlocked, sceneSelectable } from '../../lib/castleScenes'
 import s from './castle.module.css'
-import { createJellyMusic } from '../../lib/jellyMusic'
 
 // 장면 = 원본 프롬프트 그대로 만든 시연판(CastleStudyScene, WebGPU). 옛 장면(CastleJellyScene)은 되돌릴 때를 위해 남겨 둔다.
 const CastleJellyScene = dynamic(() => import('../../components/castle/CastleStudyScene'), { ssr: false })
@@ -123,34 +122,18 @@ export default function CastlePage() {
   }, [])
   const toFrame = msg => { try { frameRef.current?.contentWindow?.postMessage(msg, window.location.origin) } catch {} }
   const [fallback, setFallback] = useState(null) // 'nowebgl' | 'lost' | 'slow'
-  // 배경 음악 — 장면마다 다른 말랑한 노래(lib/jellyMusic). 기본으로 흐르고(브라우저 규칙상 화면을 처음 누르는 순간부터),
-  // 「♪ 음악」으로 끈 사람은 끈 채로 기억한다(2hs_castle_music = '0')
-  const musicRef = useRef(null)
-  const [musicOn, setMusicOn] = useState(() => { try { return typeof window === 'undefined' || localStorage.getItem('2hs_castle_music') !== '0' } catch { return true } })
-  const musicKey = sc => (sc === 'citrus' || sc === 'octopus') ? sc : 'jelly'
-  async function toggleMusic() {
-    if (!musicRef.current) musicRef.current = createJellyMusic()
-    const m = musicRef.current
-    if (m.playing || musicOn) { m.stop(); setMusicOn(false); try { localStorage.setItem('2hs_castle_music', '0') } catch {} }
-    else { const ok = await m.start(musicKey(bgScene)); setMusicOn(ok); try { localStorage.setItem('2hs_castle_music', ok ? '1' : '0') } catch {} }
-  }
-  useEffect(() => { if (musicRef.current?.playing) musicRef.current.setScene(musicKey(bgScene)) }, [bgScene])
+  // 반응 소리 — 만지고 움직일 때만 나는 짧은 소리(public/jelly-sfx.js, 성·시트러스·문어 공용). 기본 켬, 끈 사람은 끈 채로 기억(2hs_castle_sfx)
+  const [sfxOn, setSfxOn] = useState(() => { try { return typeof window === 'undefined' || localStorage.getItem('2hs_castle_sfx') !== '0' } catch { return true } })
   useEffect(() => {
-    let wanted = true; try { wanted = localStorage.getItem('2hs_castle_music') !== '0' } catch {}
-    const EV = ['pointerdown', 'keydown', 'touchstart']
-    const first = e => {
-      EV.forEach(n => window.removeEventListener(n, first, true))
-      // 「♪ 음악」 단추를 처음 누른 거면 그 단추가 알아서 한다(여기서 켜면 곧바로 꺼진다)
-      if (e?.target?.closest?.('[data-music-btn]')) return
-      if (!wanted || musicRef.current?.playing) return
-      if (!musicRef.current) musicRef.current = createJellyMusic()
-      musicRef.current.start(musicKey(getSavedScene())).then(ok => setMusicOn(!!ok))
-    }
-    if (wanted) EV.forEach(n => window.addEventListener(n, first, true))
-    const vis = () => { const m = musicRef.current; if (!m) return; document.hidden ? m.suspend() : m.resume() }
-    document.addEventListener('visibilitychange', vis)
-    return () => { EV.forEach(n => window.removeEventListener(n, first, true)); document.removeEventListener('visibilitychange', vis); musicRef.current?.close() }
+    if (window.JellySfx || document.querySelector('script[data-jelly-sfx]')) return
+    const sc = document.createElement('script'); sc.src = '/jelly-sfx.js'; sc.dataset.jellySfx = '1'; document.head.appendChild(sc)
   }, [])
+  function toggleSfx() {
+    const v = !sfxOn
+    try { localStorage.setItem('2hs_castle_sfx', v ? '1' : '0') } catch {}
+    if (window.JellySfx) { window.JellySfx.enabled = v; if (v) window.JellySfx.play('pop') }
+    setSfxOn(v)
+  }
   const [lite, setLite] = useState(() => { try { return typeof window !== 'undefined' && localStorage.getItem('2hs_castle_lite') === '1' } catch { return false } })
   const [sceneKey, setSceneKey] = useState(0) // 가벼운 모드로 다시 그릴 때 장면을 새로 만든다
   const settingsRef = useRef(look)
@@ -267,7 +250,7 @@ export default function CastlePage() {
 
       {/* 언제든 예전 홈으로 · 가벼운 모드 */}
       <div className={s.topActions}>
-        <button data-music-btn className={`${s.topBtn} ${s.glass}`} aria-pressed={musicOn} onClick={toggleMusic} aria-label={musicOn ? '배경 음악 끄기' : '배경 음악 켜기'}>{musicOn ? '♪ 음악 켜짐' : '♪ 음악'}</button>
+        <button className={`${s.topBtn} ${s.glass}`} aria-pressed={sfxOn} onClick={toggleSfx} aria-label={sfxOn ? '반응 소리 끄기' : '반응 소리 켜기'}>{sfxOn ? '🔊 소리' : '🔇 소리 끔'}</button>
         {!scene.embed && <button className={`${s.topBtn} ${s.glass}`} aria-pressed={lite} onClick={() => switchLite(!lite)}>{lite ? '가벼운 모드 켜짐' : '가벼운 모드'}</button>}
         {isAdmin && <a className={`${s.topBtn} ${s.glass}`} href="/admin/castle-beta">미리보기 학생</a>}
         <a className={`${s.topBtn} ${s.glass}`} href="/student" aria-label="3D 모드 끄기" onClick={() => { try { localStorage.setItem('2hs_home_mode', 'classic') } catch {} }}>

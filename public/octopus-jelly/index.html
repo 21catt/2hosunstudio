@@ -136,8 +136,10 @@
   <p class="keys">Keys — 1–5 behaviours · Space pause · S quarter speed · R reset · drag empty space to orbit · scroll or pinch to zoom.</p>
 </template>
 
+<script src="/jelly-sfx.js"></script>
 <script>
 'use strict';
+const sfx = (n, o) => window.JellySfx?.play(n, o)
 const EMBED = new URLSearchParams(location.search).get('embed') === '1'
 if (EMBED) document.body.classList.add('embed')
 if (matchMedia('(max-width: 720px)').matches) document.getElementById('panel').classList.add('collapsed')
@@ -1088,7 +1090,7 @@ function updateInk(dt) {
     d.vy += GRAV * dt; const dr = 1 - 0.4 * dt; d.vx *= dr; d.vz *= dr
     d.x += d.vx * dt; d.y += d.vy * dt; d.z += d.vz * dt
     const r = Math.hypot(d.x, d.z)
-    if (r < 2.2 && d.y < plateY(r) + d.r) { addStain(d.x, d.z, d.r * (2.4 + rnd() * 1.6)); DROPS.splice(n, 1) }
+    if (r < 2.2 && d.y < plateY(r) + d.r) { if (Math.random() < 0.3) sfx('drip', { s: 0.6 }); addStain(d.x, d.z, d.r * (2.4 + rnd() * 1.6)); DROPS.splice(n, 1) }
     else if (d.y < FLOOR - 0.2) DROPS.splice(n, 1)
   }
   for (let k = 0; k < 32; k++) STAINS[k * 4 + 3] *= Math.exp(-dt / 16)
@@ -1311,9 +1313,10 @@ async function main() {
       let minY = 1e9; for (let n = 0; n < grab.idx.length; n++) minY = Math.min(minY, p[1] + grab.off[n * 3 + 1])
       if (minY < 0.02) p[1] += 0.02 - minY
       grab.goal = p
+      sfx('stretch', { s: Math.min(1, V.len(V.sub(p, grab.anchor)) / 1.4) })
     } else if (mode.kind === 'armDrag' && armGrab) {
       const p = planeHit(ray, { n: [0, 1, 0], p: [0, armGrab.y, 0] })
-      if (p) { const r = Math.hypot(p[0], p[2]); if (r > 2.0) { p[0] *= 2.0 / r; p[2] *= 2.0 / r } armGrab.goal = p }
+      if (p) { const r = Math.hypot(p[0], p[2]); if (r > 2.0) { p[0] *= 2.0 / r; p[2] *= 2.0 / r } armGrab.goal = p; sfx('stretch', { s: Math.min(1, Math.max(0, ((armGrab.ratio || 1) - 0.9) * 2)) }) }
     } else if (mode.kind === 'reach' && reach) {
       const p = platePoint(ray); if (p) reach.p = [p[0], 0, p[2]]
     }
@@ -1331,6 +1334,7 @@ async function main() {
       hv[k] += dx * f; hv[k + 1] += dy * f * 0.5 + 0.3; hv[k + 2] += dz * f
     }
     flinchLabel = 0.9
+    sfx('boing', { s: 0.75, pitch: 1.25 })
   }
   const release = e => {
     ptrs.delete(e.pointerId)
@@ -1351,6 +1355,7 @@ async function main() {
     if (mode.kind === 'headPending' && held > 230) {
       mode = { ...mode, kind: 'squash' }
       drive.squash = { p: mode.p, k: 0 }
+      sfx('squish', { s: 0.9 })
     }
     if (mode.kind === 'squash' && drive.squash) drive.squash.k = Math.min(60, drive.squash.k + 4)
     if (mode.kind === 'spacePending' && held > 320 && mode.plate) {
@@ -1408,6 +1413,8 @@ async function main() {
     const held = !!grab
     const airborne = minY > (beh.name === 'stroll' ? 0.6 : 0.4)
     beh.t += dt
+    { let vy = 0; for (let i = 0; i < NP; i++) vy += hv[i * 3 + 1]; vy /= NP
+      if (st.prevVy < -1.6 && vy > -0.4 && minY < 0.08) sfx('thud', { s: Math.min(1, -st.prevVy / 4) }); st.prevVy = vy }
     if (beh.name !== 'rest' && beh.t > DUR[beh.name]) { beh.name = 'rest'; beh.t = 0; syncBehButtons() }
     if (held || airborne) { if (beh.name !== 'rest') { beh.name = 'rest'; syncBehButtons() } }
     // autoplay when left alone
@@ -1442,6 +1449,7 @@ async function main() {
     }
     if (b === 'ink' && t > 0.95 && !beh.squirted) {
       beh.squirted = true
+      sfx('splat', { s: 1 })
       const sip = toW([0, 0.32, -0.46]), back = V.norm(V.add(V.mul(fwd, -1), V.mul(up, 0.5)))
       for (let n = 0; n < 70 && DROPS.length < MAX_DROPS; n++) {
         const d = V.norm([back[0] + (rnd() - 0.5) * 0.7, back[1] + (rnd() - 0.3) * 0.5, back[2] + (rnd() - 0.5) * 0.7]), s = 2.2 + rnd() * 2.2
@@ -1473,7 +1481,7 @@ async function main() {
     }
     // eyes
     let lk = eye, amt = 0.35
-    if (reach) { lk = reach.p; amt = 1 } else if (armGrab) { lk = armGrab.goal; amt = 0.8 } else if (st.wave > 0.3) amt = 0.7
+    if (reach) { lk = reach.p; amt = 1; if (!reach.popped && reach.t > 0.5) { reach.popped = true; sfx('pop', { pitch: 1.2 }) } } else if (armGrab) { lk = armGrab.goal; amt = 0.8 } else if (st.wave > 0.3) amt = 0.7
     st.look = lk; st.lookAmt = amt
     // status
     let s = LABEL[b]

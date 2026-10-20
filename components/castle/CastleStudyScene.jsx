@@ -690,11 +690,12 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
       return null
     }
     const cvs = renderer.domElement
+    const sfx = (n, o) => window.JellySfx?.play(n, o) // 반응 소리(public/jelly-sfx.js — 없으면 조용히)
     cvs.addEventListener('pointerdown', e => {
       downAt = { x: e.clientX, y: e.clientY, t: performance.now() }
       const hit = pickAt(e.clientX, e.clientY)
-      if (hit?.kind === 'lake') { mode = 'lake'; controls.enabled = false; const p = block.worldToLocal(hit.point.clone()); bump(p.x, p.z, -0.06) }
-      else if (hit?.kind === 'block') { mode = 'tilt'; controls.enabled = false; dragStart = { x: e.clientX, y: e.clientY } }
+      if (hit?.kind === 'lake') { mode = 'lake'; controls.enabled = false; const p = block.worldToLocal(hit.point.clone()); bump(p.x, p.z, -0.06); sfx('splash', { s: 0.7 }) }
+      else if (hit?.kind === 'block') { mode = 'tilt'; controls.enabled = false; dragStart = { x: e.clientX, y: e.clientY }; sfx('squish', { s: 0.7 }) }
       else if (hit?.kind === 'pine') { mode = 'pine'; controls.enabled = false; heldPine = pines[hit.obj.userData.pine]; heldPine.held = true; dragStart = { x: e.clientX, y: e.clientY } }
       else if (hit?.kind === 'ship') { mode = 'ship'; controls.enabled = false; dragStart = { x: e.clientX, y: e.clientY } }
     })
@@ -702,23 +703,24 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
       if (mode === 'lake') {
         const now = performance.now(); if (now - lastRipple < 35) return; lastRipple = now
         const hit = pickAt(e.clientX, e.clientY)
-        if (hit?.kind === 'lake') { const p = block.worldToLocal(hit.point.clone()); bump(p.x, p.z, -0.045, 2.2); addFoam(p.x, p.z, 0.1, 1.1) }
+        if (hit?.kind === 'lake') { const p = block.worldToLocal(hit.point.clone()); bump(p.x, p.z, -0.045, 2.2); addFoam(p.x, p.z, 0.1, 1.1); if (Math.random() < 0.45) sfx('drip', { s: 0.8 }) }
       } else if (mode === 'tilt') {
-        tiltTZ = Math.max(-0.25, Math.min(0.25, -(e.clientX - dragStart.x) / 800)); tiltTX = Math.max(-0.25, Math.min(0.25, (e.clientY - dragStart.y) / 800))
+        tiltTZ = Math.max(-0.25, Math.min(0.25, -(e.clientX - dragStart.x) / 800)); tiltTX = Math.max(-0.25, Math.min(0.25, (e.clientY - dragStart.y) / 800)); sfx('stretch', { s: Math.min(1, Math.hypot(tiltTX, tiltTZ) * 4) })
       } else if (mode === 'ship') {
         // 살짝 누른 건 그냥 누르기(라운지 안내) — 4px 넘게 움직여야 끌기
         if (shipMode !== 'drag' && Math.hypot(e.clientX - dragStart.x, e.clientY - dragStart.y) < 4) return
         const p = waterPointAt(e.clientX, e.clientY)
         if (p) { if (shipMode !== 'drag') { shipMode = 'drag'; shipVel.set(0, 0, 0) } shipAim(p) }
       } else if (mode === 'pine' && heldPine) {
-        heldPine.bz = Math.max(-0.8, Math.min(0.8, -(e.clientX - dragStart.x) / 160)); heldPine.bx = Math.max(-0.8, Math.min(0.8, (e.clientY - dragStart.y) / 160))
+        heldPine.bz = Math.max(-0.8, Math.min(0.8, -(e.clientX - dragStart.x) / 160)); heldPine.bx = Math.max(-0.8, Math.min(0.8, (e.clientY - dragStart.y) / 160)); sfx('stretch', { s: Math.min(1, Math.hypot(heldPine.bx, heldPine.bz)) })
       }
     }
     addEventListener('pointermove', onMove)
     const onUp = e => {
       const was = mode; mode = null; controls.enabled = true; tiltTX = tiltTZ = 0
       if (was === 'ship' && shipMode === 'drag') { shipMode = 'free'; shipIdle = 0 }
-      if (heldPine) { heldPine.held = false; heldPine = null }
+      if (was === 'tilt') sfx('boing', { s: 0.8, pitch: 0.8 })
+      if (heldPine) { heldPine.held = false; heldPine = null; sfx('boing', { s: 0.7, pitch: 1.25 }) }
       if (!downAt) return
       const moved = Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y), quick = performance.now() - downAt.t < 450
       downAt = null
@@ -726,6 +728,7 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
       const hit = pickAt(e.clientX, e.clientY); if (!hit) return
       if (hit.kind === 'block' || hit.kind === 'lake' || hit.kind === 'pine') return
       jiggleV += 0.4
+      if (hit.kind === 'ship') sfx('boing', { s: 0.6, pitch: 0.9 }); else if (hit.kind === 'brazier') sfx('pop', { pitch: 0.8 }); else sfx('chime')
       if (hit.kind === 'tower') { const t = towers[hit.obj.userData.tower]; t.wobV += 3 }
       else if (hit.kind === 'brazier') { stoke = 1; emit(spray, ...brazierWorld(), 14, 1.2, 0.2, 0.7, 0.6) }
       else if (hit.kind === 'ship') bump(ship.position.x, ship.position.z, -0.07)
@@ -794,6 +797,7 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
       }
       ship.position.set(nx, sampleH(nx, nz) - 0.025, nz)
       const speed = shipVel.length()
+      window.JellySfx?.wake(shipMode === 'lap' ? 0 : Math.min(1, speed / 2.4)) // 끌고 다닐 때만 물살 소리(혼자 도는 동안은 조용히)
       // 뱃머리는 가는 쪽으로(느릴 땐 그대로) — 가장 짧은 쪽으로 돌고, 도는 만큼 옆으로 기운다
       if (speed > 0.06) {
         let d = Math.atan2(-shipVel.z, shipVel.x) - shipYaw
@@ -909,7 +913,7 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
         const p = b.m.position; b.vel.y -= G * dt
         const w = sampleH(p.x, p.z)
         if (p.y - 0.12 < w) { const sub = Math.min(0.24, w - (p.y - 0.12)); b.vel.y += sub * 90 * dt; b.vel.multiplyScalar(0.94)
-          if (b.vel.y < -1.2) { bump(p.x, p.z, -0.09, 2.3); emit(spray, p.x, 0.02, p.z, 45, 2.3, 0.5); jiggleV += 0.2 } }
+          if (b.vel.y < -1.2) { bump(p.x, p.z, -0.09, 2.3); emit(spray, p.x, 0.02, p.z, 45, 2.3, 0.5); jiggleV += 0.2; sfx('splash', { s: 0.9 }) } }
         p.addScaledVector(b.vel, dt)
         if (p.y < FLOOR_Y + 0.12) { p.y = FLOOR_Y + 0.12; b.vel.y = Math.abs(b.vel.y) * 0.3 }
         const lim = HALF - 0.13
