@@ -120,6 +120,7 @@
   transition: transform 0.22s cubic-bezier(.3,1.6,.5,1), box-shadow 0.2s; }
 .classTile img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 3px 3px rgba(80,60,40,0.18)); pointer-events: none; user-select: none; }
 .classIco:hover .classTile { transform: translateY(-2px) scale(1.04); }
+.classIco:active .classTile { transform: scale(0.88, 0.84) translateY(2px); transition-duration: .09s; }
 .classIco[aria-expanded="true"] .classTile { transform: scale(1.1); background: linear-gradient(160deg, #fff, var(--tint));
   box-shadow: 0 10px 22px rgba(90,70,50,0.2), 0 0 0 2.5px var(--ring), inset 0 1px 0 #fff; }
 .classIco[aria-expanded="true"] .classTile img { animation: classBob 1.6s ease-in-out infinite; }

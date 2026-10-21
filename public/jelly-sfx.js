@@ -1,6 +1,6 @@
 // 3D 홈 반응 소리 — 젤리를 만지고 물을 끌고 배를 움직일 때 나는 짧은 소리. 음원 파일 없이 그 자리에서 만든다.
 // 한 파일을 3D 홈(Next 화면)·시트러스 젤리·젤리 문어(iframe 한 파일 장면)가 같이 쓴다: <script src="/jelly-sfx.js"> → window.JellySfx
-//   JellySfx.play('boing', { s: 0.8, pitch: 1 })   · 소리 이름 = boing squish stretch pop splash drip chime splat thud whistle gulp growl
+//   JellySfx.play('boing', { s: 0.8, pitch: 1 })   · 소리 이름 = boing squish stretch pop splash drip chime splat thud whistle gulp growl cushion cushionUp
 //   JellySfx.wake(speed)                             · 계속 나는 소리(배 물살) — 매 프레임 속도를 넣으면 크기가 따라간다
 //   켜고 끄기 = localStorage 2hs_castle_sfx ('0' = 끔, 그 밖 = 켬). 같은 기기의 모든 장면이 같은 값을 본다.
 // 휴대폰·브라우저는 사용자가 한 번 누르기 전엔 소리를 못 낸다 — 첫 누름에 저절로 깨운다.
@@ -155,9 +155,26 @@
         o.start(t + dt); o.stop(t + dt + dur + 0.1); l.start(t + dt); l.stop(t + dt + dur + 0.1)
       }
     },
+    // 수업 아이콘 「솜 베개」(2026-10-21) — 누를 때 솜에 손이 파묻히는 「훅」, 뗄 때 아주 작게 부풀어 오른다.
+    //   pitch = 아이콘마다 도레미파솔라시도 비율, close = 목록을 닫을 때(조금 낮고 작게)
+    cushion(t, { pitch = 1, close = false }) {
+      const k = pitch * (close ? 0.84 : 1), m = close ? 0.7 : 1
+      const n = noise(t, 0.3), lp = ctx.createBiquadFilter(), ng = ctx.createGain(); lp.type = 'lowpass'; lp.Q.value = 0.7
+      lp.frequency.setValueAtTime(1800, t); lp.frequency.exponentialRampToValueAtTime(180, t + 0.22)
+      env(ng, t, 0.2 * m, 0.012, 0.22); n.connect(lp); lp.connect(ng); ng.connect(out)
+      const o = ctx.createOscillator(), ol = ctx.createBiquadFilter(), g = ctx.createGain(); o.type = 'sine'; ol.type = 'lowpass'; ol.frequency.value = 380
+      o.frequency.setValueAtTime(150 * k, t + 0.01); o.frequency.exponentialRampToValueAtTime(95 * k, t + 0.01 + 0.154)
+      env(g, t + 0.01, 0.22 * m, 0.006, 0.22); o.connect(ol); ol.connect(g); g.connect(out); o.start(t + 0.01); o.stop(t + 0.3)
+    },
+    cushionUp(t, { close = false }) {
+      const m = close ? 0.7 : 1
+      const n = noise(t, 0.2), lp = ctx.createBiquadFilter(), ng = ctx.createGain(); lp.type = 'lowpass'; lp.Q.value = 0.7
+      lp.frequency.setValueAtTime(250, t); lp.frequency.exponentialRampToValueAtTime(600, t + 0.12)
+      env(ng, t, 0.035 * m, 0.04, 0.12); n.connect(lp); lp.connect(ng); ng.connect(out)
+    },
   }
   // 같은 소리가 너무 촘촘하면 시끄럽다 — 소리마다 최소 간격
-  const GAP = { boing: 0.09, squish: 0.12, stretch: 0.075, pop: 0.05, splash: 0.12, drip: 0.035, chime: 0.25, splat: 0.3, thud: 0.08, whistle: 0.7, gulp: 0.15, growl: 1.2 }
+  const GAP = { boing: 0.09, squish: 0.12, stretch: 0.075, pop: 0.05, splash: 0.12, drip: 0.035, chime: 0.25, splat: 0.3, thud: 0.08, whistle: 0.7, gulp: 0.15, growl: 1.2, cushion: 0.04, cushionUp: 0.04 }
 
   window.JellySfx = {
     get enabled() { return enabled() },

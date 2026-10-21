@@ -88,6 +88,9 @@ const DOCK = [
   { href: '/student/notification', label: '알림', icon: <path d="M6 16V11a6 6 0 0112 0v5l2 2H4zM10 20h4" /> },
 ]
 
+// 수업 아이콘 소리 음 — 위에서부터 도·레·미·파·솔·라·시·도
+const SCALE = [1, 9 / 8, 5 / 4, 4 / 3, 3 / 2, 5 / 3, 15 / 8, 2]
+
 export default function CastlePage() {
   const router = useRouter()
   const [allowed, setAllowed] = useState(false)
@@ -214,6 +217,7 @@ export default function CastlePage() {
   const [booking, setBooking] = useState(null) // null | { date } — 예약 패널
   // 수업 패널 — 장면을 가리지 않게 기본은 접힘, 펼친 상태는 기억한다
   const [classPick, setClassPick] = useState(null) // 펼친 수업 분류(아이콘)
+  const pressRef = useRef(null) // 누르고 있는 수업 아이콘(뗄 때 「올라옴」 소리)
   useEffect(() => {
     if (!classPick) return
     const off = e => { if (!e.target.closest?.('[data-class-rail]')) setClassPick(null) }
@@ -370,7 +374,7 @@ export default function CastlePage() {
       {/* 왼쪽 — 수업 아이콘(분류) · 누르면 옆에 그 분류의 수업 목록 */}
       {!booking && classMenu.length > 0 && (
         <nav className={s.classRail} aria-label="수업" data-class-rail>
-          {classMenu.map(m => {
+          {classMenu.map((m, i) => {
             const open = classPick === m.key
             const tile = (<>
               <span className={s.classTile} style={{ '--tint': m.tint, '--ring': m.ring }}><img src={`/castle-icons/${m.key}.png`} alt="" draggable={false} /></span>
@@ -378,7 +382,11 @@ export default function CastlePage() {
             </>)
             return (
               <div key={m.key} className={s.classItem}>
-                <button className={s.classIco} aria-expanded={open} aria-label={m.title} onClick={() => setClassPick(open ? null : m.key)}>{tile}</button>
+                <button className={s.classIco} aria-expanded={open} aria-label={m.title}
+                  onPointerDown={() => { pressRef.current = m.key; window.JellySfx?.play('cushion', { pitch: SCALE[i % SCALE.length], close: open }) }}
+                  onPointerUp={() => { if (pressRef.current === m.key) { pressRef.current = null; window.JellySfx?.play('cushionUp', { close: open }) } }}
+                  onPointerLeave={() => { if (pressRef.current === m.key) { pressRef.current = null; window.JellySfx?.play('cushionUp', { close: open }) } }}
+                  onClick={e => { if (e.detail === 0) { window.JellySfx?.play('cushion', { pitch: SCALE[i % SCALE.length], close: open }); setTimeout(() => window.JellySfx?.play('cushionUp', { close: open }), 140) } setClassPick(open ? null : m.key) }}>{tile}</button>
                 {open && (
                   <div className={`${s.classPop} ${s.glass}`} role="menu" aria-label={m.title}>
                     <div className={s.classPopHead}><span className={s.catDot} style={{ background: m.ring }} />{m.title}<small>{m.names.length}개</small></div>
