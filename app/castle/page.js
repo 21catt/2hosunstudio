@@ -11,7 +11,6 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import { sortCoursesByCategory } from '../../lib/courseSort'
 import { FARM_CATS, getSavedFarmCat } from '../../lib/farmCats'
@@ -93,7 +92,6 @@ const DOCK = [
 const SCALE = [1, 9 / 8, 5 / 4, 4 / 3, 3 / 2, 5 / 3, 15 / 8, 2]
 
 export default function CastlePage() {
-  const router = useRouter()
   const [allowed, setAllowed] = useState(false)
   const [courses, setCourses] = useState([])
   const [bookings, setBookings] = useState([])
@@ -243,7 +241,7 @@ export default function CastlePage() {
     return () => { document.removeEventListener('pointerdown', off); document.removeEventListener('keydown', esc) }
   }, [classPick])
   function openBooking(date) {
-    if (!user) { router.push(`/student/calendar?date=${date || ymd(new Date())}`); return } // 비가입자 = 캘린더에서 예약 요청·가입 안내
+    // 비가입자도 같은 예약 패널(수업·자리 보기) — 예약 단추를 누를 때만 캘린더(가입 안내)로 간다(BookingPanel)
     setBooking({ date: date || ymd(new Date()) }); setPick(null); setSceneOpen(false); setClassPick(null) }
 
   // 관리자만 — 숨긴 미리보기
