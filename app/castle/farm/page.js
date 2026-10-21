@@ -6,7 +6,7 @@
 //   · 데이터 = 기존 냥밭(/student/farm)과 **같은 기록**: 출석 → 작물 포인트, user_prefs.harvest_count · weed_state · farm_cat.
 //     규칙은 lib/farmProgress(작물 단계·수강권·잡초 뽑기) + lib/weeds(잡초 성장) — 두 화면이 한 규칙이라 어느 쪽에서 해도 같다.
 //   · 비·밤은 꾸밈이다(작물은 출석으로만 자란다). 기존 냥밭은 무변경.
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
@@ -18,6 +18,7 @@ import { useTodayWeather } from '../../../components/WeatherBar'
 import ColorMixGame from '../../../components/ColorMixGame'
 import ColorTetrisGame from '../../../components/ColorTetrisGame'
 import LoadingCat from '../../../components/LoadingCat'
+import CatTalk from '../../../components/CatTalk'
 import s from './farm3d.module.css'
 
 const FarmScene = dynamic(() => import('../../../components/farm3d/FarmScene'), { ssr: false })
@@ -222,6 +223,12 @@ export default function Farm3DPage() {
     } catch {}
   }
 
+  // 냥이 말풍선 재료 — 밭 소식(익음·자람·잡초). 값이 같으면 같은 객체(말풍선이 처음으로 안 돌아가게)
+  const removableWeeds = weedView.filter(w => w.removable).length
+  const talkCat = useMemo(() => ({ name: activeCat.name, img: activeCat.img }), [activeCat.name, activeCat.img])
+  const talkFarm = useMemo(() => ({ cropName: activeCat.cropName, ready: cropReady, stage: frontStage, stages: CROP_STAGES, weeds: removableWeeds }),
+    [activeCat.cropName, cropReady, frontStage, removableWeeds])
+
   if (!allowed || loading) return <LoadingCat />
 
   const pending = weedView.filter(w => w.removable).length
@@ -277,6 +284,7 @@ export default function Farm3DPage() {
       </section>
 
       <div className={s.how}><b>How to play</b> — 다 익은 앞 칸 작물을 눌러 수확 · 빨간 고리 잡초를 눌러 뽑기 · 헛간 = 미니게임 · 빈 곳을 끌어 섬 돌려 보기</div>
+      {!shedOpen && !mixOpen && !tetrisOpen && (devRef.current || user) && <CatTalk place="farm" user={user} cat={talkCat} farm={talkFarm} />}
       <div className={s.badge}>미리보기 · 기존 냥밭과 같은 기록이에요</div>
 
       {tag && <div className={s.tag} style={{ left: tag.x, top: tag.y }}>{tag.text}</div>}

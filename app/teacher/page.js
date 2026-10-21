@@ -119,6 +119,10 @@ export default function TeacherHomePage() {
               ))}
             </div>
 
+            <a href="/admin/cat-answers" style={{ display:'block', marginBottom:14, padding:'10px 12px', borderRadius:12, border:'1.5px solid var(--g1)', background:'var(--bg)', fontSize:12, fontWeight:700, color:'var(--td)', textDecoration:'none' }}>
+              🐾 냥이 질문 답 보기 <span style={{ fontWeight:400, color:'var(--tmu)' }}>· 학생이 다음에 그리고 싶은 그림 등</span>
+            </a>
+
             <div style={{ display:'flex', borderBottom:'2px solid var(--g1)', marginBottom:14 }}>
               {['오늘·예정','담당 회원'].map((t,i) => (
                 <div key={t} onClick={() => setTab(i)}

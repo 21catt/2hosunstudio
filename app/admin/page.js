@@ -114,6 +114,7 @@ export default function AdminHomePage() {
     { label: '대관설정', icon: 'pencil', href: '/admin/rental?tab=settings' },
     { label: '라운지', icon: 'chat', href: '/lounge' },
     { label: '강사관리', icon: 'profile', href: '/admin/teachers' },
+    { label: '냥이 답', icon: 'plant', href: '/admin/cat-answers' },
   ]
 
   if (loading) return <LoadingCat />

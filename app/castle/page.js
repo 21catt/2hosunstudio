@@ -18,6 +18,7 @@ import { FARM_CATS, getSavedFarmCat } from '../../lib/farmCats'
 import { getSavedTheme } from '../../lib/theme'
 import LoadingCat from '../../components/LoadingCat'
 import BookingPanel from '../../components/castle/BookingPanel'
+import CatTalk from '../../components/CatTalk'
 import { CATEGORY_STYLE } from '../../lib/categoryStyle'
 import { CASTLE_SCENES, getSavedScene, saveSceneLocal, sceneOf, sceneUnlocked, sceneSelectable, longTermStudent } from '../../lib/castleScenes'
 import s from './castle.module.css'
@@ -306,6 +307,8 @@ export default function CastlePage() {
   }).filter(m => m.names.length), [courses])
 
   const next = bookings[0]
+  // 말풍선의 냥이 = 내가 고른 농부냥(장면 마당의 그 냥이)
+  const catInfo = useMemo(() => { const c = FARM_CATS.find(f => f.img === catImg); return c ? { name: c.name, img: c.img } : null }, [catImg])
   const night = !scene.embed && look.timeOfDay > 0.7
   const setL = patch => setLook(prev => ({ ...prev, ...patch }))
   function switchLite(on) {
@@ -565,6 +568,9 @@ export default function CastlePage() {
         <a className={s.pick} href={pick.href} style={{ left: pick.x, top: pick.y }}
           onClick={e => { if (pick.booking) { e.preventDefault(); openBooking() } else setPick(null) }}>{pick.label}</a>
       )}
+
+      {/* 냥이 말풍선 — 인사·수업 이야기·하루 한 번 질문(답은 선생님 화면에서 보인다). 예약 창이 열리면 비켜 준다 */}
+      {!booking && catInfo && <CatTalk place="castle" user={user} cat={catInfo} nextBooking={next || null} />}
 
       {booking && (
         <BookingPanel key={booking.date} user={user} initialDate={booking.date} onClose={() => setBooking(null)}
