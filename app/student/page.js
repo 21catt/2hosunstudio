@@ -21,6 +21,7 @@ import ShotViewer from '../../components/ShotViewer'
 import NoticePopup from '../../components/NoticePopup'
 import DailyArtworkTeaser from '../../components/DailyArtworkTeaser'
 import { ensureUserRow } from '../../lib/ensureUserRow'
+import ThreeDModePill from '../../components/castle/ThreeDModePill'
 
 const CELL_W = 56
 const CELL_GAP = 8
@@ -975,19 +976,8 @@ export default function StudentHomePage() {
         </div>
       )}
 
-      {/* 3D 모드 켜기 — 로그인한 학생 누구나(2026-10-20 전체 공개) */}
-      {user && (
-        <a href="/castle" aria-label="3D 모드 켜기" onClick={() => { try { localStorage.setItem('2hs_home_mode', 'castle') } catch {} }}
-          style={{ position:'fixed', top:12, right:12, zIndex:60, padding:'8px 14px', borderRadius:999, fontSize:12, fontWeight:800,
-            color:'#2b2433', textDecoration:'none', fontFamily:'inherit',
-            background:'linear-gradient(160deg, rgba(255,255,255,0.95), rgba(255,255,255,0.55) 60%, rgba(220,210,245,0.5))',
-            border:'1px solid rgba(255,255,255,0.95)', boxShadow:'inset 0 1.5px 0 #fff, 0 8px 20px rgba(43,36,51,0.18)',
-            backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)' }}>
-          3D 모드 <span aria-hidden="true" style={{ display:'inline-block', width:26, height:15, borderRadius:999, background:'rgba(43,36,51,0.18)', verticalAlign:'-3px', marginLeft:5, position:'relative' }}>
-            <span style={{ position:'absolute', top:2, left:2, width:11, height:11, borderRadius:'50%', background:'#fff', boxShadow:'0 1px 3px rgba(0,0,0,0.25)' }} />
-          </span>
-        </a>
-      )}
+      {/* 3D 모드 켜기 — 로그인한 학생 누구나(2026-10-20 전체 공개) · 시범 운영 강조(2026-10-21) */}
+      {user && <ThreeDModePill />}
 
       {/* 휴무·행사 안내 — 스킨 분기 밖(세 스킨 공통), 로그인 여부 무관 */}
       <NoticePopup />
