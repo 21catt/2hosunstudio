@@ -155,22 +155,20 @@
         o.start(t + dt); o.stop(t + dt + dur + 0.1); l.start(t + dt); l.stop(t + dt + dur + 0.1)
       }
     },
-    // 수업 아이콘 「솜 베개」(2026-10-21) — 누를 때 솜에 손이 파묻히는 「훅」, 뗄 때 아주 작게 부풀어 오른다.
+    // 수업 아이콘 「젤리 발바닥 뿅」(2026-10-21) — 누를 때 말랑하게 「꾹」, 뗄 때 작게 「뿅」.
     //   pitch = 아이콘마다 도레미파솔라시도 비율, close = 목록을 닫을 때(조금 낮고 작게)
     cushion(t, { pitch = 1, close = false }) {
       const k = pitch * (close ? 0.84 : 1), m = close ? 0.7 : 1
-      const n = noise(t, 0.3), lp = ctx.createBiquadFilter(), ng = ctx.createGain(); lp.type = 'lowpass'; lp.Q.value = 0.7
-      lp.frequency.setValueAtTime(1800, t); lp.frequency.exponentialRampToValueAtTime(180, t + 0.22)
-      env(ng, t, 0.2 * m, 0.012, 0.22); n.connect(lp); lp.connect(ng); ng.connect(out)
-      const o = ctx.createOscillator(), ol = ctx.createBiquadFilter(), g = ctx.createGain(); o.type = 'sine'; ol.type = 'lowpass'; ol.frequency.value = 380
-      o.frequency.setValueAtTime(150 * k, t + 0.01); o.frequency.exponentialRampToValueAtTime(95 * k, t + 0.01 + 0.154)
-      env(g, t + 0.01, 0.22 * m, 0.006, 0.22); o.connect(ol); ol.connect(g); g.connect(out); o.start(t + 0.01); o.stop(t + 0.3)
+      const o = ctx.createOscillator(), ol = ctx.createBiquadFilter(), g = ctx.createGain(); o.type = 'sine'; ol.type = 'lowpass'; ol.frequency.value = 700
+      o.frequency.setValueAtTime(300 * k, t); o.frequency.exponentialRampToValueAtTime(190 * k, t + 0.091)
+      env(g, t, 0.22 * m, 0.006, 0.13); o.connect(ol); ol.connect(g); g.connect(out); o.start(t); o.stop(t + 0.2)
+      const n = noise(t, 0.16), lp = ctx.createBiquadFilter(), ng = ctx.createGain(); lp.type = 'lowpass'; lp.Q.value = 0.7
+      lp.frequency.setValueAtTime(1100, t); lp.frequency.exponentialRampToValueAtTime(260, t + 0.12)
+      env(ng, t, 0.08 * m, 0.01, 0.12); n.connect(lp); lp.connect(ng); ng.connect(out)
     },
-    cushionUp(t, { close = false }) {
-      const m = close ? 0.7 : 1
-      const n = noise(t, 0.2), lp = ctx.createBiquadFilter(), ng = ctx.createGain(); lp.type = 'lowpass'; lp.Q.value = 0.7
-      lp.frequency.setValueAtTime(250, t); lp.frequency.exponentialRampToValueAtTime(600, t + 0.12)
-      env(ng, t, 0.035 * m, 0.04, 0.12); n.connect(lp); lp.connect(ng); ng.connect(out)
+    cushionUp(t, { pitch = 1, close = false }) {
+      const k = pitch * (close ? 0.84 : 1), m = close ? 0.7 : 1
+      blip(t, NOTE.C5 * 1.5 * k, { from: 0.8, peak: 1.35, up: 0.02, settle: 0.05, dur: 0.09, vol: 0.12 * m, oct: 0.12 })
     },
   }
   // 같은 소리가 너무 촘촘하면 시끄럽다 — 소리마다 최소 간격

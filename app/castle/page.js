@@ -384,9 +384,9 @@ export default function CastlePage() {
               <div key={m.key} className={s.classItem}>
                 <button className={s.classIco} aria-expanded={open} aria-label={m.title}
                   onPointerDown={() => { pressRef.current = m.key; window.JellySfx?.play('cushion', { pitch: SCALE[i % SCALE.length], close: open }) }}
-                  onPointerUp={() => { if (pressRef.current === m.key) { pressRef.current = null; window.JellySfx?.play('cushionUp', { close: open }) } }}
-                  onPointerLeave={() => { if (pressRef.current === m.key) { pressRef.current = null; window.JellySfx?.play('cushionUp', { close: open }) } }}
-                  onClick={e => { if (e.detail === 0) { window.JellySfx?.play('cushion', { pitch: SCALE[i % SCALE.length], close: open }); setTimeout(() => window.JellySfx?.play('cushionUp', { close: open }), 140) } setClassPick(open ? null : m.key) }}>{tile}</button>
+                  onPointerUp={() => { if (pressRef.current === m.key) { pressRef.current = null; window.JellySfx?.play('cushionUp', { pitch: SCALE[i % SCALE.length], close: open }) } }}
+                  onPointerLeave={() => { if (pressRef.current === m.key) { pressRef.current = null; window.JellySfx?.play('cushionUp', { pitch: SCALE[i % SCALE.length], close: open }) } }}
+                  onClick={e => { if (e.detail === 0) { window.JellySfx?.play('cushion', { pitch: SCALE[i % SCALE.length], close: open }); setTimeout(() => window.JellySfx?.play('cushionUp', { pitch: SCALE[i % SCALE.length], close: open }), 140) } setClassPick(open ? null : m.key) }}>{tile}</button>
                 {open && (
                   <div className={`${s.classPop} ${s.glass}`} role="menu" aria-label={m.title}>
                     <div className={s.classPopHead}><span className={s.catDot} style={{ background: m.ring }} />{m.title}<small>{m.names.length}개</small></div>
