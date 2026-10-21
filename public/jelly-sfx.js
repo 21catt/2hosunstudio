@@ -1,6 +1,6 @@
 // 3D 홈 반응 소리 — 젤리를 만지고 물을 끌고 배를 움직일 때 나는 짧은 소리. 음원 파일 없이 그 자리에서 만든다.
 // 한 파일을 3D 홈(Next 화면)·시트러스 젤리·젤리 문어(iframe 한 파일 장면)가 같이 쓴다: <script src="/jelly-sfx.js"> → window.JellySfx
-//   JellySfx.play('boing', { s: 0.8, pitch: 1 })   · 소리 이름 = boing squish stretch pop splash drip chime splat thud whistle gulp growl pen penUp
+//   JellySfx.play('boing', { s: 0.8, pitch: 1 })   · 소리 이름 = boing squish stretch pop splash drip chime splat thud whistle gulp growl pen penUp key keyUp
 //   JellySfx.wake(speed)                             · 계속 나는 소리(배 물살) — 매 프레임 속도를 넣으면 크기가 따라간다
 //   켜고 끄기 = localStorage 2hs_castle_sfx ('0' = 끔, 그 밖 = 켬). 같은 기기의 모든 장면이 같은 값을 본다.
 // 휴대폰·브라우저는 사용자가 한 번 누르기 전엔 소리를 못 낸다 — 첫 누름에 저절로 깨운다.
@@ -44,12 +44,13 @@
   }
 
   // 딸깍 한 번: 아주 짧은 잡음(고역 대역통과) + 몸통이 짧게 울리는 공명음
-  function penClick(t, freq, vol, ring, body, bvol, pitch, close) {
+  const jit = () => 1 + (Math.random() * 2 - 1) * 0.06
+  function penClick(t, freq, vol, ring, body, bvol, pitch, close, q = 4) {
     const k = pitch * (close ? 0.84 : 1), m = close ? 0.7 : 1
     const n = noise(t, 0.03), bp = ctx.createBiquadFilter(), ng = ctx.createGain(); bp.type = 'bandpass'; bp.frequency.value = freq; bp.Q.value = 1.2
     env(ng, t, vol * m, 0.001, 0.004); n.connect(bp); bp.connect(ng); ng.connect(out)
     const o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain(); o.type = 'triangle'; o.frequency.value = body * k
-    f.type = 'bandpass'; f.frequency.value = body * k; f.Q.value = 4
+    f.type = 'bandpass'; f.frequency.value = body * k; f.Q.value = q
     env(g, t, bvol * m, 0.001, ring); o.connect(f); f.connect(g); g.connect(out); o.start(t); o.stop(t + ring + 0.03)
   }
 
@@ -169,9 +170,12 @@
     //   pitch = 음 높이 비율(수업 아이콘은 도레미파솔라시도), close = 목록을 닫을 때(조금 낮고 작게)
     pen(t, { pitch = 1, close = false }) { penClick(t, 4200, 0.09, 0.03, 1900, 0.18, pitch, close) },
     penUp(t, { pitch = 1, close = false }) { penClick(t, 5200, 0.06, 0.02, 2400, 0.12, pitch, close) },
+    // 날짜 칸 「청축 키보드」(2026-10-21) — 누를 때 「찰」(key), 뗄 때 「칵」(keyUp). 누를 때마다 음이 아주 조금씩 달라 타자 치는 느낌
+    key(t) { const j = jit(); penClick(t, 5200 * j, 0.1, 0.012, 3400 * j, 0.08, 1, false, 5); penClick(t + 0.006, 2600 * j, 0.06, 0.03, 1500 * j, 0.12, 1, false, 3) },
+    keyUp(t) { const j = jit(); penClick(t, 4200 * j, 0.06, 0.025, 1800 * j, 0.08, 1, false, 3) },
   }
   // 같은 소리가 너무 촘촘하면 시끄럽다 — 소리마다 최소 간격
-  const GAP = { boing: 0.09, squish: 0.12, stretch: 0.075, pop: 0.05, splash: 0.12, drip: 0.035, chime: 0.25, splat: 0.3, thud: 0.08, whistle: 0.7, gulp: 0.15, growl: 1.2, pen: 0.03, penUp: 0.03 }
+  const GAP = { boing: 0.09, squish: 0.12, stretch: 0.075, pop: 0.05, splash: 0.12, drip: 0.035, chime: 0.25, splat: 0.3, thud: 0.08, whistle: 0.7, gulp: 0.15, growl: 1.2, pen: 0.03, penUp: 0.03, key: 0.03, keyUp: 0.03 }
 
   window.JellySfx = {
     get enabled() { return enabled() },

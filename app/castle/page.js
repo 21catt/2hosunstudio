@@ -165,7 +165,7 @@ export default function CastlePage() {
     if (window.JellySfx || document.querySelector('script[data-jelly-sfx]')) return
     const sc = document.createElement('script'); sc.src = '/jelly-sfx.js'; sc.dataset.jellySfx = '1'; document.head.appendChild(sc)
   }, [])
-  // 버튼 누름 소리 「볼펜 딸깍」 — 이 화면(예약 창 포함)의 버튼·링크를 누르면 「딸」, 떼면 「깍」. 날짜 칸(data-no-tap)·막힌 버튼은 빼고,
+  // 버튼 누름 소리 「볼펜 딸깍」 — 이 화면(예약 창 포함)의 버튼·링크를 누르면 「딸」, 떼면 「깍」. 날짜 칸(data-tap="key")은 키보드 「찰칵」, 막힌 버튼·data-no-tap 은 빼고,
   // 수업 아이콘은 data-tap-pitch 로 도레미파솔라시도 · data-tap-close 면 조금 낮고 작게. 3D 장면(iframe·캔버스) 안은 각자 소리.
   useEffect(() => {
     let held = null
@@ -175,9 +175,10 @@ export default function CastlePage() {
       return el
     }
     const opts = el => ({ pitch: Number(el.dataset.tapPitch) || 1, close: el.dataset.tapClose === '1' })
-    const down = e => { if (e.button > 0) return; const el = target(e); if (!el) return; held = { el, o: opts(el) }; window.JellySfx?.play('pen', held.o) }
-    const up = () => { if (!held) return; const h = held; held = null; window.JellySfx?.play('penUp', h.o) }
-    const key = e => { if (e.repeat || (e.key !== 'Enter' && e.key !== ' ')) return; const el = target(e); if (!el) return; const o = opts(el); window.JellySfx?.play('pen', o); setTimeout(() => window.JellySfx?.play('penUp', o), 110) }
+    const kind = el => (el.dataset.tap === 'key' ? ['key', 'keyUp'] : ['pen', 'penUp']) // 날짜 칸 = 키보드, 그 밖 = 볼펜
+    const down = e => { if (e.button > 0) return; const el = target(e); if (!el) return; held = { el, o: opts(el), k: kind(el) }; window.JellySfx?.play(held.k[0], held.o) }
+    const up = () => { if (!held) return; const h = held; held = null; window.JellySfx?.play(h.k[1], h.o) }
+    const key = e => { if (e.repeat || (e.key !== 'Enter' && e.key !== ' ')) return; const el = target(e); if (!el) return; const o = opts(el), k = kind(el); window.JellySfx?.play(k[0], o); setTimeout(() => window.JellySfx?.play(k[1], o), 110) }
     document.addEventListener('pointerdown', down, true); document.addEventListener('pointerup', up, true); document.addEventListener('pointercancel', up, true); document.addEventListener('keydown', key, true)
     return () => { document.removeEventListener('pointerdown', down, true); document.removeEventListener('pointerup', up, true); document.removeEventListener('pointercancel', up, true); document.removeEventListener('keydown', key, true) }
   }, [])
@@ -377,7 +378,7 @@ export default function CastlePage() {
         <div className={s.weekHead}><span>이번 주 일정</span><a href="/student/calendar">달력 전체 보기 →</a></div>
         <div className={s.days}>
           {week.map(d => (
-            <button key={d.key} data-no-tap onClick={() => openBooking(d.key)} aria-label={`${d.num}일 예약하기`} className={`${s.day} ${d.today ? s.today : ''}`}>
+            <button key={d.key} data-tap="key" onClick={() => openBooking(d.key)} aria-label={`${d.num}일 예약하기`} className={`${s.day} ${d.today ? s.today : ''}`}>
               <span className={s.dayDow}>{d.today ? '오늘' : d.dow}</span>
               <span className={s.dayNum}>{d.num}</span>
               <span className={s.dot} style={{ background: d.dot }} />

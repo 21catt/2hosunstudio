@@ -172,7 +172,7 @@ export default function BookingPanel({ user, initialDate, onClose, onBooked }) {
           const open = coursesOn(x.key).length > 0
           const on = x.key === date
           return (
-            <button key={x.key} data-no-tap role="option" aria-selected={on} className={`${b.day} ${on ? b.dayOn : ''}`} onClick={() => pickDate(x.key)}>
+            <button key={x.key} data-tap="key" role="option" aria-selected={on} className={`${b.day} ${on ? b.dayOn : ''}`} onClick={() => pickDate(x.key)}>
               <span className={b.dayDow}>{x.today ? '오늘' : x.dow}</span>
               <span className={b.dayNum}>{x.num}</span>
               <span className={b.dayDot} style={{ background: open ? (on ? '#8fe0b4' : '#4aa877') : 'transparent' }} />
