@@ -165,7 +165,7 @@ export default function CastlePage() {
     if (window.JellySfx || document.querySelector('script[data-jelly-sfx]')) return
     const sc = document.createElement('script'); sc.src = '/jelly-sfx.js'; sc.dataset.jellySfx = '1'; document.head.appendChild(sc)
   }, [])
-  // 버튼 누름 소리 「볼펜 딸깍」 — 이 화면(예약 창 포함)의 버튼·링크를 누르면 「딸」, 떼면 「깍」. 날짜 칸(data-tap="key")은 키보드 「찰칵」, 막힌 버튼·data-no-tap 은 빼고,
+  // 버튼 누름 소리 — 이 화면(예약 창 포함)의 버튼·링크 전부 = 청축 키보드 「찰칵」, 왼쪽 수업 아이콘만 볼펜 「딸깍」. 막힌 버튼·data-no-tap 은 빼고,
   // 수업 아이콘은 data-tap-pitch 로 도레미파솔라시도 · data-tap-close 면 조금 낮고 작게. 3D 장면(iframe·캔버스) 안은 각자 소리.
   useEffect(() => {
     let held = null
@@ -175,7 +175,7 @@ export default function CastlePage() {
       return el
     }
     const opts = el => ({ pitch: Number(el.dataset.tapPitch) || 1, close: el.dataset.tapClose === '1' })
-    const kind = el => (el.dataset.tap === 'key' ? ['key', 'keyUp'] : ['pen', 'penUp']) // 날짜 칸 = 키보드, 그 밖 = 볼펜
+    const kind = el => (el.dataset.tapPitch ? ['pen', 'penUp'] : ['key', 'keyUp']) // 왼쪽 수업 아이콘 = 볼펜(도레미), 그 밖 전부 = 키보드
     const down = e => { if (e.button > 0) return; const el = target(e); if (!el) return; held = { el, o: opts(el), k: kind(el) }; window.JellySfx?.play(held.k[0], held.o) }
     const up = () => { if (!held) return; const h = held; held = null; window.JellySfx?.play(h.k[1], h.o) }
     const key = e => { if (e.repeat || (e.key !== 'Enter' && e.key !== ' ')) return; const el = target(e); if (!el) return; const o = opts(el), k = kind(el); window.JellySfx?.play(k[0], o); setTimeout(() => window.JellySfx?.play(k[1], o), 110) }
