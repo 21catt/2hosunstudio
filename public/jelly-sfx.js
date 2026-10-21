@@ -1,6 +1,6 @@
 // 3D 홈 반응 소리 — 젤리를 만지고 물을 끌고 배를 움직일 때 나는 짧은 소리. 음원 파일 없이 그 자리에서 만든다.
 // 한 파일을 3D 홈(Next 화면)·시트러스 젤리·젤리 문어(iframe 한 파일 장면)가 같이 쓴다: <script src="/jelly-sfx.js"> → window.JellySfx
-//   JellySfx.play('boing', { s: 0.8, pitch: 1 })   · 소리 이름 = boing squish stretch pop splash drip chime splat thud whistle gulp growl cushion cushionUp
+//   JellySfx.play('boing', { s: 0.8, pitch: 1 })   · 소리 이름 = boing squish stretch pop splash drip chime splat thud whistle gulp growl pen penUp
 //   JellySfx.wake(speed)                             · 계속 나는 소리(배 물살) — 매 프레임 속도를 넣으면 크기가 따라간다
 //   켜고 끄기 = localStorage 2hs_castle_sfx ('0' = 끔, 그 밖 = 켬). 같은 기기의 모든 장면이 같은 값을 본다.
 // 휴대폰·브라우저는 사용자가 한 번 누르기 전엔 소리를 못 낸다 — 첫 누름에 저절로 깨운다.
@@ -41,6 +41,16 @@
       if (vib) { const l = ctx.createOscillator(), lg = ctx.createGain(); l.frequency.value = vib; lg.gain.setValueAtTime(f * mul * depth, t + up); lg.gain.exponentialRampToValueAtTime(0.01, t + dur); l.connect(lg); lg.connect(o.frequency); l.start(t); l.stop(t + dur + 0.05) }
       env(g, t, v, 0.008, dur); o.connect(g); g.connect(out); o.start(t); o.stop(t + dur + 0.05)
     }
+  }
+
+  // 딸깍 한 번: 아주 짧은 잡음(고역 대역통과) + 몸통이 짧게 울리는 공명음
+  function penClick(t, freq, vol, ring, body, bvol, pitch, close) {
+    const k = pitch * (close ? 0.84 : 1), m = close ? 0.7 : 1
+    const n = noise(t, 0.03), bp = ctx.createBiquadFilter(), ng = ctx.createGain(); bp.type = 'bandpass'; bp.frequency.value = freq; bp.Q.value = 1.2
+    env(ng, t, vol * m, 0.001, 0.004); n.connect(bp); bp.connect(ng); ng.connect(out)
+    const o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain(); o.type = 'triangle'; o.frequency.value = body * k
+    f.type = 'bandpass'; f.frequency.value = body * k; f.Q.value = 4
+    env(g, t, bvol * m, 0.001, ring); o.connect(f); f.connect(g); g.connect(out); o.start(t); o.stop(t + ring + 0.03)
   }
 
   const SOUNDS = {
@@ -155,24 +165,13 @@
         o.start(t + dt); o.stop(t + dt + dur + 0.1); l.start(t + dt); l.stop(t + dt + dur + 0.1)
       }
     },
-    // 수업 아이콘 「젤리 발바닥 뿅」(2026-10-21) — 누를 때 말랑하게 「꾹」, 뗄 때 작게 「뿅」.
-    //   pitch = 아이콘마다 도레미파솔라시도 비율, close = 목록을 닫을 때(조금 낮고 작게)
-    cushion(t, { pitch = 1, close = false }) {
-      const k = pitch * (close ? 0.84 : 1), m = close ? 0.7 : 1
-      const o = ctx.createOscillator(), ol = ctx.createBiquadFilter(), g = ctx.createGain(); o.type = 'sine'; ol.type = 'lowpass'; ol.frequency.value = 700
-      o.frequency.setValueAtTime(300 * k, t); o.frequency.exponentialRampToValueAtTime(190 * k, t + 0.091)
-      env(g, t, 0.22 * m, 0.006, 0.13); o.connect(ol); ol.connect(g); g.connect(out); o.start(t); o.stop(t + 0.2)
-      const n = noise(t, 0.16), lp = ctx.createBiquadFilter(), ng = ctx.createGain(); lp.type = 'lowpass'; lp.Q.value = 0.7
-      lp.frequency.setValueAtTime(1100, t); lp.frequency.exponentialRampToValueAtTime(260, t + 0.12)
-      env(ng, t, 0.08 * m, 0.01, 0.12); n.connect(lp); lp.connect(ng); ng.connect(out)
-    },
-    cushionUp(t, { pitch = 1, close = false }) {
-      const k = pitch * (close ? 0.84 : 1), m = close ? 0.7 : 1
-      blip(t, NOTE.C5 * 1.5 * k, { from: 0.8, peak: 1.35, up: 0.02, settle: 0.05, dur: 0.09, vol: 0.12 * m, oct: 0.12 })
-    },
+    // 버튼·아이콘 누름 「볼펜 딸깍」(2026-10-21) — 누를 때 「딸」(pen), 뗄 때 「깍」(penUp). 날짜 칸만 빼고 3D 홈의 버튼 전부.
+    //   pitch = 음 높이 비율(수업 아이콘은 도레미파솔라시도), close = 목록을 닫을 때(조금 낮고 작게)
+    pen(t, { pitch = 1, close = false }) { penClick(t, 4200, 0.09, 0.03, 1900, 0.18, pitch, close) },
+    penUp(t, { pitch = 1, close = false }) { penClick(t, 5200, 0.06, 0.02, 2400, 0.12, pitch, close) },
   }
   // 같은 소리가 너무 촘촘하면 시끄럽다 — 소리마다 최소 간격
-  const GAP = { boing: 0.09, squish: 0.12, stretch: 0.075, pop: 0.05, splash: 0.12, drip: 0.035, chime: 0.25, splat: 0.3, thud: 0.08, whistle: 0.7, gulp: 0.15, growl: 1.2, cushion: 0.04, cushionUp: 0.04 }
+  const GAP = { boing: 0.09, squish: 0.12, stretch: 0.075, pop: 0.05, splash: 0.12, drip: 0.035, chime: 0.25, splat: 0.3, thud: 0.08, whistle: 0.7, gulp: 0.15, growl: 1.2, pen: 0.03, penUp: 0.03 }
 
   window.JellySfx = {
     get enabled() { return enabled() },
