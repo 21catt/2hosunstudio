@@ -55,7 +55,7 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
     const st = () => settingsRef.current || {}
     const S = {
       get firm() { return st().firmness ?? 0.45 }, get flow() { return BEACH ? 0 : st().flow ?? 0.6 }, get damp() { return st().damping ?? 0.5 },
-      get time() { return st().timeOfDay ?? 0.15 }, get flavour() { const f = st().flavour; return BEACH ? (BEACH_WATER.includes(f) ? f : 'lagoon') : FLAVOURS[f] ? f : 'glacier' }, get calm() { return !!st().reducedMotion },
+      get time() { return st().timeOfDay ?? 0.15 }, get flavour() { const f = st().flavour; return BEACH ? (BEACH_WATER.includes(f) ? f : 'cobalt') : FLAVOURS[f] ? f : 'glacier' }, get calm() { return !!st().reducedMotion },
       paused: false,
     }
     const counts = { fw: 0, salute: 0, wish: 0 }
@@ -88,7 +88,7 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
     if (bag.disposed) return
 
     const camera = new THREE.PerspectiveCamera(30, W() / H(), 0.1, 200)
-    const CAM0 = () => (narrow() ? new THREE.Vector3(17.5, 16.5, 21) : new THREE.Vector3(14.6, 11.9, 16.6)).multiplyScalar(BEACH ? (narrow() ? 1.75 : 1.45) : 1) // 해변 = 판이 커서 조금 멀리(폰 세로 화면에 다 들어오게)
+    const CAM0 = () => (narrow() ? new THREE.Vector3(17.5, 16.5, 21) : new THREE.Vector3(14.6, 11.9, 16.6)).multiplyScalar(BEACH ? (narrow() ? 1.066 : 1.3) : 1) // 해변 첫 화면 = 사용자 캡처(2026-10-22) 크기 — 폰 거리 34(판 양옆이 살짝 화면 밖), 데스크탑은 조금 멀리
     camera.position.copy(CAM0())
     const controls = new OrbitControls(camera, renderer.domElement)
     controls.target.set(0, 0.25, 0)
