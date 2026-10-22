@@ -15,6 +15,7 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
+import { writeCatAnchor } from '../../lib/catAnchor'
 
 const CROPS = {
   tomato: { fruit: 0xe5484d, leaf: 0x58b56a },
@@ -208,6 +209,7 @@ export default function FarmScene(props) {
     pickable(catSprite, 'cat')
     cat.position.set(1.3, 0.11, 1.6)
     const catGoal = new THREE.Vector3(1.3, 0.11, 1.6)
+    const CAT_HEAD = new THREE.Vector3(0, 1, 0), catTmp = new THREE.Vector3() // 말풍선 자리 = 머리 끝(발 기준 스프라이트)
     let catWait = 1, catSrc = null
     function setCat(src) {
       if (!src || src === catSrc) return
@@ -423,6 +425,7 @@ export default function FarmScene(props) {
       if (!reduce) island.position.y = Math.sin(t * 0.8) * 0.05
       controls.update()
       renderer.render(scene, camera)
+      writeCatAnchor(propsRef.current.catAnchorRef, { sprite: catSprite, camera, canvas: renderer.domElement, head: CAT_HEAD, tmp: catTmp })
     })
 
     return () => {

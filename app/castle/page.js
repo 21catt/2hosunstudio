@@ -306,6 +306,7 @@ export default function CastlePage() {
 
   const next = bookings[0]
   // 말풍선의 냥이 = 내가 고른 농부냥(장면 마당의 그 냥이)
+  const catAnchorRef = useRef(null), talkRef = useRef(null) // 장면 속 냥이 머리 위 자리 · 냥이를 눌렀을 때 다음 말
   const catInfo = useMemo(() => { const c = FARM_CATS.find(f => f.img === catImg); return c ? { name: c.name, img: c.img } : null }, [catImg])
   const night = !scene.embed && look.timeOfDay > 0.7
   const setL = patch => setLook(prev => ({ ...prev, ...patch }))
@@ -332,8 +333,12 @@ export default function CastlePage() {
       ) : (
         <div style={{ position: 'absolute', inset: 0 }} onPointerDownCapture={() => setSceneOpen(false)}>
           <CastleJellyScene key={sceneKey} lite={lite} settingsRef={settingsRef} commandRef={commandRef} onReady={() => setReady(true)}
-            onFallback={reason => { setReady(true); setFallback(reason) }}
-            onPick={(kind, x, y) => setPick(PICK_LINK[kind] ? { ...PICK_LINK[kind], x, y } : null)} />
+            catAnchorRef={catAnchorRef} onFallback={reason => { setReady(true); setFallback(reason) }}
+            onPick={(kind, x, y) => {
+              // 냥이를 누르면 말풍선이 다음 말을 한다(냥밭 가는 길은 말풍선 안 「3D 냥밭 →」)
+              if (kind === 'cat' && talkRef.current) { talkRef.current.next(); setPick(null); return }
+              setPick(PICK_LINK[kind] ? { ...PICK_LINK[kind], x, y } : null)
+            }} />
         </div>
       )}
 
@@ -568,7 +573,8 @@ export default function CastlePage() {
       )}
 
       {/* 냥이 말풍선 — 인사·수업 이야기·하루 한 번 질문(답은 선생님 화면에서 보인다). 예약 창이 열리면 비켜 준다 */}
-      {!booking && catInfo && <CatTalk place="castle" user={user} cat={catInfo} nextBooking={next || null} />}
+      {!booking && catInfo && !scene.embed && !fallback && ready &&
+        <CatTalk place="castle" user={user} cat={catInfo} nextBooking={next || null} anchorRef={catAnchorRef} controlRef={talkRef} />}
 
       {booking && (
         <BookingPanel key={booking.date} user={user} initialDate={booking.date} onClose={() => setBooking(null)}

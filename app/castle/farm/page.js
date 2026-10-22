@@ -207,7 +207,7 @@ export default function Farm3DPage() {
       return
     }
     if (kind === 'shed') return setShedOpen(true)
-    if (kind === 'cat') return showTag(`${activeCat.name} · 오늘도 밭일 중`, x, y)
+    if (kind === 'cat') { if (talkRef.current) return talkRef.current.next(); return showTag(`${activeCat.name} · 오늘도 밭일 중`, x, y) }
     if (kind === 'cloud') return showTag('비가 와요 (꾸밈 · 작물은 출석으로 자라요)', x, y)
     if (kind === 'sun') return showTag(night ? '달빛이 번져요' : '햇살이 번져요 ☀️', x, y)
   }
@@ -225,6 +225,7 @@ export default function Farm3DPage() {
 
   // 냥이 말풍선 재료 — 밭 소식(익음·자람·잡초). 값이 같으면 같은 객체(말풍선이 처음으로 안 돌아가게)
   const removableWeeds = weedView.filter(w => w.removable).length
+  const catAnchorRef = useRef(null), talkRef = useRef(null) // 장면 속 냥이 머리 위 자리 · 냥이를 눌렀을 때 다음 말
   const talkCat = useMemo(() => ({ name: activeCat.name, img: activeCat.img }), [activeCat.name, activeCat.img])
   const talkFarm = useMemo(() => ({ cropName: activeCat.cropName, ready: cropReady, stage: frontStage, stages: CROP_STAGES, weeds: removableWeeds }),
     [activeCat.cropName, cropReady, frontStage, removableWeeds])
@@ -242,7 +243,7 @@ export default function Farm3DPage() {
       ) : (
         <FarmScene plots={plots} crop={activeCat.crop} catImg={activeCat.img} weeds={weedView}
           night={night} rainKey={rainKey} walkKey={walkKey} reducedMotion={reducedMotion}
-          onPick={onPick} onFail={() => setFallback(true)} />
+          catAnchorRef={catAnchorRef} onPick={onPick} onFail={() => setFallback(true)} />
       )}
 
       <div className={s.mast}><h1>2HOSUN<br />STUDIO</h1><p>냥밭 · 3D 미리보기</p></div>
@@ -284,7 +285,8 @@ export default function Farm3DPage() {
       </section>
 
       <div className={s.how}><b>How to play</b> — 다 익은 앞 칸 작물을 눌러 수확 · 빨간 고리 잡초를 눌러 뽑기 · 헛간 = 미니게임 · 빈 곳을 끌어 섬 돌려 보기</div>
-      {!shedOpen && !mixOpen && !tetrisOpen && (devRef.current || user) && <CatTalk place="farm" user={user} cat={talkCat} farm={talkFarm} />}
+      {!fallback && !shedOpen && !mixOpen && !tetrisOpen && (devRef.current || user) &&
+        <CatTalk place="farm" user={user} cat={talkCat} farm={talkFarm} anchorRef={catAnchorRef} controlRef={talkRef} />}
       <div className={s.badge}>미리보기 · 기존 냥밭과 같은 기록이에요</div>
 
       {tag && <div className={s.tag} style={{ left: tag.x, top: tag.y }}>{tag.text}</div>}

@@ -10,14 +10,16 @@
 //   settingsRef.current = { timeOfDay, flow, firmness, damping, flavour, catImg, reducedMotion }
 //   commandRef.current  = { fireworks, toggleBridge(→ 올라갔으면 true), tip, salute, coin, ball }
 //   onPick(종류, x, y) — tower·gate·ship·brazier·cat · onReady() 첫 프레임 · onFallback('nowebgl'|'lost'|'slow') · lite = 가벼운 모드
+//   catAnchorRef — 냥이 머리 위 화면 좌표를 매 프레임 쓴다(냥이 말풍선 자리, lib/catAnchor)
 
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three/webgpu'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
+import { writeCatAnchor } from '../../lib/catAnchor'
 
-async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallback, lite }, bag) {
+async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallback, lite, catAnchorRef }, bag) {
 
 
     // ───────────────────────── constants ─────────────────────────
@@ -476,6 +478,7 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
     catSprite.position.copy(CAT_POS); catSprite.scale.set(0.42, 0.54, 1); catSprite.visible = false
     catSprite.userData.pick = 'cat'; block.add(catSprite)
     let catUrl = null, catHop = 0
+    const CAT_HEAD = new THREE.Vector3(0, 0.5, 0), catTmp = new THREE.Vector3() // 말풍선 자리 = 머리 끝
     const texLoader = new THREE.TextureLoader()
     function loadCat(url) {
       catUrl = url
@@ -1033,6 +1036,7 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
       if (!S.paused) { acc += dt; let n = 0; while (acc >= STEP && n < 10) { step(STEP); acc -= STEP; n++ } if (n >= 10) acc = 0 }
       look(); visuals(); controls.update()
       renderer.render(scene, camera)
+      writeCatAnchor(catAnchorRef, { sprite: catSprite, camera, canvas: renderer.domElement, head: CAT_HEAD, tmp: catTmp })
       perf.frames++; perf.ms += performance.now() - t0
       if (!readySent) { readySent = true; onReady?.() }
       // 처음 3초(셰이더 준비·텍스처 올리기)는 재지 않는다 — 그 순간의 끊김으로 해상도를 떨어뜨리지 않게
@@ -1066,7 +1070,7 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
     }
 }
 
-export default function CastleStudyScene({ settingsRef, onPick, commandRef, onReady, onFallback, lite = false }) {
+export default function CastleStudyScene({ settingsRef, onPick, commandRef, onReady, onFallback, lite = false, catAnchorRef = null }) {
   const mountRef = useRef(null)
   useEffect(() => {
     const mount = mountRef.current
@@ -1077,7 +1081,7 @@ export default function CastleStudyScene({ settingsRef, onPick, commandRef, onRe
     gl2?.getExtension('WEBGL_lose_context')?.loseContext()
     if (!hasGPU && !gl2) { onFallback?.('nowebgl'); return }
     const bag = { disposed: false, cleanup: [], renderer: null, scene: null }
-    build(mount, { settingsRef, onPick, commandRef, onReady, onFallback, lite }, bag).catch(err => {
+    build(mount, { settingsRef, onPick, commandRef, onReady, onFallback, lite, catAnchorRef }, bag).catch(err => {
       console.error('Castle scene failed', err)
       if (!bag.disposed) onFallback?.('nowebgl')
     })
