@@ -18,6 +18,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import { writeCatAnchor } from '../../lib/catAnchor'
 import { makeCritters } from './critters'
+import { makeGarden } from './garden'
 
 const CROPS = {
   tomato: { fruit: 0xe5484d, leaf: 0x58b56a },
@@ -221,7 +222,7 @@ export default function FarmScene(props) {
         t.colorSpace = THREE.SRGBColorSpace
         catSprite.material.map = t; catSprite.material.needsUpdate = true
         const img = t.image, ar = img && img.width ? img.width / img.height : 0.78
-        catSprite.scale.set(1.0 * ar, 1.0, 1)
+        catSprite.scale.set(1.0 * ar, 1.0, 1); catSprite.userData.h0 = 1.0
       })
     }
 
@@ -262,6 +263,9 @@ export default function FarmScene(props) {
     // ── 손님들: 새(냥이가 쫓는다)·두더지(눌러 잡는다)·지렁이(그냥 기어다닌다) — critters.js ──
     const critters = makeCritters({ THREE, island, mat, pickable, unpick, plots, reduce })
     if (process.env.NODE_ENV === 'development') window.__farmCritters = critters
+    // ── 꽃밭(잡초 500개 보상) + 냥이 일: 물주기·밭갈기·낮잠 — garden.js ──
+    const garden = makeGarden({ THREE, island, mat, reduce })
+    let job = null, napping = false
 
     // ── 구름·비(꾸밈) ──
     const clouds = []
@@ -318,9 +322,20 @@ export default function FarmScene(props) {
       plots.forEach((p, i) => buildPlant(p, P.plots?.[i]?.stage ?? 0, crop))
       setCat(P.catImg)
       setWeeds(P.weeds || [])
+      garden.setFlowers(P.flowers || null)
       night = !!P.night
     }
     apiRef.current = { sync, rain: startRain, hop: () => { catSprite.userData.hop = 1 },
+      // 물주기 — 꽃밭이 있으면 꽃밭, 없으면 작물 칸(앞칸부터)에 물을 준다
+      water: () => {
+        if (napping) return
+        const targets = propsRef.current.flowers ? [{ at: garden.bedSpot(), to: new THREE.Vector3(-0.3, 0.1, -2.0), bed: true }]
+          : plots.map(p => ({ at: new THREE.Vector3(p.x + 0.55, 0.11, p.z + 0.45), to: new THREE.Vector3(p.x, 0.1, p.z), plot: p }))
+        job = { kind: 'water', targets, i: 0, wait: 0 }
+      },
+      // 밭갈기 — 네 칸을 차례로 돌며 고랑을 낸다
+      till: () => { if (!napping) job = { kind: 'till', targets: plots.map(p => ({ at: new THREE.Vector3(p.x + 0.45, 0.11, p.z + 0.1), plot: p })), i: 0, wait: 0 } },
+      nap: (on) => { napping = !!on; if (napping) { job = null; catGoal.copy(cat.position) } else catSprite.userData.hop = 1 },
       walkTo: (i) => { const p = plots[i]; if (p) { catGoal.set(p.x + 0.55, 0.11, p.z + 0.45); catWait = 1.4 } } }
     sync()
 
@@ -413,7 +428,8 @@ export default function FarmScene(props) {
       sun.intensity += g2 * 1.4; hemi.intensity += g2 * 0.6
 
       // 손님들 — 새가 냥이에게 쫓겨 날아가면 「훠이!」
-      const shooed = critters.update(dt, t, { night, raining, catPos: cat.position })
+      const shooed = critters.update(dt, t, { night, raining, catPos: cat.position, quiet: napping })
+      garden.update(dt, t, { catPos: cat.position, napping })
       for (const b of shooed) {
         catSprite.userData.hop = 1
         const r = renderer.domElement.getBoundingClientRect()
@@ -421,8 +437,21 @@ export default function FarmScene(props) {
         propsRef.current.onPick?.('bird-shoo', {}, r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height)
       }
       // 쪼는 새가 있으면 냥이가 달려간다
-      const prey = critters.chaseTarget()
+      const prey = napping ? null : critters.chaseTarget()
       if (prey) { catGoal.set(prey.x + 0.18, 0.11, prey.z + 0.18); catWait = 0.8 }
+      // 일(물주기·밭갈기) — 새 쫓기가 먼저, 그다음 맡은 일
+      else if (job) {
+        const tg = job.targets[job.i]
+        catGoal.copy(tg.at); catWait = 1
+        if (cat.position.distanceTo(tg.at) < 0.06) {
+          if (job.wait === 0) {
+            if (job.kind === 'water') { garden.water(cat.position, tg.to, !!tg.bed); if (tg.plot) tg.plot.wet = 1 }
+            else { garden.till(tg.plot.x, tg.plot.z); catSprite.userData.hop = 1 }
+          }
+          job.wait += dt
+          if (job.wait > (job.kind === 'water' ? 1.6 : 0.9)) { job.i++; job.wait = 0; if (job.i >= job.targets.length) job = null }
+        }
+      }
 
       // 냥이 — 밭 사이를 오가며 일한다
       const to = catGoal.clone().sub(cat.position); to.y = 0
@@ -430,8 +459,13 @@ export default function FarmScene(props) {
         to.setLength(Math.min(to.length(), dt * (prey ? 2.1 : 0.8))); cat.position.add(to)
         catSprite.position.y = reduce ? 0 : Math.abs(Math.sin(t * 9)) * 0.05
         catSprite.material.rotation = reduce ? 0 : Math.sin(t * 9) * 0.04
+      } else if (napping) {
+        // 낮잠 — 옆으로 기울어 납작하게 숨 쉰다
+        catSprite.position.y = 0; catSprite.material.rotation = 0.35
+        catSprite.scale.y = catSprite.userData.h0 * (0.82 + (reduce ? 0 : Math.sin(t * 1.6) * 0.03))
       } else {
         catSprite.position.y = 0; catSprite.material.rotation = 0; catWait -= dt
+        if (catSprite.userData.h0) catSprite.scale.y = catSprite.userData.h0
         if (catWait <= 0) { const p = plots[Math.floor(Math.random() * plots.length)]; catGoal.set(p.x + 0.55, 0.11, p.z + 0.45); catWait = 2 + Math.random() * 2 }
       }
       if (catSprite.userData.hop) {
@@ -472,6 +506,11 @@ export default function FarmScene(props) {
   useEffect(() => { apiRef.current?.sync() }, [weedKey, plotKey, props.crop, props.catImg, props.night])
   useEffect(() => { if (props.rainKey) apiRef.current?.rain() }, [props.rainKey])
   useEffect(() => { if (props.walkKey) apiRef.current?.walkTo(0) }, [props.walkKey])
+  useEffect(() => { if (props.waterKey) apiRef.current?.water() }, [props.waterKey])
+  useEffect(() => { if (props.tillKey) apiRef.current?.till() }, [props.tillKey])
+  useEffect(() => { apiRef.current?.nap(props.nap) }, [props.nap])
+  const flowerKey = props.flowers ? `${props.flowers.bloomed}:${props.flowers.stage}` : ''
+  useEffect(() => { apiRef.current?.sync() }, [flowerKey])
 
   return <div ref={hostRef} style={{ position: 'absolute', inset: 0 }} aria-label="3D 냥밭 — 떠 있는 섬 위의 밭, 농부냥, 헛간, 구름" />
 }

@@ -19,6 +19,8 @@ import ColorMixGame from '../../../components/ColorMixGame'
 import ColorTetrisGame from '../../../components/ColorTetrisGame'
 import LoadingCat from '../../../components/LoadingCat'
 import CatTalk from '../../../components/CatTalk'
+import { createCozyMusic } from '../../../lib/cozyMusic'
+import { FLOWER, startFlowers, settleFlowers, waterFlowers, flowerView, fetchRainDays } from '../../../lib/flowerBed'
 import s from './farm3d.module.css'
 
 const FarmScene = dynamic(() => import('../../../components/farm3d/FarmScene'), { ssr: false })
@@ -59,6 +61,13 @@ export default function Farm3DPage() {
   const busyRef = useRef(false)
   const tagTimer = useRef(0)
   const weather = useTodayWeather()
+  // 냥이 일 — 물주기·밭갈기(누를 때마다 숫자를 올려 장면에 알린다) · 낮잠(켜고 끄기)
+  const [waterKey, setWaterKey] = useState(0)
+  const [tillKey, setTillKey] = useState(0)
+  const [nap, setNap] = useState(false)
+  // 꽃밭(잡초 500개 보상 — lib/flowerBed). 기록 = weed_state.flowers
+  const [flowers, setFlowers] = useState(null)
+  const rainDaysRef = useRef(null)
 
   useEffect(() => {
     setFarmCat(getSavedFarmCat())
@@ -75,8 +84,9 @@ export default function Farm3DPage() {
       const demo = { weeds: [
         { id: 'd1', born: now - 22 * 3600e3, x: 14, y: 70 }, { id: 'd2', born: now - 20 * 3600e3, x: 80, y: 84 },
         { id: 'd3', born: now - 8 * 3600e3, x: 30, y: 88 }, { id: 'd4', born: now - 1 * 3600e3, x: 70, y: 64 },
-      ], removed: 41, lastSpawn: now, penaltyCharged: false, rewarded: false }
-      weedRef.current = demo; setWeeds(demo.weeds); setWeedRemoved(41)
+      ], removed: 512, lastSpawn: now, penaltyCharged: false, rewarded: true,
+        flowers: { growth: Math.min(10, +(new URLSearchParams(window.location.search).get('bloom') ?? 3)) * FLOWER.PER_FLOWER + 13 * (+(new URLSearchParams(window.location.search).get('bloom') ?? 3) < 10 ? 1 : 0), settledTo: ymd(new Date(now - 864e5)), days: {}, lastWater: 0 } }
+      weedRef.current = demo; setWeeds(demo.weeds); setWeedRemoved(512); setFlowers(demo.flowers)
       setAttended(11); setHarvest(1); harvestRef.current = 1
       setTicketValid(true); ticketValidRef.current = true
       setAllowed(true); setLoading(false)
@@ -111,6 +121,52 @@ export default function Farm3DPage() {
     if (cropLoss > 0) applyCropLoss(cropLoss)
     persistWeeds(state)
     setLoading(false)
+    if (state.rewarded) prepareFlowers()
+  }
+
+  // 꽃밭 — 처음이면 오늘부터 시작, 지난날(어제까지)을 비 기록과 함께 정산
+  async function prepareFlowers() {
+    const st = weedRef.current; if (!st) return
+    let f = st.flowers || startFlowers(todayStr), changed = !st.flowers
+    if (!rainDaysRef.current) rainDaysRef.current = await fetchRainDays()
+    const r = settleFlowers(f, todayStr, rainDaysRef.current)
+    f = r.flowers; changed = changed || r.changed
+    if (f.growth >= FLOWER.COUNT * FLOWER.PER_FLOWER && !f.rewarded) { f = { ...f, rewarded: true }; changed = true; notifyFlowerReward() }
+    weedRef.current = { ...weedRef.current, flowers: f }
+    setFlowers(f)
+    if (changed) persistWeeds(weedRef.current)
+  }
+  async function notifyFlowerReward() {
+    if (devRef.current) return
+    try {
+      const u = userRef.current
+      let nm = u?.user_metadata?.name
+      if (!nm && u?.id) { const { data } = await supabase.from('users').select('name').eq('id', u.id).maybeSingle(); nm = data?.name }
+      await notifyStaff({ type: 'flower_reward', title: '🌸 꽃밭 열 송이 다 피움', body: `${nm || '수강생'}님이 냥밭 꽃밭의 꽃 ${FLOWER.COUNT}송이를 다 피웠어요.\n드로잉노트를 준비해 주세요.` })
+    } catch {}
+  }
+
+  // 물주기 단추 — 꽃밭이 있으면 꽃밭에(하루 세 번이 딱 좋다), 없으면 작물에(꾸밈)
+  function doWater(e) {
+    const x = e?.clientX || window.innerWidth / 2, y = (e?.clientY || window.innerHeight / 2) - 20
+    if (nap) return showTag('냥이가 자고 있어요 · 낮잠을 끄면 일해요', x, y)
+    const st = weedRef.current
+    if (!st?.rewarded || !flowers) { setWaterKey(k => k + 1); return showTag('작물이 시원해해요 (작물은 출석으로 자라요)', x, y) }
+    const raining = !!(weather && isPrecip(weather.code))
+    const r = waterFlowers(flowers, Date.now(), raining)
+    if (r.reason === 'rain') return showTag('오늘은 비가 와서 물을 안 줘도 돼요 ☔', x, y)
+    if (r.reason === 'done') return showTag(`꽃 ${FLOWER.COUNT}송이가 다 피었어요 🌸`, x, y)
+    if (r.reason === 'soon') return showTag(`흙이 아직 촉촉해요 · ${r.waitMin >= 60 ? `${Math.floor(r.waitMin / 60)}시간 ${r.waitMin % 60}분` : `${r.waitMin}분`} 뒤에 주세요`, x, y)
+    weedRef.current = { ...st, flowers: r.flowers }
+    setFlowers(r.flowers); persistWeeds(weedRef.current)
+    setWaterKey(k => k + 1)
+    const n = r.flowers.days[todayStr] || 0
+    floatText(n === FLOWER.BEST ? '오늘 물 딱 좋아요 💧' : n > FLOWER.BEST ? `물이 너무 많아요 (${n}번)` : `꽃밭에 물 ${n}/${FLOWER.BEST}`, x, y)
+  }
+  function doTill(e) {
+    const x = e?.clientX || window.innerWidth / 2, y = (e?.clientY || window.innerHeight / 2) - 20
+    if (nap) return showTag('냥이가 자고 있어요 · 낮잠을 끄면 일해요', x, y)
+    setTillKey(k => k + 1); showTag('밭을 보슬보슬 갈아요 (꾸밈 · 작물은 출석으로 자라요)', x, y)
   }
 
   // 저장 — 기존 냥밭과 같은 칸(weed_state 컬럼이 없으면 조용히 무시)
@@ -153,6 +209,33 @@ export default function Farm3DPage() {
     const iv = setInterval(() => setRainKey(k => k + 1), 14000)
     return () => clearInterval(iv)
   }, [weather])
+
+  // 배경음악 — A안 「텃밭 산책」(lib/cozyMusic FARM_TRACKS). 밤·낮잠 = 밤 곡. 젤리성과 같은 켜고 끔 기억(2hs_castle_music)
+  const musicRef = useRef(null)
+  const [musicOn, setMusicOn] = useState(() => { try { return typeof window === 'undefined' || localStorage.getItem('2hs_castle_music') !== '0' } catch { return true } })
+  const farmTrack = nap || night ? 'farmANight' : 'farmA'
+  const farmTrackRef = useRef(farmTrack)
+  useEffect(() => { farmTrackRef.current = farmTrack; musicRef.current?.setFixed(farmTrack) }, [farmTrack])
+  async function toggleMusic() {
+    if (!musicRef.current) musicRef.current = createCozyMusic({ track: farmTrackRef.current })
+    const m = musicRef.current
+    if (m.playing || musicOn) { m.stop(); setMusicOn(false); try { localStorage.setItem('2hs_castle_music', '0') } catch {} }
+    else { await m.start(); setMusicOn(true); try { localStorage.setItem('2hs_castle_music', '1') } catch {} }
+  }
+  useEffect(() => {
+    const EV = ['pointerdown', 'keydown']
+    const first = e => {
+      if (e?.target?.closest?.('[data-music-btn]')) return
+      let wanted = true; try { wanted = localStorage.getItem('2hs_castle_music') !== '0' } catch {}
+      if (!wanted || musicRef.current?.playing) return
+      if (!musicRef.current) musicRef.current = createCozyMusic({ track: farmTrackRef.current })
+      musicRef.current.start().then(ok => { if (ok) EV.forEach(n => window.removeEventListener(n, first, true)) })
+    }
+    EV.forEach(n => window.addEventListener(n, first, true))
+    const vis = () => { const m = musicRef.current; if (!m) return; document.hidden ? m.suspend() : m.resume() }
+    document.addEventListener('visibilitychange', vis)
+    return () => { EV.forEach(n => window.removeEventListener(n, first, true)); document.removeEventListener('visibilitychange', vis); musicRef.current?.close(); musicRef.current = null }
+  }, [])
 
   function showTag(text, x, y) {
     setTag({ text, x, y })
@@ -207,6 +290,7 @@ export default function Farm3DPage() {
       return
     }
     if (kind === 'shed') return setShedOpen(true)
+    if (kind === 'cat' && nap) { setNap(false); return floatText('깼어요!', x, y - 10) }
     if (kind === 'cat') { if (talkRef.current) return talkRef.current.next(); return showTag(`${activeCat.name} · 오늘도 밭일 중`, x, y) }
     if (kind === 'bird') return showTag(data.landed ? '새가 작물을 쪼아요 — 냥이가 쫓아가요!' : '새가 날아와요', x, y)
     if (kind === 'bird-shoo') return floatText('훠이!', x, y - 10)
@@ -234,6 +318,10 @@ export default function Farm3DPage() {
   const talkFarm = useMemo(() => ({ cropName: activeCat.cropName, ready: cropReady, stage: frontStage, stages: CROP_STAGES, weeds: removableWeeds }),
     [activeCat.cropName, cropReady, frontStage, removableWeeds])
 
+  // 꽃밭 모습(보상 받은 학생만) — 오늘 몫은 아직 정산 전이라 따로
+  const rainingNow = !!(weather && isPrecip(weather.code))
+  const fView = useMemo(() => flowers ? flowerView(flowers, Date.now(), rainingNow) : null, [flowers, rainingNow]) // flowers = 보상 받은 학생만 채워진다
+
   if (!allowed || loading) return <LoadingCat />
 
   const pending = weedView.filter(w => w.removable).length
@@ -247,6 +335,7 @@ export default function Farm3DPage() {
       ) : (
         <FarmScene plots={plots} crop={activeCat.crop} catImg={activeCat.img} weeds={weedView}
           night={night} rainKey={rainKey} walkKey={walkKey} reducedMotion={reducedMotion}
+          flowers={fView} waterKey={waterKey} tillKey={tillKey} nap={nap}
           catAnchorRef={catAnchorRef} onPick={onPick} onFail={() => setFallback(true)} />
       )}
 
@@ -254,7 +343,26 @@ export default function Farm3DPage() {
       <nav className={s.top}>
         <a href="/castle" className={`${s.topBtn} ${s.glass}`}>← 3D 홈</a>
         <a href="/student/farm" className={`${s.topBtn} ${s.glass}`}>기존 냥밭</a>
+        <button data-music-btn className={`${s.topBtn} ${s.glass}`} aria-pressed={musicOn} onClick={toggleMusic} aria-label={musicOn ? '배경음악 끄기' : '배경음악 켜기'}>{musicOn ? '♪ 음악' : '♪ 음악 끔'}</button>
       </nav>
+
+      {/* 냥이 일 — 물주기(꽃밭이 있으면 꽃밭) · 낮잠 · 밭갈기 */}
+      {!fallback && (
+        <div className={s.tools} role="toolbar" aria-label="냥이 일">
+          <button className={`${s.tool} ${s.glass}`} onClick={doWater} aria-label={fView ? '꽃밭에 물주기' : '물주기'}>
+            <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 13h13v9a4 4 0 0 1-4 4h-5a4 4 0 0 1-4-4z" /><path d="M20 15l7-5" /><path d="M7 15c-3 0-4 2-4 4s1 3 4 3" /><path d="M10 13c0-3 2-5 4-5s4 2 4 5" /><path d="M28 13v.01M29 17v.01M26 18v.01" /></svg>
+            물주기
+          </button>
+          <button className={`${s.tool} ${s.glass}`} aria-pressed={nap} onClick={() => setNap(n => !n)} aria-label={nap ? '낮잠 깨우기' : '낮잠 재우기'}>
+            <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M20 6a10 10 0 1 0 6 16A9 9 0 0 1 20 6z" /><path d="M23 4h4l-4 5h4" /></svg>
+            {nap ? '깨우기' : '낮잠'}
+          </button>
+          <button className={`${s.tool} ${s.glass}`} onClick={doTill} aria-label="밭갈기">
+            <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M8 26L22 8" /><path d="M18 6l8 6-3 3-7-5z" /><path d="M4 28c4-2 8-2 12 0s8 2 12 0" /></svg>
+            밭갈기
+          </button>
+        </div>
+      )}
 
       <section className={`${s.panel} ${s.glass}`} aria-label="냥밭 현황">
         <div className={s.stats}>
@@ -280,6 +388,19 @@ export default function Farm3DPage() {
             ? (pending > 0 ? `뽑을 수 있는 잡초 ${pending}개 — 빨간 고리를 눌러요` : `잡초 ${weedView.length}개 자라는 중`)
             : '수강권이 있을 때 잡초가 자라요'}
         </div>
+        {fView && (
+          <div className={s.flower}>
+            <b>🌷 꽃밭 · {fView.bloomed}/{FLOWER.COUNT}송이 피었어요</b>
+            {fView.current
+              ? <span>지금 {fView.current.name} 자라는 중 · {Math.round(fView.progress * 100)}%</span>
+              : <span>열 송이가 다 피었어요 — 드로잉노트를 받으러 오세요</span>}
+            <div className={s.flowerBar}><i style={{ width: `${(fView.bloomed + (fView.current ? fView.progress : 0)) / FLOWER.COUNT * 100}%` }} /></div>
+            {fView.current && (fView.rainToday
+              ? <span>☔ 오늘은 비가 와서 물을 안 줘도 돼요</span>
+              : <span className={s.drops}>오늘 물&nbsp;{Array.from({ length: FLOWER.BEST }, (_, i) => <span key={i} className={i < fView.todayWater ? s.on : ''} />)}
+                  &nbsp;{fView.todayWater > FLOWER.BEST ? '너무 많아요' : fView.todayWater === FLOWER.BEST ? '딱 좋아요' : '하루 세 번이 딱 좋아요'}</span>)}
+          </div>
+        )}
         {weedReward && <div className={s.reward}>🎁 잡초 {WEED.REWARD_AT}개! 드로잉노트 + 연필을 받으러 오세요</div>}
         <div className={s.row}>
           <button className={s.btn} onClick={() => setRainKey(k => k + 1)}>비 내리기</button>
@@ -288,7 +409,7 @@ export default function Farm3DPage() {
         <a href="/student/settings" className={s.link}>농부냥 바꾸기 · 설정</a>
       </section>
 
-      <div className={s.how}><b>How to play</b> — 다 익은 앞 칸 작물을 눌러 수확 · 빨간 고리 잡초를 눌러 뽑기 · 튀어나온 두더지를 눌러 잡기 · 새가 오면 냥이가 쫓아요(새를 누르면 바로) · 헛간 = 미니게임 · 빈 곳을 끌어 섬 돌려 보기</div>
+      <div className={s.how}><b>How to play</b> — 다 익은 앞 칸 작물을 눌러 수확 · 빨간 고리 잡초를 눌러 뽑기 · 튀어나온 두더지를 눌러 잡기 · 새가 오면 냥이가 쫓아요(새를 누르면 바로) · 왼쪽 단추로 물주기·낮잠·밭갈기 · 헛간 = 미니게임 · 빈 곳을 끌어 섬 돌려 보기</div>
       {!fallback && !shedOpen && !mixOpen && !tetrisOpen && (devRef.current || user) &&
         <CatTalk place="farm" user={user} cat={talkCat} farm={talkFarm} anchorRef={catAnchorRef} controlRef={talkRef} />}
       <div className={s.badge}>미리보기 · 기존 냥밭과 같은 기록이에요</div>

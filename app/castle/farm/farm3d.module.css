@@ -59,3 +59,24 @@
   .stat b { font-size: 16px; }
   .crop img { width: 28px; height: 36px; }
 }
+
+/* 왼쪽 일 단추 — 물주기 · 낮잠 · 밭갈기 (2026-10-22) */
+.tools { position: absolute; left: max(24px, env(safe-area-inset-left, 0px)); top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 10px; z-index: 3; }
+.tool { width: 64px; padding: 10px 0 8px; border-radius: 20px; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer;
+  font: inherit; font-size: 11px; font-weight: 700; color: #3b3350; }
+.tool svg { width: 28px; height: 28px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.tool[aria-pressed="true"] { background: #7f6bd6; color: #fff; border-color: #7f6bd6; }
+.tool:focus-visible { outline: 2px solid #8fb8f0; outline-offset: 2px; }
+.tool:active { transform: scale(0.95); }
+.flower { display: grid; gap: 4px; padding: 10px 12px; border-radius: 16px; background: linear-gradient(135deg, #fff0f6, #f1ecff); font-size: 12px; }
+.flower b { font-size: 13px; }
+.flowerBar { height: 6px; border-radius: 999px; background: rgba(127,107,214,0.15); overflow: hidden; }
+.flowerBar i { display: block; height: 100%; background: linear-gradient(90deg, #f5a3c7, #a68be8); border-radius: inherit; }
+.drops { display: flex; gap: 3px; align-items: center; }
+.drops span { width: 10px; height: 13px; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; background: rgba(143,200,245,0.3); border: 1px solid rgba(90,150,210,0.5); }
+.drops span.on { background: #8fc8f5; }
+@media (max-width: 760px) {
+  .tools { top: calc(84px + env(safe-area-inset-top, 0px)); transform: none; left: max(12px, env(safe-area-inset-left, 0px)); gap: 8px; }
+  .tool { width: 56px; padding: 8px 0 6px; font-size: 10px; }
+  .tool svg { width: 24px; height: 24px; }
+}

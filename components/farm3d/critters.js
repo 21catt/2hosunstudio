@@ -4,7 +4,7 @@
 //   · 지렁이 = 풀밭·흙을 꿈틀꿈틀 기어다니다 가끔 흙 속으로 들어갔다 다른 곳에서 나온다. 그냥 두어도 된다
 //   좌표 = 섬(island) 로컬. 기하·재질은 종류마다 하나를 함께 쓴다(새·두더지가 오가도 새로 만들지 않는다)
 
-const HOLES = [[-1.75, -0.55], [0.15, -2.25], [2.25, 0.15], [-0.55, 2.3], [1.55, 2.35]]
+const HOLES = [[-1.75, -0.55], [-2.35, 0.7], [2.25, 0.15], [-0.55, 2.3], [1.55, 2.35]] // 뒤쪽 가운데는 꽃밭 자리(garden.js)
 const POND = { x: -2.05, z: 2.05, r: 1.25 }, SHED = { x: 1.9, z: -1.9, r: 1.2 }
 
 export function makeCritters({ THREE, island, mat, pickable, unpick, plots, reduce }) {
@@ -136,9 +136,9 @@ export function makeCritters({ THREE, island, mat, pickable, unpick, plots, redu
 
   // ───────── 매 프레임 ─────────
   const tmp = new THREE.Vector3()
-  function update(dt, t, { night, raining, catPos }) {
-    // 새
-    if (!night && !raining) {
+  function update(dt, t, { night, raining, catPos, quiet }) {
+    // 새(냥이 낮잠 중엔 손님도 쉰다)
+    if (!night && !raining && !quiet) {
       nextBird -= dt
       if (nextBird <= 0) { nextBird = rnd(14, 28); if (birds.filter(b => b.state !== 'out').length < 2) spawnBird() }
     }
@@ -172,7 +172,7 @@ export function makeCritters({ THREE, island, mat, pickable, unpick, plots, redu
     }
 
     // 두더지
-    nextMole -= dt
+    if (!quiet) nextMole -= dt
     if (nextMole <= 0) { nextMole = rnd(1.6, 4.2); popMole(); if (Math.random() < 0.2) popMole() }
     for (const m of moles) {
       m.t += dt
