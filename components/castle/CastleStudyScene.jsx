@@ -151,7 +151,24 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
     }
     const baseSide = new THREE.MeshPhysicalMaterial({ color: '#ffffff', roughness: 0.32, clearcoat: 0.8, clearcoatRoughness: 0.25 })
     const baseCap = std('#e9c7d4', { roughness: 0.5 })
-    const base = put(new THREE.Mesh(new THREE.BoxGeometry(HALF * 2, BASE_H - 0.01, HALF * 2), [baseSide, baseSide, baseCap, baseCap, baseSide, baseSide]), 0, FLOOR_Y - 0.01 - (BASE_H - 0.01) / 2, 0, block)
+    // 해변: 바다 쪽 두 단면(+x · +z)은 사탕 지층 대신 물로 — 위는 물빛, 아래로 갈수록 깊은 색 + 물결 빛 줄(2026-10-22 사용자 지시)
+    function seaSideTexture(tint, deep, w = 512, h = 256) {
+      const c = document.createElement('canvas'); c.width = w; c.height = h
+      const g = c.getContext('2d'), top = new THREE.Color(tint).lerp(new THREE.Color(deep), 0.35), bot = new THREE.Color(deep).multiplyScalar(0.55)
+      const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#' + top.getHexString()); gr.addColorStop(1, '#' + bot.getHexString())
+      g.fillStyle = gr; g.fillRect(0, 0, w, h)
+      const R = (s => () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296))(11)
+      for (let i = 0; i < 26; i++) { // 물속 빛 줄 — 위쪽일수록 밝고 촘촘하게
+        const y = Math.pow(R(), 1.6) * h, a = 0.05 + (1 - y / h) * 0.16, ph = R() * 6.28, amp = 2 + R() * 4
+        g.strokeStyle = `rgba(255,255,255,${a})`; g.lineWidth = 1 + R() * 2.2; g.beginPath()
+        for (let x = 0; x <= w; x += 8) { const yy = y + Math.sin(x * 0.03 + ph) * amp; if (x) g.lineTo(x, yy); else g.moveTo(x, yy) }
+        g.stroke()
+      }
+      for (let i = 0; i < 90; i++) { g.fillStyle = `rgba(255,255,255,${0.12 + R() * 0.25})`; g.beginPath(); g.arc(R() * w, R() * h, 0.6 + R() * 1.6, 0, 6.29); g.fill() } // 작은 물방울
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t
+    }
+    const seaSide = BEACH ? new THREE.MeshPhysicalMaterial({ color: '#ffffff', roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.08, emissive: '#ffffff', emissiveIntensity: 0.08 }) : null
+    const base = put(new THREE.Mesh(new THREE.BoxGeometry(HALF * 2, BASE_H - 0.01, HALF * 2), [seaSide || baseSide, baseSide, baseCap, baseCap, seaSide || baseSide, baseSide]), 0, FLOOR_Y - 0.01 - (BASE_H - 0.01) / 2, 0, block)
     base.userData.pick = 'block'
 
     // ───────────────────────── plateau: SDF → surface nets ─────────────────────────
@@ -790,6 +807,7 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
       jellyMat.color.set(f.tint); jellyMat.attenuationColor.set(f.deep); riverMat.color.set(f.tint)
       floorMat.color.set(f.deep).lerp(new THREE.Color('#ffffff'), 0.45) // the lake floor takes the water's colour
       baseSide.map?.dispose(); baseSide.map = strataTexture(f.strata, 7); baseSide.needsUpdate = true
+      if (seaSide) { seaSide.map?.dispose(); seaSide.map = seaSideTexture(f.tint, f.deep); seaSide.emissiveMap = seaSide.map; seaSide.needsUpdate = true }
       plateauRecolour(f.strata)
       beach?.setWater(f.deep)
     }
