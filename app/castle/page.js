@@ -190,9 +190,13 @@ export default function CastlePage() {
   // 배경음악 — 시간대마다 바뀌는 잔잔한 곡(lib/cozyMusic). 화면을 처음 누르는 순간부터 작게 흐르고(브라우저 규칙),
   // 「♪ 음악」으로 끈 사람은 끈 채로 기억한다(2hs_castle_music = '0'). 반응 소리와는 따로.
   const musicRef = useRef(null)
+  // 설산 기차 배경 = 캐럴(징글벨·덱 더 홀스 — lib/cozyMusic CAROLS), 그 밖 = 시간대 곡. 배경을 바꾸면 곧바로 그 묶음으로
+  const musicMode = bgScene === 'peak' ? 'christmas' : 'cozy'
+  const musicModeRef = useRef(musicMode)
+  useEffect(() => { musicModeRef.current = musicMode; musicRef.current?.setMode(musicMode) }, [musicMode])
   const [musicOn, setMusicOn] = useState(() => { try { return typeof window === 'undefined' || localStorage.getItem('2hs_castle_music') !== '0' } catch { return true } })
   async function toggleMusic() {
-    if (!musicRef.current) musicRef.current = createCozyMusic()
+    if (!musicRef.current) musicRef.current = createCozyMusic({ mode: musicModeRef.current })
     const m = musicRef.current
     if (m.playing || musicOn) { m.stop(); setMusicOn(false); try { localStorage.setItem('2hs_castle_music', '0') } catch {} }
     else { await m.start(); setMusicOn(true); try { localStorage.setItem('2hs_castle_music', '1') } catch {} }
@@ -204,7 +208,7 @@ export default function CastlePage() {
       if (e?.target?.closest?.('[data-music-btn]')) return
       let wanted = true; try { wanted = localStorage.getItem('2hs_castle_music') !== '0' } catch {}
       if (!wanted || musicRef.current?.playing) return
-      if (!musicRef.current) musicRef.current = createCozyMusic()
+      if (!musicRef.current) musicRef.current = createCozyMusic({ mode: musicModeRef.current })
       musicRef.current.start().then(ok => { if (ok) EV.forEach(n => window.removeEventListener(n, first, true)) })
     }
     EV.forEach(n => window.addEventListener(n, first, true))
