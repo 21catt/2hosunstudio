@@ -85,9 +85,7 @@ export default function StudentHomePage() {
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user || null)
       // 3D 모드를 켜 둔 미리보기 대상은 홈으로 오면 3D 홈으로(오른쪽 위 단추로 언제든 끔)
-      let mode = null; try { mode = localStorage.getItem('2hs_home_mode') } catch {}
-      if (data.user && mode === 'castle') { window.location.replace('/castle'); return }
-      if (!data.user && castleModeOn(null)) { window.location.replace('/castle'); return } // 비가입자 = 처음부터 3D 홈
+      if (castleModeOn(data.user)) { window.location.replace('/castle'); return } // 3D 모드(고른 적 없으면 켬 — 처음 오는 사람은 모두 3D 홈)
       if (data.user) ensureUserRow(data.user)
       loadData(data.user?.id || null).catch(e => { console.error('load failed', e); setLoading(false) })
     })
