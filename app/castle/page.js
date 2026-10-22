@@ -552,9 +552,7 @@ export default function CastlePage() {
             <button className={`${s.chip} ${s.glass}`} onClick={() => commandRef.current?.surf()}>서핑</button>
           </div>
           <div className={s.row}>
-            <button className={`${s.chip} ${s.glass}`} onClick={() => commandRef.current?.ball()}>비치볼</button>
             <button className={`${s.chip} ${s.glass}`} onClick={() => commandRef.current?.fireworks()}>불꽃놀이</button>
-            <button className={`${s.chip} ${s.glass}`} onClick={() => commandRef.current?.coin()}>소원 동전</button>
           </div>
           <p style={{ margin: 0, fontSize: 12, opacity: 0.7 }}>사람을 누르면 폴짝 · 모래를 누르면 모래성 · 꽃게·문어·조개도 눌러 보세요</p>
         </>) : (<>
