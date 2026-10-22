@@ -1087,8 +1087,22 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
       if (L === 0 && renderer.shadowMap.enabled) { renderer.shadowMap.enabled = false; sun.castShadow = false }
     }
     if (lite) setLevel(1)
+    // 배터리(2026-10-22) — ① 손을 뗀 지 4초가 지나면 1초에 20번만 그린다(만지면 곧바로 원래대로)
+    //   ② 주소 ?fps=30 = 늘 30번까지만(폰 30프레임 제한을 켜기 전에 미리 보는 자리 — 기본은 꺼짐)
+    const IDLE_MS = 4000, IDLE_FPS = 20
+    let fpsCap = 0; try { const q = +new URLSearchParams(window.location.search).get('fps'); if (q >= 10 && q <= 120) fpsCap = q } catch {}
+    let touchedAt = performance.now(), drawnAt = 0
+    const poke = () => { touchedAt = performance.now() }
+    const POKE_EV = ['pointerdown', 'pointermove', 'wheel', 'keydown', 'touchstart']
+    POKE_EV.forEach(n => window.addEventListener(n, poke, { passive: true, capture: true }))
+    bag.cleanup.push(() => POKE_EV.forEach(n => window.removeEventListener(n, poke, { capture: true })))
     renderer.setAnimationLoop(now => {
       if (document.hidden) { last = now; return }
+      const idle = now - touchedAt > IDLE_MS
+      const cap = idle ? (fpsCap ? Math.min(fpsCap, IDLE_FPS) : IDLE_FPS) : fpsCap
+      if (cap && now - drawnAt < 1000 / cap - 2) return // 건너뛴 프레임은 last 를 안 옮긴다 = 다음 그림이 지난 시간을 한꺼번에 따라잡는다
+      drawnAt = now
+      if (idle) { fpsT0 = 0; fpsFrames = 0 } // 일부러 천천히 그리는 동안은 「느린 폰」 판정을 하지 않는다
       const t0 = performance.now()
       const dt = Math.min(0.25, (now - last) / 1000); last = now
       if (!S.paused) { acc += dt; let n = 0; while (acc >= STEP && n < 10) { step(STEP); acc -= STEP; n++ } if (n >= 10) acc = 0 }
@@ -1105,7 +1119,7 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
       // 해상도는 그대로 두는 것이 기본 — 3초 내내 30fps 밑일 때만 한 단계씩 내린다
       if (!settled && now - fpsT0 > 3000) {
         const fps = fpsFrames / ((now - fpsT0) / 1000)
-        if (fps < 30 && level > 0) setLevel(level - 1); else settled = true
+        if (fps < (fpsCap ? Math.min(30, fpsCap * 0.85) : 30) && level > 0) setLevel(level - 1); else settled = true
         fpsFrames = 0; fpsT0 = now
       } else if (settled && now - fpsT0 > 3000) {
         const fps = fpsFrames / ((now - fpsT0) / 1000)
@@ -1122,7 +1136,7 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
     bag.scene = scene
     if (process.env.NODE_ENV === 'development') window.__castle = {
       cmd: commandRef?.current, setLevel, pick: (x, y) => { const h = pickAt(x, y); return h && { kind: h.kind, name: h.obj.type } },
-      counts: () => ({ pines: pines.length, coins: coins.length, balls: balls.length, shots: shots.length, restCoins: coins.filter(c => c.state === 'rest').length, level, pr, backend: renderer.backend?.isWebGPUBackend ? 'webgpu' : 'webgl2' }),
+      counts: () => ({ pines: pines.length, coins: coins.length, balls: balls.length, shots: shots.length, restCoins: coins.filter(c => c.state === 'rest').length, frames: perf.frames, level, pr, backend: renderer.backend?.isWebGPUBackend ? 'webgpu' : 'webgl2' }),
       info: () => ({ calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, avgFrameMs: +(perf.ms / Math.max(1, perf.frames)).toFixed(2), level, pr }),
       resetPerf: () => { perf.frames = 0; perf.ms = 0 },
     }
