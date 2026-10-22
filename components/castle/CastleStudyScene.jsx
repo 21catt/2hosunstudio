@@ -88,12 +88,12 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
     if (bag.disposed) return
 
     const camera = new THREE.PerspectiveCamera(30, W() / H(), 0.1, 200)
-    const CAM0 = () => (narrow() ? new THREE.Vector3(17.5, 16.5, 21) : new THREE.Vector3(14.6, 11.9, 16.6)).multiplyScalar(BEACH ? 1.3 : 1)
+    const CAM0 = () => (narrow() ? new THREE.Vector3(17.5, 16.5, 21) : new THREE.Vector3(14.6, 11.9, 16.6)).multiplyScalar(BEACH ? (narrow() ? 1.75 : 1.45) : 1) // 해변 = 판이 커서 조금 멀리(폰 세로 화면에 다 들어오게)
     camera.position.copy(CAM0())
     const controls = new OrbitControls(camera, renderer.domElement)
     controls.target.set(0, 0.25, 0)
     controls.enableDamping = true; controls.enablePan = false
-    controls.minDistance = 9; controls.maxDistance = 34
+    controls.minDistance = 9; controls.maxDistance = BEACH ? 64 : 34 // 해변은 시작 거리가 34 를 넘는다(안 늘리면 잘려서 다시 가까워진다)
     controls.minPolarAngle = 0.25; controls.maxPolarAngle = 1.32
     controls.update()
 
