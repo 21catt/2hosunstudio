@@ -273,10 +273,10 @@ export function buildBeach({ THREE, block, std, mergeGeometries, sandTex, floorM
   head.userData.pick = 'octopus'
   const octo = { u: 0.3, dir: 1, wig: 0 }
 
-  // ── 갈매기 다섯 ──
+  // ── 갈매기 둘(2026-10-22 사용자 지시 — 다섯은 많다 · 크기도 줄임) ──
   const gullW = std('#ffffff', { roughness: 0.5 }), gullG = std('#9aa3ad'), beakM = std('#f5b335')
-  const gulls = Array.from({ length: 5 }, (_, i) => {
-    const gg = new THREE.Group(); gg.scale.setScalar(1.9); all.add(gg)
+  const gulls = [0, 3].map(i => { // 원래 다섯 중 궤도가 먼 둘(높이·반지름이 서로 달라 겹쳐 돌지 않는다)
+    const gg = new THREE.Group(); gg.scale.setScalar(1.15); all.add(gg)
     const b = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 8), gullW); b.scale.set(0.8, 0.7, 1.8); gg.add(b)
     const hd = new THREE.Mesh(new THREE.SphereGeometry(0.03, 10, 8), gullW); hd.position.set(0, 0.025, 0.09); gg.add(hd)
     const bk = new THREE.Mesh(new THREE.ConeGeometry(0.008, 0.035, 6), beakM); bk.rotation.x = Math.PI / 2; bk.position.set(0, 0.02, 0.125); gg.add(bk)
