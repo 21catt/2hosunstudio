@@ -1088,7 +1088,7 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
     }
     if (lite) setLevel(1)
     // 배터리(2026-10-22) — ① 손을 뗀 지 4초가 지나면 1초에 20번만 그린다(만지면 곧바로 원래대로)
-    //   ② 주소 ?fps=30 = 늘 30번까지만(폰 30프레임 제한을 켜기 전에 미리 보는 자리 — 기본은 꺼짐)
+    //   ② 설정 「배터리 보호」 = 늘 30번까지만(settingsRef.fpsCap, 기본 꺼짐) · 주소 ?fps=N 은 시험용으로 그보다 먼저
     const IDLE_MS = 4000, IDLE_FPS = 20
     let fpsCap = 0; try { const q = +new URLSearchParams(window.location.search).get('fps'); if (q >= 10 && q <= 120) fpsCap = q } catch {}
     let touchedAt = performance.now(), drawnAt = 0
@@ -1099,7 +1099,8 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
     renderer.setAnimationLoop(now => {
       if (document.hidden) { last = now; return }
       const idle = now - touchedAt > IDLE_MS
-      const cap = idle ? (fpsCap ? Math.min(fpsCap, IDLE_FPS) : IDLE_FPS) : fpsCap
+      const want = fpsCap || st().fpsCap || 0 // 주소 ?fps= 가 먼저, 아니면 설정 「배터리 보호」(30)
+      const cap = idle ? (want ? Math.min(want, IDLE_FPS) : IDLE_FPS) : want
       if (cap && now - drawnAt < 1000 / cap - 2) return // 건너뛴 프레임은 last 를 안 옮긴다 = 다음 그림이 지난 시간을 한꺼번에 따라잡는다
       drawnAt = now
       if (idle) { fpsT0 = 0; fpsFrames = 0 } // 일부러 천천히 그리는 동안은 「느린 폰」 판정을 하지 않는다
@@ -1119,7 +1120,8 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
       // 해상도는 그대로 두는 것이 기본 — 3초 내내 30fps 밑일 때만 한 단계씩 내린다
       if (!settled && now - fpsT0 > 3000) {
         const fps = fpsFrames / ((now - fpsT0) / 1000)
-        if (fps < (fpsCap ? Math.min(30, fpsCap * 0.85) : 30) && level > 0) setLevel(level - 1); else settled = true
+        const capNow = fpsCap || st().fpsCap || 0
+        if (fps < (capNow ? Math.min(30, capNow * 0.85) : 30) && level > 0) setLevel(level - 1); else settled = true
         fpsFrames = 0; fpsT0 = now
       } else if (settled && now - fpsT0 > 3000) {
         const fps = fpsFrames / ((now - fpsT0) / 1000)

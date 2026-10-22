@@ -200,13 +200,16 @@ export default function CastlePage() {
     document.addEventListener('visibilitychange', vis)
     return () => { EV.forEach(n => window.removeEventListener(n, first, true)); document.removeEventListener('visibilitychange', vis); musicRef.current?.close(); musicRef.current = null }
   }, [])
+  // 배터리 보호(2026-10-22) — 켜면 1초에 30번까지만 그린다(기본 꺼짐 = 화면 속도대로). 손을 뗀 4초 뒤 20번으로 줄이는 건 늘 켜져 있다
+  const [battery, setBattery] = useState(() => { try { return typeof window !== 'undefined' && localStorage.getItem('2hs_castle_battery') === '1' } catch { return false } })
+  function switchBattery(on) { try { localStorage.setItem('2hs_castle_battery', on ? '1' : '0') } catch {} setBattery(on) }
   const [lite, setLite] = useState(() => { try { return typeof window !== 'undefined' && localStorage.getItem('2hs_castle_lite') === '1' } catch { return false } })
   const [sceneKey, setSceneKey] = useState(0) // 가벼운 모드로 다시 그릴 때 장면을 새로 만든다
   const settingsRef = useRef(look)
   // 해변 = 기본 배경(2026-10-22 사용자 지시 「젤리성 대신 해변이 처음에 보이게」, components/castle/beach.js). 옛 젤리성 = 주소 ?beach=0
   const [beachPreview, setBeachPreview] = useState(true)
   useEffect(() => { try { if (new URLSearchParams(window.location.search).get('beach') === '0') setBeachPreview(false) } catch {} }, [])
-  settingsRef.current = { ...look, catImg, reducedMotion, beach: beachPreview }
+  settingsRef.current = { ...look, catImg, reducedMotion, beach: beachPreview, fpsCap: battery ? 30 : 0 }
   // 처음 = 저장된 장면 설정(없으면 내 테마), 내 농부냥, 동작 줄이기
   useEffect(() => {
     const fc = FARM_CATS.find(c => c.key === getSavedFarmCat())
@@ -566,6 +569,14 @@ export default function CastlePage() {
           <button className={`${s.chip} ${s.glass}`} onClick={() => commandRef.current?.ball()}>공 던지기</button>
         </div>
         </>)}
+        </>)}
+        {!scene.embed && (<>
+          <div className={s.sectionLabel} style={{ padding: 0 }}>배터리 보호</div>
+          <div className={s.row}>
+            <button className={`${s.chip} ${s.glass} ${!battery ? s.chipOn : ''}`} aria-pressed={!battery} onClick={() => switchBattery(false)}>끔 · 부드럽게</button>
+            <button className={`${s.chip} ${s.glass} ${battery ? s.chipOn : ''}`} aria-pressed={battery} onClick={() => switchBattery(true)}>켬 · 1초 30번</button>
+          </div>
+          <p style={{ margin: 0, fontSize: 12, opacity: 0.7 }}>켜면 움직임이 아주 조금 덜 매끄럽지만 배터리를 덜 써요. 손을 뗀 4초 뒤에는 어느 쪽이든 천천히 그려요</p>
         </>)}
         {/* 하단 메뉴에서 설정을 뺐다(캘린더 자리) — 설정은 이 패널 맨 아래에서 */}
         <a href="/student/settings" className={`${s.chip} ${s.glass}`} style={{ textAlign: 'center', textDecoration: 'none', color: 'inherit' }}>설정 열기</a>
