@@ -85,7 +85,7 @@
 .hr { height: 1px; background: currentColor; opacity: 0.12; }
 .slider { display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 600; }
 .slider input { width: 100%; }
-.row { display: flex; gap: 6px; }
+.row { display: flex; gap: 6px; flex-wrap: wrap; } /* 폰에서 칩이 패널 밖으로 안 나가게 줄바꿈 */
 .chip { flex: 1; padding: 9px 0; border-radius: 14px; font-size: 12px; font-weight: 700; color: inherit; cursor: pointer; font-family: inherit; white-space: nowrap; }
 .chipOn { outline: 2px solid #8fb8f0; outline-offset: -2px; }
 
