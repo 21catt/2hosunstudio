@@ -1,6 +1,6 @@
 // 3D 홈 반응 소리 — 젤리를 만지고 물을 끌고 배를 움직일 때 나는 짧은 소리. 음원 파일 없이 그 자리에서 만든다.
 // 한 파일을 3D 홈(Next 화면)·시트러스 젤리·젤리 문어(iframe 한 파일 장면)가 같이 쓴다: <script src="/jelly-sfx.js"> → window.JellySfx
-//   JellySfx.play('boing', { s: 0.8, pitch: 1 })   · 소리 이름 = boing squish stretch pop splash drip chime splat thud whistle gulp growl pen penUp key keyUp
+//   JellySfx.play('boing', { s: 0.8, pitch: 1 })   · 소리 이름 = boing squish stretch pop splash drip chime splat thud whistle gulp growl pen penUp key keyUp chatter
 //   JellySfx.wake(speed)                             · 계속 나는 소리(배 물살) — 매 프레임 속도를 넣으면 크기가 따라간다
 //   켜고 끄기 = localStorage 2hs_castle_sfx ('0' = 끔, 그 밖 = 켬). 같은 기기의 모든 장면이 같은 값을 본다.
 // 휴대폰·브라우저는 사용자가 한 번 누르기 전엔 소리를 못 낸다 — 첫 누름에 저절로 깨운다.
@@ -173,9 +173,20 @@
     // 날짜 칸 「청축 키보드」(2026-10-21) — 누를 때 「찰」(key), 뗄 때 「칵」(keyUp). 누를 때마다 음이 아주 조금씩 달라 타자 치는 느낌
     key(t) { const j = jit(); penClick(t, 5200 * j, 0.1, 0.012, 3400 * j, 0.08, 1, false, 5); penClick(t + 0.006, 2600 * j, 0.06, 0.03, 1500 * j, 0.12, 1, false, 3) },
     keyUp(t) { const j = jit(); penClick(t, 4200 * j, 0.06, 0.025, 1800 * j, 0.08, 1, false, 3) },
+    // 해변 사람 「재잘재잘」(2026-10-22 사용자 선택 P2) — 게임 캐릭터 말소리처럼 높낮이가 다른 짧은 「뽀」가 3~7번. pitch = 사람마다 목소리 높이
+    chatter(t, { pitch = 1 }) {
+      const base = 430 * pitch, n = 3 + (Math.random() * 5 | 0), lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2600; lp.connect(out)
+      let s = t
+      for (let i = 0; i < n; i++) {
+        const o = ctx.createOscillator(), g = ctx.createGain(), f = base * (0.85 + Math.random() * 0.5), len = 0.06 + Math.random() * 0.03
+        o.type = 'square'; o.frequency.setValueAtTime(f, s); o.frequency.exponentialRampToValueAtTime(f * (0.9 + Math.random() * 0.3), s + len)
+        env(g, s, 0.07, 0.006, len); o.connect(g); g.connect(lp); o.start(s); o.stop(s + len + 0.05)
+        s += len + 0.015 + Math.random() * 0.03
+      }
+    },
   }
   // 같은 소리가 너무 촘촘하면 시끄럽다 — 소리마다 최소 간격
-  const GAP = { boing: 0.09, squish: 0.12, stretch: 0.075, pop: 0.05, splash: 0.12, drip: 0.035, chime: 0.25, splat: 0.3, thud: 0.08, whistle: 0.7, gulp: 0.15, growl: 1.2, pen: 0.03, penUp: 0.03, key: 0.03, keyUp: 0.03 }
+  const GAP = { boing: 0.09, squish: 0.12, stretch: 0.075, pop: 0.05, splash: 0.12, drip: 0.035, chime: 0.25, splat: 0.3, thud: 0.08, whistle: 0.7, gulp: 0.15, growl: 1.2, pen: 0.03, penUp: 0.03, key: 0.03, keyUp: 0.03, chatter: 0.3 }
 
   window.JellySfx = {
     get enabled() { return enabled() },

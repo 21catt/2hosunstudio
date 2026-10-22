@@ -780,7 +780,14 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
       else if (hit.kind === 'brazier') { stoke = 1; emit(spray, ...brazierWorld(), 14, 1.2, 0.2, 0.7, 0.6) }
       else if (hit.kind === 'ship') bump(ship.position.x, ship.position.z, -0.07)
       else if (hit.kind === 'cat') catHop = 1
-      else if (beach && ['crab', 'octopus', 'clam', 'person', 'sand'].includes(hit.kind)) beach.tap(hit.kind, hit.obj, hit.point)
+      else if (beach && ['crab', 'octopus', 'clam', 'person', 'sand'].includes(hit.kind)) {
+        beach.tap(hit.kind, hit.obj, hit.point)
+        if (hit.kind === 'person') { // 사람을 누르면 폴짝 + 재잘재잘(사람마다 목소리 높이가 다르고, 같은 사람은 늘 같은 목소리)
+          let o = hit.obj; while (o && !o.userData.pp) o = o.parent
+          const pp = o?.userData.pp; if (pp && pp.voice == null) pp.voice = 0.75 + Math.random() * 0.6
+          sfx('chatter', { pitch: pp?.voice ?? 1 })
+        }
+      }
       const r = cvs.getBoundingClientRect()
       onPick?.(hit.kind, e.clientX - r.left, e.clientY - r.top)
     }
