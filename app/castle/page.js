@@ -75,6 +75,8 @@ function initialLook() {
 }
 const DOW = ['일', '월', '화', '수', '목', '금', '토']
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+// 해변 시범판 물빛(?beach=1) — 장면 FLAVOURS 의 해변 항목과 같은 이름
+const BEACH_WATER_LIST = [['lagoon', '아쿠아', '#3fd9d0'], ['emerald', '에메랄드', '#22c495'], ['cobalt', '코발트', '#2f7fe0'], ['pinkLagoon', '핑크 라군', '#f28cb6']]
 
 function Icon({ d }) {
   return <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{d}</svg>
@@ -219,7 +221,10 @@ export default function CastlePage() {
   const [lite, setLite] = useState(() => { try { return typeof window !== 'undefined' && localStorage.getItem('2hs_castle_lite') === '1' } catch { return false } })
   const [sceneKey, setSceneKey] = useState(0) // 가벼운 모드로 다시 그릴 때 장면을 새로 만든다
   const settingsRef = useRef(look)
-  settingsRef.current = { ...look, catImg, reducedMotion }
+  // 해변 시범판 — 주소에 ?beach=1 일 때만(배포 전 미리보기, components/castle/beach.js)
+  const [beachPreview, setBeachPreview] = useState(false) // 서버 렌더와 맞추려고 처음엔 꺼 두고 주소를 읽어 켠다
+  useEffect(() => { try { if (new URLSearchParams(window.location.search).get('beach') === '1') setBeachPreview(true) } catch {} }, [])
+  settingsRef.current = { ...look, catImg, reducedMotion, beach: beachPreview }
   // 처음 = 저장된 장면 설정(없으면 내 테마), 내 농부냥, 동작 줄이기
   useEffect(() => {
     const fc = FARM_CATS.find(c => c.key === getSavedFarmCat())
@@ -336,7 +341,7 @@ export default function CastlePage() {
           onLoad={() => { setReady(true); toFrame(scene.key === 'octopus' ? octo : scene.key === 'peak' ? peak : citrus) }} />
       ) : (
         <div style={{ position: 'absolute', inset: 0 }} onPointerDownCapture={() => setSceneOpen(false)}>
-          <CastleJellyScene key={sceneKey} lite={lite} settingsRef={settingsRef} commandRef={commandRef} onReady={() => setReady(true)}
+          <CastleJellyScene key={`${sceneKey}${beachPreview ? '-beach' : ''}`} lite={lite} settingsRef={settingsRef} commandRef={commandRef} onReady={() => setReady(true)}
             catAnchorRef={catAnchorRef} onFallback={reason => { setReady(true); setFallback(reason) }}
             onPick={(kind, x, y) => {
               // 냥이를 누르면 말풍선이 다음 말을 한다(냥밭 가는 길은 말풍선 안 「3D 냥밭 →」)
@@ -538,9 +543,9 @@ export default function CastlePage() {
         <label className={s.slider}>낮 · 노을 · 밤
           <input type="range" min="0" max="1" step="0.01" value={look.timeOfDay} onChange={e => setL({ timeOfDay: +e.target.value })} style={{ accentColor: '#b49ae8' }} />
         </label>
-        <label className={s.slider}>폭포 세기
+        {!beachPreview && <label className={s.slider}>폭포 세기
           <input type="range" min="0" max="1" step="0.01" value={look.flow} onChange={e => setL({ flow: +e.target.value })} style={{ accentColor: '#8fb8f0' }} />
-        </label>
+        </label>}
         <label className={s.slider}>젤리 단단함
           <input type="range" min="0" max="1" step="0.01" value={look.firmness} onChange={e => setL({ firmness: +e.target.value })} style={{ accentColor: '#f08fb3' }} />
         </label>
@@ -548,13 +553,26 @@ export default function CastlePage() {
           <input type="range" min="0" max="1" step="0.01" value={look.damping} onChange={e => setL({ damping: +e.target.value })} style={{ accentColor: '#9be3c4' }} />
         </label>
         <div className={s.row}>
-          {FLAVOUR_LIST.map(([id, label, c]) => (
+          {(beachPreview ? BEACH_WATER_LIST : FLAVOUR_LIST).map(([id, label, c]) => (
             <button key={id} className={`${s.chip} ${s.glass} ${look.flavour === id ? s.chipOn : ''}`} aria-pressed={look.flavour === id}
               onClick={() => setL({ flavour: id })}>
               <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 4, background: c, marginRight: 5 }} />{label}
             </button>
           ))}
         </div>
+        {beachPreview ? (<>
+          <div className={s.row}>
+            <button className={`${s.chip} ${s.glass}`} onClick={() => commandRef.current?.bigWave()}>큰 파도</button>
+            <button className={`${s.chip} ${s.glass}`} onClick={() => commandRef.current?.dolphins()}>돌고래</button>
+            <button className={`${s.chip} ${s.glass}`} onClick={() => commandRef.current?.surf()}>서핑</button>
+          </div>
+          <div className={s.row}>
+            <button className={`${s.chip} ${s.glass}`} onClick={() => commandRef.current?.ball()}>비치볼</button>
+            <button className={`${s.chip} ${s.glass}`} onClick={() => commandRef.current?.fireworks()}>불꽃놀이</button>
+            <button className={`${s.chip} ${s.glass}`} onClick={() => commandRef.current?.coin()}>소원 동전</button>
+          </div>
+          <p style={{ margin: 0, fontSize: 12, opacity: 0.7 }}>사람을 누르면 폴짝 · 모래를 누르면 모래성 · 꽃게·문어·조개도 눌러 보세요</p>
+        </>) : (<>
         <div className={s.row}>
           <button className={`${s.chip} ${s.glass}`} onClick={() => commandRef.current?.fireworks()}>불꽃놀이</button>
           <button className={`${s.chip} ${s.glass}`} onClick={() => setBridgeUp(commandRef.current?.toggleBridge() ?? false)}>{bridgeUp ? '다리 내리기' : '다리 올리기'}</button>
@@ -565,6 +583,7 @@ export default function CastlePage() {
           <button className={`${s.chip} ${s.glass}`} onClick={() => commandRef.current?.coin()}>소원 동전</button>
           <button className={`${s.chip} ${s.glass}`} onClick={() => commandRef.current?.ball()}>공 던지기</button>
         </div>
+        </>)}
         </>)}
         {/* 하단 메뉴에서 설정을 뺐다(캘린더 자리) — 설정은 이 패널 맨 아래에서 */}
         <a href="/student/settings" className={`${s.chip} ${s.glass}`} style={{ textAlign: 'center', textDecoration: 'none', color: 'inherit' }}>설정 열기</a>

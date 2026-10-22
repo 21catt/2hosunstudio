@@ -18,12 +18,15 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { writeCatAnchor } from '../../lib/catAnchor'
+import { buildBeach, palmGeometries } from './beach'
 
 async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallback, lite, catAnchorRef }, bag) {
 
 
     // ───────────────────────── constants ─────────────────────────
-    const HALF = 3                 // block half size
+    // 해변 시범판(?beach=1 — components/castle/beach.js): 성 대신 넓은 백사장·파도·사람들, 물빛 = 아쿠아. 틀도 넓다(반폭 4)
+    const BEACH = !!settingsRef.current?.beach
+    const HALF = BEACH ? 4 : 3      // block half size
     const WATER = 0.85             // jelly lake depth (surface y = 0)
     const FLOOR_Y = -WATER
     const BASE_H = 1.25            // candy strata under the lake
@@ -37,16 +40,22 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
     const FLAVOURS = {
       glacier: { tint: '#bdf0fa', deep: '#46b8e2', strata: ['#f4dfe5', '#fbf1df', '#d6cff2', '#cdeee0', '#f2c9d6', '#fbe9cf', '#c9b7ee', '#efa5be'] },
       rose:    { tint: '#fcd0de', deep: '#e57fa4', strata: ['#fde7ec', '#fff3e6', '#f6c3d3', '#fbe1d6', '#ee9fb8', '#fde9df', '#e7b6d0', '#d67b9b'] },
+      // 해변 물빛(시범판) — 아쿠아·에메랄드·코발트·핑크 라군
+      emerald: { tint: '#a3f2cf', deep: '#14b38c', strata: ['#f6e7c8', '#fff4dc', '#f3d9a8', '#e3f6ee', '#f7cfa6', '#fdebd0', '#bfe8d6', '#e8b98a'] },
+      cobalt:  { tint: '#a6d6ff', deep: '#1f70d8', strata: ['#f6e7c8', '#fff4dc', '#f3d9a8', '#e3eef8', '#f7cfa6', '#fdebd0', '#bfd6f0', '#e8b98a'] },
+      pinkLagoon: { tint: '#ffd6e6', deep: '#ee7fae', strata: ['#f6e7c8', '#fff4dc', '#f3d9a8', '#fbe6ee', '#f7cfa6', '#fdebd0', '#f2c9da', '#e8b98a'] },
+      lagoon:  { tint: '#8ff5ea', deep: '#11c6cf', strata: ['#f6e7c8', '#fff4dc', '#f3d9a8', '#e3f6f2', '#f7cfa6', '#fdebd0', '#bfe8e4', '#e8b98a'] },
       lilac:   { tint: '#ddd2fb', deep: '#9b80e2', strata: ['#efeafb', '#fbf5f2', '#d8cdf5', '#e5f0f7', '#c4b0ee', '#f6eef5', '#b3a2e6', '#8f78cf'] },
     }
     const ROOF = ['#f39fbe', '#b7a0ef', '#93b8f2']
+    const BEACH_WATER = ['lagoon', 'emerald', 'cobalt', 'pinkLagoon']
     const rng = (seed => () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296))(9917)
 
     // ───────────────────────── state ─────────────────────────
     const st = () => settingsRef.current || {}
     const S = {
-      get firm() { return st().firmness ?? 0.45 }, get flow() { return st().flow ?? 0.6 }, get damp() { return st().damping ?? 0.5 },
-      get time() { return st().timeOfDay ?? 0.15 }, get flavour() { return FLAVOURS[st().flavour] ? st().flavour : 'glacier' }, get calm() { return !!st().reducedMotion },
+      get firm() { return st().firmness ?? 0.45 }, get flow() { return BEACH ? 0 : st().flow ?? 0.6 }, get damp() { return st().damping ?? 0.5 },
+      get time() { return st().timeOfDay ?? 0.15 }, get flavour() { const f = st().flavour; return BEACH ? (BEACH_WATER.includes(f) ? f : 'lagoon') : FLAVOURS[f] ? f : 'glacier' }, get calm() { return !!st().reducedMotion },
       paused: false,
     }
     const counts = { fw: 0, salute: 0, wish: 0 }
@@ -79,7 +88,7 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
     if (bag.disposed) return
 
     const camera = new THREE.PerspectiveCamera(30, W() / H(), 0.1, 200)
-    const CAM0 = () => narrow() ? new THREE.Vector3(17.5, 16.5, 21) : new THREE.Vector3(14.6, 11.9, 16.6)
+    const CAM0 = () => (narrow() ? new THREE.Vector3(17.5, 16.5, 21) : new THREE.Vector3(14.6, 11.9, 16.6)).multiplyScalar(BEACH ? 1.3 : 1)
     camera.position.copy(CAM0())
     const controls = new OrbitControls(camera, renderer.domElement)
     controls.target.set(0, 0.25, 0)
@@ -204,7 +213,7 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
       const p = plateauGeo.attributes.position.array, n = new Float32Array(p.length), col = new Float32Array(p.length)
       const e = 0.01, c = new THREE.Color()
       let cols = FLAVOURS.glacier.strata
-      const moss = new THREE.Color('#7cbf62'), lawn = new THREE.Color('#8fcd6a'), lawn2 = new THREE.Color('#79b958')
+      const moss = new THREE.Color(BEACH ? '#9ccf78' : '#7cbf62'), lawn = new THREE.Color(BEACH ? '#f1dcab' : '#8fcd6a'), lawn2 = new THREE.Color(BEACH ? '#9fd27a' : '#79b958')
       for (let i = 0; i < p.length; i += 3) {
         const x = p[i], y = p[i + 1], z = p[i + 2]
         let nx = plateauSDF(x + e, y, z) - plateauSDF(x - e, y, z), ny = plateauSDF(x, y + e, z) - plateauSDF(x, y - e, z), nz = plateauSDF(x, y, z + e) - plateauSDF(x, y, z - e)
@@ -234,6 +243,7 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
     }
     const plateauMat = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.42, clearcoat: 0.55, clearcoatRoughness: 0.3 })
     const plateau = put(new THREE.Mesh(plateauGeo, plateauMat), 0, 0, 0, block)
+    if (BEACH) block.remove(plateau) // 해변: 고원(고양이 섬)·강·폭포·배 없음 — 블록 전체가 백사장과 바다
     // recolour the candy strata when the flavour changes (lawn and moss stay)
     function plateauRecolour(cols) {
       const p = plateauGeo.attributes.position.array, n = plateauGeo.attributes.normal.array, col = plateauGeo.attributes.color.array
@@ -251,7 +261,7 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
       plateauGeo.attributes.color.needsUpdate = true
     }
     plateau.userData.pick = 'block'
-    const inPlateau = (x, z) => plateauSDF(x, 0.0, z) < 0
+    const inPlateau = (x, z) => !BEACH && plateauSDF(x, 0.0, z) < 0 // 해변 = 고원 없음
     const onLawn = (x, z) => plateauSDF(x, TOP - 0.04, z) < -0.08
     // waterfall lip: where the river meets the edge
     let LIP_X = -0.6
@@ -296,7 +306,7 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
         const x = 1.75 + (i % 7) * 0.1 + Math.sin(i * 2.1) * 0.06, z = -2.55 + Math.floor(i / 7) * 0.13, hh = 0.75 + (i % 3) * 0.18
         reeds.push(new THREE.CylinderGeometry(0.006, 0.012, hh, 4).translate(x, FLOOR_Y + hh / 2, z))
       }
-      put(new THREE.Mesh(mergeGeometries(reeds), std('#6f9b4f')), 0, 0, 0, block, false)
+      if (!BEACH) put(new THREE.Mesh(mergeGeometries(reeds), std('#6f9b4f')), 0, 0, 0, block, false)
     }
 
     // ───────────────────────── jelly lake (refraction) ─────────────────────────
@@ -383,10 +393,10 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
     const spray = pool(lite ? 500 : 1100, dropGeo, new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.15, transparent: true, opacity: 0.9 }))
     block.add(spray.m)
     const fallP = pool(lite ? 260 : 520, dropGeo, new THREE.MeshStandardMaterial({ color: '#f4fbff', roughness: 0.1, transparent: true, opacity: 0.85 }))
-    block.add(fallP.m)
+    if (!BEACH) block.add(fallP.m)
     // inside the jelly: opaque so they show through the refraction
     const plume = pool(lite ? 180 : 360, new THREE.IcosahedronGeometry(0.02, 1), new THREE.MeshStandardMaterial({ color: '#f6fdff', roughness: 0.05, emissive: '#cfefff', emissiveIntensity: 0.25 }))
-    block.add(plume.m)
+    if (!BEACH) block.add(plume.m)
     function emit(P, x, y, z, n, up, spreadV, life = 1, size = 1) {
       for (let k = 0; k < n; k++) {
         const j = P.head++ % P.n, a = Math.random() * 6.283, s = Math.random() * spreadV
@@ -403,7 +413,7 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
       const g = new THREE.BufferGeometry(); const pts = new Float32Array(30 * 3)
       g.setAttribute('position', new THREE.BufferAttribute(pts, 3))
       const line = new THREE.Line(g, new THREE.LineBasicMaterial({ color: '#e9fbff' })); line.frustumCulled = false
-      block.add(line); threads.push({ g, pts, line, ph: k * 1.37, sp: (k - 3) * 0.12 })
+      if (!BEACH) block.add(line); threads.push({ g, pts, line, ph: k * 1.37, sp: (k - 3) * 0.12 })
     }
 
     // ───────────────────────── castle ─────────────────────────
@@ -463,6 +473,10 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
     const planks = []
     for (let i = 0; i < 9; i++) planks.push(new THREE.BoxGeometry(0.28, 0.025, 0.065).translate(0, 0, 0.04 + i * 0.07))
     const bridge = put(new THREE.Mesh(mergeGeometries(planks), wood), 0, 0, 0, bridgeHinge); bridge.userData.pick = 'gate'
+    // 해변: 성은 장면에서 뺀다(눌림 목록은 아래에서 block 을 훑어 만드니 같이 빠진다). 성 자리에 바다를 보는 벤치 둘
+    if (BEACH) {
+      block.remove(castle)
+    }
     let bridgeDown = true
     // brazier
     const brazier = new THREE.Group(); brazier.position.set(0.5, 0, W2 + 0.3); castle.add(brazier)
@@ -476,7 +490,7 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
     const catSprite = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false }))
     const CAT_POS = new THREE.Vector3(-1.2, TOP + 0.27, RIVER_Z + 0.32)
     catSprite.position.copy(CAT_POS); catSprite.scale.set(0.42, 0.54, 1); catSprite.visible = false
-    catSprite.userData.pick = 'cat'; block.add(catSprite)
+    catSprite.userData.pick = 'cat'; if (!BEACH) block.add(catSprite)
     let catUrl = null, catHop = 0
     const CAT_HEAD = new THREE.Vector3(0, 0.5, 0), catTmp = new THREE.Vector3() // 말풍선 자리 = 머리 끝
     const texLoader = new THREE.TextureLoader()
@@ -493,7 +507,7 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
 
     // ───────────────────────── river + spring ─────────────────────────
     const riverMat = new THREE.MeshPhysicalMaterial({ color: FLAVOURS.glacier.tint, roughness: 0.04, transmission: 0.6, thickness: 0.05, clearcoat: 1 })
-    {
+    if (!BEACH) {
       const len = LIP_X - SPRING.x
       const rg = new THREE.PlaneGeometry(len, 0.24, 40, 1); rg.rotateX(-Math.PI / 2)
       put(new THREE.Mesh(rg, riverMat), SPRING.x + len / 2, TOP + 0.012, RIVER_Z, block, false)
@@ -502,7 +516,7 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
       put(new THREE.Mesh(mergeGeometries(ring), std('#c9c3bd')), 0, 0, 0, block)
     }
     const riverGlints = pool(80, new THREE.PlaneGeometry(0.06, 0.012).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.8 }))
-    block.add(riverGlints.m)
+    if (!BEACH) block.add(riverGlints.m)
 
     // waterfall ribbon (parabola)
     const FALL_VX = 0.62, G = 6.5
@@ -524,28 +538,39 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
         if (i < seg) { const a = i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3) }
       }
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals()
-      const ribbon = new THREE.Mesh(g, fallMat); ribbon.renderOrder = 4; block.add(ribbon)
+      const ribbon = new THREE.Mesh(g, fallMat); ribbon.renderOrder = 4; if (!BEACH) block.add(ribbon)
     }
     const mist = new THREE.Mesh(new THREE.SphereGeometry(0.34, 20, 14), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.25, depthWrite: false }))
-    mist.position.set(IMPACT.x, 0.1, IMPACT.z); mist.scale.set(1.1, 0.4, 1); block.add(mist)
+    mist.position.set(IMPACT.x, 0.1, IMPACT.z); mist.scale.set(1.1, 0.4, 1); if (!BEACH) block.add(mist)
 
     // ───────────────────────── lawn: gummy pines, flowering bushes ─────────────────────────
     const pineGeo = (() => { const p = [new THREE.ConeGeometry(0.17, 0.3, 12).translate(0, 0.2, 0), new THREE.ConeGeometry(0.14, 0.26, 12).translate(0, 0.36, 0), new THREE.ConeGeometry(0.1, 0.22, 12).translate(0, 0.5, 0)]; return mergeGeometries(p) })()
     const trunkGeo = new THREE.CylinderGeometry(0.025, 0.035, 0.12, 6).translate(0, 0.06, 0)
     const gummy = new THREE.MeshPhysicalMaterial({ color: '#3f9a5f', roughness: 0.25, clearcoat: 1, clearcoatRoughness: 0.2, sheen: 0.4 })
     const pines = []
+    const palmTrunk = std('#a97c55', { roughness: 0.8 }), palmNut = std('#6b4a2c')
+    const palmLeaf = new THREE.MeshPhysicalMaterial({ color: '#3fa565', roughness: 0.35, clearcoat: 0.6, side: THREE.DoubleSide })
     const lawnSpots = []
-    for (let i = 0; i < 400 && lawnSpots.length < 34; i++) {
-      const x = -2.95 + rng() * 2.7, z = -2.95 + rng() * 2.85
-      if (!onLawn(x, z)) continue
-      if (x > -2.75 && x < -0.75 && z > -3.0 && z < -0.95) continue // castle
+    for (let i = 0; i < (BEACH ? 0 : 400) && lawnSpots.length < 34; i++) { // 해변 = 고원이 없으니 잔디 나무도 없다
+      const x = -(HALF - 0.05) + rng() * (HALF - 0.3), z = -(HALF - 0.05) + rng() * (HALF - 0.15)
+      // 해변: 고원 윗면 안쪽(가장자리에서 0.15 이상) — onLawn 은 윗면 높이에선 늘 거짓이라 조금 아래에서 잰다
+      if (BEACH ? !(plateauSDF(x, TOP - 0.25, z) < -0.15) : !onLawn(x, z)) continue
+      if (!BEACH && x > -2.75 && x < -0.75 && z > -3.0 && z < -0.95) continue // castle
+      if (BEACH && (Math.hypot(x + 1.55, z + 1.45) < 0.45 || Math.hypot(x + 0.95, z + 2.05) < 0.45)) continue // 벤치
       if (Math.abs(z - RIVER_Z) < 0.22) continue // river
       if (Math.hypot(x - CAT_POS.x, z - CAT_POS.z) < 0.28) continue // farm cat
-      if (lawnSpots.some(([a, b]) => Math.hypot(a - x, b - z) < 0.2)) continue
+      if (lawnSpots.some(([a, b]) => Math.hypot(a - x, b - z) < (BEACH ? 0.42 : 0.2))) continue
       lawnSpots.push([x, z])
     }
     lawnSpots.forEach(([x, z], i) => {
-      if (i < 18) {
+      if (BEACH && i < 11) { // 야자수 — 젤리 소나무처럼 끌면 휘청인다
+        const piv = new THREE.Group(); piv.position.set(x, TOP, z); piv.scale.setScalar(0.85 + rng() * 0.4); piv.rotation.y = rng() * 6; block.add(piv)
+        const pg = palmGeometries(THREE, mergeGeometries, i)
+        put(new THREE.Mesh(pg.trunk, palmTrunk), 0, 0, 0, piv); put(new THREE.Mesh(pg.nuts, palmNut), 0, 0, 0, piv)
+        const t = put(new THREE.Mesh(pg.leaves, palmLeaf), 0, 0, 0, piv)
+        t.userData.pick = 'pine'; t.userData.pine = pines.length
+        pines.push({ piv, bx: 0, bz: 0, vx: 0, vz: 0, held: false, i })
+      } else if (!BEACH && i < 18) {
         const piv = new THREE.Group(); piv.position.set(x, TOP, z); piv.scale.setScalar(0.75 + rng() * 0.45); block.add(piv)
         const t = put(new THREE.Mesh(pineGeo, gummy), 0, 0, 0, piv); put(new THREE.Mesh(trunkGeo, wood), 0, 0, 0, piv)
         t.userData.pick = 'pine'; t.userData.pine = pines.length
@@ -562,11 +587,11 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
         M.compose(new THREE.Vector3(x, TOP + 0.04 * s, z), new THREE.Quaternion(), new THREE.Vector3(s, s * 0.8, s)); bush.setMatrixAt(k, M)
         bush.setColorAt(k, new THREE.Color(k % 4 === 0 ? '#f6b2cb' : k % 4 === 1 ? '#fde3a0' : ['#68ad62', '#7cbf6c'][k % 2])); k++
       }
-      bush.count = k; bush.castShadow = bush.receiveShadow = true; block.add(bush)
+      bush.count = k; bush.castShadow = bush.receiveShadow = true; if (!BEACH) block.add(bush)
     }
 
     // ───────────────────────── royal galleon ─────────────────────────
-    const ship = new THREE.Group(); block.add(ship)
+    const ship = new THREE.Group(); if (!BEACH) block.add(ship)
     const hull = new THREE.Group(); hull.scale.setScalar(1.25); ship.add(hull)
     const sh = (m, x, y, z) => { put(m, x, y, z, hull); m.userData.pick = 'ship'; return m }
     {
@@ -595,11 +620,13 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
       std2.position.set(-0.02, 0.9, 0.0); std2.rotation.y = Math.PI / 2; hull.add(std2)
       const crown = new THREE.Mesh(new THREE.TorusGeometry(0.018, 0.006, 6, 10), gold); crown.position.set(-0.02, 0.9, 0.006); crown.rotation.y = Math.PI / 2; hull.add(crown)
     }
-    const SHIP_PATH = { cx: 1.15, cz: 1.15, r: 1.25 }
+    const SHIP_PATH = BEACH ? { cx: 1.6, cz: -2.1, r: 1.2 } : { cx: 1.15, cz: 1.15, r: 1.25 } // 해변 = 오른쪽 뒤 넓은 바다를 돈다
     // 배 — 평소엔 스스로 호수를 돈다(lap). 손가락으로 끌면 따라오고(drag), 놓으면 미끄러지다 멈추고(free),
     // 한동안 가만두면 제 길로 돌아가(back) 다시 돈다. **물 위에서만** — 땅·성벽·가장자리에 닿으면 그 앞에서 멈춘다.
     const SHIP_CLEAR = 0.3  // 배 반 폭 — 땅에서 이만큼 떨어진 물만 다닌다
-    const shipClear = (x, z) => Math.abs(x) < HALF - SHIP_CLEAR && Math.abs(z) < HALF - SHIP_CLEAR && plateauSDF(x, 0, z) > SHIP_CLEAR
+    const shipClear = (x, z) => Math.abs(x) < HALF - SHIP_CLEAR && Math.abs(z) < HALF - SHIP_CLEAR && plateauSDF(x, 0, z) > SHIP_CLEAR && !(beach && beach.onBeach(x, z))
+    // 해변: 백사장·소품·꽃게·조개·문어·갈매기(눌림 목록을 만들기 전에 — 꽃게·조개·문어도 눌린다)
+    const beach = BEACH ? buildBeach({ THREE, block, std, mergeGeometries, sandTex, floorMat, HALF, rng, calm: S.calm, bump }) : null
     const shipVel = new THREE.Vector3(), shipTarget = new THREE.Vector3()
     let shipMode = 'lap', lapA = 0, shipIdle = 0, shipYaw = -Math.PI / 2, shipTurn = 0
 
@@ -736,6 +763,7 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
       else if (hit.kind === 'brazier') { stoke = 1; emit(spray, ...brazierWorld(), 14, 1.2, 0.2, 0.7, 0.6) }
       else if (hit.kind === 'ship') bump(ship.position.x, ship.position.z, -0.07)
       else if (hit.kind === 'cat') catHop = 1
+      else if (beach && ['crab', 'octopus', 'clam', 'person', 'sand'].includes(hit.kind)) beach.tap(hit.kind, hit.obj, hit.point)
       const r = cvs.getBoundingClientRect()
       onPick?.(hit.kind, e.clientX - r.left, e.clientY - r.top)
     }
@@ -751,6 +779,10 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
       toggleBridge, salute, ball: throwBall,
       tip: () => { tiltVZ += 1.4; jiggleV += 0.8 },
       coin: () => { for (let i = 0; i < 3; i++) setTimeout(throwCoin, i * 150) },
+      // 해변 놀거리(시범판)
+      bigWave: () => { beach?.bigWave(); sfx('boing', { s: 0.5, pitch: 0.6 }) },
+      dolphins: () => { beach?.dolphins(); sfx('chime', { pitch: 1.3 }) },
+      surf: () => { beach?.surf(); sfx('chime', { pitch: 1.1 }) },
     }
     let flavourNow = null
     function applyFlavour() {
@@ -759,6 +791,7 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
       floorMat.color.set(f.deep).lerp(new THREE.Color('#ffffff'), 0.45) // the lake floor takes the water's colour
       baseSide.map?.dispose(); baseSide.map = strataTexture(f.strata, 7); baseSide.needsUpdate = true
       plateauRecolour(f.strata)
+      beach?.setWater(f.deep)
     }
 
     // ───────────────────────── ship motion + wake ─────────────────────────
@@ -849,7 +882,7 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
       if (Math.random() < flow * 0.9) emit(spray, IMPACT.x, 0.02, IMPACT.z, 2, 1.2 + flow * 1.4, 0.55, 0.9, 1)
       addFoam(IMPACT.x + 0.05 + Math.random() * 0.5, IMPACT.z + (Math.random() - 0.5) * 0.6, 0.015 + flow * 0.035, 1.3)
       // galleon — laps by itself, or follows a finger on the water; the wake grows with its speed
-      shipStep(dt)
+      if (!BEACH) shipStep(dt)
       const wk = Math.exp(-dt * 2.6) // 배 물보라 반감 ≈ 0.27초
       for (let i = 0; i < N * N; i++) { foam[i] = foam[i] > 0.003 ? foam[i] * 0.9965 : 0; wakeFoam[i] = wakeFoam[i] > 0.003 ? wakeFoam[i] * wk : 0 }
       simStep(0.996 - S.damp * 0.03)
@@ -1034,7 +1067,7 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
       const t0 = performance.now()
       const dt = Math.min(0.25, (now - last) / 1000); last = now
       if (!S.paused) { acc += dt; let n = 0; while (acc >= STEP && n < 10) { step(STEP); acc -= STEP; n++ } if (n >= 10) acc = 0 }
-      look(); visuals(); controls.update()
+      look(); visuals(); beach?.update(dt); controls.update()
       renderer.render(scene, camera)
       writeCatAnchor(catAnchorRef, { sprite: catSprite, camera, canvas: renderer.domElement, head: CAT_HEAD, tmp: catTmp })
       perf.frames++; perf.ms += performance.now() - t0
@@ -1064,7 +1097,7 @@ async function build(mount, { settingsRef, onPick, commandRef, onReady, onFallba
     bag.scene = scene
     if (process.env.NODE_ENV === 'development') window.__castle = {
       cmd: commandRef?.current, setLevel, pick: (x, y) => { const h = pickAt(x, y); return h && { kind: h.kind, name: h.obj.type } },
-      counts: () => ({ coins: coins.length, balls: balls.length, shots: shots.length, restCoins: coins.filter(c => c.state === 'rest').length, level, pr, backend: renderer.backend?.isWebGPUBackend ? 'webgpu' : 'webgl2' }),
+      counts: () => ({ pines: pines.length, coins: coins.length, balls: balls.length, shots: shots.length, restCoins: coins.filter(c => c.state === 'rest').length, level, pr, backend: renderer.backend?.isWebGPUBackend ? 'webgpu' : 'webgl2' }),
       info: () => ({ calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, avgFrameMs: +(perf.ms / Math.max(1, perf.frames)).toFixed(2), level, pr }),
       resetPerf: () => { perf.frames = 0; perf.ms = 0 },
     }
