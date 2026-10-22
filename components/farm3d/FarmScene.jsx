@@ -10,12 +10,14 @@
 //   night   밤 장면
 //   rainKey 바뀔 때마다 비(꾸밈 — 작물 성장은 출석으로만)
 //   onPick(kind, data, clientX, clientY) — kind = 'plot' | 'weed' | 'cat' | 'shed' | 'cloud' | 'sun'
+//     손님들(critters.js): 'bird'({landed}) · 'bird-shoo'(냥이가 쫓아냄) · 'mole'({caught}) · 'worm'
 //   onFail() — 3D 를 그릴 수 없는 기기
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import { writeCatAnchor } from '../../lib/catAnchor'
+import { makeCritters } from './critters'
 
 const CROPS = {
   tomato: { fruit: 0xe5484d, leaf: 0x58b56a },
@@ -257,6 +259,10 @@ export default function FarmScene(props) {
       }
     }
 
+    // ── 손님들: 새(냥이가 쫓는다)·두더지(눌러 잡는다)·지렁이(그냥 기어다닌다) — critters.js ──
+    const critters = makeCritters({ THREE, island, mat, pickable, unpick, plots, reduce })
+    if (process.env.NODE_ENV === 'development') window.__farmCritters = critters
+
     // ── 구름·비(꾸밈) ──
     const clouds = []
     const cloudMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, transparent: true, opacity: 0.94 })
@@ -338,6 +344,10 @@ export default function FarmScene(props) {
       if (kind === 'cloud') startRain()
       if (kind === 'cat') catSprite.userData.hop = 1
       if (kind === 'sun') sunGlow = 1
+      if (kind === 'bird' || kind === 'mole' || kind === 'worm') {
+        const r = critters.tap(kind, data); if (!r) return
+        return propsRef.current.onPick?.(kind, r, e.clientX, e.clientY)
+      }
       propsRef.current.onPick?.(kind, data, e.clientX, e.clientY)
     }
     const onMove = e => { renderer.domElement.style.cursor = hitAt(e) ? 'pointer' : 'grab' }
@@ -402,10 +412,22 @@ export default function FarmScene(props) {
       sunRays.scale.setScalar(3.4 + g2 * 6)
       sun.intensity += g2 * 1.4; hemi.intensity += g2 * 0.6
 
+      // 손님들 — 새가 냥이에게 쫓겨 날아가면 「훠이!」
+      const shooed = critters.update(dt, t, { night, raining, catPos: cat.position })
+      for (const b of shooed) {
+        catSprite.userData.hop = 1
+        const r = renderer.domElement.getBoundingClientRect()
+        const v = b.g.getWorldPosition(new THREE.Vector3()).project(camera)
+        propsRef.current.onPick?.('bird-shoo', {}, r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height)
+      }
+      // 쪼는 새가 있으면 냥이가 달려간다
+      const prey = critters.chaseTarget()
+      if (prey) { catGoal.set(prey.x + 0.18, 0.11, prey.z + 0.18); catWait = 0.8 }
+
       // 냥이 — 밭 사이를 오가며 일한다
       const to = catGoal.clone().sub(cat.position); to.y = 0
       if (to.length() > 0.04) {
-        to.setLength(Math.min(to.length(), dt * 0.8)); cat.position.add(to)
+        to.setLength(Math.min(to.length(), dt * (prey ? 2.1 : 0.8))); cat.position.add(to)
         catSprite.position.y = reduce ? 0 : Math.abs(Math.sin(t * 9)) * 0.05
         catSprite.material.rotation = reduce ? 0 : Math.sin(t * 9) * 0.04
       } else {

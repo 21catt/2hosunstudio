@@ -208,6 +208,10 @@ export default function Farm3DPage() {
     }
     if (kind === 'shed') return setShedOpen(true)
     if (kind === 'cat') { if (talkRef.current) return talkRef.current.next(); return showTag(`${activeCat.name} · 오늘도 밭일 중`, x, y) }
+    if (kind === 'bird') return showTag(data.landed ? '새가 작물을 쪼아요 — 냥이가 쫓아가요!' : '새가 날아와요', x, y)
+    if (kind === 'bird-shoo') return floatText('훠이!', x, y - 10)
+    if (kind === 'mole') return floatText(`두더지 잡았다! ${data.caught}`, x, y - 10)
+    if (kind === 'worm') return showTag('지렁이 · 흙을 좋게 해 줘요 (그냥 두어도 돼요)', x, y)
     if (kind === 'cloud') return showTag('비가 와요 (꾸밈 · 작물은 출석으로 자라요)', x, y)
     if (kind === 'sun') return showTag(night ? '달빛이 번져요' : '햇살이 번져요 ☀️', x, y)
   }
@@ -284,7 +288,7 @@ export default function Farm3DPage() {
         <a href="/student/settings" className={s.link}>농부냥 바꾸기 · 설정</a>
       </section>
 
-      <div className={s.how}><b>How to play</b> — 다 익은 앞 칸 작물을 눌러 수확 · 빨간 고리 잡초를 눌러 뽑기 · 헛간 = 미니게임 · 빈 곳을 끌어 섬 돌려 보기</div>
+      <div className={s.how}><b>How to play</b> — 다 익은 앞 칸 작물을 눌러 수확 · 빨간 고리 잡초를 눌러 뽑기 · 튀어나온 두더지를 눌러 잡기 · 새가 오면 냥이가 쫓아요(새를 누르면 바로) · 헛간 = 미니게임 · 빈 곳을 끌어 섬 돌려 보기</div>
       {!fallback && !shedOpen && !mixOpen && !tetrisOpen && (devRef.current || user) &&
         <CatTalk place="farm" user={user} cat={talkCat} farm={talkFarm} anchorRef={catAnchorRef} controlRef={talkRef} />}
       <div className={s.badge}>미리보기 · 기존 냥밭과 같은 기록이에요</div>
