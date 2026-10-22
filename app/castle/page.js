@@ -342,11 +342,11 @@ export default function CastlePage() {
         <button className={`${s.topBtn} ${s.glass}`} aria-pressed={sfxOn} onClick={toggleSfx} aria-label={sfxOn ? '반응 소리 끄기' : '반응 소리 켜기'}>{sfxOn ? '🔊 소리' : '🔇 소리 끔'}</button>
         {!scene.embed && <button className={`${s.topBtn} ${s.glass}`} aria-pressed={lite} onClick={() => switchLite(!lite)}>{lite ? '가벼운 모드 켜짐' : '가벼운 모드'}</button>}
         {isAdmin && <a className={`${s.topBtn} ${s.glass}`} href="/admin/castle-beta">미리보기 학생</a>}
-        <a className={`${s.topBtn} ${s.glass}`} href="/student" aria-label="3D 모드 끄기" onClick={() => { try { localStorage.setItem('2hs_home_mode', 'classic') } catch {} }}>
+        {user && <a className={`${s.topBtn} ${s.glass}`} href="/student" aria-label="3D 모드 끄기" onClick={() => { try { localStorage.setItem('2hs_home_mode', 'classic') } catch {} }}>
           3D 모드 <span aria-hidden="true" style={{ display: 'inline-block', width: 26, height: 15, borderRadius: 999, background: '#7f6bd6', verticalAlign: '-3px', marginLeft: 5, position: 'relative' }}>
             <span style={{ position: 'absolute', top: 2, right: 2, width: 11, height: 11, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.25)' }} />
           </span>
-        </a>
+        </a>}
       </div>
 
       {fallback && (
