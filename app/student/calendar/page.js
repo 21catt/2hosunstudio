@@ -7,6 +7,8 @@ import StudentNav from '../../../components/StudentNav'
 import { NavIcon } from '../../../components/NavIcons'
 import { sortCoursesByCategory } from '../../../lib/courseSort'
 import { catStyle } from '../../../lib/categoryStyle'
+import bk from '../../../components/castle/booking.module.css'
+import { useTapSound } from '../../../lib/useTapSound'
 import { fetchLockedDates, fetchLockedSlots, slotLocked } from '../../../lib/lockedDates'
 import { isTooLateToBook, bookingCutoffMessage } from '../../../lib/bookingWindow'
 import { consumeClassTicket, restoreClassTicket, refundsClassTicket, ticketStarted } from '../../../lib/booking'
@@ -146,6 +148,7 @@ export default function CalendarPage() {
   const router = useRouter()
   const todayWeather = useTodayWeather()
   const [user, setUser] = useState(null)
+  useTapSound() // 터치 소리 — 홈과 같은 청축 키보드 소리(홈에서 끄면 여기서도 꺼진다)
   const [ticket, setTicket] = useState(null)
   const [meetingTickets, setMeetingTickets] = useState([])
   const [bookings, setBookings] = useState([])
@@ -895,7 +898,7 @@ export default function CalendarPage() {
             <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:6 }}>참여 횟수 선택</div>
             <div style={{ display:'flex', gap:6, marginBottom:14 }}>
               {[1,2,3,4].map(n => (
-                <div key={n} onClick={()=>setSelectedCount(n)} style={{ flex:1, padding:'8px', borderRadius:10, textAlign:'center', cursor:'pointer', background:selectedCount===n?'var(--g4)':'var(--bg)', color:selectedCount===n?'#fff':'var(--td)', border:`1.5px solid ${selectedCount===n?'var(--g4)':'var(--g1)'}`, fontSize:12, fontWeight:700 }}>
+                <div key={n} data-tap="key" onClick={()=>setSelectedCount(n)} style={{ flex:1, padding:'8px', borderRadius:10, textAlign:'center', cursor:'pointer', background:selectedCount===n?'var(--g4)':'var(--bg)', color:selectedCount===n?'#fff':'var(--td)', border:`1.5px solid ${selectedCount===n?'var(--g4)':'var(--g1)'}`, fontSize:12, fontWeight:700 }}>
                   {n}회
                 </div>
               ))}
@@ -950,7 +953,7 @@ export default function CalendarPage() {
               </div>
             )}
             <div style={{ textAlign:'center' }}>
-              <span onClick={() => { navigateToDate(sheetSlot.next.dateStr); setSheetOpen(false) }}
+              <span data-tap="key" onClick={() => { navigateToDate(sheetSlot.next.dateStr); setSheetOpen(false) }}
                 style={{ fontSize:12, color:'var(--tmu)', cursor:'pointer', textDecoration:'underline', textUnderlineOffset:2 }}>
                 전체 일정에서 고르기 →
               </span>
@@ -984,7 +987,7 @@ export default function CalendarPage() {
             const isPending = b.confirmed === false
             return (
               <div style={{ marginBottom:16, background:isPending?'#FFF8E1':ACCENT_BG, borderRadius:14, padding:'10px 14px', border:`1.5px solid ${isPending?'#E6510055':'rgb(var(--ac-rgb) / 0.33)'}`, display:'flex', alignItems:'center', gap:8 }}>
-                <div onClick={() => isPending ? setDepositModal(b) : navigateToDate(b.class_date)} style={{ flex:1, minWidth:0, cursor:'pointer' }}>
+                <div data-tap="key" onClick={() => isPending ? setDepositModal(b) : navigateToDate(b.class_date)} style={{ flex:1, minWidth:0, cursor:'pointer' }}>
                   <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:1 }}>
                     <span style={{ fontSize:10, fontWeight:700, color:'var(--tmu)' }}>다음 수업</span>
                     {b.attended === true
@@ -1061,7 +1064,7 @@ export default function CalendarPage() {
             const isLocked = lockedDates.has(dLockStr)
 
             return (
-              <div key={d} ref={el => cellRefs.current[d] = el} onClick={()=>handleDayClick(d)} className={`cal-day${isSel ? ' cal-day-sel' : ''}${isT ? ' cal-day-today' : ''}${isMon ? ' cal-day-off' : ''}${isB ? ' cal-day-booked' : ''}`} style={{ height:52, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:isMon?'default':'pointer', borderRadius:12, opacity:isMon?0.3:(isLocked?0.6:1), position:'relative', background:isSel?'var(--ac2)':'transparent', border:isSel?'2px solid var(--ac)':'2px solid transparent' }}>
+              <div key={d} data-tap={isMon ? undefined : 'key'} ref={el => cellRefs.current[d] = el} onClick={()=>handleDayClick(d)} className={`cal-day${isSel ? ' cal-day-sel' : ''}${isT ? ' cal-day-today' : ''}${isMon ? ' cal-day-off' : ''}${isB ? ' cal-day-booked' : ''}`} style={{ height:52, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:isMon?'default':'pointer', borderRadius:12, opacity:isMon?0.3:(isLocked?0.6:1), position:'relative', background:isSel?'var(--ac2)':'transparent', border:isSel?'2px solid var(--ac)':'2px solid transparent' }}>
                 {isT && todayWeather && (
                   <div className="cal-weather" style={{ position:'absolute', top:-2, left:'50%', transform:'translateX(-50%)', fontSize:13, zIndex:1 }}>{todayWeather.icon}</div>
                 )}
@@ -1094,32 +1097,6 @@ export default function CalendarPage() {
         )}
 
 
-        {!user ? null : (
-        <div className="g-glass" style={{ background:'var(--g1)', borderRadius:14, padding:'10px 14px', marginBottom:12, display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid var(--g2)' }}>
-          <div style={{ flex:1 }}>
-            <div style={{ fontSize:10, color:'var(--tm)', fontWeight:700 }}>내 수강권</div>
-            <div style={{ fontSize:13, fontWeight:800, color:'var(--td)', marginBottom:4 }}>
-              {ticket?`${ticket.total}회권 · 잔여 ${ticket.remain}회`:'수강권 없음'}
-            </div>
-            {ticket && (
-              <>
-                <div style={{ width:'100%', height:5, background:'rgba(255,255,255,0.5)', borderRadius:3, overflow:'hidden', marginBottom:4 }}>
-                  <div style={{ width: `${(ticket.remain / ticket.total) * 100}%`, height: '100%', background: ticket.remain/ticket.total >= 0.6 ? 'var(--g4)' : ticket.remain/ticket.total >= 0.3 ? 'var(--g3)' : '#c9a07a', transition: 'width 0.3s ease, background 0.3s ease' }}/>
-                </div>
-                <div style={{ fontSize:10, color:'var(--g4)', fontWeight:600 }}>
-                  {!ticketStarted(ticket, todayStr)
-                    ? `${ticket.start_date?.slice(5).replace('-', '월 ')}일부터 사용`
-                    : `만료: ${ticket.expires_at}`}
-                </div>
-              </>
-            )}
-          </div>
-          <div onClick={() => router.push('/student/settings')} style={{ marginLeft:12, cursor:'pointer' }} title="개인 설정">
-            <MoodIndicator ratio={ticket ? (ticket.remain / ticket.total) : 0} style={moodStyle} size={52} />
-          </div>
-        </div>
-        )}
-
         {meetingTickets.length > 0 && (
           <div style={{ background:'#FFF8E1', borderRadius:14, padding:'10px 14px', marginBottom:12, display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid #FFE082' }}>
             <div style={{ flex:1 }}>
@@ -1134,7 +1111,7 @@ export default function CalendarPage() {
         )}
 
         {!selLocked && (
-        <div className="g-glass" onClick={()=>router.push(`/student/free?date=${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`)} style={{ background:'var(--surf)', borderRadius:14, padding:'14px 16px', marginBottom:12, display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid var(--g2)', cursor:'pointer' }}>
+        <div className="g-glass" data-tap="key" onClick={()=>router.push(`/student/free?date=${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`)} style={{ background:'var(--surf)', borderRadius:14, padding:'14px 16px', marginBottom:12, display:'flex', alignItems:'center', justifyContent:'space-between', border:'1.5px solid var(--g2)', cursor:'pointer' }}>
           <div style={{ flex:1 }}>
             <div style={{ fontSize:10, color:'var(--tm)', fontWeight:700, marginBottom:2 }}>🎨 자율창작</div>
             <div style={{ fontSize:13, fontWeight:800, color:'var(--td)', marginBottom:2 }}>1시간만, 자유롭게</div>
@@ -1144,228 +1121,189 @@ export default function CalendarPage() {
         </div>
         )}
 
-        <div style={{ fontSize:12, fontWeight:800, color:'var(--td)', marginBottom:10 }}>{month+1}월 {selectedDay}일 수업</div>
-
-        {selLocked ? (
-          <div style={{ textAlign:'center', padding:'22px 20px', color:'var(--tmu)', fontSize:12, background:'var(--g1)', borderRadius:14, border:'1.5px solid var(--g2)' }}>
-            <div style={{ fontSize:20, marginBottom:6 }}>🔒</div>
-            이 날은 예약이 닫혀 있어요
-            {lockedDates.get(selDateStr) && (
-              <div style={{ marginTop:10, fontSize:12.5, fontWeight:700, color:'#3a2f47', lineHeight:1.6, whiteSpace:'pre-wrap', wordBreak:'break-word', background:'#fff', border:'1.5px solid #e3d9ef', borderRadius:12, padding:'11px 13px', textAlign:'left' }}>
-                {lockedDates.get(selDateStr)}
-              </div>
-            )}
-          </div>
-        ) : dc.length === 0 ? (
-          <div style={{ textAlign:'center', padding:20, color:'var(--tmu)', fontSize:12 }}>이날은 수업이 없어요 🐾</div>
-        ) : (
-          <>
-            {!(cats.length === 1 && cats[0] === 'free') && (() => {
-              // 예약 단계 표시 — 종류 → 수업 → 시간 (지금 어디인지 한눈에)
-              const steps = [{ n:'종류', done:!!selCat }, { n:'수업', done:!!selCourse }, { n:'시간', done:!!selSchedule }]
-              const dot = (st, i) => {
-                const active = !st.done && steps.slice(0, i).every(x => x.done)
-                return (
-                  <div style={{ display:'flex', alignItems:'center', gap:5 }}>
-                    <span style={{ width:20, height:20, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, boxSizing:'border-box', background: st.done?ACCENT:active?ACCENT_BG:'var(--g1)', color: st.done?'#fff':active?ACCENT_TEXT:'var(--tmu)', border: active && !st.done ? `1.5px solid ${ACCENT}` : 'none' }}>{st.done ? '✓' : i + 1}</span>
-                    <span style={{ fontSize:11, fontWeight:700, color: st.done || active ? ACCENT_TEXT : 'var(--tmu)' }}>{st.n}</span>
-                  </div>
-                )
-              }
-              return (
-                <div className="slide-up" style={{ display:'flex', alignItems:'center', gap:6, margin:'0 2px 14px' }}>
-                  {dot(steps[0], 0)}
-                  <span style={{ flex:1, height:2, borderRadius:2, background: steps[0].done ? ACCENT : 'var(--g2)' }} />
-                  {dot(steps[1], 1)}
-                  <span style={{ flex:1, height:2, borderRadius:2, background: steps[1].done ? ACCENT : 'var(--g2)' }} />
-                  {dot(steps[2], 2)}
-                </div>
-              )
-            })()}
-
-            {cats.length > 1 && (
-              <div className="slide-up" style={{ marginBottom:12 }}>
-                <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:8 }}>수업 종류</div>
-                <div style={{ display:'flex', gap:7 }}>
-                  {cats.map(cat => {
-                    const on = selCat === cat
-                    return (
-                      <div key={cat} onClick={() => {
-                        if (cat === 'free') { router.push(`/student/free?date=${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`); return }
-                        setSelCat(cat); setSelCourse(null); setSelSchedule(null)
-                      }} style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:5, padding:'9px 8px', borderRadius:20, cursor:'pointer', background: on ? ACCENT_BG : CARD, border:`1.5px solid ${on ? ACCENT : 'rgba(0,0,0,0.08)'}` }}>
-                        <NavIcon name={CAT_ICON[cat] || 'palette'} color={on ? ACCENT_TEXT : '#4a5a4e'} size={16} />
-                        <span style={{ fontSize:12, fontWeight: on ? 800 : 600, color: on ? ACCENT_TEXT : 'var(--td)' }}>{CAT_NAME[cat]}</span>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-
-            {cats.length === 1 && cats[0] === 'free' && (
-              <div className="g-glass" onClick={()=>router.push(`/student/free?date=${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`)} style={{ padding:'14px 16px', background:'var(--surf)', borderRadius:14, border:'1.5px solid var(--g2)', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        {/* 예약 — 3D 홈 예약 창(components/castle/BookingPanel)과 같은 디자인(2026-10-22). 예약 규칙·원데이·모임·미가입 요청은 이 화면 것 그대로 */}
+        {(() => {
+          const selD = new Date(selDateStr + 'T00:00:00')
+          const dateTitle = `${month + 1}월 ${selectedDay}일 ${['일','월','화','수','목','금','토'][selD.getDay()]}요일`
+          const st = catStyle(selCat)
+          const step = selSchedule ? 3 : selCourse ? 2 : selCat ? 1 : 0
+          const freeHref = `/student/free?date=${selDateStr}`
+          const daySchedules = selCourse ? getSchedulesForDay(selCourse, selectedDay) : []
+          const showCta = selSchedule && !isBooked(selCourse?.id, selSchedule?.id, selectedDay)
+          return (
+            <section className={`${bk.panel} ${bk.inline}`} aria-label="예약하기">
+              <div className={bk.head}>
                 <div>
-                  <div style={{ fontSize:13, fontWeight:800, color:'var(--td)' }}>🎨 자율창작 예약하러 가기</div>
-                  <div style={{ fontSize:10, color:'var(--tm)', marginTop:2 }}>자리와 시간을 직접 선택해요</div>
+                  <div className={bk.eyebrow}>예약하기</div>
+                  <div className={bk.title}>{dateTitle}</div>
                 </div>
-                <div style={{ fontSize:18, color:'var(--tm)' }}>›</div>
               </div>
-            )}
 
-            {cats.length === 1 && cats[0] !== 'free' && selCat !== cats[0] && (() => { setTimeout(() => setSelCat(cats[0]), 0); return null })()}
+              {!selLocked && dc.length > 0 && (
+                <div className={bk.steps} aria-hidden="true">
+                  {['종류', '수업', '시간'].map((t, i) => (
+                    <span key={t} className={bk.step} style={{ color: step > i ? '#2b2433' : undefined }}>
+                      <span className={bk.stepDot} style={step > i ? { background: '#2b2433', borderColor: '#2b2433' } : null} />{t}
+                      {i < 2 && <span className={bk.stepLine} />}
+                    </span>
+                  ))}
+                </div>
+              )}
 
-            {selCat && selCat !== 'free' && catCourses.length === 1 && selCourse !== catCourses[0] && (() => { setTimeout(() => setSelCourse(catCourses[0]), 0); return null })()}
+              <div className={bk.body}>
+                {selLocked ? (
+                  <div className={bk.empty}>
+                    🔒 이 날은 예약이 닫혀 있어요
+                    {lockedDates.get(selDateStr) && <div className={bk.info} style={{ marginTop: 10, textAlign: 'left', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{lockedDates.get(selDateStr)}</div>}
+                  </div>
+                ) : dc.length === 0 ? (
+                  <div className={bk.empty}>이날은 수업이 없어요 🐾</div>
+                ) : (<>
+                  {cats.length === 1 && cats[0] !== 'free' && selCat !== cats[0] && (() => { setTimeout(() => setSelCat(cats[0]), 0); return null })()}
+                  {selCat && selCat !== 'free' && catCourses.length === 1 && selCourse !== catCourses[0] && (() => { setTimeout(() => setSelCourse(catCourses[0]), 0); return null })()}
 
-            {selCat && selCat !== 'free' && catCourses.length > 0 && (
-              <div className="slide-up" style={{ marginBottom:12 }}>
-                {catCourses.length > 1 && (
-                  <div style={{ fontSize:11, fontWeight:500, color:'var(--tmu)', marginBottom:8 }}>수업 선택</div>
-                )}
-                {catCourses.map(c => {
-                  const isOpen = selCourse?.id === c.id
-                  const daySchedules = getSchedulesForDay(c, selectedDay)
-                  return (
-                    <div key={c.id} className={isOpen ? '' : 'g-glass'} style={{ borderRadius:14, marginBottom:8, overflow:'hidden', border:`1px solid ${isOpen?ACCENT:'rgba(0,0,0,0.08)'}`, background:isOpen?ACCENT_BG:CARD }}>
-                      <div onClick={() => { if (isOpen) { setSelCourse(null); setSelSchedule(null) } else { setSelCourse(c); setSelSchedule(null) } }}
-                        style={{ padding:'12px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', cursor:'pointer' }}>
-                        <div>
-                          <div style={{ fontSize:13, fontWeight:600, color:isOpen?ACCENT_TEXT:'var(--td)' }}>{c.name}</div>
-                          <div style={{ fontSize:11, color:'var(--tmu)', marginTop:2 }}>
-                            강사 {c.teacher}
-                            {daySchedules.length > 0 && <span style={{ marginLeft:6 }}>{daySchedules.map(s=>`${s.start_time}~${s.end_time}`).join(' / ')}</span>}
-                          </div>
-                        </div>
-                        <span style={{ fontSize:16, color:isOpen?ACCENT:'var(--tmu)', display:'inline-block', transition:'transform 0.2s', transform:isOpen?'rotate(90deg)':'rotate(0deg)' }}>›</span>
-                      </div>
-                      {isOpen && (
-                        <div style={{ borderTop:`1px solid rgb(var(--ac-rgb) / 0.16)`, padding:'6px 12px 12px' }}>
-                          {curriculumNames.has(c.name) && (
-                            <div onClick={(e) => { e.stopPropagation(); router.push(`/student/curriculum?course=${encodeURIComponent(c.name)}`) }}
-                              style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 10px', margin:'2px 0 8px', borderRadius:10, background:'var(--surf)', border:'1px solid rgba(0,0,0,0.08)', cursor:'pointer' }}>
-                              <span style={{ fontSize:11, fontWeight:700, color:ACCENT_TEXT }}>📚 이 수업 커리큘럼 보기</span>
-                              <span style={{ fontSize:14, color:ACCENT }}>›</span>
-                            </div>
-                          )}
-                          {daySchedules.length === 0 ? (
-                            <div style={{ fontSize:11, color:'var(--tmu)', padding:'8px 0', textAlign:'center' }}>이 날 수업 시간이 없어요</div>
-                          ) : daySchedules.map(s => {
-                            const booked = isBooked(c.id, s.id, selectedDay)
-                            const booking = getBooking(c.id, s.id, selectedDay)
-                            // 원데이는 독립 좌석(수업별), 정규 수업은 같은 시간대 5자리 공유
-                            const cnt = c.category === 'oneday'
-                              ? allBookings.filter(b => b.course_id === c.id && b.class_date === `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}` && b.class_time === `${s.start_time}~${s.end_time}`).length
+                  <div className={bk.label}>수업 종류</div>
+                  <div className={bk.chips}>
+                    {cats.map(c => {
+                      const cs = catStyle(c), on = c === selCat
+                      return (
+                        <button key={c} className={bk.chip} aria-pressed={on}
+                          style={{ background: `linear-gradient(160deg, #fff, ${cs.tint} 75%)`, outline: on ? `2px solid ${cs.ink}` : 'none' }}
+                          onClick={() => {
+                            if (c === 'free') { router.push(freeHref); return }
+                            setSelCat(c); setSelCourse(null); setSelSchedule(null)
+                          }}>
+                          <span className={bk.orb} style={{ background: cs.orb }} />{cs.name}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {selCat && selCat !== 'free' && catCourses.length > 0 && (<>
+                    <div className={bk.labelRow}>
+                      <span className={bk.label}>수업 선택</span>
+                      {selCourse && curriculumNames.has(selCourse.name) && (
+                        <a className={bk.link} href={`/student/curriculum?course=${encodeURIComponent(selCourse.name)}`}
+                          onClick={e => { e.preventDefault(); router.push(`/student/curriculum?course=${encodeURIComponent(selCourse.name)}`) }}>이 수업 커리큘럼 보기</a>
+                      )}
+                    </div>
+                    <div className={bk.courses}>
+                      {catCourses.map(c => {
+                        const on = selCourse?.id === c.id
+                        return (
+                          <button key={c.id} className={bk.course} aria-pressed={on}
+                            onClick={() => { setSelCourse(c); setSelSchedule(null) }}
+                            style={on ? { background: `linear-gradient(160deg, #fff, ${st.soft})`, outline: `2px solid ${st.ink}` } : null}>
+                            <span className={bk.place} style={{ color: st.ink }}>{st.name}</span>
+                            <span className={bk.courseName}>{c.name}</span>
+                            {c.teacher && <span className={bk.muted}>강사 {c.teacher}</span>}
+                          </button>
+                        )
+                      })}
+                    </div>
+
+                    {selCourse && (<>
+                      <div className={bk.label}>시간</div>
+                      {daySchedules.length === 0 ? <div className={bk.muted}>이 날 수업 시간이 없어요</div> : (
+                        <div className={bk.slots}>
+                          {daySchedules.map(s => {
+                            const booked = isBooked(selCourse.id, s.id, selectedDay)
+                            const booking = getBooking(selCourse.id, s.id, selectedDay)
+                            // 원데이는 독립 좌석(수업별), 정규 수업은 같은 시간대 자리 공유
+                            const cnt = selCourse.category === 'oneday'
+                              ? allBookings.filter(x => x.course_id === selCourse.id && x.class_date === selDateStr && x.class_time === `${s.start_time}~${s.end_time}`).length
                               : sharedSlotCount(selectedDay, s.start_time, s.end_time)
-                            const remain = c.max_count - cnt
-                            // 관리자가 이 시간만 잠근 경우 — 자리가 남아도 고를 수 없다
-                            const slotLock = slotLocked(lockedDates, lockedSlots,
-                              `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}`, s.id)
-                            const full = (remain <= 0 || slotLock) && !booked
-                            const isSel = selSchedule?.id === s.id
+                            const max = selCourse.max_count || null
+                            const remain = max ? max - cnt : null
+                            const slotLock = slotLocked(lockedDates, lockedSlots, selDateStr, s.id)
+                            const full = ((max && remain <= 0) || slotLock) && !booked
+                            const on = selSchedule?.id === s.id
                             const hh = parseInt(s.start_time.slice(0, 2), 10)
-                            const tod = hh < 12 ? '오전' : hh < 17 ? '오후' : '저녁'
-                            const segs = Math.min(c.max_count || 5, 5)
-                            const litN = Math.max(0, Math.min(segs, remain))
-                            const meterOn = remain <= 1 ? '#ba7517' : '#63991f'
+                            const tod = hh < 12 ? '오전' : hh < 18 ? '오후' : '저녁'
+                            const text = booked ? (booking?.attended === true ? '출석' : '예약됨')
+                              : slotLock ? '🔒 예약 마감' : full ? '마감' : !max ? '예약 가능' : remain === 1 ? '마감 임박 · 1자리' : `${remain}자리 남음`
                             return (
-                              <div key={s.id}
-                                onClick={() => { if (!full && !booked) setSelSchedule(isSel ? null : s) }}
-                                style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'11px 13px', borderRadius:13, marginBottom:7, background:booked?'#E8F5E0':isSel?'#f2f8ea':'var(--surf)', border:`${isSel?2:1}px solid ${booked?'#a8d9a0':isSel?ACCENT:'rgba(0,0,0,0.08)'}`, cursor:full||booked?'default':'pointer', opacity:full?0.5:1 }}>
-                                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                                  <div style={{ width:20, height:20, borderRadius:'50%', flexShrink:0, boxSizing:'border-box', background:booked?'#6db870':isSel?ACCENT:'transparent', border:`2px solid ${booked?'#6db870':isSel?ACCENT:BORDER}`, display:'flex', alignItems:'center', justifyContent:'center' }}>
-                                    {(booked||isSel) && <svg width="10" height="8" viewBox="0 0 9 7"><polyline points="1,3.5 3,6 8,1" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                                  </div>
-                                  <div>
-                                    <div style={{ fontSize:14, fontWeight:600, color:isSel?ACCENT_TEXT:'var(--td)' }}>{s.start_time}~{s.end_time}</div>
-                                    <div style={{ fontSize:10.5, color:'var(--tmu)', marginTop:1 }}>{tod}</div>
-                                  </div>
-                                </div>
-                                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                                  <div style={{ textAlign:'right' }}>
-                                    {!booked && !slotLock && (
-                                      <div style={{ display:'flex', gap:2, justifyContent:'flex-end', marginBottom:3 }}>
-                                        {Array.from({ length: segs }).map((_, k) => (
-                                          <span key={k} style={{ width:8, height:6, borderRadius:2, background: k < litN ? meterOn : (full ? 'var(--g2)' : '#dfe6d5') }} />
-                                        ))}
-                                      </div>
-                                    )}
-                                    <div style={{ fontSize:11, fontWeight:700, color:booked?'#6db870':full?'#9b9b8a':remain<=1?'#c0392b':'#3b6d11' }}>
-                                      {booked ? (booking?.attended === true ? '출석' : '예약됨')
-                                        : slotLock ? '🔒 예약 마감'
-                                        : full ? '마감' : remain<=1 ? '마감 임박 · 1자리' : `${remain}자리 남음`}
-                                    </div>
-                                  </div>
-                                  {booked && canCancel(booking) && (
-                                    <button onClick={e=>{e.stopPropagation();handleCancel(booking)}}
-                                      style={{ fontSize:10, padding:'4px 9px', borderRadius:20, background:'rgba(255,255,255,0.85)', color:'var(--tm)', border:`1px solid ${BORDER}`, cursor:'pointer', fontFamily:'Nunito,sans-serif', fontWeight:500, flexShrink:0 }}>
-                                      취소
-                                    </button>
+                              <div key={s.id} role="button" tabIndex={full || booked ? -1 : 0} aria-pressed={on}
+                                className={`${bk.slot} ${full ? bk.slotOff : ''}`}
+                                style={on ? { outline: '2px solid #2b2433', background: 'rgba(255,255,255,0.85)' } : booked ? { background: 'rgba(232,245,224,0.85)' } : null}
+                                onClick={() => { if (!full && !booked) setSelSchedule(on ? null : s) }}
+                                onKeyDown={e => { if ((e.key === 'Enter' || e.key === ' ') && !full && !booked) { e.preventDefault(); setSelSchedule(on ? null : s) } }}>
+                                <span className={bk.part} style={{ background: full ? 'rgba(43,36,51,0.08)' : st.tint, color: full ? undefined : st.ink }}>{tod}</span>
+                                <span className={bk.time}>{s.start_time} ~ {s.end_time}</span>
+                                <span className={bk.state} style={{ color: booked ? st.ink : full ? undefined : remain === 1 ? '#a2531c' : '#2f7a52' }}>
+                                  {!booked && !full && max && max <= 8 && (
+                                    <span className={bk.seats} aria-hidden="true">
+                                      {Array.from({ length: max }, (_, i) => <span key={i} style={{ background: i < remain ? '#4aa877' : 'rgba(43,36,51,0.18)' }} />)}
+                                    </span>
                                   )}
-                                </div>
+                                  {text}
+                                  {booked && canCancel(booking) && (
+                                    <button className={bk.cancel} onClick={e => { e.stopPropagation(); handleCancel(booking) }}>취소</button>
+                                  )}
+                                </span>
                               </div>
                             )
                           })}
                         </div>
                       )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+                    </>)}
+                  </>)}
 
-            {selCourse?.category === 'oneday' && selSchedule && (
-              <div className="slide-up" style={{ marginBottom:14, borderRadius:14, border:'1.5px solid #f6c7d6', background:'#FCE4EC', overflow:'hidden' }}>
-                <div onClick={() => setOnedayInfoOpen(o => !o)} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'11px 14px', cursor:'pointer' }}>
-                  <span style={{ display:'flex', alignItems:'center', gap:6, fontSize:12.5, fontWeight:800, color:'#AD1457' }}>
-                    <NavIcon name="calendar" color="#AD1457" size={15} /> 가격 · 입금 안내
-                  </span>
-                  <span style={{ display:'flex', alignItems:'center', gap:8 }}>
-                    <span style={{ fontSize:13, fontWeight:800, color:'#AD1457' }}>{(selCourse.price || 0).toLocaleString()}원</span>
-                    <span style={{ fontSize:13, color:'#AD1457', transform:onedayInfoOpen?'rotate(180deg)':'none', transition:'transform 0.2s', display:'inline-block' }}>▾</span>
-                  </span>
+                  {selCourse?.category === 'oneday' && selSchedule && (
+                    <div className={bk.info}>
+                      <div role="button" tabIndex={0} onClick={() => setOnedayInfoOpen(o => !o)} style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, cursor: 'pointer' }}>
+                        <span>가격 · 입금 안내</span>
+                        <span>{(selCourse.price || 0).toLocaleString()}원 {onedayInfoOpen ? '▴' : '▾'}</span>
+                      </div>
+                      {onedayInfoOpen && (
+                        <div style={{ marginTop: 6 }}>
+                          수강권 없이 <b>계약금 입금</b>으로 신청해요. 아래 계좌로 <b>입금자명</b>을 넣어 보내주세요.<br />
+                          <b>{DEPOSIT.bank} {DEPOSIT.account}</b> · 예금주 {DEPOSIT.holder}<br />
+                          <span className={bk.muted}>24시간 내 미입금 시 자동 취소돼요. 입금 확인 후 예약이 확정됩니다.</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {showCta && !isBookable(selectedDay) && (
+                    <div className={bk.note}>{monthDiff() < 0 ? '지난 날짜는 예약할 수 없어요' : '예약은 다음 달까지만 가능해요'}</div>
+                  )}
+                </>)}
+              </div>
+
+              <div className={bk.foot}>
+                <div className={bk.ticket} style={{ alignItems: 'center' }}>
+                  <span className={bk.muted}>내 수강권</span>
+                  <b>{ticket ? `${ticket.total}회권 · 잔여 ${ticket.remain}회` : user ? '수강권 없음' : '로그인하면 보여요'}</b>
+                  {ticket?.expires_at && <span className={bk.muted}>{!ticketStarted(ticket, todayStr) && ticket.start_date ? `${ticket.start_date.slice(5).replace('-', '월 ')}일부터 사용` : `만료 ${ticket.expires_at}`}</span>}
+                  {user && (
+                    <span role="button" tabIndex={0} onClick={() => router.push('/student/settings')} title="개인 설정" style={{ marginLeft: 'auto', cursor: 'pointer' }}>
+                      <MoodIndicator ratio={ticket ? (ticket.remain / ticket.total) : 0} style={moodStyle} size={36} />
+                    </span>
+                  )}
                 </div>
-                {onedayInfoOpen && (
-                  <div style={{ padding:'2px 14px 12px' }}>
-                    <div style={{ fontSize:11, color:'var(--tm)', fontWeight:600, marginBottom:8, lineHeight:1.6 }}>
-                      수강권 없이 <b style={{ color:'#AD1457' }}>계약금 입금</b>으로 신청해요. 아래 계좌로 <b>입금자명</b>을 넣어 보내주세요.
-                    </div>
-                    <div style={{ background:'var(--surf)', borderRadius:10, border:'1px solid #f6c7d6', padding:'9px 11px', marginBottom:8 }}>
-                      <div style={{ fontSize:10, fontWeight:700, color:'var(--tmu)', marginBottom:3 }}>입금 계좌</div>
-                      <div style={{ fontSize:12.5, fontWeight:800, color:'var(--td)', lineHeight:1.5 }}>{DEPOSIT.bank} {DEPOSIT.account}<br/>예금주 {DEPOSIT.holder}</div>
-                    </div>
-                    <div style={{ fontSize:10.5, color:'var(--tmu)', fontWeight:600, lineHeight:1.6 }}>
-                      · 24시간 내 미입금 시 자동 취소돼요.<br/>· 입금 확인 후 예약이 확정됩니다.
-                    </div>
-                  </div>
+                {!selLocked && selCourse && selCat !== 'free' && !(showCta && isBookable(selectedDay)) && (
+                  <button className={bk.cta} disabled>시간을 골라 주세요</button>
                 )}
               </div>
-            )}
 
-            {selSchedule && !isBooked(selCourse?.id, selSchedule?.id, selectedDay) && (
-              isBookable(selectedDay) ? (
-                <>
-                  <div style={{ height:78 }} />
-                  <div style={{ position:'fixed', left:'50%', transform:'translateX(-50%)', bottom:64, width:'100%', maxWidth:390, padding:'8px 14px', boxSizing:'border-box', zIndex:80, pointerEvents:'none' }}>
-                    <button onClick={handleBook} disabled={bookBusy}
-                      style={{ pointerEvents:'auto', width:'100%', padding:'15px 20px', background:ACCENT, color:'#fff', border:'none', borderRadius:14, fontSize:14, fontWeight:700, cursor: bookBusy ? 'default' : 'pointer', opacity: bookBusy ? 0.6 : 1, fontFamily:'Nunito,sans-serif', boxShadow:'0 8px 22px -6px rgba(0,0,0,0.35)' }}>
-                      {bookBusy ? '예약 처리 중…' : !user
-                        ? `${selCourse?.name} ${selSchedule?.start_time}~${selSchedule?.end_time} 예약 요청 🐾`
-                        : selCourse?.category === 'oneday'
-                          ? `원데이 신청 · ${(selCourse?.price || 0).toLocaleString()}원 (계약금 입금)`
-                          : (selCourse?.category === 'meeting' || hasValidTicket())
-                            ? `${selCourse?.name} ${selSchedule?.start_time}~${selSchedule?.end_time} 예약하기`
-                            : '예약 요청하기 (수강권 확인 필요)'}
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <div className="slide-up" style={{ marginBottom:14 }}>
-                  <div style={{ padding:'14px', background:CARD, borderRadius:14, textAlign:'center', color:'var(--tmu)', fontSize:12, fontWeight:500 }}>{monthDiff() < 0 ? '지난 날짜는 예약할 수 없어요' : '예약은 다음 달까지만 가능해요'}</div>
+              {showCta && isBookable(selectedDay) && (<>
+                <div style={{ height: 70 }} />
+                <div className={bk.ctaBar}>
+                  <button className={bk.cta} onClick={handleBook} disabled={bookBusy}>
+                    {bookBusy ? '예약 처리 중…' : !user
+                      ? `${selCourse?.name} ${selSchedule?.start_time}~${selSchedule?.end_time} 예약 요청 🐾`
+                      : selCourse?.category === 'oneday'
+                        ? `원데이 신청 · ${(selCourse?.price || 0).toLocaleString()}원 (계약금 입금)`
+                        : (selCourse?.category === 'meeting' || hasValidTicket())
+                          ? `${selCourse?.name} ${selSchedule?.start_time}~${selSchedule?.end_time} 예약하기`
+                          : '예약 요청하기 (수강권 확인 필요)'}
+                  </button>
                 </div>
-              )
-            )}
-          </>
-        )}
+              </>)}
+            </section>
+          )
+        })()}
 
         {dayBookings.length > 0 && (
           <div style={{ marginTop:14 }}>

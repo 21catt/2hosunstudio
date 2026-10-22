@@ -230,7 +230,7 @@ export default function BookingPanel({ user, initialDate, onClose, onBooked }) {
                 return (
                   <button key={c.id} className={b.course} aria-pressed={on} onClick={() => { setCourseId(c.id); setSlotId(null); setNote(null) }}
                     style={on ? { background: `linear-gradient(160deg, #fff, ${st.soft})`, outline: `2px solid ${st.ink}` } : null}>
-                    <span className={b.place} style={{ color: st.ink }}>{st.place} · {st.name}</span>
+                    <span className={b.place} style={{ color: st.ink }}>{st.name}</span>
                     <span className={b.courseName}>{c.name}</span>
                     {c.teacher && <span className={b.muted}>강사 {c.teacher}</span>}
                   </button>

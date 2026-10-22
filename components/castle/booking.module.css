@@ -73,3 +73,13 @@
   .handle { display: block; width: 40px; height: 5px; border-radius: 3px; background: rgba(43,36,51,0.22); align-self: center; }
   .title { font-size: 24px; }
 }
+
+/* 캘린더 화면(/student/calendar) 안에 끼우는 같은 디자인 — 장면 위에 뜨지 않고 달력 아래 흐름에 놓인다(2026-10-22) */
+.panel.inline { position: static; width: auto; height: auto; inset: auto; z-index: auto; margin: 4px 0 12px; padding: 16px 16px 16px;
+  border-radius: 24px; border: 1px solid rgba(255,255,255,0.95); box-shadow: inset 0 1.5px 0 #fff, 0 12px 32px rgba(60,45,80,0.14); animation: none; }
+.panel.inline .body { overflow: visible; flex: none; }
+.panel.inline .title { font-size: 24px; }
+.ctaBar { position: fixed; left: 50%; transform: translateX(-50%); bottom: 64px; width: 100%; max-width: 390px; padding: 8px 14px; box-sizing: border-box; z-index: 80; pointer-events: none; }
+.ctaBar .cta { pointer-events: auto; width: 100%; }
+.info { border-radius: 16px; background: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.95); padding: 11px 13px; font-size: 12px; line-height: 1.6; }
+.cancel { font: 600 11px 'IBM Plex Sans KR', sans-serif; padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(43,36,51,0.18); background: rgba(255,255,255,0.8); color: #2b2433; cursor: pointer; }

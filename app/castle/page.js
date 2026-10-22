@@ -22,6 +22,7 @@ import { CATEGORY_STYLE } from '../../lib/categoryStyle'
 import { CASTLE_SCENES, getSavedScene, saveSceneLocal, sceneOf, sceneUnlocked, sceneSelectable, longTermStudent } from '../../lib/castleScenes'
 import s from './castle.module.css'
 import { createCozyMusic } from '../../lib/cozyMusic'
+import { useTapSound } from '../../lib/useTapSound'
 
 // 장면 = 원본 프롬프트 그대로 만든 시연판(CastleStudyScene, WebGPU). 옛 장면(CastleJellyScene)은 되돌릴 때를 위해 남겨 둔다.
 const CastleJellyScene = dynamic(() => import('../../components/castle/CastleStudyScene'), { ssr: false })
@@ -162,27 +163,8 @@ export default function CastlePage() {
   const [fallback, setFallback] = useState(null) // 'nowebgl' | 'lost' | 'slow'
   // 반응 소리 — 만지고 움직일 때만 나는 짧은 소리(public/jelly-sfx.js, 성·시트러스·문어 공용). 기본 켬, 끈 사람은 끈 채로 기억(2hs_castle_sfx)
   const [sfxOn, setSfxOn] = useState(() => { try { return typeof window === 'undefined' || localStorage.getItem('2hs_castle_sfx') !== '0' } catch { return true } })
-  useEffect(() => {
-    if (window.JellySfx || document.querySelector('script[data-jelly-sfx]')) return
-    const sc = document.createElement('script'); sc.src = '/jelly-sfx.js'; sc.dataset.jellySfx = '1'; document.head.appendChild(sc)
-  }, [])
-  // 버튼 누름 소리 — 이 화면(예약 창 포함)의 버튼·링크 전부 = 청축 키보드 「찰칵」, 왼쪽 수업 아이콘만 볼펜 「딸깍」. 막힌 버튼·data-no-tap 은 빼고,
-  // 수업 아이콘은 data-tap-pitch 로 도레미파솔라시도 · data-tap-close 면 조금 낮고 작게. 3D 장면(iframe·캔버스) 안은 각자 소리.
-  useEffect(() => {
-    let held = null
-    const target = e => {
-      const el = e.target?.closest?.('button, a[href], [role="button"], [role="menuitem"]')
-      if (!el || el.disabled || el.closest('[data-no-tap]')) return null
-      return el
-    }
-    const opts = el => ({ pitch: Number(el.dataset.tapPitch) || 1, close: el.dataset.tapClose === '1' })
-    const kind = el => (el.dataset.tapPitch ? ['pen', 'penUp'] : ['key', 'keyUp']) // 왼쪽 수업 아이콘 = 볼펜(도레미), 그 밖 전부 = 키보드
-    const down = e => { if (e.button > 0) return; const el = target(e); if (!el) return; held = { el, o: opts(el), k: kind(el) }; window.JellySfx?.play(held.k[0], held.o) }
-    const up = () => { if (!held) return; const h = held; held = null; window.JellySfx?.play(h.k[1], h.o) }
-    const key = e => { if (e.repeat || (e.key !== 'Enter' && e.key !== ' ')) return; const el = target(e); if (!el) return; const o = opts(el), k = kind(el); window.JellySfx?.play(k[0], o); setTimeout(() => window.JellySfx?.play(k[1], o), 110) }
-    document.addEventListener('pointerdown', down, true); document.addEventListener('pointerup', up, true); document.addEventListener('pointercancel', up, true); document.addEventListener('keydown', key, true)
-    return () => { document.removeEventListener('pointerdown', down, true); document.removeEventListener('pointerup', up, true); document.removeEventListener('pointercancel', up, true); document.removeEventListener('keydown', key, true) }
-  }, [])
+  // 버튼 누름 소리 = lib/useTapSound(캘린더와 공용) — 스크립트 적재도 거기서
+  useTapSound()
   function toggleSfx() {
     const v = !sfxOn
     try { localStorage.setItem('2hs_castle_sfx', v ? '1' : '0') } catch {}
