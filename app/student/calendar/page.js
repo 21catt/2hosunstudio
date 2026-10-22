@@ -1160,7 +1160,8 @@ export default function CalendarPage() {
                   <div className={bk.empty}>이날은 수업이 없어요 🐾</div>
                 ) : (<>
                   {cats.length === 1 && cats[0] !== 'free' && selCat !== cats[0] && (() => { setTimeout(() => setSelCat(cats[0]), 0); return null })()}
-                  {selCat && selCat !== 'free' && catCourses.length === 1 && selCourse !== catCourses[0] && (() => { setTimeout(() => setSelCourse(catCourses[0]), 0); return null })()}
+                  {/* 종류를 고르면 그 종류의 첫 수업이 골라진 채로(홈 예약 창과 같다) */}
+                  {selCat && selCat !== 'free' && catCourses.length > 0 && !catCourses.some(c => c.id === selCourse?.id) && (() => { setTimeout(() => setSelCourse(catCourses[0]), 0); return null })()}
 
                   <div className={bk.label}>수업 종류</div>
                   <div className={bk.chips}>
