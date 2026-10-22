@@ -203,9 +203,9 @@ export default function CastlePage() {
   const [lite, setLite] = useState(() => { try { return typeof window !== 'undefined' && localStorage.getItem('2hs_castle_lite') === '1' } catch { return false } })
   const [sceneKey, setSceneKey] = useState(0) // 가벼운 모드로 다시 그릴 때 장면을 새로 만든다
   const settingsRef = useRef(look)
-  // 해변 시범판 — 주소에 ?beach=1 일 때만(배포 전 미리보기, components/castle/beach.js)
-  const [beachPreview, setBeachPreview] = useState(false) // 서버 렌더와 맞추려고 처음엔 꺼 두고 주소를 읽어 켠다
-  useEffect(() => { try { if (new URLSearchParams(window.location.search).get('beach') === '1') setBeachPreview(true) } catch {} }, [])
+  // 해변 = 기본 배경(2026-10-22 사용자 지시 「젤리성 대신 해변이 처음에 보이게」, components/castle/beach.js). 옛 젤리성 = 주소 ?beach=0
+  const [beachPreview, setBeachPreview] = useState(true)
+  useEffect(() => { try { if (new URLSearchParams(window.location.search).get('beach') === '0') setBeachPreview(false) } catch {} }, [])
   settingsRef.current = { ...look, catImg, reducedMotion, beach: beachPreview }
   // 처음 = 저장된 장면 설정(없으면 내 테마), 내 농부냥, 동작 줄이기
   useEffect(() => {
@@ -314,7 +314,7 @@ export default function CastlePage() {
       <link rel="stylesheet" precedence="default" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap" />
       {!ready && !fallback && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-          <LoadingCat label={<span style={{ display: 'block', textAlign: 'center', lineHeight: 1.6 }}>잠시만 기다려주세요<br />젤리성을 불러오는 중입니다.</span>} />
+          <LoadingCat label={<span style={{ display: 'block', textAlign: 'center', lineHeight: 1.6 }}>잠시만 기다려주세요<br />{beachPreview ? '해변을' : '젤리성을'} 불러오는 중입니다.</span>} />
         </div>
       )}
       {scene.embed ? (
