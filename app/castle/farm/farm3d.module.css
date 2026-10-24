@@ -80,3 +80,21 @@
   .tool { width: 56px; padding: 8px 0 6px; font-size: 10px; }
   .tool svg { width: 24px; height: 24px; }
 }
+
+/* 현황 칸 접기 — 숨기면 한 줄 막대만 남는다(2026-10-24) */
+.hideBtn { align-self: stretch; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: -6px -4px 0; padding: 4px 4px 2px;
+  background: none; border: none; cursor: pointer; font: 700 11px 'IBM Plex Sans KR', sans-serif; color: #6e6378; }
+.grab { width: 36px; height: 4px; border-radius: 999px; background: rgba(110,99,120,0.35); }
+.panelMini { flex-direction: row; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; text-align: left;
+  font: 12px 'IBM Plex Sans KR', sans-serif; color: #2b2433; }
+.panelMini .grab { flex: none; }
+.miniLine { flex: 1; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+.miniLine b { font-variant-numeric: tabular-nums; }
+.miniReady { padding: 2px 8px; border-radius: 999px; background: #2f7a52; color: #fff; font-size: 11px; font-weight: 700; }
+.miniOpen { flex: none; font-size: 11px; font-weight: 700; color: #6e6378; }
+.hideBtn:focus-visible, .panelMini:focus-visible { outline: 2px solid #8fb8f0; outline-offset: 2px; }
+@media (max-width: 760px) {
+  .hideBtn { justify-content: center; position: relative; }
+  .hideBtn span:last-child { position: absolute; right: 4px; }
+  .panelMini { padding: 10px max(16px, env(safe-area-inset-right, 0px)) calc(12px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+}

@@ -65,6 +65,10 @@ export default function Farm3DPage() {
   const [waterKey, setWaterKey] = useState(0)
   const [tillKey, setTillKey] = useState(0)
   const [nap, setNap] = useState(false)
+  // 아래 현황 칸(수확·잡초·날씨…) 접기 — 화면을 많이 가리면 아래로 숨긴다. 이 기기에 기억(2026-10-24 사용자 요청)
+  const [panelHidden, setPanelHidden] = useState(false)
+  useEffect(() => { try { setPanelHidden(localStorage.getItem('farm3d.panelHidden') === '1') } catch {} }, [])
+  const togglePanel = () => setPanelHidden(h => { const n = !h; try { localStorage.setItem('farm3d.panelHidden', n ? '1' : '0') } catch {} ; return n })
   // 꽃밭(잡초 500개 보상 — lib/flowerBed). 기록 = weed_state.flowers
   const [flowers, setFlowers] = useState(null)
   const rainDaysRef = useRef(null)
@@ -364,7 +368,22 @@ export default function Farm3DPage() {
         </div>
       )}
 
+      {panelHidden ? (
+        <button className={`${s.panel} ${s.panelMini} ${s.glass}`} onClick={togglePanel} aria-expanded="false" aria-label="냥밭 현황 펼치기">
+          <span className={s.grab} aria-hidden="true" />
+          <span className={s.miniLine}>
+            <span>수확 <b>{harvest}</b></span>
+            <span>잡초 <b>{weedRemoved}</b></span>
+            <span>{weather ? `${weather.icon} ${weather.temp}°` : '—'}</span>
+            {cropReady && <span className={s.miniReady}>수확할 수 있어요</span>}
+          </span>
+          <span className={s.miniOpen}>펼치기 ▴</span>
+        </button>
+      ) : (
       <section className={`${s.panel} ${s.glass}`} aria-label="냥밭 현황">
+        <button className={s.hideBtn} onClick={togglePanel} aria-expanded="true" aria-label="냥밭 현황 아래로 숨기기">
+          <span className={s.grab} aria-hidden="true" /><span>숨기기 ▾</span>
+        </button>
         <div className={s.stats}>
           <div className={s.stat}><b>{harvest}</b><span>수확한 작물</span></div>
           <div className={s.stat}><b>{weedRemoved}</b><span>뽑은 잡초</span></div>
@@ -408,6 +427,7 @@ export default function Farm3DPage() {
         </div>
         <a href="/student/settings" className={s.link}>농부냥 바꾸기 · 설정</a>
       </section>
+      )}
 
       <div className={s.how}><b>How to play</b> — 다 익은 앞 칸 작물을 눌러 수확 · 빨간 고리 잡초를 눌러 뽑기 · 튀어나온 두더지를 눌러 잡기 · 새가 오면 냥이가 쫓아요(새를 누르면 바로) · 왼쪽 단추로 물주기·낮잠·밭갈기 · 헛간 = 미니게임 · 빈 곳을 끌어 섬 돌려 보기</div>
       {!fallback && !shedOpen && !mixOpen && !tetrisOpen && (devRef.current || user) &&
