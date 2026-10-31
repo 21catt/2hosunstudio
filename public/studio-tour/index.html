@@ -711,9 +711,41 @@ function goVisit(c, who) {
   c.tx = q.position.x + lx * Math.cos(ry) + lz * Math.sin(ry); c.tz = q.position.z - lx * Math.sin(ry) + lz * Math.cos(ry)
   c.at = [q.position.x, q.position.z]
 }
+// 고양이 소리 — 파일 없이 그때그때 만든다. 끄기 = 홈의 「소리」 단추(2hs_castle_sfx)
+let audio = null, purrUntil = 0
+const soundOn = () => { try { return localStorage.getItem('2hs_castle_sfx') !== '0' } catch { return true } }
+function unlockAudio() {
+  if (!soundOn()) return
+  try { audio ??= new (window.AudioContext || window.webkitAudioContext)(); if (audio.state === 'suspended') audio.resume() } catch {}
+}
+function meow(base, short) {
+  if (!audio || !soundOn()) return
+  // 사용자 선택 = 아기 고양이(높고 짧은 「미야」, 미리 듣기 B안)
+  const t = audio.currentTime + .01, dur = short ? .16 : .26, f = base * rnd(1.4, 1.6)
+  const o = audio.createOscillator(), band = audio.createBiquadFilter(), band2 = audio.createBiquadFilter(), g = audio.createGain(), vib = audio.createOscillator(), vg = audio.createGain()
+  o.type = 'triangle'; o.frequency.setValueAtTime(f, t); o.frequency.linearRampToValueAtTime(f * 1.33, t + dur * .32); o.frequency.exponentialRampToValueAtTime(f * .87, t + dur)
+  band.type = 'bandpass'; band.Q.value = 1.4; band.frequency.setValueAtTime(1400, t); band.frequency.linearRampToValueAtTime(2600, t + dur * .35); band.frequency.linearRampToValueAtTime(1700, t + dur)
+  band2.type = 'peaking'; band2.frequency.value = 2800; band2.gain.value = 7
+  vib.frequency.value = 6; vg.gain.value = f * .012; vib.connect(vg).connect(o.frequency)
+  g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.26, t + .05); g.gain.setValueAtTime(.23, t + dur * .6); g.gain.exponentialRampToValueAtTime(.0001, t + dur)
+  o.connect(band).connect(band2).connect(g).connect(audio.destination); o.start(t); vib.start(t); o.stop(t + dur + .02); vib.stop(t + dur + .02)
+}
+function purr(sec) {
+  if (!audio || !soundOn() || performance.now() < purrUntil) return
+  purrUntil = performance.now() + sec * 1000
+  const t = audio.currentTime + .01, o = audio.createOscillator(), lp = audio.createBiquadFilter(), g = audio.createGain(), lfo = audio.createOscillator(), lg = audio.createGain()
+  // 사용자 선택 = 작은 모터(C안)
+  o.type = 'sawtooth'; o.frequency.value = 34; lp.type = 'lowpass'; lp.frequency.value = 420
+  lfo.frequency.value = 2.6; lg.gain.value = .036; lfo.connect(lg).connect(g.gain)
+  g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(.09, t + .3); g.gain.setValueAtTime(.09, t + sec - .5); g.gain.linearRampToValueAtTime(.0001, t + sec)
+  o.connect(lp).connect(g).connect(audio.destination); o.start(t); lfo.start(t); o.stop(t + sec + .05); lfo.stop(t + sec + .05)
+}
+const CAT_VOICE = [640, 480, 780]  // 감자 · 냥냥이 · 삼색
 function petCat(c) {
   if (c.state === 'med' || c.state === 'eat' || c.state === 'toy') return false
   if (c.mate && c.mate.mate === c) { c.mate.mate = null; if (c.mate.state === 'play') c.mate.timer = 0 }
+  const i = CATS.indexOf(c), again = c.state === 'pet'
+  meow(CAT_VOICE[i], again); purr(3)
   c.state = 'pet'; c.timer = 3.2; c.arrived = false; c.mate = null; c.heart.visible = true
   return true
 }
@@ -869,12 +901,26 @@ function paint(i) {
 }
 
 // 전체 보기 = 망원에 가까운 렌즈로 섬 전체가 화면 안 빈자리에 꼭 맞게 — 화면 비율이 달라도 다 보인다
-let overview = true
+let overview = true, baseShift = 0
+// 확대·축소 — 전체 보기에서 두 손가락·휠. 카메라는 그대로 두고 화면을 키우고 옮긴다
+const view = { z: 1, x: 0, y: 0 }, ZOOM_MAX = 3.2
+function applyView() {
+  const mx = (view.z - 1) * innerWidth / 2, my = (view.z - 1) * innerHeight / 2
+  view.x = Math.max(-mx, Math.min(mx, view.x)); view.y = Math.max(-my, Math.min(my, view.y))
+  camera.zoom = view.z
+  camera.setViewOffset(innerWidth, innerHeight, -view.x, baseShift * view.z - view.y, innerWidth, innerHeight)
+}
+function zoomAt(next, cx, cy) {  // 손가락 사이 지점이 제자리에 있도록
+  const z = Math.max(1, Math.min(ZOOM_MAX, next)), k = z / view.z, px = cx - innerWidth / 2, py = cy - innerHeight / 2
+  view.x = px - (px - view.x) * k; view.y = py - (py - view.y) * k; view.z = z
+  if (z === 1) view.x = view.y = 0
+  applyView()
+}
 const SPOT = { top: EMBED ? .42 : .8, bottom: EMBED ? -.62 : -.42, side: .95 }
 const CORNERS = []; for (const x of [-.75, W + .75]) for (const y of [-.55, H + .1]) for (const z of [-.75, D + .75]) CORNERS.push(new THREE.Vector3(x, y, z))
 function fitView() {
   camera.clearViewOffset()
-  if (!overview) { camera.fov = fov0(); camera.updateProjectionMatrix(); return }
+  if (!overview) { view.z = 1; view.x = view.y = 0; camera.zoom = 1; camera.fov = fov0(); camera.updateProjectionMatrix(); return }
   camera.fov = 26; camera.updateProjectionMatrix()
   const c = new THREE.Vector3(W / 2, .9, D / 2), d = new THREE.Vector3(.1, .62, 1).normalize(), v = new THREE.Vector3()
   let dist = 8, lo = 0, hi = 0
@@ -884,8 +930,8 @@ function fitView() {
     for (const p of CORNERS) { v.copy(p).project(camera); mx = Math.max(mx, Math.abs(v.x)); lo = Math.min(lo, v.y); hi = Math.max(hi, v.y) }
     if (mx <= SPOT.side && hi - lo <= SPOT.top - SPOT.bottom) break
   }
-  const shift = ((SPOT.top + SPOT.bottom) / 2 - (hi + lo) / 2) * innerHeight / 2
-  camera.setViewOffset(innerWidth, innerHeight, 0, -shift, innerWidth, innerHeight)
+  baseShift = ((SPOT.top + SPOT.bottom) / 2 - (hi + lo) / 2) * innerHeight / 2
+  applyView()
   STOPS[0].pos = camera.position.toArray(); STOPS[0].look = c.toArray()
   if (cur === 0) { pos.copy(camera.position); look.copy(c); fromPos.copy(pos); fromLook.copy(look); toPos.copy(pos); toLook.copy(look) }
 }
@@ -944,19 +990,31 @@ function catAt(cx, cy) {
   }
   return best
 }
+const touches = new Map(); let pinch = null
+const pinchOf = () => { const [a, b] = [...touches.values()]; return { d: Math.hypot(a.x - b.x, a.y - b.y), x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } }
+el.addEventListener('wheel', e => { e.preventDefault(); if (overview) zoomAt(view.z * Math.exp(-e.deltaY * .0016), e.clientX, e.clientY) }, { passive: false })
 el.addEventListener('pointerdown', e => {
+  unlockAudio()
+  touches.set(e.pointerId, { x: e.clientX, y: e.clientY })
+  if (touches.size === 2 && overview) { pinch = pinchOf(); drag = null; TOY.drag = false; return }
   if (EMBED) parent.postMessage({ scene: 'touch' }, location.origin)
   if (TOY.on) { TOY.drag = true; moveToy(e.clientX, e.clientY); el.setPointerCapture(e.pointerId); return }
   if (overview) { const c = catAt(e.clientX, e.clientY); if (c && petCat(c)) return }
   drag = { x: e.clientX, y: e.clientY, yaw: yawGoal, pitch: pitchGoal }; el.classList.add('drag'); el.setPointerCapture(e.pointerId); if (walking) stopWalk() })
 el.addEventListener('pointermove', e => {
+  if (touches.has(e.pointerId)) touches.set(e.pointerId, { x: e.clientX, y: e.clientY })
+  if (pinch && touches.size >= 2) {
+    const n = pinchOf(); view.x += n.x - pinch.x; view.y += n.y - pinch.y
+    zoomAt(view.z * n.d / Math.max(1, pinch.d), n.x, n.y); pinch = n; return
+  }
   if (TOY.on && TOY.drag) { moveToy(e.clientX, e.clientY); return }
   if (!drag) return
+  if (overview && view.z > 1.02) { view.x += e.clientX - drag.x; view.y += e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY; applyView(); return }   // 확대했을 땐 한 손가락 = 옮기기
   const lim = STOPS[cur].overview ? .7 : 1.3
   yawGoal = Math.max(-lim, Math.min(lim, drag.yaw - (e.clientX - drag.x) * .0045))
   pitchGoal = Math.max(-.5, Math.min(.5, drag.pitch - (e.clientY - drag.y) * .0035))
 })
-const end = () => { TOY.drag = false; drag = null; el.classList.remove('drag') }
+const end = e => { touches.delete(e.pointerId); if (touches.size < 2) pinch = null; TOY.drag = false; drag = null; el.classList.remove('drag') }
 el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end)
 addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; renderer.setSize(innerWidth, innerHeight); fitView(); dirty = 8 })
 
@@ -1025,7 +1083,7 @@ if (EMBED) addEventListener('message', e => {
   if (e.data?.cmd === 'walk') { stopWalk(); if (cur === STOPS.length - 1) go(0); walkBtn.onclick() }
 })
 window.__studio = { go: i => { stopWalk(); go(i) }, jump: i => { cur = i; paint(i); jump(i) }, info: () => ({ calls: renderer.info.render.calls, tris: renderer.info.render.triangles, pending }),
-  look: (y, p = 0) => { yawGoal = y; pitchGoal = p }, poke: () => { dirty = 10 }, frames: () => frames, tick: n => { for (let i = 0; i < n; i++) { last -= 100; advance(performance.now()) } }, stop: () => cur, toy: startToy, feed: feedCats, toyEnd: endToy, toyTo: moveToy, cat: i => petCat(CATS[i]), wx: setWeather, pill: givePill, pet: (i = 0, who = 0) => goVisit(CATS[i], who ? visitor : painter), actors: () => ({ v: V.state, i: V.i, cats: CATS.map(c => c.state) }) }
+  look: (y, p = 0) => { yawGoal = y; pitchGoal = p }, poke: () => { dirty = 10 }, frames: () => frames, tick: n => { for (let i = 0; i < n; i++) { last -= 100; advance(performance.now()) } }, stop: () => cur, view: () => ({ ...view }), audio: () => audio?.state || null, toy: startToy, feed: feedCats, toyEnd: endToy, toyTo: moveToy, cat: i => petCat(CATS[i]), wx: setWeather, pill: givePill, pet: (i = 0, who = 0) => goVisit(CATS[i], who ? visitor : painter), actors: () => ({ v: V.state, i: V.i, cats: CATS.map(c => c.state) }) }
 </script>
 </body>
 </html>

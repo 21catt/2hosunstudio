@@ -1,6 +1,7 @@
 import './globals.css'
 import PaletteFab from '../components/PaletteFab'
 import GlassMintLayer from '../components/GlassMintLayer'
+import GlobalMusic from '../components/GlobalMusic'
 import { GUEST_THEME, THEME_WINDOWS } from '../lib/theme'
 
 export const viewport = {
@@ -43,6 +44,7 @@ if(!si&&(!f||today>=f)&&(!u||today<=u))document.documentElement.setAttribute('da
         <GlassMintLayer />
         <div className="app-shell">
           {children}
+          <GlobalMusic />
           <PaletteFab />
         </div>
       </body>

@@ -24,7 +24,7 @@ import CatTalk from '../../components/CatTalk'
 import { CATEGORY_STYLE } from '../../lib/categoryStyle'
 import { CASTLE_SCENES, getSavedScene, saveSceneLocal, sceneOf, sceneUnlocked, sceneSelectable, longTermStudent } from '../../lib/castleScenes'
 import s from './castle.module.css'
-import { createCozyMusic } from '../../lib/cozyMusic'
+import { setMusicMode, setMusicBase, musicWanted, toggleMusic as flipMusic } from '../../lib/sharedMusic'
 import { useTapSound } from '../../lib/useTapSound'
 
 // 장면 = 원본 프롬프트 그대로 만든 시연판(CastleStudyScene, WebGPU). 옛 장면(CastleJellyScene)은 되돌릴 때를 위해 남겨 둔다.
@@ -186,33 +186,10 @@ export default function CastlePage() {
   }
   // 배경음악 — 시간대마다 바뀌는 잔잔한 곡(lib/cozyMusic). 화면을 처음 누르는 순간부터 작게 흐르고(브라우저 규칙),
   // 「♪ 음악」으로 끈 사람은 끈 채로 기억한다(2hs_castle_music = '0'). 반응 소리와는 따로.
-  const musicRef = useRef(null)
-  // 설산 기차 배경 = 캐럴(징글벨·덱 더 홀스 — lib/cozyMusic CAROLS), 그 밖 = 시간대 곡. 배경을 바꾸면 곧바로 그 묶음으로
   const musicMode = bgScene === 'peak' ? 'christmas' : 'cozy'
-  const musicModeRef = useRef(musicMode)
-  useEffect(() => { musicModeRef.current = musicMode; musicRef.current?.setMode(musicMode) }, [musicMode])
-  const [musicOn, setMusicOn] = useState(() => { try { return typeof window === 'undefined' || localStorage.getItem('2hs_castle_music') !== '0' } catch { return true } })
-  async function toggleMusic() {
-    if (!musicRef.current) musicRef.current = createCozyMusic({ mode: musicModeRef.current })
-    const m = musicRef.current
-    if (m.playing || musicOn) { m.stop(); setMusicOn(false); try { localStorage.setItem('2hs_castle_music', '0') } catch {} }
-    else { await m.start(); setMusicOn(true); try { localStorage.setItem('2hs_castle_music', '1') } catch {} }
-  }
-  useEffect(() => {
-    const EV = ['pointerdown', 'touchstart', 'keydown']
-    const first = e => {
-      // 「♪ 음악」 단추를 처음 누른 거면 그 단추가 알아서 한다(여기서 켜면 곧바로 꺼진다)
-      if (e?.target?.closest?.('[data-music-btn]')) return
-      let wanted = true; try { wanted = localStorage.getItem('2hs_castle_music') !== '0' } catch {}
-      if (!wanted || musicRef.current?.playing) return
-      if (!musicRef.current) musicRef.current = createCozyMusic({ mode: musicModeRef.current })
-      musicRef.current.start().then(ok => { if (ok) EV.forEach(n => window.removeEventListener(n, first, true)) })
-    }
-    EV.forEach(n => window.addEventListener(n, first, true))
-    const vis = () => { const m = musicRef.current; if (!m) return; document.hidden ? m.suspend() : m.resume() }
-    document.addEventListener('visibilitychange', vis)
-    return () => { EV.forEach(n => window.removeEventListener(n, first, true)); document.removeEventListener('visibilitychange', vis); musicRef.current?.close(); musicRef.current = null }
-  }, [])
+  useEffect(() => { setMusicMode(musicMode); setMusicBase(bgScene === 'studio' ? 'studioJazz' : null) }, [musicMode, bgScene])
+  const [musicOn, setMusicOn] = useState(() => typeof window === 'undefined' || musicWanted())
+  async function toggleMusic() { setMusicOn(await flipMusic(musicOn)) }
   // 배터리 보호(2026-10-22) — 켜면 1초에 30번까지만 그린다(기본 꺼짐 = 화면 속도대로). 손을 뗀 4초 뒤 20번으로 줄이는 건 늘 켜져 있다
   const [battery, setBattery] = useState(() => { try { return typeof window !== 'undefined' && localStorage.getItem('2hs_castle_battery') === '1' } catch { return false } })
   function switchBattery(on) { try { localStorage.setItem('2hs_castle_battery', on ? '1' : '0') } catch {} setBattery(on) }
@@ -626,7 +603,7 @@ export default function CastlePage() {
       </nav>
 
       <div className={s.howto}><b>How to play</b> — {scene.key === 'studio'
-        ? '고양이를 누르면 쓰다듬기 · 장난감을 고르면 끌어서 감자랑 놀기 · 화면을 끌어 스튜디오 돌려 보기 · 장면 패널에서 냥냥이 약 먹이기, 내 그림 벽 꾸미기'
+        ? '고양이를 누르면 쓰다듬기·야옹 · 두 손가락으로 확대 · 장난감을 고르면 끌어서 감자랑 놀기 · 화면을 끌어 스튜디오 돌려 보기 · 장면 패널에서 냥냥이 약 먹이기, 내 그림 벽 꾸미기'
         : scene.key === 'peak'
         ? '저녁 6시가 되면 밤 — 집과 기차 창에 불이 켜지고 루돌프 코가 빛나요 · 산타 썰매를 끌어 하늘을 날기 · 썰매를 누르면 선물이 내려요 · 기차를 누르면 뿌뿌! · 집을 누르면 불 켜고 끄기 · 소나무를 누르면 눈이 털려요 · 빈 곳을 끌어 섬 돌리기'
         : scene.key === 'octopus'

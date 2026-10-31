@@ -19,7 +19,7 @@ import ColorMixGame from '../../../components/ColorMixGame'
 import ColorTetrisGame from '../../../components/ColorTetrisGame'
 import LoadingCat from '../../../components/LoadingCat'
 import CatTalk from '../../../components/CatTalk'
-import { createCozyMusic } from '../../../lib/cozyMusic'
+import { holdMusicTrack, releaseMusicTrack, musicWanted, toggleMusic as flipMusic } from '../../../lib/sharedMusic'
 import { FLOWER, startFlowers, settleFlowers, waterFlowers, flowerView, fetchRainDays } from '../../../lib/flowerBed'
 import s from './farm3d.module.css'
 
@@ -215,31 +215,10 @@ export default function Farm3DPage() {
   }, [weather])
 
   // 배경음악 — A안 「텃밭 산책」(lib/cozyMusic FARM_TRACKS). 밤·낮잠 = 밤 곡. 젤리성과 같은 켜고 끔 기억(2hs_castle_music)
-  const musicRef = useRef(null)
-  const [musicOn, setMusicOn] = useState(() => { try { return typeof window === 'undefined' || localStorage.getItem('2hs_castle_music') !== '0' } catch { return true } })
   const farmTrack = nap || night ? 'farmANight' : 'farmA'
-  const farmTrackRef = useRef(farmTrack)
-  useEffect(() => { farmTrackRef.current = farmTrack; musicRef.current?.setFixed(farmTrack) }, [farmTrack])
-  async function toggleMusic() {
-    if (!musicRef.current) musicRef.current = createCozyMusic({ track: farmTrackRef.current })
-    const m = musicRef.current
-    if (m.playing || musicOn) { m.stop(); setMusicOn(false); try { localStorage.setItem('2hs_castle_music', '0') } catch {} }
-    else { await m.start(); setMusicOn(true); try { localStorage.setItem('2hs_castle_music', '1') } catch {} }
-  }
-  useEffect(() => {
-    const EV = ['pointerdown', 'keydown']
-    const first = e => {
-      if (e?.target?.closest?.('[data-music-btn]')) return
-      let wanted = true; try { wanted = localStorage.getItem('2hs_castle_music') !== '0' } catch {}
-      if (!wanted || musicRef.current?.playing) return
-      if (!musicRef.current) musicRef.current = createCozyMusic({ track: farmTrackRef.current })
-      musicRef.current.start().then(ok => { if (ok) EV.forEach(n => window.removeEventListener(n, first, true)) })
-    }
-    EV.forEach(n => window.addEventListener(n, first, true))
-    const vis = () => { const m = musicRef.current; if (!m) return; document.hidden ? m.suspend() : m.resume() }
-    document.addEventListener('visibilitychange', vis)
-    return () => { EV.forEach(n => window.removeEventListener(n, first, true)); document.removeEventListener('visibilitychange', vis); musicRef.current?.close(); musicRef.current = null }
-  }, [])
+  useEffect(() => { holdMusicTrack(farmTrack); return releaseMusicTrack }, [farmTrack])  // 이 화면 동안만 냥밭 곡 — 한 대만 도니 겹치지 않는다
+  const [musicOn, setMusicOn] = useState(() => typeof window === 'undefined' || musicWanted())
+  async function toggleMusic() { setMusicOn(await flipMusic(musicOn)) }
 
   function showTag(text, x, y) {
     setTag({ text, x, y })
