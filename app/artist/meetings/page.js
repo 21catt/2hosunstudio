@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import { notifyStaff } from '../../../lib/adminNotify'
+import { isTooLateToBook } from '../../../lib/bookingWindow'
 import { useTodayWeather } from '../../../components/WeatherBar'
 import { NavIcon } from '../../../components/NavIcons'
 import StudentNav from '../../../components/StudentNav'
@@ -277,8 +278,7 @@ setAllBookings(allMeetingBookings || [])
 }
 
   async function handleCancel(booking) {
-    const diff = (new Date(booking.class_date) - new Date()) / (1000*60*60)
-    if (diff < 4) { alert('회의 4시간 전에는 취소할 수 없어요'); return }
+    if (isTooLateToBook(booking.class_date, booking.class_time)) { alert('회의 4시간 전에는 취소할 수 없어요'); return }
 
     const { data: course } = await supabase.from('class_courses').select('teacher_id').eq('id', booking.course_id).single()
 

@@ -11,6 +11,7 @@ import HeroWeatherFX from '../../components/HeroWeatherFX'
 import { applyTheme, isValidTheme, getSavedTheme, getSavedThemeRaw, guestTheme, themeInWindow, DEFAULT_THEME } from '../../lib/theme'
 import GlassHome from '../../components/GlassHome'
 import SpaceHome from '../../components/SpaceHome'
+import { isTooLateToBook } from '../../lib/bookingWindow'
 import { bookClass, requestBookingApproval, hasValidTicket, cancelBooking, ticketStarted } from '../../lib/booking'
 import { sendStaffAlert } from '../../lib/staffAlert'
 import { pixelCatImg } from '../../lib/pixelCats'
@@ -371,8 +372,7 @@ export default function StudentHomePage() {
     if (mine.attended === true) { alert('출석 완료된 수업은 취소할 수 없어요.'); return }
     const gs = (mine.class_time || '00:00').split('~')[0]
     if (new Date() >= new Date(`${mine.class_date}T${gs}:00`)) { alert('지난 수업은 취소할 수 없어요.'); return }
-    const diff = (new Date(mine.class_date) - new Date()) / (1000 * 60 * 60)
-    if (diff < 4) { alert('수업 4시간 전에는 취소할 수 없어요.'); return }
+    if (isTooLateToBook(mine.class_date, mine.class_time)) { alert('수업 4시간 전에는 취소할 수 없어요.'); return }
     setCancelModal({ booking: mine, label })
   }
 
@@ -412,6 +412,8 @@ export default function StudentHomePage() {
       await cancelBooking({ user, ticket, booking: cancelModal.booking })
       await loadData(user.id)
       setCancelModal(null)
+    } catch {
+      alert('취소하지 못했어요. 잠시 뒤 다시 시도해 주세요.')
     } finally {
       setCancelBusy(false)
     }

@@ -142,10 +142,11 @@ export default function BookingPanel({ user, initialDate, onClose, onBooked }) {
     if (booking.attended === true) { alert('출석 완료된 수업은 취소할 수 없어요.'); return }
     const gs = (booking.class_time || '00:00').split('~')[0]
     if (new Date() >= new Date(`${booking.class_date}T${gs}:00`)) { alert('지난 수업은 취소할 수 없어요.'); return }
-    if ((new Date(booking.class_date) - new Date()) / 3600000 < 4) { alert('수업 4시간 전에는 취소할 수 없어요.'); return }
+    if (isTooLateToBook(booking.class_date, booking.class_time)) { alert('수업 4시간 전에는 취소할 수 없어요.'); return }
     if (!confirm(`${booking.class_name} ${booking.class_time} 예약을 취소할까요?`)) return
     setBusy(true)
     try { await cancelBooking({ user, ticket, booking }); setNote('예약을 취소했어요.'); await load(); onBooked?.() }
+    catch { alert('취소하지 못했어요. 잠시 뒤 다시 시도해 주세요.') }
     finally { setBusy(false) }
   }
 
