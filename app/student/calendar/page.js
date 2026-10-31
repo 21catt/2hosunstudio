@@ -671,12 +671,14 @@ export default function CalendarPage() {
     }
 
     // ── 수업·모임 취소 (기존 로직) ─────────────────────────────────
-    const diff = (new Date(booking.class_date) - new Date()) / (1000*60*60)
-    if (diff < 4) { alert('수업 4시간 전에는 취소할 수 없어요'); return }
+    // 수업 시작 시각 기준 — 날짜만 보면 저녁 수업도 당일 오전부터 취소가 막힌다
+    if (isTooLateToBook(booking.class_date, booking.class_time)) { alert('수업 4시간 전에는 취소할 수 없어요'); return }
+    if (!confirm('예약을 취소할까요?')) return
 
     const { data: course } = await supabase.from('class_courses').select('teacher_id, category').eq('id', booking.course_id).single()
 
-    await supabase.from('bookings').delete().eq('id', booking.id)
+    const { error: cancelErr } = await supabase.from('bookings').delete().eq('id', booking.id)
+    if (cancelErr) { alert('취소하지 못했어요. 잠시 뒤 다시 시도해 주세요.'); return }
 
     if (course?.category === 'meeting') {
       const { data: mt } = await supabase.from('meeting_tickets').select('*').eq('user_id', user.id).eq('status', 'confirmed').gte('expires_at', new Date().toISOString().split('T')[0]).order('expires_at', { ascending: true }).limit(1)
