@@ -17,6 +17,9 @@ import { FARM_CATS, getSavedFarmCat } from '../../lib/farmCats'
 import { getSavedTheme } from '../../lib/theme'
 import LoadingCat from '../../components/LoadingCat'
 import BookingPanel from '../../components/castle/BookingPanel'
+import StudioWallPanel from '../../components/castle/StudioWallPanel'
+import { useTodayWeather } from '../../components/WeatherBar'
+import NyangPill from '../../components/castle/NyangPill'
 import CatTalk from '../../components/CatTalk'
 import { CATEGORY_STYLE } from '../../lib/categoryStyle'
 import { CASTLE_SCENES, getSavedScene, saveSceneLocal, sceneOf, sceneUnlocked, sceneSelectable, longTermStudent } from '../../lib/castleScenes'
@@ -141,6 +144,16 @@ export default function CastlePage() {
     toFrame(patch)
   }
   const frameRef = useRef(null)
+  const [frameTick, setFrameTick] = useState(0) // 장면 iframe 이 뜰 때마다 +1 — 벽 그림을 다시 보낸다
+  const [isDevPreview, setIsDevPreview] = useState(false)
+  const todayWeather = useTodayWeather() // 우리 스튜디오 장면 = 실제 날씨를 섬 바깥에만(방 안은 그대로)
+  useEffect(() => {
+    if (!frameTick || bgScene !== 'studio') return
+    const dev = process.env.NODE_ENV === 'development' ? new URLSearchParams(window.location.search).get('wx') : null
+    const code = dev !== null ? +dev : todayWeather?.code
+    if (code !== undefined) frameRef.current?.contentWindow?.postMessage({ cmd: 'weather', code }, window.location.origin)
+  }, [frameTick, todayWeather?.code, bgScene])
+  useEffect(() => { setIsDevPreview(process.env.NODE_ENV === 'development' && new URLSearchParams(window.location.search).get('dev') === '1') }, [])
   useEffect(() => { setBgScene(getSavedScene()) }, [])
   const scene = sceneOf(bgScene)
   function chooseScene(key) {
@@ -323,7 +336,7 @@ export default function CastlePage() {
       {scene.embed ? (
         // 한 파일로 만든 장면(시트러스 젤리 등) — 자기 화면 글자는 숨기고(?embed=1) 장면만 뒤에 깐다. 잡아 늘리기는 그 안에서 그대로
         <iframe ref={frameRef} key={scene.key} src={scene.embed} title={`3D 배경 · ${scene.name}`} className={s.sceneFrame}
-          onLoad={() => { setReady(true); toFrame(scene.key === 'octopus' ? octo : scene.key === 'peak' ? peak : citrus) }} />
+          onLoad={() => { setReady(true); setFrameTick(n => n + 1); toFrame(scene.key === 'octopus' ? octo : scene.key === 'peak' ? peak : citrus) }} />
       ) : (
         <div style={{ position: 'absolute', inset: 0 }} onPointerDownCapture={() => setSceneOpen(false)}>
           <CastleJellyScene key={`${sceneKey}${beachPreview ? '-beach' : ''}`} lite={lite} settingsRef={settingsRef} commandRef={commandRef} onReady={() => setReady(true)}
@@ -503,6 +516,10 @@ export default function CastlePage() {
         <div className={s.row}>
           <button className={`${s.chip} ${s.glass}`} onClick={() => toFrame({ cmd: 'reset' })}>제자리로</button>
         </div>
+        </>) : scene.key === 'studio' ? (<>
+        <div className={s.sectionLabel} style={{ padding: 0 }}>{scene.name}</div>
+        <NyangPill send={toFrame} onPlay={() => setSceneOpen(false)} />
+        <StudioWallPanel user={user} send={toFrame} frameTick={frameTick} dev={isDevPreview} />
         </>) : scene.embed ? (<>
         <div className={s.sectionLabel} style={{ padding: 0 }}>{scene.name}</div>
         <div className={s.row} style={{ flexWrap: 'wrap' }}>
@@ -608,7 +625,9 @@ export default function CastlePage() {
         ))}
       </nav>
 
-      <div className={s.howto}><b>How to play</b> — {scene.key === 'peak'
+      <div className={s.howto}><b>How to play</b> — {scene.key === 'studio'
+        ? '고양이를 누르면 쓰다듬기 · 장난감을 고르면 끌어서 감자랑 놀기 · 화면을 끌어 스튜디오 돌려 보기 · 장면 패널에서 냥냥이 약 먹이기, 내 그림 벽 꾸미기'
+        : scene.key === 'peak'
         ? '저녁 6시가 되면 밤 — 집과 기차 창에 불이 켜지고 루돌프 코가 빛나요 · 산타 썰매를 끌어 하늘을 날기 · 썰매를 누르면 선물이 내려요 · 기차를 누르면 뿌뿌! · 집을 누르면 불 켜고 끄기 · 소나무를 누르면 눈이 털려요 · 빈 곳을 끌어 섬 돌리기'
         : scene.key === 'octopus'
         ? '장면 패널에서 꽃게·새우·정어리를 던져 주면 몸속에서 3시간 동안 녹아요 · 배가 비면 꼬르륵 · 문어를 톡 치면 움찔 · 머리를 꾹 누르면 납작 · 머리를 끌어 들어 올리기 · 다리를 끌어 늘리기 · 접시를 꾹 누르고 있으면 다리가 손가락을 감아요'
