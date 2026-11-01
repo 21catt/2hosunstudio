@@ -10,7 +10,7 @@ import { sortCoursesByCategory } from '../../lib/courseSort'
 import { isTooLateToBook, bookingCutoffMessage } from '../../lib/bookingWindow'
 import { bookClass, requestBookingApproval, hasValidTicket, cancelBooking, ticketStarted } from '../../lib/booking'
 import { catStyle } from '../../lib/categoryStyle'
-import { coursesOn as listOn, myHabits, openings, schedulesFor, shortDay, slotStatus } from '../../lib/myClasses'
+import { coursesOn as listOn, dayTimes, myHabits, openings, schedulesFor, shortDay, slotStatus } from '../../lib/myClasses'
 import { useBookingData } from '../../lib/useBookingData'
 import b from './booking.module.css'
 
@@ -29,7 +29,7 @@ export default function BookingPanel({ user, initialDate, startMine = false, onC
   const [note, setNote] = useState(null)
   // 「내 수업」 — 장기 수강생은 듣던 수업과 가까운 날짜만 먼저 본다. 나머지는 「다른 수업 둘러보기」 안에
   const [browse, setBrowse] = useState(false)
-  const [minePick, setMinePick] = useState(null)   // 'ds|scheduleId'
+  const [minePick, setMinePick] = useState(null)   // { courseId, ds, scheduleId } — 날짜를 누르면 ds, 시간까지 정해지면 scheduleId
 
   useEffect(() => {
     const onKey = e => { if (e.key === 'Escape') onClose?.() }
@@ -58,7 +58,15 @@ export default function BookingPanel({ user, initialDate, startMine = false, onC
   const validTicket = hasValidTicket(ticket, todayStr)
   const mineCards = useMemo(() => !ctx ? [] : myHabits(ctx, todayStr).map(h => ({ habit: h, items: openings(ctx, h, todayStr) })), [ctx, todayStr])
   const showMine = startMine && !browse && mineCards.length > 0
-  const pickedMine = showMine ? mineCards.flatMap(c => c.items).find(o => `${o.ds}|${o.schedule.id}` === minePick && o.status.kind === 'open') : null
+  const pickedCourse = minePick && mineCards.find(c => c.habit.course.id === minePick.courseId)?.habit.course
+  const pickedTime = pickedCourse ? dayTimes(ctx, pickedCourse, minePick.ds).find(x => x.s.id === minePick.scheduleId && x.st.kind === 'open') : null
+  const pickedMine = showMine && pickedTime ? { course: pickedCourse, schedule: pickedTime.s, ds: minePick.ds } : null
+  // 날짜를 누르면 늘 가던 시간이 골라진 채로 — 다른 시간은 아래 줄에서 한 번 더
+  function pickMineDay(o) {
+    const same = minePick?.courseId === o.course.id && minePick.ds === o.ds
+    const first = o.status.kind === 'open' ? o.schedule : dayTimes(ctx, o.course, o.ds).find(x => x.st.kind === 'open')?.s
+    setMinePick(same ? null : { courseId: o.course.id, ds: o.ds, scheduleId: first?.id ?? null }); setNote(null)
+  }
   const target = showMine ? pickedMine : (slot && course ? { course, schedule: slot, ds: date } : null)
 
   function pickDate(ds) { setDate(ds); setCat(null); setCourseId(null); setSlotId(null); setNote(null) }
@@ -129,17 +137,36 @@ export default function BookingPanel({ user, initialDate, startMine = false, onC
               {items.length === 0 ? <div className={b.muted}>2주 안에 열린 시간이 없어요</div> : (
                 <div className={b.mineSlots}>
                   {items.map(o => {
-                    const key = `${o.ds}|${o.schedule.id}`, on = key === minePick, can = o.status.kind === 'open'
+                    const on = minePick?.courseId === o.course.id && minePick.ds === o.ds
+                    const can = dayTimes(ctx, o.course, o.ds).some(x => x.st.kind === 'open')
                     const sub = o.status.kind === 'mine' ? '예약됨' : o.status.kind === 'full' ? '마감' : `${o.schedule.start_time}${o.status.left ? ` · ${o.status.left}자리` : ''}`
                     return (
-                      <button key={key} className={`${b.mineSlot} ${on ? b.mineSlotOn : ''} ${can ? '' : b.mineSlotOff}`} disabled={!can || busy} aria-pressed={on}
-                        onClick={() => { setMinePick(on ? null : key); setNote(null) }}>
+                      <button key={o.ds} className={`${b.mineSlot} ${on ? b.mineSlotOn : ''} ${can ? '' : b.mineSlotOff}`} disabled={!can || busy} aria-pressed={on}
+                        onClick={() => pickMineDay(o)}>
                         <b>{shortDay(o.ds)}</b><span>{sub}</span>
                       </button>
                     )
                   })}
                 </div>
               )}
+              {minePick?.courseId === habit.course.id && (() => {
+                const times = dayTimes(ctx, habit.course, minePick.ds)
+                if (times.length < 2) return null   // 시간이 하나뿐이면 고를 것이 없다
+                return (<>
+                  <div className={b.label}>{shortDay(minePick.ds)} 시간</div>
+                  <div className={b.mineSlots}>
+                    {times.map(({ s, st }) => {
+                      const can = st.kind === 'open', on = can && s.id === minePick.scheduleId
+                      return (
+                        <button key={s.id} className={`${b.mineSlot} ${on ? b.mineSlotOn : ''} ${can ? '' : b.mineSlotOff}`} disabled={!can || busy} aria-pressed={on}
+                          onClick={() => { setMinePick({ ...minePick, scheduleId: s.id }); setNote(null) }}>
+                          <b>{s.start_time}</b><span>{st.kind === 'mine' ? '예약됨' : st.kind === 'open' ? (st.left ? `${st.left}자리` : '예약 가능') : '마감'}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </>)
+              })()}
             </div>
           ))}
           <button className={b.mineMore} onClick={() => { setBrowse(true); setNote(null) }}>다른 수업 둘러보기 ›</button>
