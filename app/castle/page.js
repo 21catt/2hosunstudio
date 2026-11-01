@@ -22,6 +22,8 @@ import { useTodayWeather } from '../../components/WeatherBar'
 import NyangPill from '../../components/castle/NyangPill'
 import CatTalk from '../../components/CatTalk'
 import { CATEGORY_STYLE } from '../../lib/categoryStyle'
+import MyNextClass from '../../components/castle/MyNextClass'
+import { devLongTerm } from '../../lib/useBookingData'
 import { CASTLE_SCENES, getSavedScene, saveSceneLocal, sceneOf, sceneUnlocked, sceneSelectable, longTermStudent } from '../../lib/castleScenes'
 import s from './castle.module.css'
 import { setMusicMode, setMusicBase, musicWanted, toggleMusic as flipMusic } from '../../lib/sharedMusic'
@@ -214,7 +216,8 @@ export default function CastlePage() {
   const [sceneOpen, setSceneOpen] = useState(false)
   const [bridgeUp, setBridgeUp] = useState(false)
   const [user, setUser] = useState(null)
-  const [booking, setBooking] = useState(null) // null | { date } — 예약 패널
+  const [booking, setBooking] = useState(null) // null | { date, mine } — 예약 패널. mine = 「내 수업」 먼저
+  const longTermOn = longTerm || devLongTerm()
   // 수업 패널 — 장면을 가리지 않게 기본은 접힘, 펼친 상태는 기억한다
   const [classPick, setClassPick] = useState(null) // 펼친 수업 분류(아이콘)
   useEffect(() => {
@@ -226,7 +229,7 @@ export default function CastlePage() {
   }, [classPick])
   function openBooking(date) {
     // 비가입자도 같은 예약 패널(수업·자리 보기) — 예약 단추를 누를 때만 캘린더(가입 안내)로 간다(BookingPanel)
-    setBooking({ date: date || ymd(new Date()) }); setPick(null); setSceneOpen(false); setClassPick(null) }
+    setBooking({ date: date || ymd(new Date()), mine: !date && longTermOn }); setPick(null); setSceneOpen(false); setClassPick(null) }
 
   // 관리자만 — 숨긴 미리보기
   useEffect(() => {
@@ -585,9 +588,12 @@ export default function CastlePage() {
         <CatTalk place="castle" user={user} cat={catInfo} nextBooking={next || null} anchorRef={catAnchorRef} controlRef={talkRef} />}
 
       {booking && (
-        <BookingPanel key={booking.date} user={user} initialDate={booking.date} onClose={() => setBooking(null)}
+        <BookingPanel key={booking.date} user={user} initialDate={booking.date} startMine={booking.mine} onClose={() => setBooking(null)}
           onBooked={() => { if (user) loadMine(user) }} />
       )}
+
+      {/* 장기 수강생 — 늘 가던 수업 바로 예약 */}
+      {!booking && !sceneOpen && longTermOn && <MyNextClass user={user} onMore={() => openBooking()} onBooked={() => { if (user) loadMine(user) }} />}
 
       {/* 아래 — 기타 기능 */}
       <nav className={`${s.dock} ${s.glass}`} aria-label="기타 기능">

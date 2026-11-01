@@ -6,53 +6,31 @@
 //   자리 = 같은 날짜·시간의 일반 수업 예약 합(자율창작·모임·원데이 제외)과 수업 max_count 비교 — 홈과 같다
 //   원데이(계약금 입금)·모임(참여권 결제)·자율창작(자리 고르기)은 각자 화면이 따로 있어 그쪽으로 이어 준다
 import { useEffect, useMemo, useState } from 'react'
-import { supabase } from '../../lib/supabase'
 import { sortCoursesByCategory } from '../../lib/courseSort'
-import { fetchLockedDates, fetchLockedSlots, slotLocked } from '../../lib/lockedDates'
 import { isTooLateToBook, bookingCutoffMessage } from '../../lib/bookingWindow'
 import { bookClass, requestBookingApproval, hasValidTicket, cancelBooking, ticketStarted } from '../../lib/booking'
 import { catStyle } from '../../lib/categoryStyle'
+import { coursesOn as listOn, myHabits, openings, schedulesFor, shortDay, slotStatus } from '../../lib/myClasses'
+import { useBookingData } from '../../lib/useBookingData'
 import b from './booking.module.css'
 
 const DOW = ['일', '월', '화', '수', '목', '금', '토']
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 const part = t => { const h = +String(t || '0').slice(0, 2); return h < 12 ? '오전' : h < 18 ? '오후' : '저녁' }
 
-export default function BookingPanel({ user, initialDate, onClose, onBooked }) {
+export default function BookingPanel({ user, initialDate, startMine = false, onClose, onBooked }) {
   const todayStr = ymd(new Date())
   const [date, setDate] = useState(initialDate || todayStr)
-  const [classes, setClasses] = useState([])
-  const [allBookings, setAllBookings] = useState([])
-  const [mine, setMine] = useState([])
-  const [ticket, setTicket] = useState(null)
-  const [lockedDates, setLockedDates] = useState(new Set())
-  const [lockedSlots, setLockedSlots] = useState(new Set())
-  const [loading, setLoading] = useState(true)
+  const { ctx, ticket, loading, reload: load, demo } = useBookingData(user)
   const [cat, setCat] = useState(null)
   const [courseId, setCourseId] = useState(null)
   const [slotId, setSlotId] = useState(null)
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState(null)
+  // 「내 수업」 — 장기 수강생은 듣던 수업과 가까운 날짜만 먼저 본다. 나머지는 「다른 수업 둘러보기」 안에
+  const [browse, setBrowse] = useState(false)
+  const [minePick, setMinePick] = useState(null)   // 'ds|scheduleId'
 
-  async function load() {
-    const uid = user?.id
-    const [c, all, my, t, ld, ls] = await Promise.all([
-      supabase.from('class_courses').select('*, class_schedules(*), class_exceptions(*)').eq('is_active', true),
-      supabase.from('bookings').select('course_id, schedule_id, class_date, class_time').eq('status', 'booked'),
-      uid ? supabase.from('bookings').select('*').eq('user_id', uid).neq('status', 'cancelled') : Promise.resolve({ data: [] }),
-      uid ? supabase.from('tickets').select('*').eq('user_id', uid).maybeSingle() : Promise.resolve({ data: null }),
-      fetchLockedDates(),
-      fetchLockedSlots(),
-    ])
-    setClasses(c.data || [])
-    setAllBookings(all.data || [])
-    setMine(my.data || [])
-    setTicket(t.data || null)
-    setLockedDates(ld || new Set())
-    setLockedSlots(ls || new Set())
-    setLoading(false)
-  }
-  useEffect(() => { load() }, [user?.id])
   useEffect(() => {
     const onKey = e => { if (e.key === 'Escape') onClose?.() }
     window.addEventListener('keydown', onKey)
@@ -66,32 +44,8 @@ export default function BookingPanel({ user, initialDate, onClose, onBooked }) {
     return out
   }, [])
 
-  // 그날 열리는 수업 — 홈 coursesOn 과 같은 규칙(잠긴 날짜·예외 요일·운영 기간)
-  function coursesOn(ds) {
-    if (lockedDates.has(ds)) return []
-    const dow = new Date(ds + 'T00:00:00').getDay()
-    return sortCoursesByCategory(classes.filter(c => {
-      if (!c.class_schedules?.some(s => s.day_of_week === dow)) return false
-      if (c.class_exceptions?.some(e => e.day_of_week === dow)) return false
-      if (!c.is_unlimited) {
-        if (c.start_date && ds < c.start_date) return false
-        if (c.end_date && ds > c.end_date) return false
-      }
-      return true
-    }))
-  }
-  function schedulesFor(c, ds) {
-    const dow = new Date(ds + 'T00:00:00').getDay(), seen = new Set()
-    return (c.class_schedules || []).filter(s => s.day_of_week === dow).filter(s => {
-      const k = `${s.start_time}-${s.end_time}`; if (seen.has(k)) return false; seen.add(k); return true
-    }).sort((x, y) => x.start_time.localeCompare(y.start_time))
-  }
-  function seatCount(s, ds) {
-    const slot = `${s.start_time}~${s.end_time}`
-    const excluded = new Set(classes.filter(x => x.category === 'free' || x.category === 'meeting' || x.category === 'oneday').map(x => x.id))
-    return allBookings.filter(x => x.class_date === ds && x.class_time === slot && !excluded.has(x.course_id)).length
-  }
-  const myBookingFor = (c, s, ds) => mine.find(x => x.course_id === c.id && x.schedule_id === s.id && x.class_date === ds)
+  const coursesOn = ds => ctx ? sortCoursesByCategory(listOn(ctx, ds)) : []
+  const slotState = s => slotStatus(ctx, course, s, date)
 
   const list = coursesOn(date)
   const cats = [...new Set(list.map(c => c.category))]
@@ -100,40 +54,35 @@ export default function BookingPanel({ user, initialDate, onClose, onBooked }) {
   const course = catCourses.find(c => c.id === courseId) || catCourses[0] || null
   const slots = course ? schedulesFor(course, date) : []
 
-  function slotState(s) {
-    const m = myBookingFor(course, s, date)
-    if (m) return { kind: 'mine', text: '예약됨 · 눌러서 취소', booking: m }
-    if (isTooLateToBook(date, s.start_time)) return { kind: 'closed', text: '예약 마감' }
-    if (slotLocked(lockedDates, lockedSlots, date, s.id)) return { kind: 'closed', text: '예약 마감', lock: true }
-    const cnt = seatCount(s, date), max = course.max_count || null
-    if (max && cnt >= max) return { kind: 'full', text: '마감' }
-    if (!max) return { kind: 'open', text: '예약 가능' }
-    const left = max - cnt
-    return { kind: 'open', text: left === 1 ? '마감 임박 · 1자리' : `${left}자리 남음`, left, max }
-  }
   const slot = slots.find(s => s.id === slotId && slotState(s).kind === 'open') || null
   const validTicket = hasValidTicket(ticket, todayStr)
+  const mineCards = useMemo(() => !ctx ? [] : myHabits(ctx, todayStr).map(h => ({ habit: h, items: openings(ctx, h, todayStr) })), [ctx, todayStr])
+  const showMine = startMine && !browse && mineCards.length > 0
+  const pickedMine = showMine ? mineCards.flatMap(c => c.items).find(o => `${o.ds}|${o.schedule.id}` === minePick && o.status.kind === 'open') : null
+  const target = showMine ? pickedMine : (slot && course ? { course, schedule: slot, ds: date } : null)
 
   function pickDate(ds) { setDate(ds); setCat(null); setCourseId(null); setSlotId(null); setNote(null) }
   function pickCat(c) { setCat(c); setCourseId(null); setSlotId(null); setNote(null) }
 
   async function book() {
-    if (!slot || !course || busy) return
-    if (!user) { window.location.href = `/student/calendar?date=${date}`; return }
-    if (isTooLateToBook(date, slot.start_time)) { alert(bookingCutoffMessage(date, slot.start_time)); return }
-    if (slotLocked(lockedDates, lockedSlots, date, slot.id)) { alert('이 시간은 예약이 닫혀 있어요 🐾'); return }
+    if (!target || busy) return
+    const { course: c, schedule: s, ds } = target
+    if (demo) { setNote(`${c.name} ${s.start_time}~${s.end_time} 예약됐어요 🐾`); setMinePick(null); return }
+    if (!user) { window.location.href = `/student/calendar?date=${ds}`; return }
+    if (isTooLateToBook(ds, s.start_time)) { alert(bookingCutoffMessage(ds, s.start_time)); return }
+    if (ctx.isLocked(ds, s)) { alert('이 시간은 예약이 닫혀 있어요 🐾'); return }
     setBusy(true)
     try {
       if (validTicket) {
-        const ok = await bookClass({ user, ticket, course, schedule: slot, dateStr: date })
-        if (ok) { setNote(`${course.name} ${slot.start_time}~${slot.end_time} 예약됐어요 🐾`); onBooked?.() }
+        const ok = await bookClass({ user, ticket, course: c, schedule: s, dateStr: ds })
+        if (ok) { setNote(`${c.name} ${s.start_time}~${s.end_time} 예약됐어요 🐾`); onBooked?.() }
       } else {
-        await requestBookingApproval({ user, course, schedule: slot, dateStr: date })
+        await requestBookingApproval({ user, course: c, schedule: s, dateStr: ds })
         setNote(ticket && !ticketStarted(ticket, todayStr)
           ? `수강권은 ${ticket.start_date}부터 쓸 수 있어요. 그때까지는 예약 요청으로 접수돼요 🐾`
           : '예약 요청이 접수됐어요! 강사님이 확인 후 연락드릴게요 🐾')
       }
-      setSlotId(null)
+      setSlotId(null); setMinePick(null)
       await load()
     } finally { setBusy(false) }
   }
@@ -161,13 +110,43 @@ export default function BookingPanel({ user, initialDate, onClose, onBooked }) {
       <div className={b.head}>
         <div>
           <div className={b.eyebrow}>예약하기</div>
-          <div className={b.title}>{dateTitle}</div>
+          <div className={b.title}>{showMine ? '내 수업' : dateTitle}</div>
         </div>
         <button className={b.close} aria-label="예약 닫기" onClick={onClose}>
           <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
         </button>
       </div>
 
+      {showMine ? (
+        <div className={b.body}>
+          {mineCards.map(({ habit, items }) => (
+            <div key={habit.course.id} className={b.mineCard}>
+              <div className={b.mineHead}>
+                <span className={b.orb} style={{ background: catStyle(habit.course.category).orb }} />
+                <b>{habit.course.name}</b>
+                <span>{habit.label}</span>
+              </div>
+              {items.length === 0 ? <div className={b.muted}>2주 안에 열린 시간이 없어요</div> : (
+                <div className={b.mineSlots}>
+                  {items.map(o => {
+                    const key = `${o.ds}|${o.schedule.id}`, on = key === minePick, can = o.status.kind === 'open'
+                    const sub = o.status.kind === 'mine' ? '예약됨' : o.status.kind === 'full' ? '마감' : `${o.schedule.start_time}${o.status.left ? ` · ${o.status.left}자리` : ''}`
+                    return (
+                      <button key={key} className={`${b.mineSlot} ${on ? b.mineSlotOn : ''} ${can ? '' : b.mineSlotOff}`} disabled={!can || busy} aria-pressed={on}
+                        onClick={() => { setMinePick(on ? null : key); setNote(null) }}>
+                        <b>{shortDay(o.ds)}</b><span>{sub}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          ))}
+          <button className={b.mineMore} onClick={() => { setBrowse(true); setNote(null) }}>다른 수업 둘러보기 ›</button>
+          {note && <div className={b.note} role="status">{note}</div>}
+        </div>
+      ) : (<>
+      {startMine && mineCards.length > 0 && <button className={b.mineMore} style={{ alignSelf: 'flex-start', minHeight: 32 }} onClick={() => { setBrowse(false); setNote(null) }}>‹ 내 수업</button>}
       <div className={b.days} role="listbox" aria-label="날짜">
         {days.map(x => {
           const open = coursesOn(x.key).length > 0
@@ -268,6 +247,7 @@ export default function BookingPanel({ user, initialDate, onClose, onBooked }) {
         </>)}
         {note && <div className={b.note} role="status">{note}</div>}
       </div>
+      </>)}
 
       <div className={b.foot}>
         <div className={b.ticket}>
@@ -275,7 +255,11 @@ export default function BookingPanel({ user, initialDate, onClose, onBooked }) {
           <b>{ticket ? `${ticket.total}회권 · 잔여 ${ticket.remain}회` : user ? '수강권 없음' : '로그인하면 보여요'}</b>
           {ticket?.expires_at && <span className={b.muted}>{!ticketStarted(ticket, todayStr) && ticket.start_date ? `${ticket.start_date.slice(5).replace('-', '월 ')}일부터 사용` : `만료 ${ticket.expires_at}`}</span>}
         </div>
-        {course && curCat !== 'free' && curCat !== 'oneday' && curCat !== 'meeting' && (
+        {showMine ? (
+          <button className={b.cta} disabled={!target || busy} onClick={book}>
+            {busy ? '예약 처리 중…' : !target ? '날짜를 골라 주세요' : `${target.course.name} · ${shortDay(target.ds)} ${target.schedule.start_time} ${validTicket ? '예약하기' : '예약 요청'}`}
+          </button>
+        ) : course && curCat !== 'free' && curCat !== 'oneday' && curCat !== 'meeting' && (
           <button className={b.cta} disabled={!slot || busy} onClick={book}>
             {busy ? '예약 처리 중…' : !slot ? '시간을 골라 주세요' : validTicket ? `${course.name} ${slot.start_time}~${slot.end_time} 예약하기` : '예약 요청하기 (수강권 확인 필요)'}
           </button>

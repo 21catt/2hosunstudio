@@ -83,3 +83,33 @@
 .ctaBar .cta { pointer-events: auto; width: 100%; }
 .info { border-radius: 16px; background: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.95); padding: 11px 13px; font-size: 12px; line-height: 1.6; }
 .cancel { font: 600 11px 'IBM Plex Sans KR', sans-serif; padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(43,36,51,0.18); background: rgba(255,255,255,0.8); color: #2b2433; cursor: pointer; }
+
+/* 3D 홈 「내 다음 수업」 카드 + 예약 패널 「내 수업」 */
+.nextCard { position: absolute; left: 50%; bottom: 112px; transform: translateX(-50%); width: 360px; z-index: 4; box-sizing: border-box; display: flex; flex-direction: column; gap: 6px;
+  padding: 13px 14px 6px; border-radius: 22px; color: #2b2433; font-family: 'IBM Plex Sans KR', sans-serif;
+  background: linear-gradient(170deg, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.82) 55%, rgba(234,226,250,0.78) 100%);
+  border: 1px solid rgba(255,255,255,0.95); box-shadow: inset 0 1.5px 0 #fff, 0 14px 32px rgba(60,45,80,0.2);
+  backdrop-filter: blur(18px) saturate(160%); -webkit-backdrop-filter: blur(18px) saturate(160%); }
+.nextLabel { font-size: 12px; font-weight: 700; color: #5c5268; }
+.nextRow { display: flex; align-items: center; gap: 10px; }
+.nextText { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: #4f4560; padding-bottom: 4px; }
+.nextText b { font-size: 17px; color: #2b2433; }
+.nextBook { flex: 0 0 auto; min-width: 92px; height: 48px; padding: 0 12px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.25); color: #fff; cursor: pointer; touch-action: manipulation;
+  font: 700 15px 'IBM Plex Sans KR', sans-serif; background: linear-gradient(160deg, #4a4058 0%, #2b2433 60%, #1d1824 100%); box-shadow: inset 0 1.5px 0 rgba(255,255,255,0.35), 0 8px 18px rgba(43,36,51,0.28); }
+.nextBook:disabled { opacity: 0.55; cursor: default; }
+.nextMore { min-height: 44px; border: 0; background: none; font: 600 13px 'IBM Plex Sans KR', sans-serif; color: #4f4560; cursor: pointer; touch-action: manipulation; }
+.nextActions { display: flex; gap: 8px; padding-bottom: 8px; }
+.nextGhost { flex: 1; min-height: 44px; border-radius: 14px; border: 1px solid rgba(43,36,51,0.16); background: rgba(255,255,255,0.8); font: 700 14px 'IBM Plex Sans KR', sans-serif; color: #2b2433; cursor: pointer; touch-action: manipulation; }
+@media (max-width: 760px) { .nextCard { left: 12px; right: 12px; bottom: 88px; width: auto; transform: none; } }
+
+.mineCard { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 20px; background: rgba(255,255,255,0.62); border: 1px solid rgba(255,255,255,0.95); }
+.mineHead { display: flex; align-items: center; gap: 8px; }
+.mineHead b { font-size: 16px; }
+.mineHead span:last-child { margin-left: auto; font-size: 12px; opacity: 0.72; }
+.mineSlots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.mineSlot { min-height: 56px; padding: 7px 2px; border-radius: 14px; border: 1px solid rgba(43,36,51,0.14); background: rgba(255,255,255,0.8); color: #2b2433; font-family: inherit; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; touch-action: manipulation; }
+.mineSlot b { font-size: 14px; }
+.mineSlot span { font-size: 11px; }
+.mineSlotOn { background: #2b2433; border-color: #2b2433; color: #fff; }
+.mineSlotOff { background: rgba(255,255,255,0.32); color: #6e6378; cursor: default; }
+.mineMore { min-height: 44px; border: 0; background: none; font: 600 13px 'IBM Plex Sans KR', sans-serif; color: #4b3270; cursor: pointer; }
