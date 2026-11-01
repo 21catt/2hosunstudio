@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 
 const ICONS = {
   0: '☀️', 1: '🌤', 2: '⛅', 3: '☁️',
@@ -22,7 +22,8 @@ export function useTodayWeather() {
       .then(d => setWeather(d.current))
       .catch(() => {})
   }, [])
-  return weather ? { icon: ICONS[weather.weather_code] || '🌤', temp: Math.round(weather.temperature_2m), code: weather.weather_code } : null
+  // 그릴 때마다 새 객체를 주면 [weather] 를 쓰는 효과가 끝없이 다시 돈다(비 오는 날 3D 냥밭이 멈췄다)
+  return useMemo(() => weather ? { icon: ICONS[weather.weather_code] || '🌤', temp: Math.round(weather.temperature_2m), code: weather.weather_code } : null, [weather])
 }
 
 // 오늘 날씨 — 하단 내비와 같은 라인아트 톤(아웃라인 SVG). open-meteo weather_code 기준.
