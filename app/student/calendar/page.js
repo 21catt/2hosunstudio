@@ -7,6 +7,7 @@ import StudentNav from '../../../components/StudentNav'
 import { NavIcon } from '../../../components/NavIcons'
 import { sortCoursesByCategory } from '../../../lib/courseSort'
 import { catStyle } from '../../../lib/categoryStyle'
+import { courseCards, cardOf, preferredMember, slotOwners } from '../../../lib/courseGroups'
 import bk from '../../../components/castle/booking.module.css'
 import { useTapSound } from '../../../lib/useTapSound'
 import { fetchLockedDates, fetchLockedSlots, slotLocked } from '../../../lib/lockedDates'
@@ -1130,7 +1131,16 @@ export default function CalendarPage() {
           const st = catStyle(selCat)
           const step = selSchedule ? 3 : selCourse ? 2 : selCat ? 1 : 0
           const freeHref = `/student/free?date=${selDateStr}`
-          const daySchedules = selCourse ? getSchedulesForDay(selCourse, selectedDay) : []
+          // 「유화」·「드로잉」처럼 묶인 카드는 구성원 수업의 시간을 합쳐 보여 준다 — 고른 시간의 주인 수업으로 예약
+          const cards = courseCards(catCourses)
+          const selCard = cardOf(cards, selCourse)
+          const daySlots = selCard ? slotOwners(selCard, {
+            schedulesOf: m => getSchedulesForDay(m, selectedDay),
+            bookedFn: (m, s) => isBooked(m.id, s.id, selectedDay),
+            currentId: selCourse?.id,
+            preferredId: preferredMember(selCard, bookings)?.id,
+          }) : []
+          const daySchedules = daySlots.map(x => x.s)
           const showCta = selSchedule && !isBooked(selCourse?.id, selSchedule?.id, selectedDay)
           return (
             <section className={`${bk.panel} ${bk.inline}`} aria-label="예약하기">
@@ -1163,7 +1173,7 @@ export default function CalendarPage() {
                 ) : (<>
                   {cats.length === 1 && cats[0] !== 'free' && selCat !== cats[0] && (() => { setTimeout(() => setSelCat(cats[0]), 0); return null })()}
                   {/* 종류를 고르면 그 종류의 첫 수업이 골라진 채로(홈 예약 창과 같다) */}
-                  {selCat && selCat !== 'free' && catCourses.length > 0 && !catCourses.some(c => c.id === selCourse?.id) && (() => { setTimeout(() => setSelCourse(catCourses[0]), 0); return null })()}
+                  {selCat && selCat !== 'free' && catCourses.length > 0 && !catCourses.some(c => c.id === selCourse?.id) && (() => { setTimeout(() => setSelCourse(preferredMember(cards[0], bookings)), 0); return null })()}
 
                   <div className={bk.label}>수업 종류</div>
                   <div className={bk.chips}>
@@ -1191,15 +1201,16 @@ export default function CalendarPage() {
                       )}
                     </div>
                     <div className={bk.courses}>
-                      {catCourses.map(c => {
-                        const on = selCourse?.id === c.id
+                      {cards.map(card => {
+                        const on = selCard?.key === card.key
+                        const c = card.members[0]
                         return (
-                          <button key={c.id} className={bk.course} aria-pressed={on}
-                            onClick={() => { setSelCourse(c); setSelSchedule(null) }}
+                          <button key={card.key} className={bk.course} aria-pressed={on}
+                            onClick={() => { if (!on) setSelCourse(preferredMember(card, bookings)); setSelSchedule(null) }}
                             style={on ? { background: `linear-gradient(160deg, #fff, ${st.soft})`, outline: `2px solid ${st.ink}` } : null}>
                             <span className={bk.place} style={{ color: st.ink }}>{st.name}</span>
-                            <span className={bk.courseName}>{c.name}</span>
-                            {c.teacher && <span className={bk.muted}>강사 {c.teacher}</span>}
+                            <span className={bk.courseName}>{card.name}</span>
+                            {card.single && c.teacher && <span className={bk.muted}>강사 {c.teacher}</span>}
                           </button>
                         )
                       })}
@@ -1209,18 +1220,19 @@ export default function CalendarPage() {
                       <div className={bk.label}>시간</div>
                       {daySchedules.length === 0 ? <div className={bk.muted}>이 날 수업 시간이 없어요</div> : (
                         <div className={bk.slots}>
-                          {daySchedules.map(s => {
-                            const booked = isBooked(selCourse.id, s.id, selectedDay)
-                            const booking = getBooking(selCourse.id, s.id, selectedDay)
+                          {daySlots.map(({ course: sc, s }) => {
+                            const booked = isBooked(sc.id, s.id, selectedDay)
+                            const booking = getBooking(sc.id, s.id, selectedDay)
                             // 원데이는 독립 좌석(수업별), 정규 수업은 같은 시간대 자리 공유
-                            const cnt = selCourse.category === 'oneday'
-                              ? allBookings.filter(x => x.course_id === selCourse.id && x.class_date === selDateStr && x.class_time === `${s.start_time}~${s.end_time}`).length
+                            const cnt = sc.category === 'oneday'
+                              ? allBookings.filter(x => x.course_id === sc.id && x.class_date === selDateStr && x.class_time === `${s.start_time}~${s.end_time}`).length
                               : sharedSlotCount(selectedDay, s.start_time, s.end_time)
-                            const max = selCourse.max_count || null
+                            const max = sc.max_count || null
                             const remain = max ? max - cnt : null
                             const slotLock = slotLocked(lockedDates, lockedSlots, selDateStr, s.id)
                             const full = ((max && remain <= 0) || slotLock) && !booked
                             const on = selSchedule?.id === s.id
+                            const pick = () => { if (on) { setSelSchedule(null); return } if (sc.id !== selCourse.id) setSelCourse(sc); setSelSchedule(s) }
                             const hh = parseInt(s.start_time.slice(0, 2), 10)
                             const tod = hh < 12 ? '오전' : hh < 18 ? '오후' : '저녁'
                             const text = booked ? (booking?.attended === true ? '출석' : '예약됨')
@@ -1229,8 +1241,8 @@ export default function CalendarPage() {
                               <div key={s.id} role="button" tabIndex={full || booked ? -1 : 0} aria-pressed={on}
                                 className={`${bk.slot} ${full ? bk.slotOff : ''}`}
                                 style={on ? { outline: '2px solid #2b2433', background: 'rgba(255,255,255,0.85)' } : booked ? { background: 'rgba(232,245,224,0.85)' } : null}
-                                onClick={() => { if (!full && !booked) setSelSchedule(on ? null : s) }}
-                                onKeyDown={e => { if ((e.key === 'Enter' || e.key === ' ') && !full && !booked) { e.preventDefault(); setSelSchedule(on ? null : s) } }}>
+                                onClick={() => { if (!full && !booked) pick() }}
+                                onKeyDown={e => { if ((e.key === 'Enter' || e.key === ' ') && !full && !booked) { e.preventDefault(); pick() } }}>
                                 <span className={bk.part} style={{ background: full ? 'rgba(43,36,51,0.08)' : st.tint, color: full ? undefined : st.ink }}>{tod}</span>
                                 <span className={bk.time}>{s.start_time} ~ {s.end_time}</span>
                                 <span className={bk.state} style={{ color: booked ? st.ink : full ? undefined : remain === 1 ? '#a2531c' : '#2f7a52' }}>

@@ -12,6 +12,7 @@ import { bookClass, requestBookingApproval, hasValidTicket, cancelBooking, ticke
 import { catStyle } from '../../lib/categoryStyle'
 import { coursesOn as listOn, dayTimes, myHabits, openings, schedulesFor, shortDay, slotStatus } from '../../lib/myClasses'
 import { useBookingData } from '../../lib/useBookingData'
+import { courseCards, cardOf, preferredMember, slotOwners } from '../../lib/courseGroups'
 import b from './booking.module.css'
 
 const DOW = ['일', '월', '화', '수', '목', '금', '토']
@@ -45,16 +46,24 @@ export default function BookingPanel({ user, initialDate, startMine = false, onC
   }, [])
 
   const coursesOn = ds => ctx ? sortCoursesByCategory(listOn(ctx, ds)) : []
-  const slotState = s => slotStatus(ctx, course, s, date)
 
   const list = coursesOn(date)
   const cats = [...new Set(list.map(c => c.category))]
   const curCat = cats.includes(cat) ? cat : cats[0] || null
   const catCourses = list.filter(c => c.category === curCat)
-  const course = catCourses.find(c => c.id === courseId) || catCourses[0] || null
-  const slots = course ? schedulesFor(course, date) : []
+  // 「유화」·「드로잉」 묶음 카드 — 시간은 구성원 수업을 합쳐 보이고, 고른 시간의 주인 수업으로 예약한다
+  const cards = courseCards(catCourses)
+  const course = catCourses.find(c => c.id === courseId) || preferredMember(cards[0], ctx?.mine) || null
+  const card = cardOf(cards, course)
+  const slotList = card ? slotOwners(card, {
+    schedulesOf: m => schedulesFor(m, date),
+    bookedFn: (m, s) => slotStatus(ctx, m, s, date).kind === 'mine',
+    currentId: course?.id,
+    preferredId: preferredMember(card, ctx?.mine)?.id,
+  }) : []
 
-  const slot = slots.find(s => s.id === slotId && slotState(s).kind === 'open') || null
+  const slotHit = slotList.find(x => x.s.id === slotId && slotStatus(ctx, x.course, x.s, date).kind === 'open') || null
+  const slot = slotHit?.s || null
   const validTicket = hasValidTicket(ticket, todayStr)
   const mineCards = useMemo(() => !ctx ? [] : myHabits(ctx, todayStr).map(h => ({ habit: h, items: openings(ctx, h, todayStr) })), [ctx, todayStr])
   const showMine = startMine && !browse && mineCards.length > 0
@@ -67,7 +76,7 @@ export default function BookingPanel({ user, initialDate, startMine = false, onC
     const first = o.status.kind === 'open' ? o.schedule : dayTimes(ctx, o.course, o.ds).find(x => x.st.kind === 'open')?.s
     setMinePick(same ? null : { courseId: o.course.id, ds: o.ds, scheduleId: first?.id ?? null }); setNote(null)
   }
-  const target = showMine ? pickedMine : (slot && course ? { course, schedule: slot, ds: date } : null)
+  const target = showMine ? pickedMine : (slotHit ? { course: slotHit.course, schedule: slotHit.s, ds: date } : null)
 
   function pickDate(ds) { setDate(ds); setCat(null); setCourseId(null); setSlotId(null); setNote(null) }
   function pickCat(c) { setCat(c); setCourseId(null); setSlotId(null); setNote(null) }
@@ -232,29 +241,29 @@ export default function BookingPanel({ user, initialDate, startMine = false, onC
               {course && <a className={b.link} href={`/student/curriculum?course=${encodeURIComponent(course.name)}`}>이 수업 커리큘럼 보기</a>}
             </div>
             <div className={b.courses}>
-              {catCourses.map(c => {
-                const on = course?.id === c.id
+              {cards.map(k => {
+                const on = card?.key === k.key, c = k.members[0]
                 return (
-                  <button key={c.id} className={b.course} aria-pressed={on} onClick={() => { setCourseId(c.id); setSlotId(null); setNote(null) }}
+                  <button key={k.key} className={b.course} aria-pressed={on} onClick={() => { if (!on) setCourseId(preferredMember(k, ctx?.mine)?.id); setSlotId(null); setNote(null) }}
                     style={on ? { background: `linear-gradient(160deg, #fff, ${st.soft})`, outline: `2px solid ${st.ink}` } : null}>
                     <span className={b.place} style={{ color: st.ink }}>{st.name}</span>
-                    <span className={b.courseName}>{c.name}</span>
-                    {c.teacher && <span className={b.muted}>강사 {c.teacher}</span>}
+                    <span className={b.courseName}>{k.name}</span>
+                    {k.single && c.teacher && <span className={b.muted}>강사 {c.teacher}</span>}
                   </button>
                 )
               })}
             </div>
 
             <div className={b.label}>시간</div>
-            {slots.length === 0 ? <div className={b.muted}>이 날 수업 시간이 없어요</div> : (
+            {slotList.length === 0 ? <div className={b.muted}>이 날 수업 시간이 없어요</div> : (
               <div className={b.slots}>
-                {slots.map(s => {
-                  const ss = slotState(s), on = slot?.id === s.id
+                {slotList.map(({ course: sc, s }) => {
+                  const ss = slotStatus(ctx, sc, s, date), on = slot?.id === s.id
                   const clickable = ss.kind === 'open' || ss.kind === 'mine'
                   return (
                     <button key={s.id} className={`${b.slot} ${clickable ? '' : b.slotOff}`} disabled={!clickable || busy}
                       aria-pressed={on} style={on ? { outline: '2px solid #2b2433', background: 'rgba(255,255,255,0.85)' } : null}
-                      onClick={() => ss.kind === 'mine' ? cancel(ss.booking) : setSlotId(s.id)}>
+                      onClick={() => { if (ss.kind === 'mine') { cancel(ss.booking); return } setCourseId(sc.id); setSlotId(s.id) }}>
                       <span className={b.part} style={{ background: clickable ? st.tint : 'rgba(43,36,51,0.08)', color: clickable ? st.ink : undefined }}>{part(s.start_time)}</span>
                       <span className={b.time}>{s.start_time} ~ {s.end_time}</span>
                       <span className={b.state} style={{ color: ss.kind === 'mine' ? st.ink : ss.kind === 'open' ? (ss.left === 1 ? '#a2531c' : '#2f7a52') : undefined }}>
@@ -288,7 +297,7 @@ export default function BookingPanel({ user, initialDate, startMine = false, onC
           </button>
         ) : course && curCat !== 'free' && curCat !== 'oneday' && curCat !== 'meeting' && (
           <button className={b.cta} disabled={!slot || busy} onClick={book}>
-            {busy ? '예약 처리 중…' : !slot ? '시간을 골라 주세요' : validTicket ? `${course.name} ${slot.start_time}~${slot.end_time} 예약하기` : '예약 요청하기 (수강권 확인 필요)'}
+            {busy ? '예약 처리 중…' : !slot ? '시간을 골라 주세요' : validTicket ? `${slotHit.course.name} ${slot.start_time}~${slot.end_time} 예약하기` : '예약 요청하기 (수강권 확인 필요)'}
           </button>
         )}
       </div>
