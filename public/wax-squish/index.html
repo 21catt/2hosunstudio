@@ -15,7 +15,13 @@
      · three.js = /vendor/three-0.178(앱 안 사본) -->
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; font-family: -apple-system, "Apple SD Gothic Neo", "IBM Plex Sans KR", sans-serif; }
-  body { background: radial-gradient(110% 80% at 50% 35%, #3d3749 0%, #332e3f 60%, #2b2735 100%); } /* 자료 사진의 짙은 자두빛 */
+  /* 너무 어둡지 않은 부드러운 파스텔 틴트가 섞인 바탕(라벤더 · 복숭아 · 민트 · 분홍) — 흰 조각이 보이게 중간 밝기 */
+  body { background:
+    radial-gradient(60% 55% at 18% 22%, rgba(246,214,200,0.85) 0%, rgba(246,214,200,0) 70%),
+    radial-gradient(55% 50% at 85% 18%, rgba(205,226,240,0.85) 0%, rgba(205,226,240,0) 70%),
+    radial-gradient(60% 55% at 80% 85%, rgba(208,232,218,0.85) 0%, rgba(208,232,218,0) 70%),
+    radial-gradient(60% 55% at 15% 88%, rgba(240,208,226,0.85) 0%, rgba(240,208,226,0) 70%),
+    #cdc5df; }
   canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none; }
   canvas.grabbing { cursor: grabbing; }
   .hud { position: fixed; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top) + 186px); display: none; align-items: center; gap: 8px;
@@ -28,8 +34,8 @@
     padding: 8px 14px; border-radius: 999px; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .2s; }
   body:not(.embed) .toast { top: 14px; }
   .toast.on { opacity: 1; }
-  .hint { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom) + 40px); color: #f3ead2; font-size: 15px; font-weight: 800;
-    letter-spacing: -0.2px; white-space: nowrap; pointer-events: none; text-shadow: 0 2px 10px rgba(0,0,0,0.35); transition: opacity .5s; animation: hintBob 2.4s ease-in-out infinite; }
+  .hint { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom) + 40px); color: #4a3f5c; font-size: 15px; font-weight: 800;
+    letter-spacing: -0.2px; white-space: nowrap; pointer-events: none; text-shadow: 0 1px 8px rgba(255,255,255,0.85); transition: opacity .5s; animation: hintBob 2.4s ease-in-out infinite; }
   body.embed .hint { bottom: calc(env(safe-area-inset-bottom) + 132px); }
   .hint.off { opacity: 0; }
   @keyframes hintBob { 0%, 100% { translate: 0 0 } 50% { translate: 0 -4px } }
@@ -54,7 +60,8 @@ const $ = id => document.getElementById(id)
 
 // ───────── 설정 읽기 ─────────
 const WAX = {
-  clear: ['#f4f2f8', 0.2], milk: ['#fff6e8', 0.9], butter: ['#f6d877', 0.86], pink: ['#f5a6c3', 0.86], sky: ['#a3d1f2', 0.86],
+  // clear = 우유빛 반투명 왁스(겹칠수록 크림빛 — 깨진 자리로 노란 속이 비친다)
+  clear: ['#fffaf2', 0.5], milk: ['#fff6e8', 0.9], butter: ['#f6d877', 0.86], pink: ['#f5a6c3', 0.86], sky: ['#a3d1f2', 0.86],
   mint: ['#a6e2c4', 0.86], lavender: ['#c7b4f1', 0.86], peach: ['#f8bc98', 0.86], cocoa: ['#b4896b', 0.9],
 }
 function readCfg() {
@@ -141,7 +148,7 @@ const rim = new THREE.DirectionalLight(0xcfe0ff, 0.9); rim.position.set(3, 1.5, 
 
 // 바닥 그림자(부드러운 원)
 const shTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d')
-  const r = g.createRadialGradient(64, 64, 4, 64, 64, 62); r.addColorStop(0, 'rgba(15,10,22,0.55)'); r.addColorStop(1, 'rgba(15,10,22,0)'); g.fillStyle = r; g.fillRect(0, 0, 128, 128)
+  const r = g.createRadialGradient(64, 64, 4, 64, 64, 62); r.addColorStop(0, 'rgba(70,55,95,0.38)'); r.addColorStop(1, 'rgba(70,55,95,0)'); g.fillStyle = r; g.fillRect(0, 0, 128, 128)
   return new THREE.CanvasTexture(c) })()
 const shadow = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 1.1), new THREE.MeshBasicMaterial({ map: shTex, transparent: true, depthWrite: false }))
 shadow.rotation.x = -Math.PI / 2
@@ -261,7 +268,7 @@ function bearCanvas() {
   g.restore()
   return c
 }
-const BEAR_CREAM = '#efd99c'
+const BEAR_CREAM = '#f7d65f' // 속 = 선명한 버터 노랑(왁스가 벗겨지면 반짝)
 
 // 텍스처 + 실루엣 만들기
 async function buildArt() {
@@ -319,12 +326,46 @@ function smoothNormals(g) {
   }
   g.setAttribute('normal', new THREE.BufferAttribute(out, 3))
 }
+// 큰 삼각형 쪼개기 — 판의 앞·뒷면은 몇 개의 큰 삼각형이라(earcut) 휘면 각지고, 조각이 커다란 세모로 떨어진다.
+// 가장 긴 변의 가운데로 나눠 모든 변이 maxEdge 아래가 되게(위치·그늘 방향·uv 함께, 재질 묶음 유지)
+function tessellate(geo, maxEdge) {
+  const g = geo.index ? geo.toNonIndexed() : geo
+  const P = g.attributes.position.array, Nn = g.attributes.normal.array, UV = g.attributes.uv?.array
+  const groups = g.groups.length ? g.groups : [{ start: 0, count: P.length / 3, materialIndex: 0 }]
+  const oP = [], oN = [], oU = [], oG = []
+  const m2 = maxEdge * maxEdge
+  for (const gr of groups) {
+    const startV = oP.length / 3
+    const stack = []
+    for (let t = gr.start; t < gr.start + gr.count; t += 3) {
+      const v = k => ({ p: [P[k * 3], P[k * 3 + 1], P[k * 3 + 2]], n: [Nn[k * 3], Nn[k * 3 + 1], Nn[k * 3 + 2]], u: UV ? [UV[k * 2], UV[k * 2 + 1]] : null })
+      stack.push([v(t), v(t + 1), v(t + 2)])
+      while (stack.length) {
+        const tri = stack.pop()
+        const d = i => { const a = tri[i].p, b = tri[(i + 1) % 3].p; return (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2 }
+        const e = [d(0), d(1), d(2)], i = e[0] >= e[1] && e[0] >= e[2] ? 0 : e[1] >= e[2] ? 1 : 2
+        if (e[i] <= m2) { for (const q of tri) { oP.push(...q.p); oN.push(...q.n); if (UV) oU.push(...q.u) } continue }
+        const a = tri[i], b = tri[(i + 1) % 3], c = tri[(i + 2) % 3]
+        const mid = { p: a.p.map((x, k) => (x + b.p[k]) / 2), n: a.n.map((x, k) => (x + b.n[k]) / 2), u: UV ? a.u.map((x, k) => (x + b.u[k]) / 2) : null }
+        const l = Math.hypot(...mid.n) || 1; mid.n = mid.n.map(x => x / l)
+        stack.push([a, mid, c], [mid, b, c])
+      }
+    }
+    oG.push({ start: startV, count: oP.length / 3 - startV, materialIndex: gr.materialIndex })
+  }
+  const out = new THREE.BufferGeometry()
+  out.setAttribute('position', new THREE.Float32BufferAttribute(oP, 3))
+  out.setAttribute('normal', new THREE.Float32BufferAttribute(oN, 3))
+  if (UV) out.setAttribute('uv', new THREE.Float32BufferAttribute(oU, 2))
+  for (const gr of oG) out.addGroup(gr.start, gr.count, gr.materialIndex)
+  return out
+}
 function extrude(shapes, grow) {
   // 자료(왁뿌 사진) = 두께 있는 판, 위·아래 면은 평평하고 모서리만 살짝 둥글다 — 풍선처럼 부풀리지 않는다
   const g = new THREE.ExtrudeGeometry(shapes, { depth: 0.46, bevelEnabled: true, bevelThickness: 0.1 + grow, bevelSize: 0.08 + grow, bevelSegments: 4, curveSegments: 2, UVGenerator: UVGEN })
   g.translate(0, 0, -0.23)
   smoothNormals(g)
-  return g
+  return tessellate(g, 0.11)
 }
 
 // 왁스 겹을 조각으로 나눈다(보로노이 — 표면 위 씨앗)
@@ -337,7 +378,7 @@ function clusterize(geo, count, seed) {
   const seeds = []
   for (let tries = 0; seeds.length < count && tries < count * 60; tries++) {
     const c = cen(Math.floor(rnd() * triN))
-    if (seeds.every(q => Math.hypot(q[0] - c[0], q[1] - c[1], (q[2] - c[2]) * 2.4) > 0.24)) seeds.push(c)
+    if (seeds.every(q => Math.hypot(q[0] - c[0], q[1] - c[1], (q[2] - c[2]) * 2.4) > 0.3)) seeds.push(c)
   }
   const owner = new Int32Array(triN)
   for (let i = 0; i < triN; i++) { const c = cen(i); let b = 0, bd = Infinity; seeds.forEach((q, k) => { const d = (q[0] - c[0]) ** 2 + (q[1] - c[1]) ** 2 + ((q[2] - c[2]) * 2.4) ** 2; if (d < bd) { bd = d; b = k } }); owner[i] = b }
@@ -387,15 +428,15 @@ async function build() {
   const map = new THREE.CanvasTexture(tex); map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 4
   const shapes = shapesFrom(loops)
   const coreGeo = extrude(shapes, 0)
-  const faceMat = deformable(new THREE.MeshStandardMaterial({ map, roughness: 0.55 }))
-  const sideMat = deformable(new THREE.MeshStandardMaterial({ color: fill, roughness: 0.6 }))
+  const faceMat = deformable(new THREE.MeshStandardMaterial({ map, roughness: 0.32 }))
+  const sideMat = deformable(new THREE.MeshStandardMaterial({ color: fill, roughness: 0.36 }))
   const core = new THREE.Mesh(coreGeo, [faceMat, sideMat])
   body.add(core)
   coreGeo.computeBoundingBox()
   const bb = coreGeo.boundingBox
   const layers = []
   const GROW = [0.075, 0.05, 0.025] // 얇은 투명 껍질(자료처럼) // 1단계(바깥) … 3단계(안쪽)
-  const COUNT = [72, 60, 48] // 작은 조각 여러 개 — 왁스는 잘게 부서진다
+  const COUNT = [46, 38, 30] // 손바닥 반만 한 판 조각 — 납작한 왁스 판으로 떨어진다
   for (let i = 0; i < 3; i++) {
     const geo = extrude(shapes, GROW[i])
     const clusters = clusterize(geo, COUNT[i], 777 + i * 131)
@@ -445,6 +486,7 @@ function report() {
 function restore() {
   if (!built) return
   spread.length = 0
+  for (const f of frags) { scene.remove(f.mesh); if (f.mat) { f.mesh.geometry.dispose(); f.mat.dispose() } } frags.length = 0 // 바닥 조각도 치운다
   for (const L of built.layers) for (const c of L.clusters) { c.alive = true; c.cracked = false; c.dmg = 0; c.mesh.visible = true; c.line.visible = false }
   coatT = 0.0001; SFX.coat(); buzz(20); report()
   $('hint').classList.remove('off')
@@ -453,6 +495,7 @@ function restore() {
 // ───────── 조각 날리기 ─────────
 const frags = []
 const crumbGeo = new THREE.TetrahedronGeometry(0.024) // 흰 가루
+let floorPile = 0
 const crumbMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.5 })
 function breakCluster(L, c, power = 1) {
   if (!c.alive) return
@@ -466,7 +509,7 @@ function breakCluster(L, c, power = 1) {
   for (let i = 0; i < P.length; i += 3) { P[i] -= cx; P[i + 1] -= cy; P[i + 2] -= cz }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(P, 3)); g.computeVertexNormals()
   // 떨어진 조각 = 자료처럼 하얀 왁스 파편(겹 색을 조금 섞은 흰색)
-  const mat = new THREE.MeshPhysicalMaterial({ color: new THREE.Color('#ffffff').lerp(L.mat.color, 0.2), roughness: 0.4, clearcoat: 0.8, sheen: 0.6, transparent: true, opacity: 0.93, side: THREE.DoubleSide, depthWrite: false })
+  const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color('#ffffff').lerp(L.mat.color, cfg.colors[L.i] === 'clear' ? 0 : 0.35), roughness: 0.75, transparent: true, opacity: 0.94, side: THREE.DoubleSide })
   const mesh = new THREE.Mesh(g, mat)
   const wp = new THREE.Vector3(cx, cy, cz); body.localToWorld(wp)
   mesh.position.copy(wp); mesh.quaternion.copy(body.getWorldQuaternion(new THREE.Quaternion())); mesh.renderOrder = 20
@@ -478,10 +521,10 @@ function breakCluster(L, c, power = 1) {
   const out = nrm.clone()
   frags.push({ mesh, peel: (0.2 - Q * 0.12) * (0.7 + Math.random() * 0.6), out, flake: true,
     v: nrm.multiplyScalar(sp * 0.42).add(new THREE.Vector3((Math.random() - 0.5) * 0.6, 0.4 + Math.random() * 0.9, (Math.random() - 0.5) * 0.6)),
-    w: new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(4 + Q * 6), life: 2.6, mat })
+    w: new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(4 + Q * 6), life: Infinity, nLocal: new THREE.Vector3(...c.n), mat })
   for (let j = 0; j < Math.round((2 + power * 4) * (0.4 + Q * 1.8)); j++) {
     const cm = new THREE.Mesh(crumbGeo, crumbMat); cm.position.copy(wp); cm.scale.setScalar(0.4 + Math.random() * 0.8); cm.renderOrder = 20; scene.add(cm)
-    frags.push({ mesh: cm, v: new THREE.Vector3((Math.random() - 0.5) * 3, 1 + Math.random() * 2.5, (Math.random() - 0.5) * 3 + 1).multiplyScalar(0.3 + Q * 0.7), w: new THREE.Vector3(5, 7, 3), life: 1.4, mat: null })
+    frags.push({ dust: true, mesh: cm, v: new THREE.Vector3((Math.random() - 0.5) * 3, 1 + Math.random() * 2.5, (Math.random() - 0.5) * 3 + 1).multiplyScalar(0.3 + Q * 0.7), w: new THREE.Vector3(5, 7, 3), life: 1.4, mat: null })
   }
   shake = Math.min(0.02 + 0.08 * Q, shake + 0.025 * power * (0.3 + Q * 1.4))
   squashKick += 0.04 * power * (0.4 + Q * 1.2)
@@ -501,7 +544,7 @@ function crackCluster(L, c) {
   if (c.cracked || !c.alive) return
   c.cracked = true; c.line.visible = true
   SFX.tick(1 - L.i / 2); buzz(6)
-  const Q = PW(), reach = 0.3 + Q * 0.18
+  const Q = PW(), reach = 0.36 + Q * 0.2
   for (const k of L.clusters) if (k !== c && k.alive && !k.cracked && Math.hypot(k.c[0] - c.c[0], k.c[1] - c.c[1], k.c[2] - c.c[2]) < reach)
     spread.push({ at: performance.now() + 40 + Math.random() * 70, L, k, add: 0.1 + Q * 0.25 })
 }
@@ -587,16 +630,16 @@ canvas.addEventListener('pointermove', e => {
     const d = Math.hypot(a.x - b.x, a.y - b.y), an = Math.atan2(b.y - a.y, b.x - a.x)
     tgt.squash = Math.max(0, Math.min(0.32, grab.sq0 + (grab.d0 - d) / S * 0.9))
     let da = an - grab.a0; while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI
-    tgt.twist = Math.max(-1.4, Math.min(1.4, grab.tw0 + da * 1.6))
+    tgt.twist = Math.max(-2.2, Math.min(2.2, grab.tw0 + da * 1.8))
     return
   }
   if (grab && !grab.two) {
     const dx = (e.clientX - grab.x0) / S, dy = (e.clientY - grab.y0) / S
     grab.moved = Math.max(grab.moved, Math.hypot(e.clientX - grab.x0, e.clientY - grab.y0))
     // 손 쪽으로 끌면 구부러진다 · 가장자리를 위아래로 = 비틀기
-    tgt.bend = Math.max(-1.25, Math.min(1.25, grab.b0 + dx * 3.0))
-    if (grab.edge) tgt.twist = Math.max(-1.4, Math.min(1.4, grab.tw0 - dy * 3.2 * Math.sign(grab.side)))
-    else tgt.bendV = Math.max(-1.25, Math.min(1.25, grab.bv0 + dy * 3.0))
+    tgt.bend = Math.max(-2, Math.min(2, grab.b0 + dx * 3.6)) // 반죽처럼 크게 휜다
+    if (grab.edge) tgt.twist = Math.max(-2.2, Math.min(2.2, grab.tw0 - dy * 3.8 * Math.sign(grab.side)))
+    else tgt.bendV = Math.max(-2, Math.min(2, grab.bv0 + dy * 3.6))
     return
   }
   if (orbit) { yaw = orbit.yaw + (e.clientX - orbit.x) / S * 4; pitch = Math.max(-0.6, Math.min(0.7, orbit.pitch + (e.clientY - orbit.y) / S * 2.5)) }
@@ -651,7 +694,7 @@ function step(now) {
   for (const k of ['bend', 'bendV', 'twist', 'squash']) {
     const uk = 'u' + k[0].toUpperCase() + k.slice(1)
     const cur = U[uk].value
-    const stiff = grab ? 70 : 140, damp = grab ? 14 : 7.5
+    const stiff = grab ? 60 : 55, damp = grab ? 13 : 9 // 놓으면 천천히 말랑하게 돌아온다
     vel[k] += ((tgt[k] - cur) * stiff - vel[k] * damp) * dt
     U[uk].value = cur + vel[k] * dt
   }
@@ -699,7 +742,8 @@ function step(now) {
       }
     })
   }
-  // 날아가는 조각
+  // 날아가는 조각 · 바닥에 쌓인 판(너무 많으면 오래된 것부터 치운다)
+  while (frags.filter(f => f.flake).length > 180) { const k = frags.findIndex(f => f.flake); const f = frags[k]; scene.remove(f.mesh); f.mesh.geometry.dispose(); f.mat.dispose(); frags.splice(k, 1) }
   for (let i = frags.length - 1; i >= 0; i--) {
     const f = frags[i]
     if (f.peel > 0) { // 떼어지는 중 — 표면에서 살짝 들린다
@@ -710,9 +754,20 @@ function step(now) {
       if (f.flake) f.v.multiplyScalar(Math.pow(0.55, dt)) // 얇은 판은 공기에 팔랑
       f.mesh.position.addScaledVector(f.v, dt)
       f.mesh.rotation.x += f.w.x * dt; f.mesh.rotation.y += f.w.y * dt; f.mesh.rotation.z += f.w.z * dt
-      if (f.mesh.position.y < FLOOR + 0.03 && f.v.y < 0) { f.mesh.position.y = FLOOR + 0.03; f.v.y *= -0.25; f.v.x *= 0.5; f.v.z *= 0.5; f.w.multiplyScalar(0.3) }
+      if (f.landed) { // 바닥에 닿은 판 = 납작하게 눕고 미끄러지다 멈춘다(쌓여 남는다)
+        f.st = Math.min(1, f.st + dt * 5); f.mesh.quaternion.slerpQuaternions(f.qFrom, f.qTo, f.st)
+        f.v.set(f.v.x * Math.pow(0.02, dt), 0, f.v.z * Math.pow(0.02, dt)); f.mesh.position.y = f.restY
+      } else if (f.mesh.position.y < FLOOR + 0.03 && f.v.y < 0) {
+        if (f.flake && f.v.y > -1.2) {
+          const wn = f.nLocal.clone().applyQuaternion(f.mesh.quaternion), up = new THREE.Vector3(0, wn.y >= 0 ? 1 : -1, 0)
+          f.qFrom = f.mesh.quaternion.clone(); f.qTo = new THREE.Quaternion().setFromUnitVectors(wn, up).multiply(f.mesh.quaternion); f.st = 0
+          f.landed = true; f.w.set(0, 0, 0); f.restY = FLOOR + 0.02 + (floorPile++ % 40) * 0.0012 // 겹겹이
+        } else { f.mesh.position.y = FLOOR + 0.03; f.v.y *= -0.3; f.v.x *= 0.6; f.v.z *= 0.6; f.w.multiplyScalar(0.4) }
+      }
     }
     f.life -= dt
+    if (f.dust && f.mesh.position.y <= FLOOR + 0.035) f.life = Math.min(f.life, 0.0) // 가루는 닿으면 사라짐
+    if (f.mat && f.life === Infinity) continue
     if (f.mat) f.mat.opacity = Math.max(0, Math.min(f.mat.userData.o ?? (f.mat.userData.o = f.mat.opacity), f.life * 1.5))
     if (f.life <= 0) { scene.remove(f.mesh); if (f.mat) { f.mesh.geometry.dispose(); f.mat.dispose() } frags.splice(i, 1) }
   }

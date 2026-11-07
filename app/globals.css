@@ -869,7 +869,7 @@ html[data-skin='castle'] .castle-bg {
   html[data-skin='castle'] .castle-bg { background-size: 780px auto; background-position: center -330px; }
 }
 /* 시트러스 젤리 배경 — 조각이 머리 아래로 보이게 더 올린다 */
-html[data-skin='castle'][data-scene='wax'] .castle-bg { background: radial-gradient(110% 80% at 50% 35%, #3d3749 0%, #332e3f 60%, #2b2735 100%); }
+html[data-skin='castle'][data-scene='wax'] .castle-bg { background: radial-gradient(60% 55% at 18% 22%, rgba(246,214,200,0.85), rgba(246,214,200,0) 70%), radial-gradient(55% 50% at 85% 18%, rgba(205,226,240,0.85), rgba(205,226,240,0) 70%), radial-gradient(60% 55% at 80% 85%, rgba(208,232,218,0.85), rgba(208,232,218,0) 70%), radial-gradient(60% 55% at 15% 88%, rgba(240,208,226,0.85), rgba(240,208,226,0) 70%), #cdc5df; }
 html[data-skin='castle'][data-scene='studio'] .castle-bg { background: #e4dfd2 url('/castle-bg/studio.jpg') no-repeat center top / cover; }
 html[data-skin='castle'][data-scene='citrus'] .castle-bg { background: #d6d3cd url('/castle-bg/citrus.jpg') no-repeat center -238px / 100% auto; }
 @media (min-width: 600px) {

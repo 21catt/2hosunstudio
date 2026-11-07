@@ -362,8 +362,7 @@ export default function CastlePage() {
         </div>
       )}
 
-      {/* 어두운 배경(왁뿌)에서는 제목·안내 글씨를 밝게 */}
-      <div className={`${s.mast} ${scene.key === 'wax' ? s.onDark : ''}`}>
+      <div className={s.mast}>
         <div className={s.mastTitle}>2HOSUN<br />STUDIO</div>
         <div className={s.mastSub}>Castle Jelly · 2호선 스튜디오 화실</div>
       </div>
@@ -613,7 +612,7 @@ export default function CastlePage() {
         ))}
       </nav>
 
-      <div className={`${s.howto} ${scene.key === 'wax' ? s.onDark : ''}`}><b>How to play</b> — {scene.key === 'studio'
+      <div className={s.howto}><b>How to play</b> — {scene.key === 'studio'
         ? '고양이를 누르면 쓰다듬기·야옹 · 두 손가락으로 확대 · 장난감을 고르면 끌어서 감자랑 놀기 · 화면을 끌어 스튜디오 돌려 보기 · 장면 패널에서 냥냥이 약 먹이기, 내 그림 벽 꾸미기'
         : scene.key === 'wax'
         ? '왁뿌를 잡고 비틀어 부숴 보세요 — 가장자리를 잡고 위아래 = 비틀기 · 좌우로 끌기 = 구부리기 · 두 손가락 꾹 · 톡 = 금 → 한 번 더 = 파삭 · 빈 곳을 끌어 돌려 보기 · 장면 패널에서 얼굴·그리기·왁스 색·부서지는 세기'
