@@ -123,3 +123,27 @@
   .toast, .sheet { animation: none; }
   .bar i { transition: none; }
 }
+
+/* 그리기 단계 */
+.drawing .cv { cursor: crosshair; }
+.drawFrame {
+  position: absolute; left: 50%; top: 50%; height: 50%; aspect-ratio: 1; transform: translate(-50%, -50%);
+  border: 2px dashed rgba(127,107,214,0.45); border-radius: 18px; pointer-events: none;
+}
+.drawTile { flex-direction: column; gap: 2px; font-family: inherit; color: #2b2433; }
+.drawTile span { font-size: 24px; }
+.drawTile small { font-size: 10.5px; font-weight: 800; }
+.pens { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 10px; }
+.pen {
+  height: 44px; border-radius: 14px; border: 1.5px solid #ece8f1; background: var(--pc); cursor: pointer;
+  box-shadow: inset 0 0 0 3px #fff;
+}
+.penOn { border: 2.5px solid #2b2433; }
+.tools { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px; }
+.tool {
+  min-height: 44px; border-radius: 14px; border: 1.5px solid #ece8f1; background: #fff; font-size: 12px; font-weight: 800;
+  color: #2b2433; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; font-family: inherit;
+}
+.tool i { border-radius: 50%; background: #2b2433; display: inline-block; }
+.toolOn { border-color: #2b2433; box-shadow: 0 0 0 1px #2b2433 inset; }
+.ghost:disabled { opacity: 0.4; cursor: default; }
