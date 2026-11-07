@@ -8,7 +8,7 @@
      · 잡고 좌우로 끌기 = 구부리기 · 가장자리를 잡고 위아래 = 비틀기 · 두 손가락 = 꾹 누르기·비틀기 · 톡 = 그 자리 금/파삭 · 빈 곳 끌기 = 돌려 보기
      · 바깥 겹부터 차례로(1단계 → 3단계). 부순 정도는 부모 화면에 알린다(postMessage {wax:'progress'})
      · 모양 = 실루엣을 둥글게 부풀린 말랑이(참고 그림 = 부푼 곰 얼굴 — 원은 반구, 귀는 작은 공)
-     · 설정(고양이·그린 그림·왁스 색·부서지는 세기)은 같은 출처 localStorage 에서 읽는다(2hs_wax_cat · 2hs_wax_art_<고양이> · 2hs_wax_colors · 2hs_wax_power)
+     · 설정(고양이·그린 그림·왁스 색)은 같은 출처 localStorage 에서 읽는다(2hs_wax_cat · 2hs_wax_art_<고양이> · 2hs_wax_colors) · 부서지는 세기는 고정(WAX_POWER)
        — 3D 홈 「장면」 패널(components/wax/WaxScenePanel)이 바꾸고 postMessage 로 알린다
      · ?embed=1 = 3D 홈 배경으로 얹힐 때(늘 부수기 단계 · 작은 % 단추만)
      · 소리 = Web Audio 그 자리 합성(소리 파일 없음) · 진동 = navigator.vibrate(있는 기기만)
@@ -73,7 +73,6 @@ function readCfg() {
       if ((localStorage.getItem('2hs_wax_cat') || '09-cat') === '09-cat') localStorage.setItem('2hs_wax_cat', 'bear')
       const oc = localStorage.getItem('2hs_wax_colors'); if (!oc || oc === '["sky","pink","butter"]') localStorage.setItem('2hs_wax_colors', '["clear","clear","clear"]')
     }
-    const pw = parseFloat(localStorage.getItem('2hs_wax_power')); if (Number.isFinite(pw)) power = Math.max(0, Math.min(1, pw))
     cat = localStorage.getItem('2hs_wax_cat') || cat
     const c = JSON.parse(localStorage.getItem('2hs_wax_colors') || 'null')
     if (Array.isArray(c) && c.length === 3 && c.every(k => WAX[k])) colors = c
@@ -81,8 +80,9 @@ function readCfg() {
   } catch {}
   return { cat, colors, art, power }
 }
-// 부서지는 세기(0 = 살살 … 1 = 와장창) — 금이 가는 문턱·쌓이는 빠르기·조각이 튀는 힘·소리·흔들림이 함께 바뀐다
-const PW = () => cfg.power
+// 부서지는 세기 = 고정(2026-11-07 사용자 결정 — 참고 영상처럼: 휘면 금이 번지다 판 조각으로 툭툭 떨어지는 정도). 조절 UI 없음
+const WAX_POWER = 0.55
+const PW = () => WAX_POWER
 let cfg = readCfg()
 let phase = EMBED ? 'crush' : 'pick' // pick · coat · crush
 
@@ -661,7 +661,6 @@ addEventListener('message', e => {
   if (d.wax === 'config') { const prev = cfg; cfg = readCfg(); if (prev.cat !== cfg.cat || prev.art !== cfg.art) build(); else { recolor() } }
   else if (d.wax === 'colors') { cfg = readCfg(); recolor() }
   else if (d.wax === 'phase') { const was = phase; phase = d.phase; if (phase === 'pick') coatT = 0; else if (was === 'pick' || was === 'draw') { coatT = 0.0001; SFX.coat() } }
-  else if (d.wax === 'power') { cfg.power = Math.max(0, Math.min(1, +d.v || 0)) }
   else if (d.wax === 'reset' || d.cmd === 'reset') restore()
 })
 addEventListener('storage', e => { if (e.key && e.key.startsWith('2hs_wax_')) { const prev = cfg; cfg = readCfg(); if (prev.cat !== cfg.cat || prev.art !== cfg.art) build(); else recolor() } })

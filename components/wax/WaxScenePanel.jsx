@@ -1,7 +1,7 @@
 'use client'
 // 3D 홈 「장면」 패널의 왁뿌 설정 — 해변·우리 스튜디오처럼 홈 화면 안에서 전부(2026-11-07 사용자 지시 — 따로 화면·메인 고르기 없음).
-//   · 얼굴(고양이 · 직접 그리기) · 그리기(홈 위 시트) · 왁스 3겹 색 · 부서지는 세기 · 원래대로 · 부순 정도
-//   · 설정은 같은 출처 localStorage(2hs_wax_cat · 2hs_wax_art_<고양이> · 2hs_wax_colors · 2hs_wax_power) — 바뀌면 장면(iframe)에 알린다
+//   · 얼굴(고양이 · 직접 그리기) · 그리기(홈 위 시트) · 왁스 3겹 색 · 원래대로 · 부순 정도 (부서지는 세기 = 장면에 고정, 조절 없음)
+//   · 설정은 같은 출처 localStorage(2hs_wax_cat · 2hs_wax_art_<고양이> · 2hs_wax_colors ) — 바뀌면 장면(iframe)에 알린다
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { pixelCatImg, PROFILE_CAT_KEY } from '../../lib/pixelCats'
 import { scribble, unlockWaxSound } from '../../lib/waxSound'
@@ -12,7 +12,7 @@ export const WAX_COLORS = [
   { key: 'lavender', name: '라벤더', c: '#c7b4f1' }, { key: 'peach', name: '복숭아', c: '#f8bc98' }, { key: 'cocoa', name: '코코아', c: '#b4896b' },
 ]
 const DEFAULT_WAX = ['clear', 'clear', 'clear'] // 1단계(바깥) · 2단계 · 3단계(안쪽) — 자료처럼 투명 왁스
-const CAT_KEY = '2hs_wax_cat', COLOR_KEY = '2hs_wax_colors', ART_KEY = '2hs_wax_art_', POWER_KEY = '2hs_wax_power'
+const CAT_KEY = '2hs_wax_cat', COLOR_KEY = '2hs_wax_colors', ART_KEY = '2hs_wax_art_'
 const BEAR = 'bear' // 왁뿌 곰 = 자료 사진의 크림색 곰 판(기본)
 const BASE_CATS = [BEAR, '09-cat', '01-happy', '07-laugh']
 // 곰 얼굴 그림(그리기 시트 바탕·고르기 칸) — 장면(public/wax-squish bearCanvas)과 같은 모양
@@ -22,7 +22,6 @@ const DRAW = 'draw'
 const ART = 512
 const PENS = ['#2b2433', '#ffffff', '#e8434f', '#f59a2b', '#f6d24a', '#4cb86e', '#3f7fe0', '#f58ab8', '#8a5cd6', '#8b5a3c']
 const SIZES = [['가늘게', 10], ['보통', 22], ['굵게', 44]]
-export const DEFAULT_POWER = 0.5
 
 function loadColors() {
   try {
@@ -31,19 +30,17 @@ function loadColors() {
   } catch {}
   return [...DEFAULT_WAX]
 }
-const powerWord = p => p < 0.2 ? '살살' : p < 0.45 ? '사각' : p < 0.7 ? '파삭' : p < 0.9 ? '와삭' : '와장창'
 
 export default function WaxScenePanel({ s, send }) {
   const [cats, setCats] = useState(BASE_CATS)
   const [cat, setCat] = useState(null)
   const [colors, setColors] = useState(DEFAULT_WAX)
   const [layer, setLayer] = useState(0)
-  const [power, setPower] = useState(DEFAULT_POWER)
   const [prog, setProg] = useState(null)
   const [drawing, setDrawing] = useState(false)
 
   useEffect(() => {
-    let list = BASE_CATS, pick = BASE_CATS[0], pw = DEFAULT_POWER
+    let list = BASE_CATS, pick = BASE_CATS[0]
     try {
       // 장면과 같은 한 번 옮기기 — 옛 기본(고양이 09 · 하늘·핑크·버터)이면 자료 기본(곰 · 투명)으로
       if (!localStorage.getItem('2hs_wax_v2')) {
@@ -55,10 +52,8 @@ export default function WaxScenePanel({ s, send }) {
       if (prof && !list.includes(prof)) list = [prof, ...list]
       const saved = localStorage.getItem(CAT_KEY)
       pick = saved && (list.includes(saved) || saved === DRAW) ? saved : list[0]
-      const p = parseFloat(localStorage.getItem(POWER_KEY))
-      if (Number.isFinite(p)) pw = Math.max(0, Math.min(1, p))
     } catch {}
-    setCats(list); setCat(pick); setColors(loadColors()); setPower(pw)
+    setCats(list); setCat(pick); setColors(loadColors())
   }, [])
   useEffect(() => {
     const on = e => { if (e.origin === window.location.origin && e.data?.wax === 'progress') setProg(e.data) }
@@ -79,11 +74,6 @@ export default function WaxScenePanel({ s, send }) {
       send({ wax: 'colors' })
       return n
     })
-  }
-  function changePower(v) {
-    setPower(v)
-    try { localStorage.setItem(POWER_KEY, String(v)) } catch {}
-    send({ wax: 'power', v })
   }
 
   const chip = on => `${s.chip} ${s.glass} ${on ? s.chipOn : ''}`
@@ -122,12 +112,6 @@ export default function WaxScenePanel({ s, send }) {
             background: w.c, opacity: w.key === 'clear' ? 0.7 : 1, cursor: 'pointer', padding: 0 }} />
       ))}
     </div>
-
-    <label className={s.slider}>부서지는 세기 · {powerWord(power)}
-      <input type="range" min="0" max="1" step="0.01" value={power} onChange={e => changePower(+e.target.value)} style={{ accentColor: '#e0a24a' }}
-        aria-label="부서지는 세기 — 살살부터 와장창까지" />
-    </label>
-    <div style={{ fontSize: 11, opacity: 0.7, marginTop: -4 }}>살살 = 여러 번 구부려야 금이 가요 · 와장창 = 톡 한 번에 크게 터져요</div>
 
     <div className={s.row}>
       <button className={`${s.chip} ${s.glass}`} onClick={() => send({ wax: 'reset' })}>↺ 원래대로</button>
