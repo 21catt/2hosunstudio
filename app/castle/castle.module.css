@@ -26,6 +26,7 @@
 .linkBtn { background: none; border: none; color: inherit; opacity: 0.7; font-size: 12px; text-decoration: underline; cursor: pointer; font-family: inherit; }
 .mast { position: absolute; left: 36px; top: 28px; z-index: 3; pointer-events: none; }
 .mastTitle { font-family: 'Instrument Serif', 'Times New Roman', serif; font-style: italic; font-size: 60px; line-height: 0.86; letter-spacing: -1px; }
+.onDark { color: #f6eedc; text-shadow: 0 2px 14px rgba(0,0,0,0.35); } /* 왁뿌 = 짙은 자두빛 배경 */
 .mastSub { margin-top: 8px; font-size: 12px; font-weight: 600; letter-spacing: 2px; opacity: 0.7; }
 
 /* 상단 — 이번 주 일정 */
