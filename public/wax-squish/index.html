@@ -7,13 +7,15 @@
 <!-- 왁뿌 3D — 고양이 얼굴(또는 직접 그린 그림)의 실루엣을 두툼한 말랑이로 만들고 왁스 3겹을 입혀 손으로 부순다.
      · 잡고 좌우로 끌기 = 구부리기 · 가장자리를 잡고 위아래 = 비틀기 · 두 손가락 = 꾹 누르기·비틀기 · 톡 = 그 자리 금/파삭 · 빈 곳 끌기 = 돌려 보기
      · 바깥 겹부터 차례로(1단계 → 3단계). 부순 정도는 부모 화면에 알린다(postMessage {wax:'progress'})
-     · 설정(고양이·그린 그림·왁스 색)은 같은 출처 localStorage 에서 읽는다(2hs_wax_cat · 2hs_wax_art_<고양이> · 2hs_wax_colors)
+     · 모양 = 실루엣을 둥글게 부풀린 말랑이(참고 그림 = 부푼 곰 얼굴 — 원은 반구, 귀는 작은 공)
+     · 설정(고양이·그린 그림·왁스 색·부서지는 세기)은 같은 출처 localStorage 에서 읽는다(2hs_wax_cat · 2hs_wax_art_<고양이> · 2hs_wax_colors · 2hs_wax_power)
+       — 3D 홈 「장면」 패널(components/wax/WaxScenePanel)이 바꾸고 postMessage 로 알린다
      · ?embed=1 = 3D 홈 배경으로 얹힐 때(늘 부수기 단계 · 작은 % 단추만)
      · 소리 = Web Audio 그 자리 합성(소리 파일 없음) · 진동 = navigator.vibrate(있는 기기만)
      · three.js = /vendor/three-0.178(앱 안 사본) -->
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; font-family: -apple-system, "Apple SD Gothic Neo", "IBM Plex Sans KR", sans-serif; }
-  body { background: radial-gradient(120% 80% at 50% 10%, #fff4e4 0%, #fbe7ef 55%, #ebeefb 100%); }
+  body { background: radial-gradient(110% 80% at 50% 35%, #3d3749 0%, #332e3f 60%, #2b2735 100%); } /* 자료 사진의 짙은 자두빛 */
   canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none; }
   canvas.grabbing { cursor: grabbing; }
   .hud { position: fixed; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top) + 186px); display: none; align-items: center; gap: 8px;
@@ -26,6 +28,12 @@
     padding: 8px 14px; border-radius: 999px; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .2s; }
   body:not(.embed) .toast { top: 14px; }
   .toast.on { opacity: 1; }
+  .hint { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom) + 40px); color: #f3ead2; font-size: 15px; font-weight: 800;
+    letter-spacing: -0.2px; white-space: nowrap; pointer-events: none; text-shadow: 0 2px 10px rgba(0,0,0,0.35); transition: opacity .5s; animation: hintBob 2.4s ease-in-out infinite; }
+  body.embed .hint { bottom: calc(env(safe-area-inset-bottom) + 132px); }
+  .hint.off { opacity: 0; }
+  @keyframes hintBob { 0%, 100% { translate: 0 0 } 50% { translate: 0 -4px } }
+  @media (prefers-reduced-motion: reduce) { .hint { animation: none } }
   .fallback { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; text-align: center; color: #6e6378; font-size: 14px; padding: 24px; }
   body.nogl .fallback { display: flex; }
 </style>
@@ -34,6 +42,7 @@
 <canvas id="c" aria-label="왁스를 입힌 말랑이 — 잡고 구부리거나 비틀어 부수기"></canvas>
 <div class="hud" id="hud" aria-live="polite"><span id="pct">0%</span><span class="bar"><i id="bar"></i></span><button id="rs" aria-label="원래대로">↺</button></div>
 <div class="toast" id="toast"></div>
+<div class="hint" id="hint">왁뿌를 비틀어서 부셔보세요</div>
 <div class="fallback">이 기기에서는 3D 화면을 그릴 수 없어요</div>
 <script type="importmap">{ "imports": { "three": "/vendor/three-0.178/three.module.min.js" } }</script>
 <script type="module">
@@ -45,19 +54,28 @@ const $ = id => document.getElementById(id)
 
 // ───────── 설정 읽기 ─────────
 const WAX = {
-  clear: ['#f3efe6', 0.45], milk: ['#fff6e8', 0.9], butter: ['#f6d877', 0.86], pink: ['#f5a6c3', 0.86], sky: ['#a3d1f2', 0.86],
+  clear: ['#f4f2f8', 0.2], milk: ['#fff6e8', 0.9], butter: ['#f6d877', 0.86], pink: ['#f5a6c3', 0.86], sky: ['#a3d1f2', 0.86],
   mint: ['#a6e2c4', 0.86], lavender: ['#c7b4f1', 0.86], peach: ['#f8bc98', 0.86], cocoa: ['#b4896b', 0.9],
 }
 function readCfg() {
-  let cat = '09-cat', colors = ['sky', 'pink', 'butter'], art = null
+  let cat = 'bear', colors = ['clear', 'clear', 'clear'], art = null, power = 0.5
   try {
+    // 기본 = 자료(왁뿌 사진)의 크림색 곰 판 + 투명 왁스. 옛 기본(고양이 09 · 하늘·핑크·버터)이 그대로 남은 기기는 한 번 새 기본으로
+    if (!localStorage.getItem('2hs_wax_v2')) {
+      localStorage.setItem('2hs_wax_v2', '1')
+      if ((localStorage.getItem('2hs_wax_cat') || '09-cat') === '09-cat') localStorage.setItem('2hs_wax_cat', 'bear')
+      const oc = localStorage.getItem('2hs_wax_colors'); if (!oc || oc === '["sky","pink","butter"]') localStorage.setItem('2hs_wax_colors', '["clear","clear","clear"]')
+    }
+    const pw = parseFloat(localStorage.getItem('2hs_wax_power')); if (Number.isFinite(pw)) power = Math.max(0, Math.min(1, pw))
     cat = localStorage.getItem('2hs_wax_cat') || cat
     const c = JSON.parse(localStorage.getItem('2hs_wax_colors') || 'null')
     if (Array.isArray(c) && c.length === 3 && c.every(k => WAX[k])) colors = c
     art = localStorage.getItem('2hs_wax_art_' + cat)
   } catch {}
-  return { cat, colors, art }
+  return { cat, colors, art, power }
 }
+// 부서지는 세기(0 = 살살 … 1 = 와장창) — 금이 가는 문턱·쌓이는 빠르기·조각이 튀는 힘·소리·흔들림이 함께 바뀐다
+const PW = () => cfg.power
 let cfg = readCfg()
 let phase = EMBED ? 'crush' : 'pick' // pick · coat · crush
 
@@ -90,6 +108,7 @@ function tn(t, f0, f1, dur, gain, type = 'sine') {
 }
 const SFX = {
   crack(k = 0.5, bright = 0.5) { if (!au()) return; const t = actx.currentTime + 0.002; k = Math.max(0.15, Math.min(1, k))
+    nz(t, { type: 'highpass', freq: 5200, q: 0.7, gain: 0.45 + k * 0.3, attack: 0.0005, decay: 0.006 }) // 딱 — 굳은 왁스가 끊기는 첫 소리
     nz(t, { freq: 1800 + bright * 2600 + Math.random() * 600, q: 0.9, gain: 0.3 + k * 0.5, decay: 0.035 + k * 0.045 })
     const n = 3 + Math.round(k * 7)
     for (let i = 0; i < n; i++) nz(t + Math.random() * (0.03 + k * 0.09), { type: 'highpass', freq: 3500 + Math.random() * 3000, q: 0.7, gain: 0.07 + Math.random() * 0.22, decay: 0.006 + Math.random() * 0.012, rate: 0.8 + Math.random() * 0.6 })
@@ -113,7 +132,7 @@ try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true 
 renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1))
 renderer.outputColorSpace = THREE.SRGBColorSpace
 renderer.toneMapping = THREE.ACESFilmicToneMapping
-renderer.toneMappingExposure = 1.05
+renderer.toneMappingExposure = 1.1
 const scene = new THREE.Scene()
 const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 50)
 scene.add(new THREE.HemisphereLight(0xfff6ee, 0xd9cfe8, 1.15))
@@ -122,7 +141,7 @@ const rim = new THREE.DirectionalLight(0xcfe0ff, 0.9); rim.position.set(3, 1.5, 
 
 // 바닥 그림자(부드러운 원)
 const shTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d')
-  const r = g.createRadialGradient(64, 64, 4, 64, 64, 62); r.addColorStop(0, 'rgba(50,35,70,0.32)'); r.addColorStop(1, 'rgba(50,35,70,0)'); g.fillStyle = r; g.fillRect(0, 0, 128, 128)
+  const r = g.createRadialGradient(64, 64, 4, 64, 64, 62); r.addColorStop(0, 'rgba(15,10,22,0.55)'); r.addColorStop(1, 'rgba(15,10,22,0)'); g.fillStyle = r; g.fillRect(0, 0, 128, 128)
   return new THREE.CanvasTexture(c) })()
 const shadow = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 1.1), new THREE.MeshBasicMaterial({ map: shTex, transparent: true, depthWrite: false }))
 shadow.rotation.x = -Math.PI / 2
@@ -223,32 +242,53 @@ function resample(p, step) {
   if (out.length > 1 && Math.hypot(out[0][0] - out.at(-1)[0], out[0][1] - out.at(-1)[1]) < step * 0.5) out.pop()
   return out
 }
+function relax(p, n) { for (let it = 0; it < n; it++) { const o = p.map((q, i) => { const a = p[(i - 1 + p.length) % p.length], b = p[(i + 1) % p.length]; return [q[0] * 0.5 + (a[0] + b[0]) * 0.25, q[1] * 0.5 + (a[1] + b[1]) * 0.25] }); p = o } return p }
 function polyArea(p) { let s = 0; for (let i = 0; i < p.length; i++) { const a = p[i], b = p[(i + 1) % p.length]; s += a[0] * b[1] - b[0] * a[1] } return s / 2 }
+
+// 왁뿌 곰 = 둥근 얼굴 + 귀 둘(자료 사진 모양) · 크림색에 은은한 얼룩(손으로 빚은 왁스 결)
+function bearCanvas() {
+  const c = document.createElement('canvas'); c.width = c.height = ART; const g = c.getContext('2d')
+  const shape = () => { g.beginPath(); g.arc(256, 300, 176, 0, Math.PI * 2); g.moveTo(140 + 78, 128); g.arc(140, 128, 78, 0, Math.PI * 2); g.moveTo(372 + 78, 128); g.arc(372, 128, 78, 0, Math.PI * 2) }
+  g.fillStyle = BEAR_CREAM; shape(); g.fill('nonzero')
+  g.save(); shape(); g.clip('nonzero')
+  let sd = 20261107; const rnd = () => { sd = (sd * 1664525 + 1013904223) >>> 0; return sd / 4294967296 }
+  for (let i = 0; i < 70; i++) { // 얼룩 — 밝은·어두운 크림 덩이를 아주 옅게
+    const x = rnd() * ART, y = rnd() * ART, r = 30 + rnd() * 90, light = rnd() < 0.55
+    const gr = g.createRadialGradient(x, y, 0, x, y, r)
+    gr.addColorStop(0, light ? 'rgba(255,250,232,0.22)' : 'rgba(226,206,150,0.16)'); gr.addColorStop(1, 'rgba(255,255,255,0)')
+    g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2)
+  }
+  g.restore()
+  return c
+}
+const BEAR_CREAM = '#efd99c'
 
 // 텍스처 + 실루엣 만들기
 async function buildArt() {
-  const isDraw = cfg.cat === 'draw'
-  const [base, art] = await Promise.all([isDraw ? null : loadImg(`/pixel-cats/${cfg.cat}.png`), loadImg(cfg.art)])
+  const isDraw = cfg.cat === 'draw', isBear = cfg.cat === 'bear'
+  const [base0, art] = await Promise.all([isDraw || isBear ? null : loadImg(`/pixel-cats/${cfg.cat}.png`), loadImg(cfg.art)])
+  const base = isBear ? bearCanvas() : base0
   const tex = document.createElement('canvas'); tex.width = tex.height = ART
   const g = tex.getContext('2d')
   // 얼굴 바깥(수염 자리 등)까지 몸 색으로 — 가장 많은 색
-  let fill = '#fff3df'
-  if (base) {
-    const t = document.createElement('canvas'); t.width = t.height = 32; const tg = t.getContext('2d'); tg.imageSmoothingEnabled = false; tg.drawImage(base, 0, 0, 32, 32)
+  let fill = isBear ? BEAR_CREAM : '#fff3df'
+  if (base0) {
+    const t = document.createElement('canvas'); t.width = t.height = 32; const tg = t.getContext('2d'); tg.imageSmoothingEnabled = false; tg.drawImage(base0, 0, 0, 32, 32)
     const d = tg.getImageData(0, 0, 32, 32).data, cnt = new Map()
     for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 200) { const l = d[i] + d[i + 1] + d[i + 2]; if (l < 150) continue; const k = `${d[i] >> 3},${d[i + 1] >> 3},${d[i + 2] >> 3}`; cnt.set(k, (cnt.get(k) || 0) + 1) }
     let best = null, bn = 0; for (const [k, n] of cnt) if (n > bn) { bn = n; best = k }
     if (best) { const [r, gg, b] = best.split(',').map(v => (+v << 3) + 4); fill = `rgb(${r},${gg},${b})` }
   }
   g.fillStyle = fill; g.fillRect(0, 0, ART, ART)
-  if (base) { g.imageSmoothingEnabled = false; g.drawImage(base, 0, 0, ART, ART); g.imageSmoothingEnabled = true }
+  if (base) { g.imageSmoothingEnabled = isBear; g.drawImage(base, 0, 0, ART, ART); g.imageSmoothingEnabled = true }
   if (art) g.drawImage(art, 0, 0, ART, ART)
   // 실루엣: 고양이 = 수염 같은 가는 선을 지운 모양 · 그린 선 = 조금 두껍게
   let mask = new Uint8Array(G * G)
   if (base) { const c = document.createElement('canvas'); c.width = c.height = ART; c.getContext('2d').drawImage(base, 0, 0, ART, ART); mask = morph(morph(alphaGrid(c), 2, false), 2, true) }
   if (art) { const am = morph(alphaGrid(art), 1, true); for (let i = 0; i < mask.length; i++) mask[i] |= am[i] }
   mask = fillHoles(morph(morph(mask, 1, true), 1, false))
-  let loops = contours(mask).filter(l => Math.abs(polyArea(l)) > 30).map(l => resample(chaikin(resample(l, 1.6), 2), 1.4))
+  // 말랑이는 둥글둥글해야 한다 — 픽셀 그림의 계단을 넉넉히 펴 준다(라플라스 다듬기)
+  let loops = contours(mask).filter(l => Math.abs(polyArea(l)) > 30).map(l => relax(resample(chaikin(resample(l, 1.6), 2), 1.0), 10))
   if (!loops.length) { // 아무것도 없으면 둥근 덩어리
     const l = []; for (let i = 0; i < 48; i++) { const a = i / 48 * Math.PI * 2; l.push([G / 2 + Math.cos(a) * G * 0.3, G / 2 + Math.sin(a) * G * 0.25]) } loops = [l]
   }
@@ -280,8 +320,9 @@ function smoothNormals(g) {
   g.setAttribute('normal', new THREE.BufferAttribute(out, 3))
 }
 function extrude(shapes, grow) {
-  const g = new THREE.ExtrudeGeometry(shapes, { depth: 0.42, bevelEnabled: true, bevelThickness: 0.26 + grow, bevelSize: 0.16 + grow, bevelSegments: 5, curveSegments: 2, UVGenerator: UVGEN })
-  g.translate(0, 0, -0.21)
+  // 자료(왁뿌 사진) = 두께 있는 판, 위·아래 면은 평평하고 모서리만 살짝 둥글다 — 풍선처럼 부풀리지 않는다
+  const g = new THREE.ExtrudeGeometry(shapes, { depth: 0.46, bevelEnabled: true, bevelThickness: 0.1 + grow, bevelSize: 0.08 + grow, bevelSegments: 4, curveSegments: 2, UVGenerator: UVGEN })
+  g.translate(0, 0, -0.23)
   smoothNormals(g)
   return g
 }
@@ -296,10 +337,10 @@ function clusterize(geo, count, seed) {
   const seeds = []
   for (let tries = 0; seeds.length < count && tries < count * 60; tries++) {
     const c = cen(Math.floor(rnd() * triN))
-    if (seeds.every(q => Math.hypot(q[0] - c[0], q[1] - c[1], (q[2] - c[2]) * 1.6) > 0.36)) seeds.push(c)
+    if (seeds.every(q => Math.hypot(q[0] - c[0], q[1] - c[1], (q[2] - c[2]) * 2.4) > 0.24)) seeds.push(c)
   }
   const owner = new Int32Array(triN)
-  for (let i = 0; i < triN; i++) { const c = cen(i); let b = 0, bd = Infinity; seeds.forEach((q, k) => { const d = (q[0] - c[0]) ** 2 + (q[1] - c[1]) ** 2 + ((q[2] - c[2]) * 1.6) ** 2; if (d < bd) { bd = d; b = k } }); owner[i] = b }
+  for (let i = 0; i < triN; i++) { const c = cen(i); let b = 0, bd = Infinity; seeds.forEach((q, k) => { const d = (q[0] - c[0]) ** 2 + (q[1] - c[1]) ** 2 + ((q[2] - c[2]) * 2.4) ** 2; if (d < bd) { bd = d; b = k } }); owner[i] = b }
   // 조각 경계선(금): 다른 조각과 나눠 쓰는 모서리
   const key = (i) => `${Math.round(pos[i] * 1000)},${Math.round(pos[i + 1] * 1000)},${Math.round(pos[i + 2] * 1000)}`
   const edgeOwners = new Map()
@@ -329,11 +370,12 @@ function clusterize(geo, count, seed) {
 
 function waxMat(colorKey, inner) {
   const [hex, a] = WAX[colorKey] || WAX.milk
-  return deformable(new THREE.MeshPhysicalMaterial({ color: hex, roughness: 0.28, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.18, sheen: 0.4, sheenColor: new THREE.Color('#ffffff'),
+  return deformable(new THREE.MeshPhysicalMaterial({ color: hex, roughness: 0.22, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.12, sheen: 0.5, sheenColor: new THREE.Color('#ffffff'),
     transparent: true, opacity: a * 0.85, depthWrite: true }))
 }
 function lineMat(colorKey) {
-  const c = new THREE.Color((WAX[colorKey] || WAX.milk)[0]).multiplyScalar(0.55)
+  // 금 = 자료처럼 가늘고 옅은 선(투명 왁스면 크림빛 잿선)
+  const c = colorKey === 'clear' ? new THREE.Color('#c9b98a') : new THREE.Color((WAX[colorKey] || WAX.milk)[0]).multiplyScalar(0.55)
   return deformable(new THREE.LineBasicMaterial({ color: c, transparent: true, opacity: 0.9, depthWrite: false }))
 }
 
@@ -342,8 +384,8 @@ async function build() {
   const { tex, fill, loops } = await buildArt()
   if (myGen !== build.gen) return
   if (built) { body.clear(); built.dispose() }
-  const shapes = shapesFrom(loops)
   const map = new THREE.CanvasTexture(tex); map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 4
+  const shapes = shapesFrom(loops)
   const coreGeo = extrude(shapes, 0)
   const faceMat = deformable(new THREE.MeshStandardMaterial({ map, roughness: 0.55 }))
   const sideMat = deformable(new THREE.MeshStandardMaterial({ color: fill, roughness: 0.6 }))
@@ -352,8 +394,8 @@ async function build() {
   coreGeo.computeBoundingBox()
   const bb = coreGeo.boundingBox
   const layers = []
-  const GROW = [0.25, 0.165, 0.085] // 1단계(바깥) … 3단계(안쪽)
-  const COUNT = [34, 28, 22]
+  const GROW = [0.075, 0.05, 0.025] // 얇은 투명 껍질(자료처럼) // 1단계(바깥) … 3단계(안쪽)
+  const COUNT = [72, 60, 48] // 작은 조각 여러 개 — 왁스는 잘게 부서진다
   for (let i = 0; i < 3; i++) {
     const geo = extrude(shapes, GROW[i])
     const clusters = clusterize(geo, COUNT[i], 777 + i * 131)
@@ -361,7 +403,8 @@ async function build() {
     const mat = waxMat(cfg.colors[i], i > 0), lm = lineMat(cfg.colors[i])
     const group = new THREE.Group()
     for (const c of clusters) {
-      c.mesh = new THREE.Mesh(c.geo, mat); c.mesh.renderOrder = 1 + i // 바깥 겹 먼저 — 깊이를 남겨 안쪽 겹은 깨진 자리로만 보인다
+      c.mat = deformable(mat.clone()) // 조각마다 — 휜 자리가 하얗게 질린다(왁스 응력 자국)
+      c.mesh = new THREE.Mesh(c.geo, c.mat); c.mesh.renderOrder = 1 + i // 바깥 겹 먼저 — 깊이를 남겨 안쪽 겹은 깨진 자리로만 보인다
       c.line = new THREE.LineSegments(c.lineGeo, lm); c.line.visible = false; c.line.renderOrder = 1 + i
       group.add(c.mesh, c.line)
     }
@@ -370,7 +413,7 @@ async function build() {
   }
   built = {
     core, layers, bb, w: bb.max.x - bb.min.x, h: bb.max.y - bb.min.y,
-    dispose() { coreGeo.dispose(); map.dispose(); faceMat.dispose(); sideMat.dispose(); layers.forEach(L => { L.clusters.forEach(c => { c.geo.dispose(); c.lineGeo.dispose() }); L.mat.dispose(); L.lm.dispose() }) },
+    dispose() { coreGeo.dispose(); map.dispose(); faceMat.dispose(); sideMat.dispose(); layers.forEach(L => { L.clusters.forEach(c => { c.geo.dispose(); c.lineGeo.dispose(); c.mat.dispose() }); L.mat.dispose(); L.lm.dispose() }) },
   }
   coatT = phase === 'pick' ? 0 : 0.0001
   fit()
@@ -378,6 +421,7 @@ async function build() {
 }
 build.gen = 0
 
+const WHITE = new THREE.Color('#ffffff')
 function recolor() {
   if (!built) return
   built.layers.forEach((L, i) => {
@@ -400,15 +444,19 @@ function report() {
 }
 function restore() {
   if (!built) return
+  spread.length = 0
   for (const L of built.layers) for (const c of L.clusters) { c.alive = true; c.cracked = false; c.dmg = 0; c.mesh.visible = true; c.line.visible = false }
   coatT = 0.0001; SFX.coat(); buzz(20); report()
+  $('hint').classList.remove('off')
 }
 
 // ───────── 조각 날리기 ─────────
 const frags = []
-const crumbGeo = new THREE.TetrahedronGeometry(0.035)
+const crumbGeo = new THREE.TetrahedronGeometry(0.024) // 흰 가루
+const crumbMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.5 })
 function breakCluster(L, c, power = 1) {
   if (!c.alive) return
+  $('hint').classList.add('off')
   c.alive = false; c.mesh.visible = false; c.line.visible = false
   // 지금 휜 모양 그대로 떼어 낸다
   const src = c.geo.attributes.position.array, P = new Float32Array(src.length)
@@ -417,23 +465,28 @@ function breakCluster(L, c, power = 1) {
   const m = src.length / 3; cx /= m; cy /= m; cz /= m
   for (let i = 0; i < P.length; i += 3) { P[i] -= cx; P[i + 1] -= cy; P[i + 2] -= cz }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(P, 3)); g.computeVertexNormals()
-  const mat = new THREE.MeshPhysicalMaterial({ color: L.mat.color, roughness: 0.3, clearcoat: 1, transparent: true, opacity: L.mat.opacity, side: THREE.DoubleSide, depthWrite: false })
+  // 떨어진 조각 = 자료처럼 하얀 왁스 파편(겹 색을 조금 섞은 흰색)
+  const mat = new THREE.MeshPhysicalMaterial({ color: new THREE.Color('#ffffff').lerp(L.mat.color, 0.2), roughness: 0.4, clearcoat: 0.8, sheen: 0.6, transparent: true, opacity: 0.93, side: THREE.DoubleSide, depthWrite: false })
   const mesh = new THREE.Mesh(g, mat)
   const wp = new THREE.Vector3(cx, cy, cz); body.localToWorld(wp)
   mesh.position.copy(wp); mesh.quaternion.copy(body.getWorldQuaternion(new THREE.Quaternion())); mesh.renderOrder = 20
   scene.add(mesh)
   const nrm = new THREE.Vector3(...c.n).applyQuaternion(mesh.quaternion)
-  const sp = (1.6 + Math.random() * 1.6) * (0.7 + power * 0.5)
-  frags.push({ mesh, v: nrm.multiplyScalar(sp).add(new THREE.Vector3((Math.random() - 0.5) * 1.2, 1.4 + Math.random() * 1.6, (Math.random() - 0.5) * 1.2)),
-    w: new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(10), life: 1.6, mat })
-  for (let j = 0; j < 4 + Math.round(power * 4); j++) {
-    const cm = new THREE.Mesh(crumbGeo, mat); cm.position.copy(wp); cm.renderOrder = 20; scene.add(cm)
-    frags.push({ mesh: cm, v: new THREE.Vector3((Math.random() - 0.5) * 3, 1 + Math.random() * 2.5, (Math.random() - 0.5) * 3 + 1), w: new THREE.Vector3(5, 7, 3), life: 1.0, mat: null })
+  const Q = PW()
+  const sp = (1.6 + Math.random() * 1.6) * (0.7 + power * 0.5) * (0.45 + Q * 1.3)
+  // 얇은 왁스 판: 먼저 살짝 들렸다가(0.08~0.2초 — 떼어지는 순간) 팔랑이며 떨어져 바닥에 잠깐 남는다
+  const out = nrm.clone()
+  frags.push({ mesh, peel: (0.2 - Q * 0.12) * (0.7 + Math.random() * 0.6), out, flake: true,
+    v: nrm.multiplyScalar(sp * 0.42).add(new THREE.Vector3((Math.random() - 0.5) * 0.6, 0.4 + Math.random() * 0.9, (Math.random() - 0.5) * 0.6)),
+    w: new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(4 + Q * 6), life: 2.6, mat })
+  for (let j = 0; j < Math.round((2 + power * 4) * (0.4 + Q * 1.8)); j++) {
+    const cm = new THREE.Mesh(crumbGeo, crumbMat); cm.position.copy(wp); cm.scale.setScalar(0.4 + Math.random() * 0.8); cm.renderOrder = 20; scene.add(cm)
+    frags.push({ mesh: cm, v: new THREE.Vector3((Math.random() - 0.5) * 3, 1 + Math.random() * 2.5, (Math.random() - 0.5) * 3 + 1).multiplyScalar(0.3 + Q * 0.7), w: new THREE.Vector3(5, 7, 3), life: 1.4, mat: null })
   }
-  shake = Math.min(0.06, shake + 0.025 * power)
-  squashKick += 0.04 * power
+  shake = Math.min(0.02 + 0.08 * Q, shake + 0.025 * power * (0.3 + Q * 1.4))
+  squashKick += 0.04 * power * (0.4 + Q * 1.2)
   const bright = 1 - L.i / 2
-  SFX.crack(0.4 + power * 0.4, bright); buzz(14 + Math.round(power * 14))
+  SFX.crack((0.25 + power * 0.4) * (0.6 + Q * 0.8), bright); buzz(Math.round((10 + power * 14) * (0.5 + Q)))
   post({ scene: 'touch' })
   if (!L.clusters.some(k => k.alive)) {
     SFX.clear(L.i + 1); buzz(40)
@@ -442,10 +495,15 @@ function breakCluster(L, c, power = 1) {
   }
   report()
 }
+// 금은 번져 나간다 — 옆 조각으로 40~110ms 뒤 틱, 틱(왁스 판이 갈라지는 소리)
+const spread = []
 function crackCluster(L, c) {
   if (c.cracked || !c.alive) return
   c.cracked = true; c.line.visible = true
   SFX.tick(1 - L.i / 2); buzz(6)
+  const Q = PW(), reach = 0.3 + Q * 0.18
+  for (const k of L.clusters) if (k !== c && k.alive && !k.cracked && Math.hypot(k.c[0] - c.c[0], k.c[1] - c.c[1], k.c[2] - c.c[2]) < reach)
+    spread.push({ at: performance.now() + 40 + Math.random() * 70, L, k, add: 0.1 + Q * 0.25 })
 }
 
 // 휜 정도(그 조각 자리의 변형률)
@@ -467,7 +525,7 @@ let orbit = null
 let shake = 0, squashKick = 0
 const tgt = { bend: 0, bendV: 0, twist: 0, squash: 0 }
 const vel = { bend: 0, bendV: 0, twist: 0, squash: 0 }
-let yaw = -0.35, pitch = 0.12, yawV = 0
+let yaw = -0.3, pitch = 0.5, yawV = 0 // 자료처럼 위에서 비스듬히 — 판의 두께가 보이게
 
 function pickAt(cx, cy) {
   const r = canvas.getBoundingClientRect()
@@ -491,10 +549,11 @@ function tapAt(info) {
   }
   if (!c) return false
   squashKick += 0.03
-  if (c.cracked) breakCluster(L, c, 0.9)
-  else { crackCluster(L, c); c.dmg = Math.max(c.dmg, 0.55) }
+  const P = PW()
+  if (c.cracked || P > 0.85) breakCluster(L, c, 0.6 + P * 0.5)
+  else { crackCluster(L, c); c.dmg = Math.max(c.dmg, 0.35 + P * 0.35) }
   // 옆 조각에도 금
-  for (const k of L.clusters) if (k !== c && k.alive && Math.hypot(k.c[0] - c.c[0], k.c[1] - c.c[1], k.c[2] - c.c[2]) < 0.55) { k.dmg += 0.22; if (k.dmg > 0.4) crackCluster(L, k) }
+  for (const k of L.clusters) if (k !== c && k.alive && Math.hypot(k.c[0] - c.c[0], k.c[1] - c.c[1], k.c[2] - c.c[2]) < 0.4 + P * 0.35) { k.dmg += 0.08 + P * 0.32; if (k.dmg > 0.4) crackCluster(L, k); if (P > 0.7 && k.dmg > k.need) breakCluster(L, k, P) }
   return true
 }
 
@@ -559,6 +618,7 @@ addEventListener('message', e => {
   if (d.wax === 'config') { const prev = cfg; cfg = readCfg(); if (prev.cat !== cfg.cat || prev.art !== cfg.art) build(); else { recolor() } }
   else if (d.wax === 'colors') { cfg = readCfg(); recolor() }
   else if (d.wax === 'phase') { const was = phase; phase = d.phase; if (phase === 'pick') coatT = 0; else if (was === 'pick' || was === 'draw') { coatT = 0.0001; SFX.coat() } }
+  else if (d.wax === 'power') { cfg.power = Math.max(0, Math.min(1, +d.v || 0)) }
   else if (d.wax === 'reset' || d.cmd === 'reset') restore()
 })
 addEventListener('storage', e => { if (e.key && e.key.startsWith('2hs_wax_')) { const prev = cfg; cfg = readCfg(); if (prev.cat !== cfg.cat || prev.art !== cfg.art) build(); else recolor() } })
@@ -605,12 +665,20 @@ function step(now) {
       for (const c of L.clusters) {
         if (!c.alive) continue
         const s = strainAt(c); if (s > maxS) maxS = s
-        if (s > 0.32) c.dmg += (s - 0.32) * dt * 2.4
+        const P = PW(), th = 0.5 - P * 0.32
+        if (s > th) c.dmg += (s - th) * dt * 1.4 * (0.35 + P * 1.9)
         if (c.dmg > 0.35) crackCluster(L, c)
         if (c.dmg > c.need) breakCluster(L, c, Math.min(1, s))
       }
       if (grab && maxS > 0.4 && Math.random() < dt * 6) SFX.creak(Math.min(1, maxS - 0.4))
     }
+  }
+  for (let i = spread.length - 1; i >= 0; i--) {
+    const sp = spread[i]; if (now < sp.at) continue
+    spread.splice(i, 1)
+    if (!sp.k.alive || coatT < 1) continue
+    sp.k.dmg += sp.add
+    if (sp.k.dmg > 0.4) crackCluster(sp.L, sp.k)
   }
   // 왁스 입히기(안쪽 겹부터)
   if (built) {
@@ -622,14 +690,28 @@ function step(now) {
       L.group.scale.setScalar(0.92 + 0.08 * a)
       const base = (WAX[cfg.colors[i]] || WAX.milk)[1] * 0.85
       L.mat.opacity = base * a
+      // 응력 자국: 금이 갈수록 그 조각이 하얗고 불투명해진다(진짜 왁스처럼)
+      for (const c of L.clusters) {
+        if (!c.alive) continue
+        const st = Math.min(1, c.dmg / c.need)
+        c.mat.color.copy(L.mat.color).lerp(WHITE, 0.62 * st * st)
+        c.mat.opacity = Math.min(0.95, L.mat.opacity + 0.55 * st * a)
+      }
     })
   }
   // 날아가는 조각
   for (let i = frags.length - 1; i >= 0; i--) {
     const f = frags[i]
-    f.v.y -= 9.8 * dt; f.mesh.position.addScaledVector(f.v, dt)
-    f.mesh.rotation.x += f.w.x * dt; f.mesh.rotation.y += f.w.y * dt; f.mesh.rotation.z += f.w.z * dt
-    if (f.mesh.position.y < FLOOR + 0.03 && f.v.y < 0) { f.mesh.position.y = FLOOR + 0.03; f.v.y *= -0.3; f.v.x *= 0.6; f.v.z *= 0.6; f.w.multiplyScalar(0.5) }
+    if (f.peel > 0) { // 떼어지는 중 — 표면에서 살짝 들린다
+      f.peel -= dt; f.mesh.position.addScaledVector(f.out, dt * 0.35)
+      f.mesh.rotateOnAxis(f.out, dt * 0.6)
+    } else {
+      f.v.y -= (f.flake ? 6.5 : 9.8) * dt
+      if (f.flake) f.v.multiplyScalar(Math.pow(0.55, dt)) // 얇은 판은 공기에 팔랑
+      f.mesh.position.addScaledVector(f.v, dt)
+      f.mesh.rotation.x += f.w.x * dt; f.mesh.rotation.y += f.w.y * dt; f.mesh.rotation.z += f.w.z * dt
+      if (f.mesh.position.y < FLOOR + 0.03 && f.v.y < 0) { f.mesh.position.y = FLOOR + 0.03; f.v.y *= -0.25; f.v.x *= 0.5; f.v.z *= 0.5; f.w.multiplyScalar(0.3) }
+    }
     f.life -= dt
     if (f.mat) f.mat.opacity = Math.max(0, Math.min(f.mat.userData.o ?? (f.mat.userData.o = f.mat.opacity), f.life * 1.5))
     if (f.life <= 0) { scene.remove(f.mesh); if (f.mat) { f.mesh.geometry.dispose(); f.mat.dispose() } frags.splice(i, 1) }

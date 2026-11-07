@@ -180,7 +180,7 @@ export default function SettingsPage() {
         {user && (
           <>
             <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:2 }}>메인 화면</div>
-            <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:10 }}>홈 단추를 누르면 나오는 화면을 골라요 🧈</div>
+            <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:10 }}>홈 단추를 누르면 나오는 화면을 골라요 · 3D 배경(왁뿌·해변·우리 스튜디오…)은 3D 홈의 「장면」에서</div>
             <div style={{ marginBottom:20 }}><HomeModePicker /></div>
           </>
         )}

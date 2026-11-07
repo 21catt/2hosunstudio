@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import StudentNav from '../../components/StudentNav'
-import { castleModeOn, homeMode, setHomeMode, WAX_MODE } from '../../lib/useCastleSkin'
+import { castleModeOn, migrateWaxHome } from '../../lib/useCastleSkin'
 import { NavIcon } from '../../components/NavIcons'
 import { useTodayWeather, WeatherGlyph } from '../../components/WeatherBar'
 import { LogoMark, HeroDeco, DotPatch } from '../../components/Deco'
@@ -86,7 +86,7 @@ export default function StudentHomePage() {
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user || null)
       // 3D 모드를 켜 둔 미리보기 대상은 홈으로 오면 3D 홈으로(오른쪽 위 단추로 언제든 끔)
-      if (homeMode() === WAX_MODE) { setHomeMode(WAX_MODE); window.location.replace('/castle'); return } // 예전에 저장된 「왁뿌」 = 3D 홈 + 왁뿌 배경으로 옮김
+      if (migrateWaxHome()) { window.location.replace('/castle'); return } // 예전에 저장된 「왁뿌」 = 3D 홈 + 왁뿌 배경으로 옮김
       if (castleModeOn(data.user)) { window.location.replace('/castle'); return } // 3D 모드(고른 적 없으면 켬 — 처음 오는 사람은 모두 3D 홈)
       if (data.user) ensureUserRow(data.user)
       loadData(data.user?.id || null).catch(e => { console.error('load failed', e); setLoading(false) })

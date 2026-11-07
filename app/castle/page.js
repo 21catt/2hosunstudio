@@ -20,6 +20,7 @@ import BookingPanel from '../../components/castle/BookingPanel'
 import StudioWallPanel from '../../components/castle/StudioWallPanel'
 import { useTodayWeather } from '../../components/WeatherBar'
 import NyangPill from '../../components/castle/NyangPill'
+import WaxScenePanel from '../../components/wax/WaxScenePanel'
 import CatTalk from '../../components/CatTalk'
 import { CATEGORY_STYLE } from '../../lib/categoryStyle'
 import MyNextClass from '../../components/castle/MyNextClass'
@@ -338,7 +339,6 @@ export default function CastlePage() {
         <button className={`${s.topBtn} ${s.glass}`} aria-pressed={sfxOn} onClick={toggleSfx} aria-label={sfxOn ? '반응 소리 끄기' : '반응 소리 켜기'}>{sfxOn ? '🔊 소리' : '🔇 소리 끔'}</button>
         {!scene.embed && <button className={`${s.topBtn} ${s.glass}`} aria-pressed={lite} onClick={() => switchLite(!lite)}>{lite ? '가벼운 모드 켜짐' : '가벼운 모드'}</button>}
         {isAdmin && <a className={`${s.topBtn} ${s.glass}`} href="/admin/castle-beta">미리보기 학생</a>}
-        {user && <a className={`${s.topBtn} ${s.glass}`} href="/wax" aria-label="왁뿌 열기">🧈 왁뿌</a>}
         {user && <a className={`${s.topBtn} ${s.glass}`} href="/student" aria-label="3D 모드 끄기" onClick={() => { try { localStorage.setItem('2hs_home_mode', 'classic') } catch {} }}>
           3D 모드 <span aria-hidden="true" style={{ display: 'inline-block', width: 26, height: 15, borderRadius: 999, background: '#7f6bd6', verticalAlign: '-3px', marginLeft: 5, position: 'relative' }}>
             <span style={{ position: 'absolute', top: 2, right: 2, width: 11, height: 11, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.25)' }} />
@@ -499,10 +499,7 @@ export default function CastlePage() {
         </div>
         </>) : scene.key === 'wax' ? (<>
         <div className={s.sectionLabel} style={{ padding: 0 }}>{scene.name}</div>
-        <div className={s.row} style={{ flexWrap: 'wrap' }}>
-          <button className={`${s.chip} ${s.glass}`} onClick={() => toFrame({ wax: 'reset' })}>↺ 원래대로</button>
-          <a className={`${s.chip} ${s.glass}`} href="/wax">고양이 · 그리기 · 왁스 색 바꾸기 →</a>
-        </div>
+        <WaxScenePanel s={s} send={toFrame} />
         </>) : scene.key === 'studio' ? (<>
         <div className={s.sectionLabel} style={{ padding: 0 }}>{scene.name}</div>
         <NyangPill send={toFrame} onPlay={() => setSceneOpen(false)} />
@@ -618,7 +615,7 @@ export default function CastlePage() {
       <div className={s.howto}><b>How to play</b> — {scene.key === 'studio'
         ? '고양이를 누르면 쓰다듬기·야옹 · 두 손가락으로 확대 · 장난감을 고르면 끌어서 감자랑 놀기 · 화면을 끌어 스튜디오 돌려 보기 · 장면 패널에서 냥냥이 약 먹이기, 내 그림 벽 꾸미기'
         : scene.key === 'wax'
-        ? '말랑이를 잡고 좌우·위아래로 끌어 구부리기 · 가장자리를 잡고 위아래 = 비틀기 · 두 손가락으로 꾹 누르기 · 톡 누르면 금이 가고 한 번 더 = 파삭 · 빈 곳을 끌어 돌려 보기'
+        ? '왁뿌를 잡고 비틀어 부숴 보세요 — 가장자리를 잡고 위아래 = 비틀기 · 좌우로 끌기 = 구부리기 · 두 손가락 꾹 · 톡 = 금 → 한 번 더 = 파삭 · 빈 곳을 끌어 돌려 보기 · 장면 패널에서 얼굴·그리기·왁스 색·부서지는 세기'
         : scene.key === 'peak'
         ? '저녁 6시가 되면 밤 — 집과 기차 창에 불이 켜지고 루돌프 코가 빛나요 · 산타 썰매를 끌어 하늘을 날기 · 썰매를 누르면 선물이 내려요 · 기차를 누르면 뿌뿌! · 집을 누르면 불 켜고 끄기 · 소나무를 누르면 눈이 털려요 · 빈 곳을 끌어 섬 돌리기'
         : scene.key === 'octopus'

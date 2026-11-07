@@ -1,22 +1,14 @@
 'use client'
-// 「왁뿌」 꾸미기 화면 — 고양이 고르기 · 그리기 · 왁스 색 · 부수기(3D = public/wax-squish). 메인 화면 「왁뿌」 = 3D 홈에 이 장면.
-import { useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabase'
-import WaxHome from '../../components/wax/WaxHome'
-import StudentNav from '../../components/StudentNav'
+// 옛 「왁뿌」 화면 — 이제 왁뿌는 3D 홈의 배경 장면 하나(해변·우리 스튜디오와 같이). 설정은 홈 「장면」 패널에서.
+// 예전 주소로 오면 왁뿌 배경을 고른 3D 홈으로 보낸다.
+import { useEffect } from 'react'
+import { saveSceneLocal } from '../../lib/castleScenes'
 
 export default function WaxPage() {
-  const [user, setUser] = useState(null)
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      const u = data?.session?.user || null
-      setUser(u)
-    })
+    saveSceneLocal('wax')
+    try { if (localStorage.getItem('2hs_home_mode') === 'wax') localStorage.setItem('2hs_home_mode', 'castle') } catch {}
+    window.location.replace('/castle')
   }, [])
-  return (
-    <>
-      <WaxHome user={user} />
-      {user && <StudentNav active="home" role={user.user_metadata?.role || undefined} />}
-    </>
-  )
+  return null
 }

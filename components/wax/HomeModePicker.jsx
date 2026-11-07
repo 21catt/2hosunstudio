@@ -1,11 +1,11 @@
 'use client'
-// 메인 화면 고르기 — 3D 홈 · 왁뿌 · 예전 홈. 고르면 그 기기에 기억(2hs_home_mode)하고 그 홈으로 간다.
+// 메인 화면 고르기 — 3D 홈 · 예전 홈(왁뿌는 3D 홈의 배경 장면 — 홈 「장면」 패널에서). 고르면 그 기기에 기억(2hs_home_mode)하고 그 홈으로 간다.
 //   · sheet = 아래에서 올라오는 시트(왁뿌 홈 「메인 화면」) · 아니면 설정 화면 안 카드 줄
 import { useEffect, useState } from 'react'
 import { HOME_MODES, currentHomeKey, setHomeMode } from '../../lib/useCastleSkin'
 import s from './wax.module.css'
 
-const ICON = { castle: '🏰', wax: '🧈', classic: '🗂️' }
+const ICON = { castle: '🏰', classic: '🗂️' }
 
 export default function HomeModePicker({ onClose, sheet = false }) {
   const [cur, setCur] = useState('castle')
