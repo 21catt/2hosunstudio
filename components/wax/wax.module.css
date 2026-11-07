@@ -147,3 +147,12 @@
 .tool i { border-radius: 50%; background: #2b2433; display: inline-block; }
 .toolOn { border-color: #2b2433; box-shadow: 0 0 0 1px #2b2433 inset; }
 .ghost:disabled { opacity: 0.4; cursor: default; }
+
+/* 3D 장면 칸 · 그리기 칸 */
+.frame { display: block; width: 100%; height: clamp(320px, 52dvh, 540px); border: 0; background: transparent; }
+.padWrap { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(255,250,246,0.92); }
+.pad {
+  width: min(86%, 78%); aspect-ratio: 1; max-height: 92%; border-radius: 22px; touch-action: none; cursor: crosshair;
+  background: repeating-conic-gradient(#f6f1f8 0 25%, #fff 0 50%) 0 0 / 24px 24px; border: 2px dashed rgba(127,107,214,0.45);
+  image-rendering: auto;
+}
