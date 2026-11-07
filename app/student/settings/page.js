@@ -15,6 +15,7 @@ import GlassBg from '../../../components/GlassBg'
 import SpaceBg from '../../../components/SpaceBg'
 import { useFreshTheme, useSpaceTheme } from '../../../lib/useFreshTheme'
 import CastleHero from '../../../components/castle/CastleHero'
+import HomeModePicker from '../../../components/wax/HomeModePicker'
 import { useCastleSkin } from '../../../lib/useCastleSkin'
 import { CASTLE_SCENES, getSavedScene, saveSceneLocal, sceneUnlocked, sceneSelectable, longTermStudent } from '../../../lib/castleScenes'
 
@@ -174,6 +175,14 @@ export default function SettingsPage() {
             <div style={{ fontSize:13, fontWeight:700, color:'var(--td)' }}>로그인하면 설정이 계정에 저장돼요</div>
             <button onClick={()=>router.push('/login')} className="p-chip p-chip--sm" style={{ flexShrink:0 }}>로그인 / 가입</button>
           </div>
+        )}
+
+        {user && (
+          <>
+            <div style={{ fontSize:11, fontWeight:700, color:'var(--tmu)', marginBottom:2 }}>메인 화면</div>
+            <div style={{ fontSize:11, color:'var(--tmu)', marginBottom:10 }}>홈 단추를 누르면 나오는 화면을 골라요 🧈</div>
+            <div style={{ marginBottom:20 }}><HomeModePicker /></div>
+          </>
         )}
 
         {user && (

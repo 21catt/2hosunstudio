@@ -8,7 +8,7 @@ import { musicPlaying, startMusic, stopMusic, suspendMusic, setMusicBase } from 
 import { getSavedScene } from '../lib/castleScenes'
 
 const zone = p => /^\/(castle|student|lounge)(\/|$)/.test(p || '')
-function threeD(p) { if (p?.startsWith('/castle')) return true; try { return localStorage.getItem('2hs_home_mode') !== 'classic' } catch { return true } }
+function threeD(p) { if (p?.startsWith('/castle')) return true; try { const m = localStorage.getItem('2hs_home_mode'); return m !== 'classic' && m !== 'wax' } catch { return true } }
 
 export default function GlobalMusic() {
   const path = usePathname(), router = useRouter(), pathRef = useRef(path)
