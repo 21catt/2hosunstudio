@@ -86,7 +86,7 @@ export default function StudentNav({ active, role: roleProp }) {
       {items.map(t => {
         const on = active === t.key
         return (
-          <a key={t.key} href={castle && t.key === 'farm' ? '/castle/farm' : t.href} className={`nav-item ${on ? 'active' : ''}`}>
+          <a key={t.key} href={castle && t.key === 'farm' ? '/castle/farm' : castle && t.key === 'home' ? '/castle' : t.href} className={`nav-item ${on ? 'active' : ''}`}>
             <div style={{ position:'relative', display:'flex' }}>
               <NavIcon name={t.icon} active={on} />
               {t.key === 'lounge' && loungeNew > 0 && (

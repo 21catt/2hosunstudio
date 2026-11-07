@@ -650,6 +650,7 @@ function tapAt(info) {
 
 canvas.addEventListener('pointerdown', e => {
   au()
+  post({ scene: 'touch' }) // 홈 배경음악 — 장면을 처음 누른 순간 켜진다(브라우저는 터치가 있어야 소리를 허락)
   canvas.setPointerCapture?.(e.pointerId)
   ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, t: performance.now() })
   if (!built) return

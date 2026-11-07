@@ -86,8 +86,8 @@ export default function StudentHomePage() {
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user || null)
       // 3D 모드를 켜 둔 미리보기 대상은 홈으로 오면 3D 홈으로(오른쪽 위 단추로 언제든 끔)
-      if (migrateWaxHome()) { window.location.replace('/castle'); return } // 예전에 저장된 「왁뿌」 = 3D 홈 + 왁뿌 배경으로 옮김
-      if (castleModeOn(data.user)) { window.location.replace('/castle'); return } // 3D 모드(고른 적 없으면 켬 — 처음 오는 사람은 모두 3D 홈)
+      if (migrateWaxHome()) { router.replace('/castle'); return } // 예전에 저장된 「왁뿌」 = 3D 홈 + 왁뿌 배경으로 옮김
+      if (castleModeOn(data.user)) { router.replace('/castle'); return } // 앱 안 이동(새로고침 아님 — 배경음악이 끊기지 않게) · 3D 모드(고른 적 없으면 켬 — 처음 오는 사람은 모두 3D 홈)
       if (data.user) ensureUserRow(data.user)
       loadData(data.user?.id || null).catch(e => { console.error('load failed', e); setLoading(false) })
     })

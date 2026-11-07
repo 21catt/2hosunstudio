@@ -23,7 +23,7 @@ export default function GlobalMusic() {
       const p = pathRef.current
       if (zone(p) && threeD(p)) startMusic().catch(() => {})
     }
-    const onMsg = e => { if (e.origin === window.location.origin && e.data?.scene === 'touch') go() }   // 3D 장면(iframe) 안을 눌렀을 때
+    const onMsg = e => { if (e.origin === window.location.origin && (e.data?.scene === 'touch' || e.data?.citrus === 'touch')) go() }   // 3D 장면(iframe) 안을 눌렀을 때
     const EV = ['pointerdown', 'touchstart', 'keydown']
     EV.forEach(n => window.addEventListener(n, go, true)); window.addEventListener('message', onMsg)
     const vis = () => suspendMusic(document.hidden); document.addEventListener('visibilitychange', vis)
